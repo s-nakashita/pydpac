@@ -12,16 +12,16 @@ from analysis import var4d
 from analysis import mlef
 from analysis import enkf
 
-#logging.config.fileConfig("logging_config.ini")
-#logger = logging.getLogger()
+logging.config.fileConfig("logging_config.ini")
+logger = logging.getLogger(__name__)
 
 global nx, F, dt, dx
 
 nx = 40     # number of points
 F  = 8.0    # forcing
 dt = 0.05 / 6  # time step (=1 hour)
-#logger.info("nx={} F={} dt={:7.3e}".format(nx, F, dt))
-print("nx={} F={} dt={:7.3e}".format(nx, F, dt))
+logger.info("nx={} F={} dt={:7.3e}".format(nx, F, dt))
+#print("nx={} F={} dt={:7.3e}".format(nx, F, dt))
 
 x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
@@ -63,14 +63,16 @@ if len(sys.argv) > 6:
 if htype["perturbation"] == "var4d":
     if len(sys.argv) > 7:
         a_window = int(sys.argv[7])
-#logger.info("nmem={} t0true={} t0f={}".format(nmem, t0true, t0f))
-print("nmem={} t0f={}".format(nmem, t0f))
-#logger.info("nt={} na={}".format(nt, na))
-print("nt={} na={}".format(nt, na))
-#logger.info("htype={} sigma={}".format(htype, sigma[htype["operator"]]))
-print("htype={} sigma={}".format(htype, sigma[htype["operator"]]))
-print("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
-print("Assimilation window size = {}".format(a_window))
+logger.info("nmem={} t0f={}".format(nmem, t0f))
+#print("nmem={} t0f={}".format(nmem, t0f))
+logger.info("nt={} na={}".format(nt, na))
+#print("nt={} na={}".format(nt, na))
+logger.info("htype={} sigma={}".format(htype, sigma[htype["operator"]]))
+#print("htype={} sigma={}".format(htype, sigma[htype["operator"]]))
+logger.info("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
+#print("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
+logger.info("Assimilation window size = {}".format(a_window))
+#print("Assimilation window size = {}".format(a_window))
 
 def set_r(nx, sigma):
     rmat = np.diag(np.ones(nx) / sigma)
@@ -95,14 +97,16 @@ def init_ens(nx,nmem,t0c,t0f,dt,F,opt):
     tmp = np.zeros_like(X0c)
     maxiter = np.max(np.array(t0f))+1
     if(opt==0): # random
-        print("spin up max = {}".format(t0c))
+        logger.info("spin up max = {}".format(t0c))
+        #print("spin up max = {}".format(t0c))
         np.random.seed(514)
         X0 = np.random.normal(0.0,1.0,size=(nx,nmem)) + X0c[:, None]
         for j in range(t0c):
             X0 = step(X0, dt, F)
             X0c = step(X0c, dt, F)
     else: # lagged forecast
-        print("spin up max = {}".format(maxiter))
+        logger.info("spin up max = {}".format(maxiter))
+        #print("spin up max = {}".format(maxiter))
         X0 = np.zeros((nx,nmem))
         tmp = X0c
         for j in range(maxiter):
@@ -156,7 +160,7 @@ def forecast(u, pa, dt, F, kmax, htype, a_window=1, tlm=True):
             p = M @ pa @ MT
         elif htype["perturbation"] == "var" or htype["perturbation"] == "var4d":
             p = pa
-        pf[l] = p
+    pf[l] = p
     if a_window > 1:
         return uf, pf
     else:
@@ -166,8 +170,8 @@ def forecast(u, pa, dt, F, kmax, htype, a_window=1, tlm=True):
 def analysis(u, pf, y, rmat, rinv, sig, htype, hist=False, dh=False, \
     infl=False, loc=False, tlm=True,\
     model="l96", icycle=0):
-    #logger.info("hist={}".format(hist))
-    print("hist={}".format(hist))
+    logger.info("hist={}".format(hist))
+    #print("hist={}".format(hist))
     if htype["perturbation"] == "mlef" or htype["perturbation"] == "grad":
         ua, pa, chi2= mlef.analysis(u[:, 1:], u[:, 0], y[0], rmat, rinv, htype, \
             save_hist=hist, save_dh=dh, \
@@ -249,16 +253,17 @@ if __name__ == "__main__":
         sqrtpa = np.zeros((na, nx, nx))
 
     a_time = range(0, na, a_window)
-    print("a_time={}".format([time for time in a_time]))
+    #print("a_time={}".format([time for time in a_time]))
+    logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
     chi = np.zeros(na)
     #for i in range(na):
     for i in a_time:
         y = obs[i:i+a_window]
-        print("observation shape {}".format(y.shape))
+        logger.debug("observation shape {}".format(y.shape))
         if i in range(0,4):
-            #logger.info("first analysis")
-            print("cycle{} analysis".format(i))
+            logger.info("cycle{} analysis".format(i))
+            #print("cycle{} analysis".format(i))
             u, pa, chi2 = analysis(u, pf, y, rmat, rinv, sigma[op], htype, \
                 hist=True, dh=True, \
                 infl=linf, loc=lloc, tlm=ltlm,\
@@ -295,7 +300,7 @@ if __name__ == "__main__":
                 pf = p[-1,:]
             else:
                 u, pf = forecast(u, pa, dt, F, nt, htype,\
-                     a_window=a_window, tlm=ltlm)
+                    a_window=a_window, tlm=ltlm)
                 if htype["perturbation"] == "kf" or htype["perturbation"] == "var" \
                     or htype["perturbation"] == "var4d":
                     xf[i+1, :] = u
@@ -316,9 +321,9 @@ if __name__ == "__main__":
                 e[i] = np.sqrt(np.mean((xa[i, :, 0] - xt[i, :])**2))
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), xa)
     np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
-    #if len(sys.argv) > 7:
-    #    np.savetxt("{}_e_{}_{}_lag{}.txt".format(model, op, pt, t0off), e)
-    #    np.savetxt("{}_chi_{}_{}_lag{}.txt".format(model, op, pt,t0off), chi)
-    #else:
-    np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
-    np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
+    if len(sys.argv) > 7:
+        np.savetxt("{}_e_{}_{}_w{}.txt".format(model, op, pt, a_window), e)
+        np.savetxt("{}_chi_{}_{}_w{}.txt".format(model, op, pt, a_window), chi)
+    else:
+        np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
+        np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)

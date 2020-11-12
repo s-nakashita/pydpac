@@ -46,5 +46,5 @@ def dhdx(x, operator="linear"):
 def add_noise(x, sigma):
 # numpy 1.17.0 or later
 #    return x + rng.normal(0, mu=sigma, size=x.size)
-    np.random.seed(514)
+    #np.random.seed(514)
     return x + random.normal(0, scale=sigma, size=x.size).reshape(x.shape)
