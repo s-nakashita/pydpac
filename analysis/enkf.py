@@ -176,6 +176,7 @@ def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
             dxa[i] = dxf[i] @ sqrtPa
             xa[i] = np.full(nmem,xa_[i]) + dxa[i]
         pa = dxa@dxa.T/(nmem-1)
+        
     if save_dh:
         np.save("{}_pa_{}_{}_cycle{}.npy".format(model, op, da, icycle), pa)
 

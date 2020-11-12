@@ -133,7 +133,7 @@ def forecast(u, pa, dt, F, kmax, htype, a_window=1, tlm=True):
         uf[l] = u
         
         if htype["perturbation"] == "etkf" or htype["perturbation"] == "po" \
-            or ["perturbation"] == "letkf" or htype["perturbation"] == "srf":
+            or htype["perturbation"] == "letkf" or htype["perturbation"] == "srf":
             nmem = u.shape[1] - 1
             u[:, 0] = np.mean(u[:, 1:], axis=1)
             dxf = u[:, 1:] - u[:, 0].reshape(-1,1)
@@ -179,7 +179,7 @@ def analysis(u, pf, y, rmat, rinv, sig, htype, hist=False, dh=False, \
         u[:, 0] = ua
         u[:, 1:] = ua[:, None] + pa
     elif htype["perturbation"] == "etkf" or htype["perturbation"] == "po" \
-        or ["perturbation"] == "letkf" or htype["perturbation"] == "srf":
+        or htype["perturbation"] == "letkf" or htype["perturbation"] == "srf":
         u_ = np.mean(u[:,1:],axis=1)
         ua, ua_, pa, chi2 = enkf.analysis(u[:, 1:], u_, y[0], sig, dx, htype, \
             infl = infl, loc = loc, tlm=tlm, \
@@ -321,9 +321,9 @@ if __name__ == "__main__":
                 e[i] = np.sqrt(np.mean((xa[i, :, 0] - xt[i, :])**2))
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), xa)
     np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
-    if len(sys.argv) > 7:
-        np.savetxt("{}_e_{}_{}_w{}.txt".format(model, op, pt, a_window), e)
-        np.savetxt("{}_chi_{}_{}_w{}.txt".format(model, op, pt, a_window), chi)
-    else:
-        np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
-        np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
+    #if len(sys.argv) > 7:
+    #    np.savetxt("{}_e_{}_{}_w{}.txt".format(model, op, pt, a_window), e)
+    #    np.savetxt("{}_chi_{}_{}_w{}.txt".format(model, op, pt, a_window), chi)
+    #else:
+    np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
+    np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
