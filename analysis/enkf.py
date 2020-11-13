@@ -7,12 +7,12 @@ import scipy.optimize as spo
 from . import obs
 
 
-#logging.config.fileConfig("logging_config.ini")
-#logger = logging.getLogger(__name__)
+logging.config.fileConfig("logging_config.ini")
 
 
 def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
     save_dh=False, model="z08", icycle=0):
+    logger = logging.getLogger('anl')
     op = htype["operator"]
     da = htype["perturbation"]
     JH = obs.dhdx(xf_, op)
@@ -27,12 +27,12 @@ def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
         np.save("{}_dh_{}_{}_cycle{}.npy".format(model, op, da, icycle), dy)
         ob = y - obs.h_operator(xf_, op)
         np.save("{}_d_{}_{}_cycle{}.npy".format(model, op, da, icycle), ob)
-    print("save_dh={} cycle{}".format(save_dh, icycle))
+    logger.info("save_dh={} cycle{}".format(save_dh, icycle))
 
     alpha = 1.1 # inflation parameter
     if infl:
         if da != "letkf":
-            print("==inflation==")
+            logger.info("==inflation==")
             dxf *= alpha
     pf = dxf @ dxf.T / (nmem-1)
     #if loc: # B-localization
@@ -49,7 +49,7 @@ def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
             K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
         np.save("{}_K_{}_{}_cycle{}.npy".format(model, op, da, icycle), K)
         if loc: # K-localization
-            print("==K-localization==")
+            logger.info("==K-localization==")
             dist, l_mat = loc_mat(sigma=4.0, nx=xf_.size, ny=y.size)
             #print(l_mat)
             K = K * l_mat
@@ -86,7 +86,7 @@ def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
         else:
             K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
         if loc:
-            print("==localization==")
+            logger.info("==localization==")
             dist, l_mat = loc_mat(sigma=2.0, nx=xf_.size, ny=y.size)
             K = K * l_mat
         xa_ = xf_ + K @ d_
@@ -107,7 +107,7 @@ def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
         x0_ = np.zeros_like(xf_)
         x0_ = xf_[:]
         if loc:
-            print("==localization==")
+            logger.info("==localization==")
             dist, l_mat = loc_mat(sigma=2.0, nx=xf_.size, ny=y.size)
         for i in range(y.size):
             hrow = JH[i].reshape(1,-1)
@@ -132,6 +132,7 @@ def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
         #r0 = 2.0 * np.sqrt(10.0/3.0) * sigma
         r0 = 100.0 # all
         if loc:
+            logger.info("==localized r0==")
             r0 = 5.0
         nx = xf_.size
         dist, l_mat = loc_mat(sigma, nx, ny=y.size)
@@ -142,12 +143,12 @@ def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
         E = np.eye(nmem)
         hx = obs.h_operator(xf_, op)
         if infl:
-            print("==inflation==")
+            logger.info("==inflation==")
             E /= alpha
         for i in range(nx):
             far = np.arange(y.size)
             far = far[dist[i]>r0]
-            print("number of assimilated obs.={}".format(y.size - len(far)))
+            logger.debug("number of assimilated obs.={}".format(y.size - len(far)))
             yi = np.delete(y,far)
             if tlm:
                 Hi = np.delete(JH,far,axis=0)
@@ -160,7 +161,7 @@ def analysis(xf, xf_, y, sig, dx, htype, infl=False, loc=False, tlm=True, \
             Ri = np.delete(R,far,axis=0)
             Ri = np.delete(Ri,far,axis=1)
             if loc:
-                print("==localization==")
+                logger.info("==localization==")
                 diagR = np.diag(Ri)
                 l = np.delete(l_mat[i],far)
                 Ri = np.diag(diagR/l)

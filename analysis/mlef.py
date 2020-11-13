@@ -8,8 +8,8 @@ from . import obs
 from . import costJ
 
 
-#logging.config.fileConfig("./logging_config.ini")
-#logger = logging.getLogger(__name__)
+logging.config.fileConfig("./logging_config.ini")
+logger = logging.getLogger('anl')
 
 
 def precondition(zmat):
@@ -18,16 +18,16 @@ def precondition(zmat):
     is2r = 1 / (1 + s**2)
     tmat = v @ np.diag(np.sqrt(is2r)) @ vt
     heinv = v @ np.diag(is2r) @ vt
-#    logger.debug("tmat={}".format(tmat))
-#    logger.debug("heinv={}".format(heinv))
-#    logger.debug("s={}".format(s))
+    logger.debug("tmat={}".format(tmat))
+    logger.debug("heinv={}".format(heinv))
+    logger.debug("s={}".format(s))
     print("s={}".format(s))
     return tmat, heinv
 
 zetak = []
 def callback(xk):
     global zetak
-#    logger.debug("xk={}".format(xk))
+    logger.debug("xk={}".format(xk))
     zetak.append(xk)
 
 
@@ -38,8 +38,8 @@ def calc_j(zeta, *args):
     ob = y - obs.h_operator(x, htype["operator"])
     j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
     #j = 0.5 * ((nmem-1)*zeta.transpose() @ heinv @ zeta + nob.transpose() @ rinv @ ob)
-#    logger.debug("zeta.shape={}".format(zeta.shape))
-#    logger.debug("j={} zeta={}".format(j, zeta))
+    logger.debug("zeta.shape={}".format(zeta.shape))
+    logger.debug("j={} zeta={}".format(j, zeta))
     return j
     
 
@@ -66,9 +66,9 @@ def analysis(xf, xc, y, rmat, rinv, htype, gtol=1e-6,
     pt = htype["perturbation"]
     nmem = xf.shape[1]
     pf = xf - xc[:, None]
-#    logger.debug("norm(pf)={}".format(la.norm(pf)))
+    logger.debug("norm(pf)={}".format(la.norm(pf)))
     if pt == "grad":
-#        logger.debug("dhdx.shape={}".format(obs.dhdx(xc, op).shape))
+        logger.debug("dhdx.shape={}".format(obs.dhdx(xc, op).shape))
         dh = obs.dhdx(xc, op) @ pf
     else:
         dh = obs.h_operator(xf, op) - obs.h_operator(xc, op)[:, None]
@@ -76,20 +76,20 @@ def analysis(xf, xc, y, rmat, rinv, htype, gtol=1e-6,
         np.save("{}_dh_{}_{}_cycle{}.npy".format(model, op, pt, icycle), dh)
         ob = y - obs.h_operator(xc, op)
         np.save("{}_d_{}_{}_cycle{}.npy".format(model, op, pt, icycle), ob)
-#    logger.info("save_dh={}".format(save_dh))
+    logger.info("save_dh={}".format(save_dh))
 #    print("save_dh={}".format(save_dh))
     zmat = rmat @ dh
-#    logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+    logger.debug("cond(zmat)={}".format(la.cond(zmat)))
     tmat, heinv = precondition(zmat)
-#    logger.debug("pf.shape={}".format(pf.shape))
-#    logger.debug("tmat.shape={}".format(tmat.shape))
-#    logger.debug("heinv.shape={}".format(heinv.shape))
+    logger.debug("pf.shape={}".format(pf.shape))
+    logger.debug("tmat.shape={}".format(tmat.shape))
+    logger.debug("heinv.shape={}".format(heinv.shape))
     gmat = pf @ tmat
     #gmat = np.sqrt(nmem-1) * pf @ tmat
-#    logger.debug("gmat.shape={}".format(gmat.shape))
+    logger.debug("gmat.shape={}".format(gmat.shape))
     x0 = np.zeros(xf.shape[1])
     args_j = (xc, pf, y, tmat, gmat, heinv, rinv, htype)
-#    logger.info("save_hist={}".format(save_hist))
+    logger.info("save_hist={}".format(save_hist))
 #    print("save_hist={} cycle{}".format(save_hist, icycle))
     if save_hist:
         g = calc_grad_j(x0, *args_j)
@@ -122,12 +122,12 @@ def analysis(xf, xc, y, rmat, rinv, htype, gtol=1e-6,
                 jac=calc_grad_j, options={'gtol':gtol, 'disp':disp})
         #res = spo.minimize(calc_j, x0, args=args_j, method='BFGS', \
         #        jac=None, options={'gtol':gtol, 'disp':disp})
-#    logger.info("success={} message={}".format(res.success, res.message))
-    print("success={} message={}".format(res.success, res.message))
-#    logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
-#            res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
-    print("J={:7.3e} dJ={:7.3e} nit={}".format( \
+    logger.info("success={} message={}".format(res.success, res.message))
+#    print("success={} message={}".format(res.success, res.message))
+    logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
             res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
+#    print("J={:7.3e} dJ={:7.3e} nit={}".format( \
+#            res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
     xa = xc + gmat @ res.x
     if save_dh:
         np.save("{}_dx_{}_{}_cycle{}.npy".format(model, op, pt, icycle), gmat@res.x)
@@ -136,7 +136,7 @@ def analysis(xf, xc, y, rmat, rinv, htype, gtol=1e-6,
     else:
         dh = obs.h_operator(xa[:, None] + pf, op) - obs.h_operator(xa, op)[:, None]
     zmat = rmat @ dh
-#    logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+    logger.debug("cond(zmat)={}".format(la.cond(zmat)))
     tmat, heinv = precondition(zmat)
     d = y - obs.h_operator(xa, op)
     chi2 = chi2_test(zmat, heinv, rmat, d)
@@ -149,7 +149,7 @@ def analysis(xf, xc, y, rmat, rinv, htype, gtol=1e-6,
         np.save("{}_ua_{}_{}_cycle{}.npy".format(model, op, pt, icycle), ua)
         #print("xa={}".format(xa))
     if infl:
-        print("==inflation==")
+        logger.info("==inflation==")
         if pt == "mlef":
             pa *= 1.1
         else:

@@ -8,7 +8,7 @@ from . import obs
 from model.lorenz import step, step_t, step_adj
 
 logging.config.fileConfig("logging_config.ini")
-#logger = logging.getLogger('__name__')
+logger = logging.getLogger('anl')
 #logger = logging.getLogger().getchild("var4d")
 
 zetak = []

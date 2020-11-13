@@ -5,14 +5,15 @@ import numpy as np
 import numpy.linalg as la
 from . import obs
 
-#logging.config.fileConfig("logging_config.ini")
-#logger = logging.getLogger(__name__)
+logging.config.fileConfig("logging_config.ini")
 
 def analysis(xf, pf, y, sig, op, infl=False):
+    logger = logging.getLogger('anl')
     JH = obs.dhdx(xf, op)
     R  = np.eye(y.size)*sig*sig
 
     if infl:
+        logger.info("==inflation==")
         pf *= 1.1
     # Kalman gain
     K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
