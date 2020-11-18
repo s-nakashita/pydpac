@@ -5,11 +5,13 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from model.lorenz import step
-from analysis.obs import add_noise, h_operator
+#from analysis.obs import add_noise, h_operator
+from analysis.obs import Obs
 from analysis import kf
 from analysis import var
 from analysis import var4d
-from analysis import mlef
+#from analysis import mlef
+from analysis.mlef import Mlef
 from analysis import enkf
 
 logging.config.fileConfig("logging_config.ini")
@@ -42,6 +44,9 @@ a_window = 1 # assimilation window length
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
 htype = {"operator": "linear", "perturbation": "mlef"}
+ftype = {"mlef":"ensemble","grad":"ensemble","etkf":"ensemble",\
+    "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
+        "kf":"deterministic","var":"deterministic","var4d":"deterministic"}
 linf = False
 lloc = False
 ltlm = True
@@ -67,19 +72,18 @@ logger.info("nmem={} t0f={}".format(nmem, t0f))
 #print("nmem={} t0f={}".format(nmem, t0f))
 logger.info("nt={} na={}".format(nt, na))
 #print("nt={} na={}".format(nt, na))
-logger.info("htype={} sigma={}".format(htype, sigma[htype["operator"]]))
+logger.info("htype={} sigma={} ftype={}".format\
+    (htype, sigma[htype["operator"]], ftype[htype["perturbation"]]))
 #print("htype={} sigma={}".format(htype, sigma[htype["operator"]]))
 logger.info("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
 #print("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
 logger.info("Assimilation window size = {}".format(a_window))
 #print("Assimilation window size = {}".format(a_window))
 
-def set_r(nx, sigma):
-    rmat = np.diag(np.ones(nx) / sigma)
-    rinv = rmat.transpose() @ rmat
-    return rmat, rinv
+obs = Obs(htype["operator"], sigma[htype["operator"]])
+mlef = Mlef(htype["perturbation"], obs, 1.1)
 
-def get_true_and_obs(na, nx, sigma, op):
+def get_true_and_obs(na, nx):
     f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
         "data/data.csv")
     truth = pd.read_csv(f)
@@ -87,13 +91,19 @@ def get_true_and_obs(na, nx, sigma, op):
 
     #obs = pd.read_csv("observation_data.csv")
     #y = obs.values.reshape(na,nx)
-    y = h_operator(add_noise(xt, sigma), op)
+    y = obs.h_operator(obs.add_noise(xt))
 
     return xt, y
 
-def init_ens(nx,nmem,t0c,t0f,dt,F,opt):
+def init_ctl(nx,t0c,dt,F):
     X0c = np.ones(nx)*F
     X0c[nx//2 - 1] += 0.001*F
+    for j in range(t0c):
+        X0c = step(X0c, dt, F)
+    return X0c
+
+def init_ens(nx,nmem,t0c,t0f,dt,F,opt):
+    X0c = init_ctl(nx, t0c, dt, F)
     tmp = np.zeros_like(X0c)
     maxiter = np.max(np.array(t0f))+1
     if(opt==0): # random
@@ -103,22 +113,40 @@ def init_ens(nx,nmem,t0c,t0f,dt,F,opt):
         X0 = np.random.normal(0.0,1.0,size=(nx,nmem)) + X0c[:, None]
         for j in range(t0c):
             X0 = step(X0, dt, F)
-            X0c = step(X0c, dt, F)
     else: # lagged forecast
         logger.info("spin up max = {}".format(maxiter))
         #print("spin up max = {}".format(maxiter))
         X0 = np.zeros((nx,nmem))
-        tmp = X0c
+        tmp = np.ones(nx)*F
+        tmp[nx//2 - 1] += 0.001*F
         for j in range(maxiter):
             tmp = step(tmp, dt, F)
-            if j in t0f:
-                if t0f.index(j) == 0:
-                    X0c = tmp
-                else:
-                    X0[:,t0f.index(j)-1] = tmp
+            if j in t0f[1:]:
+                X0[:,t0f.index(j)-1] = tmp
     pf = (X0 - X0c[:, None]) @ (X0 - X0c[:, None]).T / (nmem-1)
     return X0c, X0, pf
 
+def initialize(nx, nmem, t0c, t0f, dt, F, ft, pt, opt=0):
+    if ft == "deterministic":
+        u = init_ctl(nx, t0c, dt, F)
+        xa = np.zeros((na, nx))
+        xf = np.zeros_like(xa)
+        xf[0, :] = u
+        if pt == "kf":
+            pf = np.eye(nx)*25.0
+        else:
+            pf = np.eye(nx)*0.2
+    else:
+        u = np.zeros((nx, nmem+1))
+        u[:, 0], u[:, 1:], pf = init_ens(nx, nmem, t0c, t0f, dt, F, opt)
+        xa = np.zeros((na, nx, nmem+1))
+        xf = np.zeros_like(xa)
+        xf[0, :, :] = u
+    if pt == "mlef" or pt == "grad":
+        sqrtpa = np.zeros((na, nx, nmem))
+    else:
+        sqrtpa = np.zeros((na, nx, nx))
+    return u, xa, xf, pf, sqrtpa
 
 def forecast(u, pa, dt, F, kmax, htype, a_window=1, tlm=True):
     from model.lorenz import step_t, step_adj
@@ -167,13 +195,13 @@ def forecast(u, pa, dt, F, kmax, htype, a_window=1, tlm=True):
         return u, p
 
 
-def analysis(u, pf, y, rmat, rinv, sig, htype, hist=False, dh=False, \
+def analysis(u, pf, y, sig, htype, hist=False, dh=False, \
     infl=False, loc=False, tlm=True,\
     model="l96", icycle=0):
     logger.info("hist={}".format(hist))
     #print("hist={}".format(hist))
     if htype["perturbation"] == "mlef" or htype["perturbation"] == "grad":
-        ua, pa, chi2= mlef.analysis(u[:, 1:], u[:, 0], y[0], rmat, rinv, htype, \
+        ua, pa, chi2= mlef.analysis(u, y[0], \
             save_hist=hist, save_dh=dh, \
             infl = infl, loc = loc, model=model, icycle=icycle)
         u[:, 0] = ua
@@ -220,10 +248,13 @@ def plot_initial(uc, u, ut, lag, model):
 if __name__ == "__main__":
     op = htype["operator"]
     pt = htype["perturbation"]
+    ft = ftype[pt]
     model = "l96"
-    rmat, rinv = set_r(nx, sigma[op])
-    xt, obs = get_true_and_obs(namax, nx, sigma[op], op)
+    #rmat, rinv = set_r(nx, sigma[op])
+    xt, obs = get_true_and_obs(namax, nx)
     np.save("{}_ut.npy".format(model), xt[:na,:])
+    u, xa, xf, pf, sqrtpa = initialize(nx, nmem, t0c, t0f, dt, F, ft, pt, opt=0)
+    """
     x0c, x0, p0 = init_ens(nx,nmem,t0c,t0f,dt,F,opt=0)
     if htype["perturbation"] == "kf":
         u = np.zeros(nx)
@@ -251,7 +282,7 @@ if __name__ == "__main__":
         sqrtpa = np.zeros((na, nx, nmem))
     else:
         sqrtpa = np.zeros((na, nx, nx))
-
+    """
     a_time = range(0, na, a_window)
     #print("a_time={}".format([time for time in a_time]))
     logger.info("a_time={}".format([time for time in a_time]))
@@ -264,12 +295,12 @@ if __name__ == "__main__":
         if i in range(0,4):
             logger.info("cycle{} analysis".format(i))
             #print("cycle{} analysis".format(i))
-            u, pa, chi2 = analysis(u, pf, y, rmat, rinv, sigma[op], htype, \
+            u, pa, chi2 = analysis(u, pf, y, sigma[op], htype,\
                 hist=True, dh=True, \
                 infl=linf, loc=lloc, tlm=ltlm,\
                 model=model, icycle=i)
         else:
-            u, pa, chi2 = analysis(u, pf, y, rmat, rinv, sigma[op], htype, \
+            u, pa, chi2 = analysis(u, pf, y, sigma[op], htype, \
                 infl=linf, loc=lloc, tlm=ltlm, \
                 model=model, icycle=i)
         if htype["perturbation"] == "kf" or htype["perturbation"] == "var"\
