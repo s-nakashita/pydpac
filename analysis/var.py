@@ -11,11 +11,13 @@ logger = logging.getLogger('anl')
 zetak = []
 
 class Var():
-    def __init__(self, pt, obs):
+    def __init__(self, pt, obs, model):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
+        self.model = model
+        logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
 
     def callback(self, xk):
@@ -34,8 +36,9 @@ class Var():
         d = JH @ x - ob
         return binv @ x + JH.T @ rinv @ d
 
-    def analysis(self, xf, pf, y, gtol=1e-6,\
-        disp=False, save_hist=False, model="z08", icycle=0):
+    def __call__(self, xf, pf, y, gtol=1e-6,\
+        disp=False, save_hist=False, save_dh=False,
+        infl=False, loc = False, tlm = False, icycle=0):
         global zetak
         zetak = []
         dum1, dum2, rinv = self.obs.set_r(y.size)
@@ -55,8 +58,8 @@ class Var():
                 jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
                 g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                 gh[i] = np.sqrt(g.transpose() @ g)
-            np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(model, self.op, self.pt, icycle), jh)
-            np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(model, self.op, self.pt, icycle), gh)
+            np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
+            np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
         else:
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS',\
                 jac=self.calc_grad_j,options={'gtol':gtol, 'disp':disp})
@@ -69,4 +72,4 @@ class Var():
     
         xa = xf + res.x
 
-        return xa
+        return xa, pf, 0.0

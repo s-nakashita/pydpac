@@ -18,7 +18,7 @@ class Bg():
         return l
 
 
-    def step(self, u):
+    def __call__(self, u):
         f = 0.5 * u**2
         #print("f={}".format(f))
         u1 = u + self.dt * self.l_operator(f, u)
@@ -53,5 +53,5 @@ if __name__ == "__main__":
         if k * dt % tsave == 0:
                 np.savetxt("u{:05d}.txt".format(k), u)
                 ax.plot(x, u)
-        u = burgers.step(u)
+        u = burgers(u)
     fig.savefig("u.png")

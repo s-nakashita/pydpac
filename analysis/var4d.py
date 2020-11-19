@@ -5,7 +5,7 @@ import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
 #from . import obs
-from model.lorenz import step, step_t, step_adj
+#from model.lorenz import step, step_t, step_adj
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('anl')
@@ -13,12 +13,20 @@ logger = logging.getLogger('anl')
 zetak = []
 
 class Var4d():
-    def __init__(self, pt, obs):
+    def __init__(self, pt, obs, model, step, nt, window_l):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
+        self.model = model
+        self.step = step
+        self.step_t = step.step_t
+        self.step_adj = step.step_adj
+        self.nt = nt
+        self.window_l = window_l
+        logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
+        logger.info(f"nt={self.nt} window_l={self.window_l}")
 
     def callback(self, xk):
         global zetak
@@ -48,32 +56,32 @@ class Var4d():
             djo = djo + MkT @ JH.T @ rinv @ d
         return djb + djo
 
-    def analysis(self, xf, pf, y, params, gtol=1e-6,\
-        disp=False, save_hist=False, model="z08", icycle=0):
+    def __call__(self, xf, pf, y, gtol=1e-6,\
+        disp=False, save_hist=False, save_dh=False,
+        infl=False, loc = False, tlm = False, icycle=0):
         global zetak
         zetak = []
-        h, F, nt, window_l = params
         JH = self.obs.dhdx(xf)
         dum1, dum2, rinv = self.obs.set_r(np.array(y).shape[1])
         xb = xf
         bg = [xb] # background state
-        for k in range(window_l-1):
-            for l in range(nt):
-                xb = step(xb, h, F)
+        for k in range(self.window_l-1):
+            for l in range(self.nt):
+                xb = self.step(xb)
             bg.append(xb)
         TM = [np.eye(xb.size)] # tangent linear model
         AM = [np.eye(xb.size)] # adjoint model
         E = np.eye(xb.size)
-        for k in range(window_l-1):
+        for k in range(self.window_l-1):
             xk = bg[k]
             M = np.eye(xk.size)
             MT = np.eye(xk.size)
-            for l in range(nt):
-                Mk = step_t(xk[:, None], E, h, F)
+            for l in range(self.nt):
+                Mk = self.step_t(xk[:, None], E)
                 M = Mk @ M
-                MkT = step_adj(xk[:, None], E, h, F)
+                MkT = self.step_adj(xk[:, None], E)
                 MT = MT @ MkT
-                xk = step(xk, h, F)
+                xk = self.step(xk)
             TM.append(M@TM[k])
             AM.append(AM[k]@MT)
         logger.debug("Assimilation window size = {}".format(len(TM)))
@@ -96,8 +104,8 @@ class Var4d():
                 jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
                 g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                 gh[i] = np.sqrt(g.transpose() @ g)
-            np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(model, self.op, self.pt, icycle), jh)
-            np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(model, self.op, self.pt, icycle), gh)
+            np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
+            np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
         else:
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS',\
                 jac=self.calc_grad_j,options={'gtol':gtol, 'disp':disp})
@@ -110,4 +118,4 @@ class Var4d():
     
         xa = xf + res.x
 
-        return xa
+        return xa, pf, 0.0

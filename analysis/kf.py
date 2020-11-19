@@ -10,15 +10,17 @@ logger = logging.getLogger('anl')
 
 class Kf():
 
-    def __init__(self, pt, obs, infl):
+    def __init__(self, pt, obs, infl, step):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         self.infl_parm = infl # inflation parameter
+        self.step = step
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm}")
 
-    def analysis(self, xf, pf, y, infl=False):
+    def __call__(self, xf, pf, y, save_hist=False, save_dh=False,
+        infl=False, loc = False, tlm = False, icycle=0):
         JH = self.obs.dhdx(xf)
         #R  = np.eye(y.size)*sig*sig
         R, dum1, dum2 = self.obs.set_r(y.size)
@@ -34,14 +36,14 @@ class Kf():
 
         pa = (np.eye(xf.size) - K @ JH) @ pf
 
-        return xa, pa
+        return xa, pa, 0.0
 
-    def get_linear(self, xa, h, F, Mb, step):
+    def get_linear(self, xa, Mb):
         eps = 1e-5
         nx = xa.size
         E = np.eye(nx)*eps
         M = np.zeros((nx,nx))
 
-        xf = step(xa, h, F)
-        M[:,:] = (step(xa[:,None]+E, h, F) - xf[:,None])/eps
+        xf = self.step(xa)
+        M[:,:] = (self.step(xa[:,None]+E) - xf[:,None])/eps
         return M @ Mb

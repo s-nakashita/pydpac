@@ -12,21 +12,24 @@ logger = logging.getLogger('anl')
 
 class EnKF():
 
-    def __init__(self, da, obs, infl, lsig):
+    def __init__(self, da, obs, infl, lsig, model):
         self.da = da # DA type (ETKF, PO, SRF, or LETKF)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         self.infl_parm = infl # inflation parameter
         self.lsig = lsig # localization parameter
+        self.model = model
+        logger.info(f"model : {self.model}")
         logger.info(f"pt={self.da} op={self.op} sig={self.sig} \
             infl_parm={self.infl_parm} l_sig={self.lsig}")
         
-    def analysis(self, xb, y, save_hist=False, save_dh=False, \
+    def __call__(self, xb, pf, y, save_hist=False, save_dh=False, \
         infl=False, loc=False, tlm=True, \
-        model="z08", icycle=0):
+        icycle=0):
         xf = xb[:, 1:]
-        xf_ = xb[:, 0]
+        xf_ = np.mean(xf, axis=1)
+        #xf_ = xb[:, 0]
         JH = self.obs.dhdx(xf_)
         #R = np.eye(y.size)*sig*sig
         R, dum1, dum2 = self.obs.set_r(y.size)
@@ -37,9 +40,9 @@ class EnKF():
         else:
             dy = self.obs.h_operator(xf) - self.obs.h_operator(xf_)[:, None]
         if save_dh:
-            np.save("{}_dh_{}_{}_cycle{}.npy".format(model, self.op, self.da, icycle), dy)
+            np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dy)
             ob = y - self.obs.h_operator(xf_)
-            np.save("{}_d_{}_{}_cycle{}.npy".format(model, self.op, self.da, icycle), ob)
+            np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), ob)
         logger.info("save_dh={} cycle{}".format(save_dh, icycle))
 
         alpha = self.infl_parm # inflation parameter
@@ -60,17 +63,17 @@ class EnKF():
                 K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
             else:
                 K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
-            np.save("{}_K_{}_{}_cycle{}.npy".format(model, self.op, self.da, icycle), K)
+            np.save("{}_K_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
             if loc: # K-localization
                 logger.info("==K-localization==")
                 dist, l_mat = self.loc_mat(sigma=self.lsig, nx=xf_.size, ny=y.size)
                 #print(l_mat)
                 K = K * l_mat
                 #print(K)
-                np.save("{}_Kloc_{}_{}_cycle{}.npy".format(model, self.op, self.da, icycle), K)
+                np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
             xa_ = xf_ + K @ d
             if save_dh:
-                np.save("{}_dx_{}_{}_cycle{}.npy".format(model, self.op, self.da, icycle), K@d)
+                np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K@d)
         
             TT = la.inv( np.eye(nmem) + dy.T @ la.inv(R) @ dy / (nmem-1) )
             lam, v = la.eigh(TT)
@@ -83,7 +86,7 @@ class EnKF():
                 ua = np.zeros((xa_.size,nmem+1))
                 ua[:,0] = xa_
                 ua[:,1:] = xa
-                np.save("{}_ua_{}_{}_cycle{}.npy".format(model, self.op, self.da, icycle), ua)
+                np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), ua)
                 #print("xa_={}".format(xa_))
                 #print("xa={}".format(xa))
             pa = dxa@dxa.T/(nmem-1)
@@ -192,7 +195,7 @@ class EnKF():
             pa = dxa@dxa.T/(nmem-1)
         
         if save_dh:
-            np.save("{}_pa_{}_{}_cycle{}.npy".format(model, self.op, self.da, icycle), pa)
+            np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), pa)
 
         innv = y - self.obs.h_operator(xa_)
         p = innv.size
@@ -204,7 +207,10 @@ class EnKF():
         #    Rsim = innv[:,None] @ d[None,:]
         #chi2 = np.mean(np.diag(Rsim)) / sig / sig
 
-        return xa, xa_, pa, chi2
+        u = np.zeros_like(xb)
+        u[:, 0] = xa_
+        u[:, 1:] = xa
+        return u, pa, chi2
 
     def loc_mat(self, sigma, nx, ny):
         dist = np.zeros((nx,ny))
