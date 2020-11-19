@@ -7,12 +7,16 @@ import matplotlib.pyplot as plt
 from model.lorenz import step
 #from analysis.obs import add_noise, h_operator
 from analysis.obs import Obs
-from analysis import kf
-from analysis import var
-from analysis import var4d
+#from analysis import kf
+from analysis.kf import Kf
+#from analysis import var
+from analysis.var import Var
+#from analysis import var4d
+from analysis.var4d import Var4d
 #from analysis import mlef
 from analysis.mlef import Mlef
-from analysis import enkf
+#from analysis import enkf
+from analysis.enkf import EnKF
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger(__name__)
@@ -82,6 +86,10 @@ logger.info("Assimilation window size = {}".format(a_window))
 
 obs = Obs(htype["operator"], sigma[htype["operator"]])
 mlef = Mlef(htype["perturbation"], obs, 1.1)
+enkf = EnKF(htype["perturbation"], obs, 1.1, 4.0)
+kf = Kf(htype["perturbation"], obs, 1.1)
+var = Var(htype["perturbation"], obs)
+var4d = Var4d(htype["perturbation"], obs)
 
 def get_true_and_obs(na, nx):
     f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
@@ -195,7 +203,7 @@ def forecast(u, pa, dt, F, kmax, htype, a_window=1, tlm=True):
         return u, p
 
 
-def analysis(u, pf, y, sig, htype, hist=False, dh=False, \
+def analysis(u, pf, y, hist=False, dh=False, \
     infl=False, loc=False, tlm=True,\
     model="l96", icycle=0):
     logger.info("hist={}".format(hist))
@@ -208,25 +216,26 @@ def analysis(u, pf, y, sig, htype, hist=False, dh=False, \
         u[:, 1:] = ua[:, None] + pa
     elif htype["perturbation"] == "etkf" or htype["perturbation"] == "po" \
         or htype["perturbation"] == "letkf" or htype["perturbation"] == "srf":
-        u_ = np.mean(u[:,1:],axis=1)
-        ua, ua_, pa, chi2 = enkf.analysis(u[:, 1:], u_, y[0], sig, dx, htype, \
-            infl = infl, loc = loc, tlm=tlm, \
-            save_dh=dh, model=model, icycle=icycle)
+        u_ = np.mean(u[:, 1:],axis=1)
+        u[:, 0] = u_
+        ua, ua_, pa, chi2 = enkf.analysis(u, y[0], \
+            save_hist=hist, save_dh=dh, \
+            infl = infl, loc = loc, tlm=tlm, model=model, icycle=icycle)
         u[:, 0] = ua_
         u[:, 1:] = ua
     elif htype["perturbation"] == "kf":
-        u, pa = kf.analysis(u, pf, y[0], sig, htype["operator"], \
+        u, pa = kf.analysis(u, pf, y[0], \
             infl = infl) #, loc = loc, tlm=tlm, \
             #save_dh=dh, model=model, icycle=icycle)
         chi2 = 0.0
     elif htype["perturbation"] == "var":
-        u = var.analysis(u, pf, y[0], sig, htype, \
+        u = var.analysis(u, pf, y[0], \
             save_hist=hist, model=model, icycle=icycle)
         pa = pf
         chi2 = 0.0
     elif htype["perturbation"] == "var4d":
         params = (dt, F, nt, a_window)
-        u = var4d.analysis(u, pf, y, sig, htype, params,\
+        u = var4d.analysis(u, pf, y, params,\
             save_hist=hist, model=model, icycle=icycle)
         pa = pf
         chi2 = 0.0
@@ -295,12 +304,12 @@ if __name__ == "__main__":
         if i in range(0,4):
             logger.info("cycle{} analysis".format(i))
             #print("cycle{} analysis".format(i))
-            u, pa, chi2 = analysis(u, pf, y, sigma[op], htype,\
+            u, pa, chi2 = analysis(u, pf, y, \
                 hist=True, dh=True, \
                 infl=linf, loc=lloc, tlm=ltlm,\
                 model=model, icycle=i)
         else:
-            u, pa, chi2 = analysis(u, pf, y, sigma[op], htype, \
+            u, pa, chi2 = analysis(u, pf, y, \
                 infl=linf, loc=lloc, tlm=ltlm, \
                 model=model, icycle=i)
         if htype["perturbation"] == "kf" or htype["perturbation"] == "var"\

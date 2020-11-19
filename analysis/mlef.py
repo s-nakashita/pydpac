@@ -4,7 +4,7 @@ from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
-from .obs import Obs
+#from .obs import Obs
 #from . import costJ
 zetak = []
 logging.config.fileConfig("./logging_config.ini")
@@ -15,7 +15,7 @@ class Mlef():
     def __init__(self, pt, obs, infl):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
-        self.op = obs.get_op()
+        self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         self.infl_parm = infl # inflation parameter
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm}")
