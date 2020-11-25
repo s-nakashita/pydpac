@@ -65,7 +65,7 @@ class Mlef():
         #return (nmem-1)*tmat @ zeta - dh.transpose() @ rinv @ ob
 
 
-    def __call__(self, xb, pf, y, gtol=1e-6, 
+    def __call__(self, xb, pb, y, gtol=1e-6, 
         disp=False, save_hist=False, save_dh=False,
         infl=False, loc = False, tlm = False, icycle=0):
         global zetak

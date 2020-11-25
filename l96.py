@@ -10,6 +10,7 @@ from analysis.obs import Obs
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger(__name__)
+clogger = logging.getLogger('const')
 
 global nx, F, dt, dx
 
@@ -18,8 +19,9 @@ model = "l96"
 nx = 40     # number of points
 F  = 8.0    # forcing
 dt = 0.05 / 6  # time step (=1 hour)
-logger.info("nx={} F={} dt={:7.3e}".format(nx, F, dt))
+clogger.info("nx={} F={} dt={:7.3e}".format(nx, F, dt))
 
+# forecast model forward operator
 step = L96(dt, F)
 
 x = np.linspace(-2.0, 2.0, nx)
@@ -66,20 +68,22 @@ if len(sys.argv) > 6:
 if htype["perturbation"] == "var4d":
     if len(sys.argv) > 7:
         a_window = int(sys.argv[7])
-logger.info("nmem={} t0f={}".format(nmem, t0f))
-logger.info("nt={} na={}".format(nt, na))
-logger.info("htype={} sigma={} ftype={}".format\
+clogger.info("nmem={} t0f={}".format(nmem, t0f))
+clogger.info("nt={} na={}".format(nt, na))
+clogger.info("htype={} sigma={} ftype={}".format\
     (htype, sigma[htype["operator"]], ftype[htype["perturbation"]]))
-logger.info("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
-logger.info("Assimilation window size = {}".format(a_window))
+clogger.info("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
+clogger.info("Assimilation window size = {}".format(a_window))
 
 global op, pt, ft
 op = htype["operator"]
 pt = htype["perturbation"]
 ft = ftype[pt]
 
+# observation operator
 obs = Obs(op, sigma[op])
 
+# assimilation method
 if pt == "mlef" or pt == "grad":
     from analysis.mlef import Mlef
     analysis = Mlef(pt, obs, 1.1, model)
@@ -139,8 +143,6 @@ def initialize(nx, nmem, t0c, t0f, opt=0):
     if ft == "deterministic":
         u = init_ctl(nx, t0c)
         xa = np.zeros((na, nx))
-        xf = np.zeros_like(xa)
-        xf[0, :] = u
         if pt == "kf":
             pf = np.eye(nx)*25.0
         else:
@@ -149,8 +151,8 @@ def initialize(nx, nmem, t0c, t0f, opt=0):
         u = np.zeros((nx, nmem+1))
         u[:, 0], u[:, 1:], pf = init_ens(nx, nmem, t0c, t0f, opt)
         xa = np.zeros((na, nx, nmem+1))
-        xf = np.zeros_like(xa)
-        xf[0, :, :] = u
+    xf = np.zeros_like(xa)
+    xf[0] = u
     if pt == "mlef" or pt == "grad":
         sqrtpa = np.zeros((na, nx, nmem))
     else:
@@ -195,7 +197,7 @@ def forecast(u, pa, kmax, a_window=1, tlm=True):
             p = M @ pa @ MT
         elif pt == "var" or pt == "var4d":
             p = pa
-    pf[l] = p
+        pf[l] = p
     if a_window > 1:
         return uf, pf
     else:
@@ -249,38 +251,28 @@ if __name__ == "__main__":
                     infl=linf, loc=lloc, tlm=ltlm,\
                     icycle=i)
 
-        if ft == "deterministic":
-            xa[i, :] = u
-        else:
-            xa[i, :, :] = u
-        sqrtpa[i, :, :] = pa
+        xa[i] = u
+        sqrtpa[i] = pa
         chi[i] = chi2
         if i < na-1:
             if a_window > 1:
                 uf, p = forecast(u, pa, nt, a_window=a_window)
-                if ft == "deterministic":
-                    if (i+1+a_window <= na):
-                        xa[i+1:i+1+a_window, :] = uf[:,:]
-                        xf[i+1:i+1+a_window, :] = uf[:,:]
-                    else:
-                        xa[i+1:na, :] = uf[:na-i-1,:]
-                        xf[i+1:na, :] = uf[:na-i-1,:]
+                if (i+1+a_window <= na):
+                    xa[i+1:i+1+a_window] = uf
+                    xf[i+1:i+1+a_window] = uf
                 else:
-                    xa[i+1:i+1+a_window, :, :] = uf[:, :, :]
-                    xf[i+1:i+1+a_window, :, :] = uf[:, :, :]
+                    xa[i+1:na] = uf[:na-i-1]
+                    xf[i+1:na] = uf[:na-i-1]
                 if (i+1+a_window <= na):
                     sqrtpa[i+1:i+1+a_window, :, :] = p[:, :]
                 else:
                     sqrtpa[i+1:na, :, :] = p[:na-i-1, :, :]
-                u = uf[-1,:]
-                pf = p[-1,:]
+                u = uf[-1]
+                pf = p[-1]
             else:
                 u, pf = forecast(u, pa, nt, \
                     a_window=a_window, tlm=ltlm)
-                if ft == "deterministic":
-                    xf[i+1, :] = u
-                else:
-                    xf[i+1, :, :] = u
+                xf[i+1] = u
         if a_window > 1:
             if ft == "deterministic":
                 for k in range(i, min(i+a_window,na)):
