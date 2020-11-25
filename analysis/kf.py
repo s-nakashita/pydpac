@@ -3,34 +3,47 @@ import logging
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
-from . import obs
+#from .obs import Obs
 
 logging.config.fileConfig("logging_config.ini")
+logger = logging.getLogger('anl')
 
-def analysis(xf, pf, y, sig, op, infl=False):
-    logger = logging.getLogger('anl')
-    JH = obs.dhdx(xf, op)
-    R  = np.eye(y.size)*sig*sig
+class Kf():
 
-    if infl:
-        logger.info("==inflation==")
-        pf *= 1.1
-    # Kalman gain
-    K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
+    def __init__(self, pt, obs, infl, step):
+        self.pt = pt # DA type (MLEF or GRAD)
+        self.obs = obs # observation operator
+        self.op = obs.get_op() # observation type
+        self.sig = obs.get_sig() # observation error standard deviation
+        self.infl_parm = infl # inflation parameter
+        self.step = step
+        logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm}")
 
-    ob = y - obs.h_operator(xf, op)
-    xa = xf + K @ ob
+    def __call__(self, xf, pf, y, save_hist=False, save_dh=False,
+        infl=False, loc = False, tlm = False, icycle=0):
+        JH = self.obs.dhdx(xf)
+        #R  = np.eye(y.size)*sig*sig
+        R, dum1, dum2 = self.obs.set_r(y.size)
 
-    pa = (np.eye(xf.size) - K @ JH) @ pf
+        if infl:
+            logger.info("==inflation==")
+            pf *= self.infl_parm
+        # Kalman gain
+        K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
 
-    return xa, pa
+        ob = y - self.obs.h_operator(xf)
+        xa = xf + K @ ob
 
-def get_linear(xa, h, F, Mb, step):
-    eps = 1e-5
-    nx = xa.size
-    E = np.eye(nx)*eps
-    M = np.zeros((nx,nx))
+        pa = (np.eye(xf.size) - K @ JH) @ pf
 
-    xf = step(xa, h, F)
-    M[:,:] = (step(xa[:,None]+E, h, F) - xf[:,None])/eps
-    return M @ Mb
+        return xa, pa, 0.0
+
+    def get_linear(self, xa, Mb):
+        eps = 1e-5
+        nx = xa.size
+        E = np.eye(nx)*eps
+        M = np.zeros((nx,nx))
+
+        xf = self.step(xa)
+        M[:,:] = (self.step(xa[:,None]+E) - xf[:,None])/eps
+        return M @ Mb

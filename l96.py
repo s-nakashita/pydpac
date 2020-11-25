@@ -1,27 +1,28 @@
 import sys
 import os
 import logging
+from logging.config import fileConfig
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from model.lorenz import step
-from analysis.obs import add_noise, h_operator
-from analysis import kf
-from analysis import var
-from analysis import var4d
-from analysis import mlef
-from analysis import enkf
+from model.lorenz import L96
+from analysis.obs import Obs
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger(__name__)
+clogger = logging.getLogger('const')
 
 global nx, F, dt, dx
+
+model = "l96"
 
 nx = 40     # number of points
 F  = 8.0    # forcing
 dt = 0.05 / 6  # time step (=1 hour)
-logger.info("nx={} F={} dt={:7.3e}".format(nx, F, dt))
-#print("nx={} F={} dt={:7.3e}".format(nx, F, dt))
+clogger.info("nx={} F={} dt={:7.3e}".format(nx, F, dt))
+
+# forecast model forward operator
+step = L96(dt, F)
 
 x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
@@ -42,6 +43,10 @@ a_window = 1 # assimilation window length
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
 htype = {"operator": "linear", "perturbation": "mlef"}
+ftype = {"mlef":"ensemble","grad":"ensemble","etkf":"ensemble",\
+    "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
+        "kf":"deterministic","var":"deterministic","var4d":"deterministic"}
+
 linf = False
 lloc = False
 ltlm = True
@@ -63,146 +68,140 @@ if len(sys.argv) > 6:
 if htype["perturbation"] == "var4d":
     if len(sys.argv) > 7:
         a_window = int(sys.argv[7])
-logger.info("nmem={} t0f={}".format(nmem, t0f))
-#print("nmem={} t0f={}".format(nmem, t0f))
-logger.info("nt={} na={}".format(nt, na))
-#print("nt={} na={}".format(nt, na))
-logger.info("htype={} sigma={}".format(htype, sigma[htype["operator"]]))
-#print("htype={} sigma={}".format(htype, sigma[htype["operator"]]))
-logger.info("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
-#print("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
-logger.info("Assimilation window size = {}".format(a_window))
-#print("Assimilation window size = {}".format(a_window))
+clogger.info("nmem={} t0f={}".format(nmem, t0f))
+clogger.info("nt={} na={}".format(nt, na))
+clogger.info("htype={} sigma={} ftype={}".format\
+    (htype, sigma[htype["operator"]], ftype[htype["perturbation"]]))
+clogger.info("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
+clogger.info("Assimilation window size = {}".format(a_window))
 
-def set_r(nx, sigma):
-    rmat = np.diag(np.ones(nx) / sigma)
-    rinv = rmat.transpose() @ rmat
-    return rmat, rinv
+global op, pt, ft
+op = htype["operator"]
+pt = htype["perturbation"]
+ft = ftype[pt]
 
-def get_true_and_obs(na, nx, sigma, op):
+# observation operator
+obs = Obs(op, sigma[op])
+
+# assimilation method
+if pt == "mlef" or pt == "grad":
+    from analysis.mlef import Mlef
+    analysis = Mlef(pt, obs, 1.1, model)
+elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
+    from analysis.enkf import EnKF
+    analysis = EnKF(pt, obs, 1.1, 4.0, model)
+elif pt == "kf":
+    from analysis.kf import Kf
+    analysis = Kf(pt, obs, 1.1, step)
+elif pt == "var":
+    from analysis.var import Var
+    analysis = Var(pt, obs, model)
+elif pt == "var4d":
+    from analysis.var4d import Var4d
+    analysis = Var4d(pt, obs, model, step, nt, a_window)
+    
+def get_true_and_obs(na, nx):
     f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
         "data/data.csv")
     truth = pd.read_csv(f)
     xt = truth.values.reshape(na,nx)
 
-    #obs = pd.read_csv("observation_data.csv")
-    #y = obs.values.reshape(na,nx)
-    y = h_operator(add_noise(xt, sigma), op)
+    y = obs.h_operator(obs.add_noise(xt))
 
     return xt, y
 
-def init_ens(nx,nmem,t0c,t0f,dt,F,opt):
+def init_ctl(nx,t0c):
     X0c = np.ones(nx)*F
     X0c[nx//2 - 1] += 0.001*F
+    for j in range(t0c):
+        X0c = step(X0c)
+    return X0c
+
+def init_ens(nx,nmem,t0c,t0f,opt):
+    X0c = init_ctl(nx, t0c)
     tmp = np.zeros_like(X0c)
     maxiter = np.max(np.array(t0f))+1
     if(opt==0): # random
         logger.info("spin up max = {}".format(t0c))
-        #print("spin up max = {}".format(t0c))
         np.random.seed(514)
         X0 = np.random.normal(0.0,1.0,size=(nx,nmem)) + X0c[:, None]
         for j in range(t0c):
-            X0 = step(X0, dt, F)
-            X0c = step(X0c, dt, F)
+            X0 = step(X0)
     else: # lagged forecast
         logger.info("spin up max = {}".format(maxiter))
-        #print("spin up max = {}".format(maxiter))
         X0 = np.zeros((nx,nmem))
-        tmp = X0c
+        tmp = np.ones(nx)*F
+        tmp[nx//2 - 1] += 0.001*F
         for j in range(maxiter):
-            tmp = step(tmp, dt, F)
-            if j in t0f:
-                if t0f.index(j) == 0:
-                    X0c = tmp
-                else:
-                    X0[:,t0f.index(j)-1] = tmp
+            tmp = step(tmp)
+            if j in t0f[1:]:
+                X0[:,t0f.index(j)-1] = tmp
     pf = (X0 - X0c[:, None]) @ (X0 - X0c[:, None]).T / (nmem-1)
     return X0c, X0, pf
 
+def initialize(nx, nmem, t0c, t0f, opt=0):
+    if ft == "deterministic":
+        u = init_ctl(nx, t0c)
+        xa = np.zeros((na, nx))
+        if pt == "kf":
+            pf = np.eye(nx)*25.0
+        else:
+            pf = np.eye(nx)*0.2
+    else:
+        u = np.zeros((nx, nmem+1))
+        u[:, 0], u[:, 1:], pf = init_ens(nx, nmem, t0c, t0f, opt)
+        xa = np.zeros((na, nx, nmem+1))
+    xf = np.zeros_like(xa)
+    xf[0] = u
+    if pt == "mlef" or pt == "grad":
+        sqrtpa = np.zeros((na, nx, nmem))
+    else:
+        sqrtpa = np.zeros((na, nx, nx))
+    return u, xa, xf, pf, sqrtpa
 
-def forecast(u, pa, dt, F, kmax, htype, a_window=1, tlm=True):
-    from model.lorenz import step_t, step_adj
-    if len(u.shape) > 1:
+def forecast(u, pa, kmax, a_window=1, tlm=True):
+    if ft == "ensemble":
         uf = np.zeros((a_window, u.shape[0], u.shape[1]))
     else:
         uf = np.zeros((a_window, u.size))
     pf = np.zeros((a_window, pa.shape[0], pa.shape[0]))
     for l in range(a_window):
         for k in range(kmax):
-            u = step(u, dt, F)
+            u = step(u)
         uf[l] = u
         
-        if htype["perturbation"] == "etkf" or htype["perturbation"] == "po" \
-            or htype["perturbation"] == "letkf" or htype["perturbation"] == "srf":
+        if pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
             nmem = u.shape[1] - 1
             u[:, 0] = np.mean(u[:, 1:], axis=1)
             dxf = u[:, 1:] - u[:, 0].reshape(-1,1)
             p = dxf @ dxf.T / (nmem-1)
-        elif htype["perturbation"] == "mlef" or htype["perturbation"] == "grad":
+        elif pt == "mlef" or pt == "grad":
             spf = u[:, 1:] - u[:, 0].reshape(-1,1)
             p = spf @ spf.T
-        elif htype["perturbation"] == "kf":
+        elif pt == "kf":
             M = np.eye(u.shape[0])
             MT = np.eye(u.shape[0])
             if tlm:
                 E = np.eye(u.shape[0])
                 uk = u
                 for k in range(kmax):
-                    Mk = step_t(uk[:,None], E, dt, F)
+                    Mk = step.step_t(uk[:,None], E)
                     M = Mk @ M
-                    MkT = step_adj(uk[:,None], E, dt, F)
+                    MkT = step.step_adj(uk[:,None], E)
                     MT = MT @ MkT
-                    uk = step(uk, dt, F)
+                    uk = step(uk)
             else:
                 for k in range(kmax):
-                    M = kf.get_linear(u, dt, F, M, step)
+                    M = analysis.get_linear(u, M)
                 MT = M.T
             p = M @ pa @ MT
-        elif htype["perturbation"] == "var" or htype["perturbation"] == "var4d":
+        elif pt == "var" or pt == "var4d":
             p = pa
-    pf[l] = p
+        pf[l] = p
     if a_window > 1:
         return uf, pf
     else:
         return u, p
-
-
-def analysis(u, pf, y, rmat, rinv, sig, htype, hist=False, dh=False, \
-    infl=False, loc=False, tlm=True,\
-    model="l96", icycle=0):
-    logger.info("hist={}".format(hist))
-    #print("hist={}".format(hist))
-    if htype["perturbation"] == "mlef" or htype["perturbation"] == "grad":
-        ua, pa, chi2= mlef.analysis(u[:, 1:], u[:, 0], y[0], rmat, rinv, htype, \
-            save_hist=hist, save_dh=dh, \
-            infl = infl, loc = loc, model=model, icycle=icycle)
-        u[:, 0] = ua
-        u[:, 1:] = ua[:, None] + pa
-    elif htype["perturbation"] == "etkf" or htype["perturbation"] == "po" \
-        or htype["perturbation"] == "letkf" or htype["perturbation"] == "srf":
-        u_ = np.mean(u[:,1:],axis=1)
-        ua, ua_, pa, chi2 = enkf.analysis(u[:, 1:], u_, y[0], sig, dx, htype, \
-            infl = infl, loc = loc, tlm=tlm, \
-            save_dh=dh, model=model, icycle=icycle)
-        u[:, 0] = ua_
-        u[:, 1:] = ua
-    elif htype["perturbation"] == "kf":
-        u, pa = kf.analysis(u, pf, y[0], sig, htype["operator"], \
-            infl = infl) #, loc = loc, tlm=tlm, \
-            #save_dh=dh, model=model, icycle=icycle)
-        chi2 = 0.0
-    elif htype["perturbation"] == "var":
-        u = var.analysis(u, pf, y[0], sig, htype, \
-            save_hist=hist, model=model, icycle=icycle)
-        pa = pf
-        chi2 = 0.0
-    elif htype["perturbation"] == "var4d":
-        params = (dt, F, nt, a_window)
-        u = var4d.analysis(u, pf, y, sig, htype, params,\
-            save_hist=hist, model=model, icycle=icycle)
-        pa = pf
-        chi2 = 0.0
-    return u, pa, chi2
 
 def plot_initial(uc, u, ut, lag, model):
     fig, ax = plt.subplots()
@@ -218,104 +217,71 @@ def plot_initial(uc, u, ut, lag, model):
     fig.savefig("{}_initial_lag{}.png".format(model, lag))
 
 if __name__ == "__main__":
-    op = htype["operator"]
-    pt = htype["perturbation"]
-    model = "l96"
-    rmat, rinv = set_r(nx, sigma[op])
-    xt, obs = get_true_and_obs(namax, nx, sigma[op], op)
+    logger.info("==initialize==")
+    xt, obs = get_true_and_obs(namax, nx)
     np.save("{}_ut.npy".format(model), xt[:na,:])
-    x0c, x0, p0 = init_ens(nx,nmem,t0c,t0f,dt,F,opt=0)
-    if htype["perturbation"] == "kf":
-        u = np.zeros(nx)
-        u = x0c
-        pf = np.eye(nx)*25.0
-        xa = np.zeros((na, nx))
-        xf = np.zeros_like(xa)
-        xf[0, :] = u
-    elif htype["perturbation"] == "var" or htype["perturbation"] == "var4d":
-        u = np.zeros(nx)
-        u = x0c
-        pf = np.eye(nx)*0.2
-        xa = np.zeros((na, nx))
-        xf = np.zeros_like(xa)
-        xf[0, :] = u
-    else:
-        u = np.zeros((nx, nmem+1))
-        u[:, 0] = x0c
-        u[:, 1:] = x0
-        pf = p0
-        xa = np.zeros((na, nx, nmem+1))
-        xf = np.zeros_like(xa)
-        xf[0, :, :] = u
-    if pt == "mlef" or pt == "grad":
-        sqrtpa = np.zeros((na, nx, nmem))
-    else:
-        sqrtpa = np.zeros((na, nx, nx))
-
+    u, xa, xf, pf, sqrtpa = initialize(nx, nmem, t0c, t0f, opt=0)
+    
     a_time = range(0, na, a_window)
-    #print("a_time={}".format([time for time in a_time]))
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
     chi = np.zeros(na)
-    #for i in range(na):
     for i in a_time:
         y = obs[i:i+a_window]
         logger.debug("observation shape {}".format(y.shape))
         if i in range(0,4):
             logger.info("cycle{} analysis".format(i))
-            #print("cycle{} analysis".format(i))
-            u, pa, chi2 = analysis(u, pf, y, rmat, rinv, sigma[op], htype, \
-                hist=True, dh=True, \
-                infl=linf, loc=lloc, tlm=ltlm,\
-                model=model, icycle=i)
+            if a_window > 1:
+                u, pa, chi2 = analysis(u, pf, y, \
+                    save_hist=True, save_dh=True, \
+                    infl=linf, loc=lloc, tlm=ltlm,\
+                    icycle=i)
+            else:
+                u, pa, chi2 = analysis(u, pf, y[0], \
+                    save_hist=True, save_dh=True, \
+                    infl=linf, loc=lloc, tlm=ltlm,\
+                    icycle=i)
         else:
-            u, pa, chi2 = analysis(u, pf, y, rmat, rinv, sigma[op], htype, \
-                infl=linf, loc=lloc, tlm=ltlm, \
-                model=model, icycle=i)
-        if htype["perturbation"] == "kf" or htype["perturbation"] == "var"\
-            or htype["perturbation"] == "var4d":
-            xa[i, :] = u
-        else:
-            xa[i, :, :] = u
-        sqrtpa[i, :, :] = pa
+            if a_window > 1:
+                u, pa, chi2 = analysis(u, pf, y, \
+                    infl=linf, loc=lloc, tlm=ltlm,\
+                    icycle=i)
+            else:
+                u, pa, chi2 = analysis(u, pf, y[0], \
+                    infl=linf, loc=lloc, tlm=ltlm,\
+                    icycle=i)
+
+        xa[i] = u
+        sqrtpa[i] = pa
         chi[i] = chi2
         if i < na-1:
             if a_window > 1:
-                uf, p = forecast(u, pa, dt, F, nt, htype, a_window=a_window)
-                if htype["perturbation"] == "var4d":
-                    if (i+1+a_window <= na):
-                        xa[i+1:i+1+a_window, :] = uf[:,:]
-                        xf[i+1:i+1+a_window, :] = uf[:,:]
-                    else:
-                        xa[i+1:na, :] = uf[:na-i-1,:]
-                        xf[i+1:na, :] = uf[:na-i-1,:]
+                uf, p = forecast(u, pa, nt, a_window=a_window)
+                if (i+1+a_window <= na):
+                    xa[i+1:i+1+a_window] = uf
+                    xf[i+1:i+1+a_window] = uf
                 else:
-                    xa[i+1:i+1+a_window, :, :] = uf[:, :, :]
-                    xf[i+1:i+1+a_window, :, :] = uf[:, :, :]
+                    xa[i+1:na] = uf[:na-i-1]
+                    xf[i+1:na] = uf[:na-i-1]
                 if (i+1+a_window <= na):
                     sqrtpa[i+1:i+1+a_window, :, :] = p[:, :]
                 else:
                     sqrtpa[i+1:na, :, :] = p[:na-i-1, :, :]
-                u = uf[-1,:]
-                pf = p[-1,:]
+                u = uf[-1]
+                pf = p[-1]
             else:
-                u, pf = forecast(u, pa, dt, F, nt, htype,\
+                u, pf = forecast(u, pa, nt, \
                     a_window=a_window, tlm=ltlm)
-                if htype["perturbation"] == "kf" or htype["perturbation"] == "var" \
-                    or htype["perturbation"] == "var4d":
-                    xf[i+1, :] = u
-                else:
-                    xf[i+1, :, :] = u
+                xf[i+1] = u
         if a_window > 1:
-            if htype["perturbation"] == "var4d":
+            if ft == "deterministic":
                 for k in range(i, min(i+a_window,na)):
                     e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
             else:
                 for k in range(i, min(i+a_window,na)):
                     e[k] = np.sqrt(np.mean((xa[k, :, 0] - xt[k, :])**2))
         else:
-            if htype["perturbation"] == "kf" or htype["perturbation"] == "var" \
-                or htype["perturbation"] == "var4d":
+            if ft=="deterministic":
                 e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
             else:
                 e[i] = np.sqrt(np.mean((xa[i, :, 0] - xt[i, :])**2))

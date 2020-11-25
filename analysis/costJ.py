@@ -2,12 +2,11 @@ import sys
 import logging
 import numpy as np
 import numpy.linalg as la
-from .obs import add_noise, h_operator
+from .obs import Obs
 
 
-#logging.config.fileConfig("logging_config.ini")
-#logger = logging.getLogger()
-
+logging.config.fileConfig("logging_config.ini")
+logger = logging.getLogger("anl")
 
 def set_r(nx, sigma):
     rmat = np.diag(np.ones(nx) / sigma)
@@ -37,8 +36,8 @@ def gen_true(x, dt, nu, t0true, t0f, nt, na):
     return ut, u0
 
 
-def gen_obs(u, sigma, op):
-    y = h_operator(add_noise(u, sigma), op)
+def gen_obs(u, sigma, op, obs):
+    y = obs.h_operator(obs.add_noise(u), op)
     return y
 
 def precondition(zmat):
@@ -54,7 +53,7 @@ def precondition(zmat):
     return tmat, heinv
 
 def calc_jb(zeta, *args):
-    xc, pf, y, tmat, gmat, heinv, rinv, htype = args
+    xc, pf, y, tmat, gmat, heinv, rinv, obs = args
     jb = 0.5 * zeta.transpose() @ heinv @ zeta
     #j = 0.5 * ((nmem-1)*zeta.transpose() @ heinv @ zeta + nob.transpose() @ rinv @ ob)
 #    logger.debug("zeta.shape={}".format(zeta.shape))
@@ -62,10 +61,10 @@ def calc_jb(zeta, *args):
     return jb
 
 def calc_jo(zeta, *args):
-    xc, pf, y, tmat, gmat, heinv, rinv, htype = args
+    xc, pf, y, tmat, gmat, heinv, rinv, obs = args
     nmem = zeta.size
     x = xc + gmat @ zeta
-    ob = y - h_operator(x, htype["operator"])
+    ob = y - obs.h_operator(x)
     jo = 0.5 * ob.transpose() @ rinv @ ob
     #j = 0.5 * ((nmem-1)*zeta.transpose() @ heinv @ zeta + nob.transpose() @ rinv @ ob)
 #    logger.debug("zeta.shape={}".format(zeta.shape))
@@ -124,17 +123,18 @@ if __name__ == "__main__":
 
     op = htype["operator"]
     pt = htype["perturbation"]
+    obs = Obs(op, sigma[op])
     rmat, rinv = set_r(nx, sigma[op])
     ut, u = gen_true(x, dt, nu, t0true, t0f, nt, na)
     xc = u[:,0]
     xf = u[:,1:]
     pf = xf - xc[:,None]
-    dh = h_operator(xf, op) - h_operator(xc, op)[:,None]
+    dh = obs.h_operator(xf) - obs.h_operator(xc)[:,None]
     zmat = rmat @ dh
     tmat, heinv = precondition(zmat)
     gmat = pf @ tmat
-    y = gen_obs(ut[0,], sigma[op], op)
+    y = gen_obs(ut[0,], sigma[op], op, obs)
 
-    args_j = (xc, pf, y, tmat, gmat, heinv, rinv, htype)
+    args_j = (xc, pf, y, tmat, gmat, heinv, rinv, obs)
     jval_b, jval_o = cost_j(1000, xf.shape[1], *args_j)
     np.save("cJ_{}_{}.npy".format(op, pt), jval_b)
