@@ -64,11 +64,8 @@ class Var():
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS',\
                 jac=self.calc_grad_j,options={'gtol':gtol, 'disp':disp})
         logger.info("success={} message={}".format(res.success, res.message))
-#    print("success={} message={}".format(res.success, res.message))
         logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
             res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
-#    print("J={:7.3e} dJ={:7.3e} nit={}".format( \
-#            res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
     
         xa = xf + res.x
 

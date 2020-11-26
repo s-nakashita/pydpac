@@ -37,6 +37,7 @@ class L96_func():
         logger.info("inflation={} localization={} TLM={}".format(self.linf,self.lloc,self.ltlm))
         logger.info("Assimilation window size = {}".format(self.a_window))
     
+    # get truth and make observation
     def get_true_and_obs(self):
         f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
             "data/data.csv")
@@ -47,6 +48,7 @@ class L96_func():
 
         return xt, y
 
+    # initialize control 
     def init_ctl(self):
         X0c = np.ones(self.nx)*self.F
         X0c[self.nx//2 - 1] += 0.001*self.F
@@ -54,6 +56,7 @@ class L96_func():
             X0c = self.step(X0c)
         return X0c
 
+    # initialize ensemble member
     def init_ens(self,opt):
         X0c = self.init_ctl()
         tmp = np.zeros_like(X0c)
@@ -76,6 +79,7 @@ class L96_func():
         pf = (X0 - X0c[:, None]) @ (X0 - X0c[:, None]).T / (self.nmem-1)
         return X0c, X0, pf
 
+    # initialize variables
     def initialize(self, opt=0):
         if self.ft == "deterministic":
             u = self.init_ctl()
@@ -96,6 +100,7 @@ class L96_func():
             sqrtpa = np.zeros((self.na, self.nx, self.nx))
         return u, xa, xf, pf, sqrtpa
 
+    # forecast
     def forecast(self, u, pa, tlm=True):
         if self.ft == "ensemble":
             uf = np.zeros((self.a_window, u.shape[0], u.shape[1]))
@@ -139,6 +144,7 @@ class L96_func():
         else:
             return u, p
 
+    # (not used) plot initial state
     def plot_initial(self, uc, u, ut, lag, model):
         fig, ax = plt.subplots()
         x = np.arange(ut.size) + 1

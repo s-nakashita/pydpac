@@ -24,7 +24,6 @@ class Bg():
 
     def __call__(self, u):
         f = 0.5 * u**2
-        #print("f={}".format(f))
         u1 = u + self.dt * self.l_operator(f, u)
         return 0.5 * (u + u1 + self.dt * self.l_operator(f, u1))
 

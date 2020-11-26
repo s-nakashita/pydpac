@@ -75,6 +75,7 @@ class Z08_func():
             pf = np.eye(self.nx) * 0.02
         return ut, u0, pf
 
+    # initialize variables
     def init_hist(self, u0):
         if self.ft == "ensemble":
             ua = np.zeros((self.na, self.nx, self.nmem+1))
@@ -88,10 +89,12 @@ class Z08_func():
             sqrtpa = np.zeros((self.na, self.nx, self.nx))
         return ua, uf, sqrtpa
 
+    # make observation
     def gen_obs(self, u):
         y = self.obs.h_operator(self.obs.add_noise(u))
         return y
 
+    # (if observation file exist) get observation
     def get_obs(self, f):
         y = np.load(f)
         return y
@@ -129,7 +132,7 @@ class Z08_func():
             pf = pa
         return u, pf
 
-
+    # plot initial state (for ensemble)
     def plot_initial(self, u, ut, model):
         fig, ax = plt.subplots()
         x = np.arange(ut.size) + 1
@@ -143,4 +146,4 @@ class Z08_func():
         ax.set_xticks(x[::10])
         ax.set_xticks(x[::5], minor=True)
         ax.legend()
-        fig.savefig("{}_initial_lag{}.pdf".format(model, self.t0off))
+        fig.savefig("{}_initial_lag{}.png".format(model, self.t0off))

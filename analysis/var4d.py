@@ -4,12 +4,9 @@ from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
-#from . import obs
-#from model.lorenz import step, step_t, step_adj
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('anl')
-#logger = logging.getLogger().getchild("var4d")
 zetak = []
 
 class Var4d():
@@ -47,7 +44,6 @@ class Var4d():
         binv, JH, rinv, ob, TM, AM = args
         window_l = len(TM)
         djb = binv @ x
-        #R_inv = np.eye(np.array(ob).shape[1])/sig/sig
         djo = 0
         for k in range(window_l):
             Mk = TM[k]
@@ -93,7 +89,6 @@ class Var4d():
         binv = la.inv(pf)
 
         args_j = (binv, JH, rinv, ob, TM, AM)
-    #print(f"save_hist={save_hist} cycle={icycle}")
         logger.info(f"save_hist={save_hist} cycle={icycle}")
         if save_hist:
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS',\
@@ -110,11 +105,8 @@ class Var4d():
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS',\
                 jac=self.calc_grad_j,options={'gtol':gtol, 'disp':disp})
         logger.info("success={} message={}".format(res.success, res.message))
-    #    print("success={} message={}".format(res.success, res.message))
         logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
                 res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
-#    print("J={:7.3e} dJ={:7.3e} nit={}".format( \
-#            res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
     
         xa = xf + res.x
 

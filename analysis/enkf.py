@@ -4,8 +4,6 @@ from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
-#from .obs import Obs
-
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('anl')
@@ -29,9 +27,7 @@ class EnKF():
         icycle=0):
         xf = xb[:, 1:]
         xf_ = np.mean(xf, axis=1)
-        #xf_ = xb[:, 0]
         JH = self.obs.dhdx(xf_)
-        #R = np.eye(y.size)*sig*sig
         R, dum1, dum2 = self.obs.set_r(y.size)
         nmem = xf.shape[1]
         dxf = xf - xf_[:,None]
@@ -57,7 +53,6 @@ class EnKF():
         #        dist, l_mat = loc_mat(sigma=2.0, nx=xf_.size, ny=xf_.size)
         #        pf = pf * l_mat
         d = y - self.obs.h_operator(xf_)
-    #    logger.debug("norm(pf)={}".format(la.norm(pf)))
         if self.da == "etkf":
             if tlm:
                 K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
@@ -67,9 +62,7 @@ class EnKF():
             if loc: # K-localization
                 logger.info("==K-localization==")
                 dist, l_mat = self.loc_mat(sigma=self.lsig, nx=xf_.size, ny=y.size)
-                #print(l_mat)
                 K = K * l_mat
-                #print(K)
                 np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
             xa_ = xf_ + K @ d
             if save_dh:
@@ -87,8 +80,6 @@ class EnKF():
                 ua[:,0] = xa_
                 ua[:,1:] = xa
                 np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), ua)
-                #print("xa_={}".format(xa_))
-                #print("xa={}".format(xa))
             pa = dxa@dxa.T/(nmem-1)
 
         elif self.da=="po":
@@ -143,9 +134,7 @@ class EnKF():
             xa_ = np.squeeze(xa_)
 
         elif self.da=="letkf":
-            #r0 = dx * 10.0 # local observation max distance
             sigma = 7.5
-            #r0 = 2.0 * np.sqrt(10.0/3.0) * sigma
             r0 = 100.0 # all
             if loc:
                 logger.info("==localized r0==")
@@ -201,12 +190,7 @@ class EnKF():
         p = innv.size
         G = JH @ pf @ JH.T + R 
         chi2 = innv.T @ la.inv(G) @ innv / p
-        #if len(innv.shape) > 1:
-        #    Rsim = innv.reshape(innv.size,1) @ d[None,:]
-        #else:
-        #    Rsim = innv[:,None] @ d[None,:]
-        #chi2 = np.mean(np.diag(Rsim)) / sig / sig
-
+        
         u = np.zeros_like(xb)
         u[:, 0] = xa_
         u[:, 1:] = xa

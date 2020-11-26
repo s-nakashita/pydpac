@@ -96,119 +96,6 @@ params = {"step":step, "obs":obs, "analysis":analysis, \
     "linf":linf, "lloc":lloc, "ltlm":ltlm}
 func = Z08_func(params)
 
-"""
-# generate truth and initialize
-def gen_true(x, t0true, t0f, nt, na):
-    nx = x.size
-    nmem = len(t0f)
-    t0c = t0f[0]
-    u = np.zeros_like(x)
-    u[0] = 1
-    ut = np.zeros((na, nx))
-    if ft == "deterministic":
-        u0 = np.zeros(nx)
-    else:
-        u0 = np.zeros((nx, nmem))
-    for k in range(t0true):
-        u = step(u)
-        if ft == "ensemble":
-            if k+1 in t0f:
-                u0[:, t0f.index(k+1)] = u
-    ut[0, :] = u
-    for i in range(na-1):
-        for k in range(nt):
-            u = step(u)
-            #j = (i + 1) * nt + k
-            j = t0true + i * nt + k
-            if ft == "deterministic":
-                if j == t0c:
-                    u0 = u
-            if ft == "ensemble":
-                if j in t0f:
-                    u0[:, t0f.index(j)] = u
-        ut[i+1, :] = u
-    if pt == "etkf" or pt == "po" \
-        or pt == "letkf" or pt == "srf":
-        dxf = u0[:, 1:] - u0[:, 0].reshape(-1,1) / np.sqrt(nmem-1)
-        pf = dxf @ dxf.T
-    elif pt == "mlef" or pt == "grad":
-        dxf = u0[:, 1:] - u0[:, 0].reshape(-1,1)
-        pf = dxf @ dxf.T
-    else:
-        pf = np.eye(nx) * 0.02
-    return ut, u0, pf
-
-def init_hist(u0, nx, nmem):
-    if ft == "ensemble":
-        ua = np.zeros((na, nx, nmem+1))
-    else:
-        ua = np.zeros((na, nx))
-    uf = np.zeros_like(ua)
-    uf[0] = u0
-    if pt == "mlef" or pt == "grad":
-        sqrtpa = np.zeros((na, nx, nmem))
-    else:
-        sqrtpa = np.zeros((na, nx, nx))
-    return ua, uf, sqrtpa
-
-def gen_obs(u):
-    y = obs.h_operator(obs.add_noise(u))
-    return y
-
-def get_obs(f):
-    y = np.load(f)
-    return y
-
-
-def forecast(u, pa, kmax, tlm=False):
-    for k in range(kmax):
-        u = step(u)
-    if pt == "etkf" or pt == "po" \
-        or pt == "letkf" or pt == "srf":
-        nmem = u.shape[1] - 1 
-        u[:, 0] = np.mean(u[:, 1:], axis=1)
-        dxf = u[:, 1:] - u[:, 0].reshape(-1,1) / np.sqrt(nmem-1)
-        pf = dxf @ dxf.T
-    elif pt == "mlef" or pt == "grad":
-        dxf = u[:, 1:] - u[:, 0].reshape(-1,1)
-        pf = dxf @ dxf.T
-    elif pt == "kf":
-        M = np.eye(u.shape[0])
-        MT = np.eye(u.shape[0])
-        if tlm:
-            E = np.eye(u.shape[0])
-            uk = u
-            for k in range(kmax):
-                Mk = step.step_t(uk[:,None], E)
-                M = Mk @ M
-                MkT = step.step_adj(uk[:,None], E)
-                MT = MT @ MkT
-                uk = step(uk)
-        else:
-            for k in range(kmax):
-                M = analysis.get_linear(u, M)
-            MT = M.T
-        pf = M @ pa @ MT
-    else:
-        pf = pa
-    return u, pf
-
-
-def plot_initial(u, ut, lag, model):
-    fig, ax = plt.subplots()
-    x = np.arange(ut.size) + 1
-    ax.plot(x, ut, label="true")
-    for i in range(u.shape[1]):
-        if i==0:
-            ax.plot(x, u[:,i], label="control")
-        else:
-            ax.plot(x, u[:,i], linestyle="--", color="tab:green", label="mem{}".format(i))
-    ax.set(xlabel="points", ylabel="u", title="initial lag={}".format(lag))
-    ax.set_xticks(x[::10])
-    ax.set_xticks(x[::5], minor=True)
-    ax.legend()
-    fig.savefig("{}_initial_lag{}.pdf".format(model, lag))
-"""
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     ut, u, pf = func.gen_true(x)
@@ -261,12 +148,12 @@ if __name__ == "__main__":
             e[i+1] = np.sqrt(np.mean((ua[i, :, 0] - ut[i, :])**2))
         else:
             e[i+1] = np.sqrt(np.mean((ua[i, :] - ut[i, :])**2))
-    #np.save("{}_ut.npy".format(model), ut)
-    #np.save("{}_uf_{}_{}.npy".format(model, op, pt), uf)
-    #np.save("{}_ua_{}_{}.npy".format(model, op, pt), ua)
-    ##np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
-    #np.savetxt("{}_dpa_{}_{}.txt".format(model, op, pt), dpa)
-    #np.savetxt("{}_ndpa_{}_{}.txt".format(model, op, pt), ndpa)
+    np.save("{}_ut.npy".format(model), ut)
+    np.save("{}_uf_{}_{}.npy".format(model, op, pt), uf)
+    np.save("{}_ua_{}_{}.npy".format(model, op, pt), ua)
+    np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
+    np.savetxt("{}_dpa_{}_{}.txt".format(model, op, pt), dpa)
+    np.savetxt("{}_ndpa_{}_{}.txt".format(model, op, pt), ndpa)
     #if len(sys.argv) > 6:
     #    oberr = str(int(obs_s*1e4)).zfill(4)
     #    np.savetxt("{}_e_{}_{}_oberr{}.txt".format(model, op, pt, oberr), e)

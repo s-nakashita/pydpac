@@ -52,8 +52,7 @@ class L96():
             (np.roll(x, -2, axis=0) - np.roll(x, 1, axis=0)) * np.roll(dx, -1, axis=0) - \
             np.roll(x, -1, axis=0) * np.roll(dx, -2, axis=0) - dx
         return l
-# np.roll(X0,2,axis=0)*np.roll(dXb,1,axis=0) + (np.roll(X0,-2,axis=0) - np.roll(X0,1,axis=0))*np.roll(dXb,-1,axis=0) - 
-# np.roll(X0,-1,axis=0)*np.roll(dXb,-2,axis=0) - dXb
+
     def step_adj(self, x, dx):
         k1 = self.dt * self.l96(x)
         x2 = x + 0.5*k1
@@ -96,8 +95,6 @@ if __name__ == "__main__":
 
     for k in range(nt):
         x0 = l96(x0)
-        #x0 = l96.step(x0)
-        #x0 = x
     print(x0)
 
     a = 1e-5
@@ -105,8 +102,6 @@ if __name__ == "__main__":
     dx = np.random.randn(x0.size)
     adx = l96(x0+a*dx)
     ax = l96(x0)
-    #adx = l96.step(x0+a*dx)
-    #ax = l96.step(x0)
     jax = l96.step_t(x0, dx)
     d = np.sqrt(np.sum((adx-ax)**2)) / a / (np.sqrt(np.sum(jax**2)))
     print("TLM check diff.={}".format(d-1))

@@ -3,7 +3,6 @@ import logging
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
-#from .obs import Obs
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('anl')
@@ -22,7 +21,6 @@ class Kf():
     def __call__(self, xf, pf, y, save_hist=False, save_dh=False,
         infl=False, loc = False, tlm = False, icycle=0):
         JH = self.obs.dhdx(xf)
-        #R  = np.eye(y.size)*sig*sig
         R, dum1, dum2 = self.obs.set_r(y.size)
 
         if infl:

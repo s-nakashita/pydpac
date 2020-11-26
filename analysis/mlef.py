@@ -4,8 +4,7 @@ from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
-#from .obs import Obs
-#from . import costJ
+
 zetak = []
 logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
@@ -21,7 +20,6 @@ class Mlef():
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm}")
-        #obs = Obs(op, sig)
 
     def precondition(self,zmat):
         u, s, vt = la.svd(zmat)
@@ -45,7 +43,6 @@ class Mlef():
         x = xc + gmat @ zeta
         ob = y - self.obs.h_operator(x)
         j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
-        #j = 0.5 * ((nmem-1)*zeta.transpose() @ heinv @ zeta + nob.transpose() @ rinv @ ob)
         logger.debug("zeta.shape={}".format(zeta.shape))
         logger.debug("j={} zeta={}".format(j, zeta))
         return j
@@ -62,8 +59,7 @@ class Mlef():
         else:
             dh = self.obs.h_operator(x[:, None] + pf) - hx[:, None]
         return tmat @ zeta - dh.transpose() @ rinv @ ob
-        #return (nmem-1)*tmat @ zeta - dh.transpose() @ rinv @ ob
-
+        
 
     def __call__(self, xb, pb, y, gtol=1e-6, 
         disp=False, save_hist=False, save_dh=False,
@@ -87,7 +83,6 @@ class Mlef():
             ob = y - self.obs.h_operator(xc)
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
         logger.info("save_dh={}".format(save_dh))
-#    print("save_dh={}".format(save_dh))
         zmat = rmat @ dh
         logger.debug("cond(zmat)={}".format(la.cond(zmat)))
         tmat, heinv = self.precondition(zmat)
@@ -95,19 +90,14 @@ class Mlef():
         logger.debug("tmat.shape={}".format(tmat.shape))
         logger.debug("heinv.shape={}".format(heinv.shape))
         gmat = pf @ tmat
-    #gmat = np.sqrt(nmem-1) * pf @ tmat
         logger.debug("gmat.shape={}".format(gmat.shape))
         x0 = np.zeros(xf.shape[1])
         args_j = (xc, pf, y, tmat, gmat, heinv, rinv)
         logger.info("save_hist={}".format(save_hist))
-#    print("save_hist={} cycle{}".format(save_hist, icycle))
         if save_hist:
             g = self.calc_grad_j(x0, *args_j)
-        #print("g={}".format(g))
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS', \
                 jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp}, callback=self.callback)
-        #res = spo.minimize(calc_j, x0, args=args_j, method='BFGS', \
-        #        jac=None, options={'gtol':gtol, 'disp':disp}, callback=callback)
             jh = np.zeros(len(zetak))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
@@ -130,14 +120,9 @@ class Mlef():
         else:
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS', \
                 jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp})
-        #res = spo.minimize(calc_j, x0, args=args_j, method='BFGS', \
-        #        jac=None, options={'gtol':gtol, 'disp':disp})
         logger.info("success={} message={}".format(res.success, res.message))
-#    print("success={} message={}".format(res.success, res.message))
         logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
             res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
-#    print("J={:7.3e} dJ={:7.3e} nit={}".format( \
-#            res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
         xa = xc + gmat @ res.x
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@res.x)
@@ -157,7 +142,6 @@ class Mlef():
             ua[:, 0] = xa
             ua[:, 1:] = xa[:, None] + pa
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ua)
-        #print("xa={}".format(xa))
         if infl:
             logger.info("==inflation==")
             if self.pt == "mlef":
@@ -175,11 +159,6 @@ class Mlef():
         delta = np.linspace(-nx,nx,4*nx)
         jvalb = np.zeros((len(delta)+1,nmem))
         jvalb[0,:] = xopt
-    #jvalo = np.zeros_like(jvalb)
-    #jvalo[0,:] = xopt
-    #jvalb[1:,:], jvalo[1:,:] = costJ.cost_j(nx, nmem, *args)
-    #np.save("{}_cJb_{}_{}_cycle{}.npy".format(model, op, pt, icycle), jvalb)
-    #np.save("{}_cJo_{}_{}_cycle{}.npy".format(model, op, pt, icycle), jvalo)
         for k in range(nmem):
             x0 = np.zeros(nmem)
             for i in range(len(delta)):
