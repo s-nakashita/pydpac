@@ -5,8 +5,6 @@ from logging.config import fileConfig
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-#from model.lorenz import L96
-#from analysis.obs import Obs
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('param')

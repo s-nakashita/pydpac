@@ -2,13 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Bg():
-    def __init__(self, dx, dt, nu):
+    def __init__(self, nx, dx, dt, nu):
+        self.nx = nx
         self.dx = dx
         self.dt = dt
         self.nu = nu
 
     def get_params(self):
-        return self.dx, self.dt, self.nu
+        return self.nx, self.dx, self.dt, self.nu
 
     def l_operator(self, f, u):
 # NB u is defined at integral index

@@ -1,11 +1,11 @@
 #!/bin/sh
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear"
+operators="quadratic"
 #perturbations="mlef grad etkf po srf letkf kf var var4d"
 perturbations="mlef etkf kf var"
 #model=l96 or z08
-model=l96
-na=100 # Number of assimilation cycle
+model=z08
+na=20 # Number of assimilation cycle
 linf="T" # "T"->Apply inflation "F"->Not apply
 lloc="T" # "T"->Apply localization "F"->Not apply
 ltlm="T" # "T"->Use tangent linear approximation "F"->Not use

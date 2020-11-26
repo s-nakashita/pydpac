@@ -5,10 +5,9 @@ import os
 import numpy as np
 from model.burgers import Bg
 from analysis.obs import Obs
-import matplotlib.pyplot as plt
+from z08_func import Z08_func
 
 logging.config.fileConfig("logging_config.ini")
-logger = logging.getLogger(__name__)
 
 global nx, nu, dt, dx
 
@@ -17,14 +16,13 @@ model = "z08"
 nx = 81     # number of points
 nu = 0.05   # diffusion
 dt = 0.0125 # time step
-logger.info("nx={} nu={} dt={:7.3e}".format(nx, nu, dt))
 
 x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
 # forecast model forward operator
-step = Bg(dx, dt, nu)
+step = Bg(nx, dx, dt, nu)
 
 nmem =    4 # ensemble size
 t0off =  12 # initial offset between adjacent members
@@ -68,11 +66,6 @@ if len(sys.argv) > 7:
     obs_s = float(sys.argv[7])
 t0m = [t0c + t0off//2 + t0off * i for i in range(-nmem//2, nmem//2)]
 t0f = [t0c] + t0m
-logger.info("nmem={} t0true={} t0f={}".format(nmem, t0true, t0f))
-logger.info("nt={} na={}".format(nt, na))
-logger.info("htype={} sigma={} ftype={}".format\
-    (htype, obs_s, ftype[htype["perturbation"]]))
-logger.info("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
 
 global op, pt, ft
 op = htype["operator"]
@@ -96,6 +89,14 @@ elif pt == "var":
     from analysis.var import Var
     analysis = Var(pt, obs, model)
 
+# functions load
+params = {"step":step, "obs":obs, "analysis":analysis, \
+    "nmem":nmem, "t0off":t0off, "t0true":t0true,  "t0f":t0f, \
+    "nt":nt, "na":na, "op":op, "pt":pt, "ft":ft,\
+    "linf":linf, "lloc":lloc, "ltlm":ltlm}
+func = Z08_func(params)
+
+"""
 # generate truth and initialize
 def gen_true(x, t0true, t0f, nt, na):
     nx = x.size
@@ -207,20 +208,22 @@ def plot_initial(u, ut, lag, model):
     ax.set_xticks(x[::5], minor=True)
     ax.legend()
     fig.savefig("{}_initial_lag{}.pdf".format(model, lag))
-
+"""
 if __name__ == "__main__":
-    ut, u, pf = gen_true(x, t0true, t0f, nt, na)
+    logger = logging.getLogger(__name__)
+    ut, u, pf = func.gen_true(x)
     oberr = int(obs_s*1e4)
     obsfile="obs_{}_{}.npy".format(op, oberr)
     if not os.path.isfile(obsfile):
         print("create obs")
-        obs = gen_obs(ut)
-        np.save(obsfile, obs)
+        yobs = func.gen_obs(ut)
+        np.save(obsfile, yobs)
     else:
         print("read obs")
-        obs = get_obs(obsfile)
-    #plot_initial(u, ut[0], t0off, model)
-    ua, uf, sqrtpa = init_hist(u, nx, nmem)
+        yobs = func.get_obs(obsfile)
+    if ft=="ensemble":
+        func.plot_initial(u, ut[0], model)
+    ua, uf, sqrtpa = func.init_hist(u)
         
     e = np.zeros(na+1)
     if ft == "ensemble":
@@ -231,9 +234,9 @@ if __name__ == "__main__":
     dpa = np.zeros(na)
     ndpa = np.zeros(na)
     for i in range(na):
-        y = obs[i]
+        y = yobs[i]
+        logger.info("cycle{} analysis".format(i))
         if i in range(4):
-            logger.info("cycle{} analysis".format(i))
             u, pa, chi2 = analysis(u, pf, y, \
                 save_hist=True, save_dh=True,\
                 infl=linf, loc=lloc, tlm=ltlm,\
@@ -252,7 +255,7 @@ if __name__ == "__main__":
             ndpa[i] = np.sum(pa) - dpa[i]
         chi[i] = chi2
         if i < na-1:
-            u, pf = forecast(u, pa, nt)
+            u, pf = func.forecast(u, pa)
             uf[i+1] = u
         if ft == "ensemble":
             e[i+1] = np.sqrt(np.mean((ua[i, :, 0] - ut[i, :])**2))
