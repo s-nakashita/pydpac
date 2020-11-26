@@ -7,22 +7,20 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from model.lorenz import L96
 from analysis.obs import Obs
+from l96_func import L96_func
 
 logging.config.fileConfig("logging_config.ini")
-logger = logging.getLogger(__name__)
-clogger = logging.getLogger('const')
 
 global nx, F, dt, dx
 
 model = "l96"
-
+# model parameter
 nx = 40     # number of points
 F  = 8.0    # forcing
 dt = 0.05 / 6  # time step (=1 hour)
-clogger.info("nx={} F={} dt={:7.3e}".format(nx, F, dt))
 
 # forecast model forward operator
-step = L96(dt, F)
+step = L96(nx, dt, F)
 
 x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
@@ -68,12 +66,6 @@ if len(sys.argv) > 6:
 if htype["perturbation"] == "var4d":
     if len(sys.argv) > 7:
         a_window = int(sys.argv[7])
-clogger.info("nmem={} t0f={}".format(nmem, t0f))
-clogger.info("nt={} na={}".format(nt, na))
-clogger.info("htype={} sigma={} ftype={}".format\
-    (htype, sigma[htype["operator"]], ftype[htype["perturbation"]]))
-clogger.info("inflation={} localization={} TLM={}".format(linf,lloc,ltlm))
-clogger.info("Assimilation window size = {}".format(a_window))
 
 global op, pt, ft
 op = htype["operator"]
@@ -100,134 +92,26 @@ elif pt == "var4d":
     from analysis.var4d import Var4d
     analysis = Var4d(pt, obs, model, step, nt, a_window)
     
-def get_true_and_obs(na, nx):
-    f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
-        "data/data.csv")
-    truth = pd.read_csv(f)
-    xt = truth.values.reshape(na,nx)
-
-    y = obs.h_operator(obs.add_noise(xt))
-
-    return xt, y
-
-def init_ctl(nx,t0c):
-    X0c = np.ones(nx)*F
-    X0c[nx//2 - 1] += 0.001*F
-    for j in range(t0c):
-        X0c = step(X0c)
-    return X0c
-
-def init_ens(nx,nmem,t0c,t0f,opt):
-    X0c = init_ctl(nx, t0c)
-    tmp = np.zeros_like(X0c)
-    maxiter = np.max(np.array(t0f))+1
-    if(opt==0): # random
-        logger.info("spin up max = {}".format(t0c))
-        np.random.seed(514)
-        X0 = np.random.normal(0.0,1.0,size=(nx,nmem)) + X0c[:, None]
-        for j in range(t0c):
-            X0 = step(X0)
-    else: # lagged forecast
-        logger.info("spin up max = {}".format(maxiter))
-        X0 = np.zeros((nx,nmem))
-        tmp = np.ones(nx)*F
-        tmp[nx//2 - 1] += 0.001*F
-        for j in range(maxiter):
-            tmp = step(tmp)
-            if j in t0f[1:]:
-                X0[:,t0f.index(j)-1] = tmp
-    pf = (X0 - X0c[:, None]) @ (X0 - X0c[:, None]).T / (nmem-1)
-    return X0c, X0, pf
-
-def initialize(nx, nmem, t0c, t0f, opt=0):
-    if ft == "deterministic":
-        u = init_ctl(nx, t0c)
-        xa = np.zeros((na, nx))
-        if pt == "kf":
-            pf = np.eye(nx)*25.0
-        else:
-            pf = np.eye(nx)*0.2
-    else:
-        u = np.zeros((nx, nmem+1))
-        u[:, 0], u[:, 1:], pf = init_ens(nx, nmem, t0c, t0f, opt)
-        xa = np.zeros((na, nx, nmem+1))
-    xf = np.zeros_like(xa)
-    xf[0] = u
-    if pt == "mlef" or pt == "grad":
-        sqrtpa = np.zeros((na, nx, nmem))
-    else:
-        sqrtpa = np.zeros((na, nx, nx))
-    return u, xa, xf, pf, sqrtpa
-
-def forecast(u, pa, kmax, a_window=1, tlm=True):
-    if ft == "ensemble":
-        uf = np.zeros((a_window, u.shape[0], u.shape[1]))
-    else:
-        uf = np.zeros((a_window, u.size))
-    pf = np.zeros((a_window, pa.shape[0], pa.shape[0]))
-    for l in range(a_window):
-        for k in range(kmax):
-            u = step(u)
-        uf[l] = u
-        
-        if pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
-            nmem = u.shape[1] - 1
-            u[:, 0] = np.mean(u[:, 1:], axis=1)
-            dxf = u[:, 1:] - u[:, 0].reshape(-1,1)
-            p = dxf @ dxf.T / (nmem-1)
-        elif pt == "mlef" or pt == "grad":
-            spf = u[:, 1:] - u[:, 0].reshape(-1,1)
-            p = spf @ spf.T
-        elif pt == "kf":
-            M = np.eye(u.shape[0])
-            MT = np.eye(u.shape[0])
-            if tlm:
-                E = np.eye(u.shape[0])
-                uk = u
-                for k in range(kmax):
-                    Mk = step.step_t(uk[:,None], E)
-                    M = Mk @ M
-                    MkT = step.step_adj(uk[:,None], E)
-                    MT = MT @ MkT
-                    uk = step(uk)
-            else:
-                for k in range(kmax):
-                    M = analysis.get_linear(u, M)
-                MT = M.T
-            p = M @ pa @ MT
-        elif pt == "var" or pt == "var4d":
-            p = pa
-        pf[l] = p
-    if a_window > 1:
-        return uf, pf
-    else:
-        return u, p
-
-def plot_initial(uc, u, ut, lag, model):
-    fig, ax = plt.subplots()
-    x = np.arange(ut.size) + 1
-    ax.plot(x, ut, label="true")
-    ax.plot(x, uc, label="control")
-    for i in range(u.shape[1]):
-        ax.plot(x, u[:,i], linestyle="--", label="mem{}".format(i+1))
-    ax.set(xlabel="points", ylabel="X", title="initial lag={}".format(lag))
-    ax.set_xticks(x[::5])
-    ax.set_xticks(x, minor=True)
-    ax.legend()
-    fig.savefig("{}_initial_lag{}.png".format(model, lag))
+# functions load
+params = {"step":step, "obs":obs, "analysis":analysis, \
+    "nmem":nmem, "t0c":t0c, "t0f":t0f, "nt":nt, "na":na,\
+    "namax":namax, "a_window":a_window, "op":op, "pt":pt, "ft":ft,\
+    "linf":linf, "lloc":lloc, "ltlm":ltlm}
+func = L96_func(params)
 
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
     logger.info("==initialize==")
-    xt, obs = get_true_and_obs(namax, nx)
+    xt, yobs = func.get_true_and_obs()
     np.save("{}_ut.npy".format(model), xt[:na,:])
-    u, xa, xf, pf, sqrtpa = initialize(nx, nmem, t0c, t0f, opt=0)
+    u, xa, xf, pf, sqrtpa = func.initialize(opt=0)
     
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
     chi = np.zeros(na)
     for i in a_time:
-        y = obs[i:i+a_window]
+        y = yobs[i:i+a_window]
         logger.debug("observation shape {}".format(y.shape))
         if i in range(0,4):
             logger.info("cycle{} analysis".format(i))
@@ -256,22 +140,19 @@ if __name__ == "__main__":
         chi[i] = chi2
         if i < na-1:
             if a_window > 1:
-                uf, p = forecast(u, pa, nt, a_window=a_window)
+                uf, p = func.forecast(u, pa)
                 if (i+1+a_window <= na):
                     xa[i+1:i+1+a_window] = uf
                     xf[i+1:i+1+a_window] = uf
+                    sqrtpa[i+1:i+1+a_window, :, :] = p[:, :]
                 else:
                     xa[i+1:na] = uf[:na-i-1]
                     xf[i+1:na] = uf[:na-i-1]
-                if (i+1+a_window <= na):
-                    sqrtpa[i+1:i+1+a_window, :, :] = p[:, :]
-                else:
                     sqrtpa[i+1:na, :, :] = p[:na-i-1, :, :]
                 u = uf[-1]
                 pf = p[-1]
             else:
-                u, pf = forecast(u, pa, nt, \
-                    a_window=a_window, tlm=ltlm)
+                u, pf = func.forecast(u, pa, tlm=ltlm)
                 xf[i+1] = u
         if a_window > 1:
             if ft == "deterministic":

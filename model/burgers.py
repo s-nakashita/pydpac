@@ -7,6 +7,9 @@ class Bg():
         self.dt = dt
         self.nu = nu
 
+    def get_params(self):
+        return self.dx, self.dt, self.nu
+
     def l_operator(self, f, u):
 # NB u is defined at integral index
 # f[i-1/2] = (f[i-1] + f[i]) / 2

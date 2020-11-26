@@ -1,9 +1,13 @@
 import numpy as np
 
 class L96():
-    def __init__(self, dt, F):
+    def __init__(self, nx, dt, F):
+        self.nx = nx
         self.dt = dt
         self.F = F
+
+    def get_params(self):
+        return self.nx, self.dt, self.F
 
     def l96(self, x):
         l = np.zeros_like(x)
