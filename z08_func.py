@@ -66,11 +66,14 @@ class Z08_func():
             ut[i+1, :] = u
         if self.pt == "etkf" or self.pt == "po" \
             or self.pt == "letkf" or self.pt == "srf":
-            dxf = u0[:, 1:] - u0[:, 0].reshape(-1,1) / np.sqrt(self.nmem-1)
+            u0[:, 0] = np.mean(u0[:, 1:], axis=1)
+            dxf = (u0[:, 1:] - u0[:, 0].reshape(-1,1))/ np.sqrt(self.nmem-1)
             pf = dxf @ dxf.T
+            self.plot_spread(dxf)
         elif self.pt == "mlef" or self.pt == "grad":
             dxf = u0[:, 1:] - u0[:, 0].reshape(-1,1)
             pf = dxf @ dxf.T
+            self.plot_spread(dxf)
         else:
             pf = np.eye(self.nx) * 0.02
         return ut, u0, pf
@@ -142,8 +145,24 @@ class Z08_func():
                 ax.plot(x, u[:,i], label="control")
             else:
                 ax.plot(x, u[:,i], linestyle="--", color="tab:green", label="mem{}".format(i))
+        diff = u[:,0] - ut
+        ax.plot(x, diff, linestyle="dotted",color="tab:red",label="cntl-true")
         ax.set(xlabel="points", ylabel="u", title="initial lag={}".format(self.t0off))
         ax.set_xticks(x[::10])
         ax.set_xticks(x[::5], minor=True)
         ax.legend()
         fig.savefig("{}_initial_lag{}.png".format(model, self.t0off))
+
+    # plot initial spread
+    def plot_spread(self, dxf):
+        fig, ax = plt.subplots()
+        x = np.arange(dxf.shape[0]) + 1
+        spr = np.sqrt(np.mean(dxf**2, axis=1))
+        for i in range(dxf.shape[1]):
+            ax.plot(x, dxf[:,i], label="mem{}".format(i+1))
+        ax.plot(x, spr, label="spread")
+        ax.set(xlabel="points", ylabel="spread", title="initial spread lag={}".format(self.t0off))
+        ax.set_xticks(x[::10])
+        ax.set_xticks(x[::5], minor=True)
+        ax.legend()
+        fig.savefig("z08_init_spread_lag{}.png".format(self.t0off))

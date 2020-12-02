@@ -2,7 +2,7 @@
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="quadratic"
 #perturbations="mlef grad etkf po srf letkf kf var var4d"
-perturbations="mlef etkf kf var"
+perturbations="mlef"
 #model=l96 or z08
 model=z08
 na=20 # Number of assimilation cycle

@@ -10,17 +10,17 @@ logger = logging.getLogger('anl')
 zetak = []
 
 class Var4d():
-    def __init__(self, pt, obs, model, step, nt, window_l):
+    def __init__(self, pt, obs, step, nt, window_l, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        self.model = model
         self.step = step
         self.step_t = step.step_t
         self.step_adj = step.step_adj
         self.nt = nt
         self.window_l = window_l
+        self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
         logger.info(f"nt={self.nt} window_l={self.window_l}")

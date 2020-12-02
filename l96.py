@@ -90,7 +90,7 @@ elif pt == "var":
     analysis = Var(pt, obs, model)
 elif pt == "var4d":
     from analysis.var4d import Var4d
-    analysis = Var4d(pt, obs, model, step, nt, a_window)
+    analysis = Var4d(pt, obs, step, nt, a_window, model)
     
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, \

@@ -10,7 +10,7 @@ logger = logging.getLogger('anl')
 
 class EnKF():
 
-    def __init__(self, da, obs, infl, lsig, model):
+    def __init__(self, da, obs, infl, lsig, model="model"):
         self.da = da # DA type (ETKF, PO, SRF, or LETKF)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type

@@ -11,7 +11,7 @@ logger = logging.getLogger('anl')
         
 class Mlef():
 
-    def __init__(self, pt, obs, infl, model):
+    def __init__(self, pt, obs, infl, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
