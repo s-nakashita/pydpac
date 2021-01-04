@@ -60,6 +60,29 @@ class Mlef():
             dh = self.obs.h_operator(x[:, None] + pf) - hx[:, None]
         return tmat @ zeta - dh.transpose() @ rinv @ ob
         
+    def cost_j(self, nx, nmem, xopt, icycle, *args):
+        xc, pf, y, tmat, gmat, heinv, rinv= args
+        delta = np.linspace(-nx,nx,4*nx)
+        jvalb = np.zeros((len(delta)+1,nmem))
+        jvalb[0,:] = xopt
+        for k in range(nmem):
+            x0 = np.zeros(nmem)
+            for i in range(len(delta)):
+                x0[k] = delta[i]
+                j = self.calc_j(x0, *args)
+                jvalb[i+1,k] = j
+        np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
+
+    def chi2_test(self, zmat, heinv, rmat, d):
+        p = d.size
+        G_inv = np.eye(p) - zmat @ heinv @ zmat.T
+        innv = rmat @ d[:,None]
+        return innv.T @ G_inv @ innv / p
+
+    def dof(self, zmat):
+        u, s, vt = la.svd(zmat)
+        ds = np.sum(s**2/(1.0+s**2))
+        return ds
 
     def __call__(self, xb, pb, y, gtol=1e-6, 
         disp=False, save_hist=False, save_dh=False,
@@ -135,6 +158,8 @@ class Mlef():
         tmat, heinv = self.precondition(zmat)
         d = y - self.obs.h_operator(xa)
         chi2 = self.chi2_test(zmat, heinv, rmat, d)
+        ds = self.dof(zmat)
+        logger.info("dof={}".format(ds))
         pa = pf @ tmat 
         if save_dh:
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pa)
@@ -152,23 +177,4 @@ class Mlef():
         u = np.zeros_like(xb)
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa
-        return u, pa, chi2
-
-    def cost_j(self, nx, nmem, xopt, icycle, *args):
-        xc, pf, y, tmat, gmat, heinv, rinv= args
-        delta = np.linspace(-nx,nx,4*nx)
-        jvalb = np.zeros((len(delta)+1,nmem))
-        jvalb[0,:] = xopt
-        for k in range(nmem):
-            x0 = np.zeros(nmem)
-            for i in range(len(delta)):
-                x0[k] = delta[i]
-                j = self.calc_j(x0, *args)
-                jvalb[i+1,k] = j
-        np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
-
-    def chi2_test(self, zmat, heinv, rmat, d):
-        p = d.size
-        G_inv = np.eye(p) - zmat @ heinv @ zmat.T
-        innv = rmat @ d[:,None]
-        return innv.T @ G_inv @ innv / p
+        return u, pa, chi2, ds

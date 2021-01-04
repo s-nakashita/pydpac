@@ -55,9 +55,18 @@ class EnKF():
         d = y - self.obs.h_operator(xf_)
         if self.da == "etkf":
             if tlm:
-                K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
+                K1 = pf @ JH.T
+                K2 = JH @ pf @ JH.T + R
+                #K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
             else:
-                K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
+                K1 = dxf @ dy.T / (nmem-1)
+                K2 = dy @ dy.T / (nmem-1) + R
+                #K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
+            eigK, vK = la.eigh(K2)
+            logger.info("eigenvalues of K2")
+            logger.info(eigK)
+            K2inv = la.inv(K2)
+            K = K1 @ K2inv
             np.save("{}_K_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
             if loc: # K-localization
                 logger.info("==K-localization==")
@@ -190,11 +199,13 @@ class EnKF():
         p = innv.size
         G = JH @ pf @ JH.T + R 
         chi2 = innv.T @ la.inv(G) @ innv / p
+        ds = self.dof(dy,nmem)
+        logger.info("dof={}".format(ds))
         
         u = np.zeros_like(xb)
         u[:, 0] = xa_
         u[:, 1:] = xa
-        return u, pa, chi2
+        return u, pa, chi2, ds
 
     def loc_mat(self, sigma, nx, ny):
         dist = np.zeros((nx,ny))
@@ -206,3 +217,9 @@ class EnKF():
         l_mat = np.exp(-dist**2/(2.0*sigma**2))
         l_mat[dist>d0] = 0
         return dist, l_mat 
+
+    def dof(self, dy, nmem):
+        zmat = dy / self.sig
+        u, s, vt = la.svd(zmat)
+        ds = np.sum(s**2/(1.0+s**2))#/(nmem-1)
+        return ds

@@ -33,10 +33,10 @@ t0c =    60 # t0 for control
 nt =     20 # number of step per forecast
 na =     20 # number of analysis
 
-sigma = {"linear": 8.0e-2, "quadratic": 8.0e-2, "cubic": 7.0e-4, "quartic": 7.0e-4, \
-    "quadratic-nodiff": 8.0e-2, "cubic-nodiff": 7.0e-4, "quartic-nodiff": 7.0e-4}
-#sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
-#    "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
+#sigma = {"linear": 8.0e-2, "quadratic": 8.0e-2, "cubic": 7.0e-4, "quartic": 7.0e-4, \
+#    "quadratic-nodiff": 8.0e-2, "cubic-nodiff": 7.0e-4, "quartic-nodiff": 7.0e-4}
+sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
+    "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 htype = {"operator": "linear", "perturbation": "mlef"}
 ftype = {"mlef":"ensemble","grad":"ensemble","etkf":"ensemble",\
     "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
@@ -84,7 +84,7 @@ elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     analysis = EnKF(pt, obs, 1.1, 4.0, model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, 1.1, step)
+    analysis = Kf(pt, obs, 1.2, step)
 elif pt == "var":
     from analysis.var import Var
     analysis = Var(pt, obs, model)
@@ -118,18 +118,19 @@ if __name__ == "__main__":
     else:
         e[0] = np.sqrt(np.mean((uf[0, :] - ut[0, :])**2))
     chi = np.zeros(na)
+    dof = np.zeros(na)
     dpa = np.zeros(na)
     ndpa = np.zeros(na)
     for i in range(na):
         y = yobs[i]
         logger.info("cycle{} analysis".format(i))
         if i in range(4):
-            u, pa, chi2 = analysis(u, pf, y, \
+            u, pa, chi2, ds = analysis(u, pf, y, \
                 save_hist=True, save_dh=True,\
                 infl=linf, loc=lloc, tlm=ltlm,\
                 icycle=i)
         else:
-            u, pa, chi2 = analysis(u, pf, y, \
+            u, pa, chi2, ds = analysis(u, pf, y, \
                 infl=linf, loc=lloc, tlm=ltlm, \
                 icycle=i)
         ua[i] = u
@@ -141,6 +142,7 @@ if __name__ == "__main__":
             dpa[i] = np.sum(np.diag(pa))
             ndpa[i] = np.sum(pa) - dpa[i]
         chi[i] = chi2
+        dof[i] = ds
         if i < na-1:
             u, pf = func.forecast(u, pa)
             uf[i+1] = u
@@ -161,3 +163,4 @@ if __name__ == "__main__":
     #else:
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
+    np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)

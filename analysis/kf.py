@@ -34,7 +34,9 @@ class Kf():
 
         pa = (np.eye(xf.size) - K @ JH) @ pf
 
-        return xa, pa, 0.0
+        ds = self.dof(K, JH)
+
+        return xa, pa, 0.0, ds
 
     def get_linear(self, xa, Mb):
         eps = 1e-5
@@ -45,3 +47,11 @@ class Kf():
         xf = self.step(xa)
         M[:,:] = (self.step(xa[:,None]+E) - xf[:,None])/eps
         return M @ Mb
+
+    def dof(self, K, JH):
+        #I = np.eye(pa.shape[0])
+        #A = I - (pa @ la.inv(pf))
+        A = K @ JH
+        ds = np.sum(np.diag(A))
+        logger.info(ds)
+        return ds

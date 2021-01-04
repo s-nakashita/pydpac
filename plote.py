@@ -7,20 +7,23 @@ op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
 if model == "z08" or model == "z05":
-    perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf", "var"]
-    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
-        "var4d":"tab:brown"}
+    #perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf", "var"]
+    perts = ["mlef", "grad", "etkf-jh", "etkf-fh", "kf"]
+    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
+     "kf":"tab:cyan"}
+    #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+    #    "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+    #    "var4d":"tab:brown"}
     #perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     #linestyle = {"mlef":"solid", "grad":"dashed",
     # "etkf-fh":"solid", "etkf-jh":"dashed"}
     #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red'}   
     na += 1
     x = np.arange(na)
-    sigma = {"linear": 8.0e-2, "quadratic": 8.0e-2, "cubic": 7.0e-4, "quartic": 7.0e-4,\
-    "quadratic-nodiff": 8.0e-2, "cubic-nodiff": 7.0e-4, "quartic-nodiff": 7.0e-4}
-    #sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
-    #"quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
+    #sigma = {"linear": 8.0e-2, "quadratic": 8.0e-2, "cubic": 7.0e-4, "quartic": 7.0e-4,\
+    #"quadratic-nodiff": 8.0e-2, "cubic-nodiff": 7.0e-4, "quartic-nodiff": 7.0e-4}
+    sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
+    "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 elif model == "l96":
     perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf", "var", "var4d"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
