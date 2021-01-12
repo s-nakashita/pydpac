@@ -17,7 +17,8 @@ model = "l96"
 # model parameter
 nx = 40     # number of points
 F  = 8.0    # forcing
-dt = 0.05 / 6  # time step (=1 hour)
+nt =   6    # number of step per forecast (=6 hour)
+dt = 0.05 / nt  # time step (=1 hour)
 
 # forecast model forward operator
 step = L96(nx, dt, F)
@@ -32,14 +33,17 @@ t0c =    500 # t0 for control
             # t0 for ensemble members
 t0m = [t0c + t0off//2 + t0off * i for i in range(-nmem//2, nmem//2)]
 t0f = [t0c] + t0m
-nt =     6 # number of step per forecast (=6 hour)
 na =   100 # number of analysis
 namax = 1460 # max number of analysis (1 year)
 
 a_window = 1 # assimilation window length
 
+#sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
+#    "quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
+infl = {"linear": 1.1, "quadratic": 1.3, "cubic": 1.6, \
+    "quadratic-nodiff": 1.3, "cubic-nodiff": 1.6, "test":1.1}
 htype = {"operator": "linear", "perturbation": "mlef"}
 ftype = {"mlef":"ensemble","grad":"ensemble","etkf":"ensemble",\
     "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
@@ -78,13 +82,13 @@ obs = Obs(op, sigma[op])
 # assimilation method
 if pt == "mlef" or pt == "grad":
     from analysis.mlef import Mlef
-    analysis = Mlef(pt, obs, 1.1, model)
+    analysis = Mlef(pt, obs, infl[op], 2.0, model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, obs, 1.1, 4.0, model)
+    analysis = EnKF(pt, obs, infl[op], 4.0, model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, 1.1, step)
+    analysis = Kf(pt, obs, infl[op], step)
 elif pt == "var":
     from analysis.var import Var
     analysis = Var(pt, obs, model)
@@ -110,34 +114,36 @@ if __name__ == "__main__":
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
     chi = np.zeros(na)
+    dof = np.zeros(na)
     for i in a_time:
         y = yobs[i:i+a_window]
         logger.debug("observation shape {}".format(y.shape))
         if i in range(0,4):
             logger.info("cycle{} analysis".format(i))
             if a_window > 1:
-                u, pa, chi2 = analysis(u, pf, y, \
+                u, pa, chi2, ds = analysis(u, pf, y, \
                     save_hist=True, save_dh=True, \
                     infl=linf, loc=lloc, tlm=ltlm,\
                     icycle=i)
             else:
-                u, pa, chi2 = analysis(u, pf, y[0], \
+                u, pa, chi2, ds = analysis(u, pf, y[0], \
                     save_hist=True, save_dh=True, \
                     infl=linf, loc=lloc, tlm=ltlm,\
                     icycle=i)
         else:
             if a_window > 1:
-                u, pa, chi2 = analysis(u, pf, y, \
+                u, pa, chi2, ds = analysis(u, pf, y, \
                     infl=linf, loc=lloc, tlm=ltlm,\
                     icycle=i)
             else:
-                u, pa, chi2 = analysis(u, pf, y[0], \
+                u, pa, chi2, ds = analysis(u, pf, y[0], \
                     infl=linf, loc=lloc, tlm=ltlm,\
                     icycle=i)
 
         xa[i] = u
         sqrtpa[i] = pa
         chi[i] = chi2
+        dof[i] = ds
         if i < na-1:
             if a_window > 1:
                 uf, p = func.forecast(u, pa)
@@ -174,3 +180,4 @@ if __name__ == "__main__":
     #else:
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
+    np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)

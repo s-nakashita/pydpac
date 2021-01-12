@@ -1,6 +1,7 @@
 import sys
 import logging
 from logging.config import fileConfig
+import random
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
@@ -19,8 +20,7 @@ class EnKF():
         self.lsig = lsig # localization parameter
         self.model = model
         logger.info(f"model : {self.model}")
-        logger.info(f"pt={self.da} op={self.op} sig={self.sig} \
-            infl_parm={self.infl_parm} l_sig={self.lsig}")
+        logger.info(f"pt={self.da} op={self.op} sig={self.sig} infl_parm={self.infl_parm} l_sig={self.lsig}")
         
     def __call__(self, xb, pf, y, save_hist=False, save_dh=False, \
         infl=False, loc=False, tlm=True, \
@@ -31,37 +31,31 @@ class EnKF():
         R, dum1, dum2 = self.obs.set_r(y.size)
         nmem = xf.shape[1]
         dxf = xf - xf_[:,None]
+        alpha = self.infl_parm # inflation parameter
+        if infl:
+            if self.da != "letkf":
+                logger.info("==inflation==, alpha={}".format(self.infl_parm))
+                dxf *= alpha
+        pf = dxf @ dxf.T / (nmem-1)
         if tlm:
             dy = JH @ dxf
         else:
             dy = self.obs.h_operator(xf) - self.obs.h_operator(xf_)[:, None]
+        d = y - self.obs.h_operator(xf_)
         if save_dh:
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dy)
-            ob = y - self.obs.h_operator(xf_)
-            np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), ob)
+            np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), d)
         logger.info("save_dh={} cycle{}".format(save_dh, icycle))
 
-        alpha = self.infl_parm # inflation parameter
-        if infl:
-            if self.da != "letkf":
-                logger.info("==inflation==")
-                dxf *= alpha
-        pf = dxf @ dxf.T / (nmem-1)
         #if loc: # B-localization
         #    if da == "etkf":
         #        print("==B-localization==")
         #        dist, l_mat = loc_mat(sigma=2.0, nx=xf_.size, ny=xf_.size)
         #        pf = pf * l_mat
-        d = y - self.obs.h_operator(xf_)
         if self.da == "etkf":
-            if tlm:
-                K1 = pf @ JH.T
-                K2 = JH @ pf @ JH.T + R
-                #K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
-            else:
-                K1 = dxf @ dy.T / (nmem-1)
-                K2 = dy @ dy.T / (nmem-1) + R
-                #K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
+            K1 = dxf @ dy.T / (nmem-1)
+            K2 = dy @ dy.T / (nmem-1) + R
+            #K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
             eigK, vK = la.eigh(K2)
             logger.info("eigenvalues of K2")
             logger.info(eigK)
@@ -69,7 +63,7 @@ class EnKF():
             K = K1 @ K2inv
             np.save("{}_K_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
             if loc: # K-localization
-                logger.info("==K-localization==")
+                logger.info("==K-localization==, lsig={}".format(self.lsig))
                 dist, l_mat = self.loc_mat(sigma=self.lsig, nx=xf_.size, ny=y.size)
                 K = K * l_mat
                 np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
@@ -93,14 +87,23 @@ class EnKF():
 
         elif self.da=="po":
             Y = np.zeros((y.size,nmem))
-            err = np.random.normal(0, scale=self.sig, size=Y.size)
-            err_ = np.mean(err.reshape(Y.shape), axis=1)
-            Y = y[:,None] + err.reshape(Y.shape)
-            d_ = y + err_ - self.obs.h_operator(xf_)
-            if tlm:
-                K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
-            else:
-                K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
+            #err = np.random.normal(0, scale=self.sig, size=Y.size)
+            mu = np.zeros(y.size)
+            sigr = np.eye(y.size)*self.sig
+            err = np.random.multivariate_normal(mu,sigr,nmem).T
+            #err_ = np.mean(err.reshape(Y.shape), axis=1)
+            #Y = y[:,None] + err.reshape(Y.shape)
+            Y = y[:,None] + err
+            #d_ = y + err_ - self.obs.h_operator(xf_)
+            d_ = y - self.obs.h_operator(xf_)
+            K1 = dxf @ dy.T / (nmem-1)
+            K2 = dy @ dy.T / (nmem-1) + R
+            eigK, vK = la.eigh(K2)
+            logger.info("eigenvalues of K2")
+            logger.info(eigK)
+            K2inv = la.inv(K2)
+            K = K1 @ K2inv
+            #K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
             if loc:
                 logger.info("==localization==")
                 dist, l_mat = self.loc_mat(sigma=self.lsig, nx=xf_.size, ny=y.size)
@@ -138,7 +141,7 @@ class EnKF():
 
                 x0_ = xa_[:]
                 dx0 = dxa[:,:]
-                p0 - pa[:,:]
+                p0 = pa[:,:]
             xa = dxa + xa_
             xa_ = np.squeeze(xa_)
 

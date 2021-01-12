@@ -29,6 +29,8 @@ elif model == "l96":
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
         "var4d":"tab:brown"    }
+    #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
+    #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
     x = np.arange(na) + 1
@@ -57,7 +59,10 @@ for pt in perts:
 ax.plot(x, y, linestyle="dotted", color='black')
 ax.set(xlabel="analysis cycle", ylabel="RMSE",
         title=op)
-#ax.set_ylim(-0.01,0.2)
+if model=="z08":
+    ax.set_ylim(-0.01,0.2)
+elif model=="l96":
+    ax.set_ylim(-0.01,5.0)
 if len(x) > 50:
     ax.set_xticks(x[::len(x)//10])
     ax.set_xticks(x[::len(x)//20], minor=True)

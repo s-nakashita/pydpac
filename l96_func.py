@@ -37,16 +37,48 @@ class L96_func():
         logger.info("inflation={} localization={} TLM={}".format(self.linf,self.lloc,self.ltlm))
         logger.info("Assimilation window size = {}".format(self.a_window))
     
+    # generate truth
+    def gen_true(self):
+        xt = np.zeros((self.na, self.nx))
+        x = np.ones(self.nx)*self.F
+        x[self.nx//2 - 1] += 0.001*self.F
+        # spin up for 1 years
+        for k in range(self.namax*self.nt):
+            x = self.step(x)
+        xt[0, :] = x
+        for i in range(self.na-1):
+            for k in range(self.nt):
+                x = self.step(x)
+            xt[i+1, :] = x
+        return xt
+
     # get truth and make observation
     def get_true_and_obs(self):
-        f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
-            "data/data.csv")
-        truth = pd.read_csv(f)
-        xt = truth.values.reshape(self.namax,self.nx)
+        #f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
+        #    "data/data.csv")
+        #truth = pd.read_csv(f)
+        #xt = truth.values.reshape(self.namax,self.nx)
+        truefile = "truth.npy"
+        if not os.path.isfile(truefile):
+            logger.info("create truth")
+            xt = self.gen_true()
+            np.save("truth.npy",xt)
+        else:
+            logger.info("read truth")
+            xt = np.load(truefile)
 
-        y = self.obs.h_operator(self.obs.add_noise(xt))
-
-        return xt, y
+        obs_s = self.obs.get_sig()
+        oberr = int(obs_s*1e4)
+        obsfile="obs_{}_{}.npy".format(self.op, oberr)
+        if not os.path.isfile(obsfile):
+            logger.info("create obs")
+            yobs = self.obs.add_noise(self.obs.h_operator(xt))
+            np.save(obsfile, yobs)
+        else:
+            logger.info("read obs")
+            yobs = np.load(obsfile)
+        
+        return xt, yobs
 
     # initialize control 
     def init_ctl(self):
@@ -58,14 +90,16 @@ class L96_func():
 
     # initialize ensemble member
     def init_ens(self,opt):
-        X0c = self.init_ctl()
-        tmp = np.zeros_like(X0c)
+        #X0c = self.init_ctl()
         maxiter = np.max(np.array(self.t0f))+1
         if(opt==0): # random
             logger.info("spin up max = {}".format(self.t0c))
+            X0c = np.ones(self.nx)*self.F
+            X0c[self.nx//2 - 1] += 0.001*self.F
             np.random.seed(514)
             X0 = np.random.normal(0.0,1.0,size=(self.nx,self.nmem)) + X0c[:, None]
             for j in range(self.t0c):
+                X0c = self.step(X0c)
                 X0 = self.step(X0)
         else: # lagged forecast
             logger.info("spin up max = {}".format(maxiter))
@@ -74,8 +108,10 @@ class L96_func():
             tmp[self.nx//2 - 1] += 0.001*self.F
             for j in range(maxiter):
                 tmp = self.step(tmp)
-                if j in t0f[1:]:
-                    X0[:,t0f.index(j)-1] = tmp
+                if j == self.t0f[0]:
+                    X0c = tmp
+                if j in self.t0f[1:]:
+                    X0[:,self.t0f.index(j)-1] = tmp
         pf = (X0 - X0c[:, None]) @ (X0 - X0c[:, None]).T / (self.nmem-1)
         return X0c, X0, pf
 

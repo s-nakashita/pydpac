@@ -11,15 +11,16 @@ logger = logging.getLogger('anl')
         
 class Mlef():
 
-    def __init__(self, pt, obs, infl, model="model"):
+    def __init__(self, pt, obs, infl, lsig, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         self.infl_parm = infl # inflation parameter
+        self.lsig = lsig # localization parameter
         self.model = model
         logger.info(f"model : {self.model}")
-        logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm}")
+        logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
 
     def precondition(self,zmat):
         u, s, vt = la.svd(zmat)
@@ -84,6 +85,35 @@ class Mlef():
         ds = np.sum(s**2/(1.0+s**2))
         return ds
 
+    def pfloc(self, sqrtpf, save_dh, icycle):
+        nmem = sqrtpf.shape[1]
+        pf = sqrtpf @ sqrtpf.T
+        if save_dh:
+            np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+            np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), sqrtpf)
+        dist, l_mat = self.loc_mat(self.lsig, pf.shape[0], pf.shape[1])
+        pf = pf * l_mat
+        lam, v = la.eig(pf)
+        lam[nmem:] = 0.0
+        logger.debug("eigen value = {}".format(lam))
+        pf = v @ np.diag(lam) @ v.T
+        spf = v[:,:nmem] @ np.diag(np.sqrt(lam[:nmem]))
+        if save_dh:
+            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+            np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
+        return spf
+
+    def loc_mat(self, sigma, nx, ny):
+        dist = np.zeros((nx,ny))
+        l_mat = np.zeros_like(dist)
+        for j in range(nx):
+            for i in range(ny):
+                dist[j,i] = min(abs(j-i),nx-abs(j-i))
+        d0 = 2.0 * np.sqrt(10.0/3.0) * sigma
+        l_mat = np.exp(-dist**2/(2.0*sigma**2))
+        l_mat[dist>d0] = 0
+        return dist, l_mat 
+
     def __call__(self, xb, pb, y, gtol=1e-6, 
         disp=False, save_hist=False, save_dh=False,
         infl=False, loc = False, tlm = False, icycle=0):
@@ -94,6 +124,12 @@ class Mlef():
         xc = xb[:, 0]
         nmem = xf.shape[1]
         pf = xf - xc[:, None]
+        if infl:
+            logger.info("==inflation==, alpha={}".format(self.infl_parm))
+            pf *= self.infl_parm
+        if loc:
+            logger.info("==localization==, lsig={}".format(self.lsig))
+            pf = self.pfloc(pf, save_dh, icycle)
         logger.debug("norm(pf)={}".format(la.norm(pf)))
         logger.debug("r={}".format(np.diag(r)))
         if self.pt == "grad":
@@ -167,12 +203,9 @@ class Mlef():
             ua[:, 0] = xa
             ua[:, 1:] = xa[:, None] + pa
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ua)
-        if infl:
-            logger.info("==inflation==")
-            if self.pt == "mlef":
-                pa *= self.infl_parm
-            else:
-                pa *= self.infl_parm
+        #if infl:
+        #    logger.info("==inflation==")
+        #    pa *= self.infl_parm
 
         u = np.zeros_like(xb)
         u[:, 0] = xa

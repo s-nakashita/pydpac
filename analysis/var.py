@@ -69,4 +69,4 @@ class Var():
     
         xa = xf + res.x
 
-        return xa, pf, 0.0
+        return xa, pf, 0.0, 0.0

@@ -94,7 +94,7 @@ class Z08_func():
 
     # make observation
     def gen_obs(self, u):
-        y = self.obs.h_operator(self.obs.add_noise(u))
+        y = self.obs.add_noise(self.obs.h_operator(u))
         return y
 
     # (if observation file exist) get observation
