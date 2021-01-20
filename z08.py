@@ -78,7 +78,7 @@ obs = Obs(op, obs_s)
 # assimilation method
 if pt == "mlef" or pt == "grad":
     from analysis.mlef import Mlef
-    analysis = Mlef(pt, obs, 1.1, model)
+    analysis = Mlef(pt, obs, 1.1, 4.0, model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis = EnKF(pt, obs, 1.1, 4.0, model)
@@ -118,6 +118,8 @@ if __name__ == "__main__":
     else:
         e[0] = np.sqrt(np.mean((uf[0, :] - ut[0, :])**2))
     chi = np.zeros(na)
+    if ft == "ensemble":
+        innov = np.zeros((na,yobs.shape[1]))
     dof = np.zeros(na)
     dpa = np.zeros(na)
     ndpa = np.zeros(na)
@@ -125,14 +127,27 @@ if __name__ == "__main__":
         y = yobs[i]
         logger.info("cycle{} analysis".format(i))
         if i in range(4):
-            u, pa, chi2, ds = analysis(u, pf, y, \
-                save_hist=True, save_dh=True,\
-                infl=linf, loc=lloc, tlm=ltlm,\
-                icycle=i)
+            if ft == "ensemble":
+                u, pa, innv, chi2, ds = analysis(u, pf, y, \
+                    save_hist=True, save_dh=True, \
+                    infl=linf, loc=lloc, tlm=ltlm,\
+                    icycle=i)
+                innov[i] = innv
+            else:
+                u, pa, chi2, ds = analysis(u, pf, y, \
+                    save_hist=True, save_dh=True,\
+                    infl=linf, loc=lloc, tlm=ltlm,\
+                    icycle=i)
         else:
-            u, pa, chi2, ds = analysis(u, pf, y, \
-                infl=linf, loc=lloc, tlm=ltlm, \
-                icycle=i)
+            if ft == "ensemble":
+                u, pa, innv, chi2, ds = analysis(u, pf, y, \
+                    infl=linf, loc=lloc, tlm=ltlm,\
+                    icycle=i)
+                innov[i] = innv
+            else:
+                u, pa, chi2, ds = analysis(u, pf, y, \
+                    infl=linf, loc=lloc, tlm=ltlm, \
+                    icycle=i)
         ua[i] = u
         sqrtpa[i] = pa
         if pt == "mlef" or pt == "grad":
@@ -164,3 +179,5 @@ if __name__ == "__main__":
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
+    if ft == "ensemble":
+        np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)

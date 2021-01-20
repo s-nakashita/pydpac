@@ -8,6 +8,7 @@ class Obs():
     def __init__(self, operator, sigma):
         self.operator = operator
         self.sigma = sigma
+        self.gamma = 3
 
     def get_op(self):
         return self.operator
@@ -37,7 +38,7 @@ class Obs():
         elif self.operator == "quartic-nodiff":
             return np.where(x >= 0.5, x**4, -x**4)
         elif self.operator == "test":
-            return 0.5*x*(1.0+0.1*np.abs(x))
+            return 0.5*x*(1.0+np.power((0.1*np.abs(x)), (self.gamma-1)))
 
     def dhdx(self, x):
         if self.operator == "linear":
@@ -55,7 +56,7 @@ class Obs():
         elif self.operator == "quartic-nodiff":
             return np.diag(np.where(x >= 0.5, 4*x**3, -4*x**3))
         elif self.operator == "test":
-            return np.diag(0.5+0.1*np.abs(x))
+            return np.diag(0.5+0.5*self.gamma*np.power((0.1*np.abs(x)), (self.gamma-1)))
 
     def add_noise(self, x):
 # numpy 1.17.0 or later

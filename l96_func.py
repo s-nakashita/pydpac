@@ -117,9 +117,11 @@ class L96_func():
 
     # initialize variables
     def initialize(self, opt=0):
+        xa = np.zeros((self.na, self.nx))
+        xf = np.zeros_like(xa)
         if self.ft == "deterministic":
             u = self.init_ctl()
-            xa = np.zeros((self.na, self.nx))
+            xf[0] = u
             if self.pt == "kf":
                 pf = np.eye(self.nx)*25.0
             else:
@@ -127,9 +129,7 @@ class L96_func():
         else:
             u = np.zeros((self.nx, self.nmem+1))
             u[:, 0], u[:, 1:], pf = self.init_ens(opt)
-            xa = np.zeros((self.na, self.nx, self.nmem+1))
-        xf = np.zeros_like(xa)
-        xf[0] = u
+            xf[0] = u[:, 0]
         if self.pt == "mlef" or self.pt == "grad":
             sqrtpa = np.zeros((self.na, self.nx, self.nmem))
         else:

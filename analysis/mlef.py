@@ -4,6 +4,7 @@ from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
+from .chi_test import Chi
 
 zetak = []
 logging.config.fileConfig("./logging_config.ini")
@@ -11,21 +12,31 @@ logger = logging.getLogger('anl')
         
 class Mlef():
 
-    def __init__(self, pt, obs, infl, lsig, model="model"):
+    def __init__(self, pt, obs, infl, lsig, 
+                 linf, lloc, ltlm, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         self.infl_parm = infl # inflation parameter
         self.lsig = lsig # localization parameter
+        self.linf = linf # True->Apply inflation False->Not apply
+        self.lloc = lloc # True->Apply localization False->Not apply
+        self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
+        logger.info(f"linf={self.linf} lloc={self.lloc} ltlm={self.ltlm}")
 
     def precondition(self,zmat):
         u, s, vt = la.svd(zmat)
         v = vt.transpose()
         is2r = 1 / (1 + s**2)
+        #c = zmat.transpose() @ zmat
+        #s, v = la.eigh(c)
+        #s[s<0] = 0.0
+        #is2r = 1 / (1 + s)
+        #vt = v.transpose()
         tmat = v @ np.diag(np.sqrt(is2r)) @ vt
         heinv = v @ np.diag(is2r) @ vt
         logger.debug("tmat={}".format(tmat))
@@ -55,7 +66,8 @@ class Mlef():
         x = xc + gmat @ zeta
         hx = self.obs.h_operator(x)
         ob = y - hx
-        if self.pt == "grad":
+        #if self.pt == "grad":
+        if self.ltlm:
             dh = self.obs.dhdx(x) @ pf
         else:
             dh = self.obs.h_operator(x[:, None] + pf) - hx[:, None]
@@ -97,7 +109,10 @@ class Mlef():
         lam[nmem:] = 0.0
         logger.debug("eigen value = {}".format(lam))
         pf = v @ np.diag(lam) @ v.T
-        spf = v[:,:nmem] @ np.diag(np.sqrt(lam[:nmem]))
+        spf = v[:,:nmem] @ np.diag(np.sqrt(lam[:nmem])) 
+        #spf0 = v @ np.diag(np.sqrt(lam)) @ v.T
+        #spf = spf0[:,:nmem]
+        logger.debug("pf - spf@spf.T={}".format(pf - spf@spf.T))
         if save_dh:
             np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
             np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
@@ -115,24 +130,25 @@ class Mlef():
         return dist, l_mat 
 
     def __call__(self, xb, pb, y, gtol=1e-6, 
-        disp=False, save_hist=False, save_dh=False,
-        infl=False, loc = False, tlm = False, icycle=0):
+        disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
         r, rmat, rinv = self.obs.set_r(y.size)
         xf = xb[:, 1:]
         xc = xb[:, 0]
         nmem = xf.shape[1]
+        chi2_test = Chi(y.size, nmem, rmat)
         pf = xf - xc[:, None]
-        if infl:
+        if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pf *= self.infl_parm
-        if loc:
+        if self.lloc:
             logger.info("==localization==, lsig={}".format(self.lsig))
             pf = self.pfloc(pf, save_dh, icycle)
         logger.debug("norm(pf)={}".format(la.norm(pf)))
         logger.debug("r={}".format(np.diag(r)))
-        if self.pt == "grad":
+        #if self.pt == "grad":
+        if self.ltlm:
             logger.debug("dhdx.shape={}".format(self.obs.dhdx(xc).shape))
             dh = self.obs.dhdx(xc) @ pf
         else:
@@ -185,7 +201,8 @@ class Mlef():
         xa = xc + gmat @ res.x
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@res.x)
-        if self.pt == "grad":
+        #if self.pt == "grad":
+        if self.ltlm:
             dh = self.obs.dhdx(xa) @ pf
         else:
             dh = self.obs.h_operator(xa[:, None] + pf) - self.obs.h_operator(xa)[:, None]
@@ -193,7 +210,9 @@ class Mlef():
         logger.debug("cond(zmat)={}".format(la.cond(zmat)))
         tmat, heinv = self.precondition(zmat)
         d = y - self.obs.h_operator(xa)
-        chi2 = self.chi2_test(zmat, heinv, rmat, d)
+        logger.info("zmat shape={}".format(zmat.shape))
+        logger.info("d shape={}".format(d.shape))
+        innv, chi2 = chi2_test(zmat, d)
         ds = self.dof(zmat)
         logger.info("dof={}".format(ds))
         pa = pf @ tmat 
@@ -210,4 +229,4 @@ class Mlef():
         u = np.zeros_like(xb)
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa
-        return u, pa, chi2, ds
+        return u, pa, innv, chi2, ds

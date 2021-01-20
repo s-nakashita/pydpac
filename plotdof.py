@@ -7,9 +7,11 @@ op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
 #perts = ["etkf", "po", "srf", "letkf"]
-perts = ["mlef", "grad", "etkf", "po", "srf", "letkf"]
-if model == "l96" and op == "linear":
-    perts = ["mlef", "etkf", "po", "srf", "letkf"]
+perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf"]
+if model == "l96":
+    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf"]
+    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan"}
     #na = 100
 elif model == "z08":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh", "kf"]#, "po", "srf", "letkf"]
@@ -26,7 +28,8 @@ for pt in perts:
         print("not exist {}".format(f))
         continue
     dof = np.loadtxt(f)
-    ax.plot(x, dof, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
+    #ax.plot(x, dof, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
+    ax.plot(x, dof, color=linecolor[pt], label=pt)
 #ax.plot(x, y, linestyle="dotted", color='tab:purple')
 ax.set_yscale("log")
 #if np.max(chi) > 1000.0:

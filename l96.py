@@ -29,7 +29,7 @@ np.savetxt("x.txt", x)
 
 nmem =   20 # ensemble size
 t0off =   8 # initial offset between adjacent members
-t0c =    500 # t0 for control
+t0c =   500 # t0 for control
             # t0 for ensemble members
 t0m = [t0c + t0off//2 + t0off * i for i in range(-nmem//2, nmem//2)]
 t0f = [t0c] + t0m
@@ -42,15 +42,17 @@ a_window = 1 # assimilation window length
 #    "quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
-infl = {"linear": 1.1, "quadratic": 1.3, "cubic": 1.6, \
-    "quadratic-nodiff": 1.3, "cubic-nodiff": 1.6, "test":1.1}
+#infl = {"linear": 1.05, "quadratic": 1.3, "cubic": 1.6, \
+#    "quadratic-nodiff": 1.3, "cubic-nodiff": 1.6, "test":1.1}
 htype = {"operator": "linear", "perturbation": "mlef"}
 ftype = {"mlef":"ensemble","grad":"ensemble","etkf":"ensemble",\
     "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
         "kf":"deterministic","var":"deterministic","var4d":"deterministic"}
 
 linf = False
+infl_parm = -1.0
 lloc = False
+lsig = -1.0
 ltlm = True
 if len(sys.argv) > 1:
     htype["operator"] = sys.argv[1]
@@ -59,10 +61,12 @@ if len(sys.argv) > 2:
 if len(sys.argv) > 3:
     na = int(sys.argv[3])
 if len(sys.argv) > 4:
-    if sys.argv[4] == "T":
+    infl_parm = float(sys.argv[4])
+    if infl_parm > 0.0:
         linf = True
 if len(sys.argv) > 5:
-    if sys.argv[5] == "T":
+    lsig = float(sys.argv[5])
+    if lsig > 0.0:
         lloc = True
 if len(sys.argv) > 6:
     if sys.argv[6] == "F":
@@ -82,13 +86,13 @@ obs = Obs(op, sigma[op])
 # assimilation method
 if pt == "mlef" or pt == "grad":
     from analysis.mlef import Mlef
-    analysis = Mlef(pt, obs, infl[op], 2.0, model)
+    analysis = Mlef(pt, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, obs, infl[op], 4.0, model)
+    analysis = EnKF(pt, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl[op], step)
+    analysis = Kf(pt, obs, infl_parm, linf, step)
 elif pt == "var":
     from analysis.var import Var
     analysis = Var(pt, obs, model)
@@ -107,12 +111,13 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
-    np.save("{}_ut.npy".format(model), xt[:na,:])
     u, xa, xf, pf, sqrtpa = func.initialize(opt=0)
     
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
+    #if ft == "ensemble":
+    innov = np.zeros((na,yobs.shape[1]))
     chi = np.zeros(na)
     dof = np.zeros(na)
     for i in a_time:
@@ -121,28 +126,33 @@ if __name__ == "__main__":
         if i in range(0,4):
             logger.info("cycle{} analysis".format(i))
             if a_window > 1:
-                u, pa, chi2, ds = analysis(u, pf, y, \
-                    save_hist=True, save_dh=True, \
-                    infl=linf, loc=lloc, tlm=ltlm,\
-                    icycle=i)
+                u, pa, ds = analysis(u, pf, y, \
+                    save_hist=True, save_dh=True, icycle=i)
+            #elif ft == "ensemble":
             else:
-                u, pa, chi2, ds = analysis(u, pf, y[0], \
-                    save_hist=True, save_dh=True, \
-                    infl=linf, loc=lloc, tlm=ltlm,\
-                    icycle=i)
+                u, pa, innv, chi2, ds = analysis(u, pf, y[0], \
+                    save_hist=True, save_dh=True, icycle=i)
+                chi[i] = chi2
+                innov[i] = innv
+            #else:
+            #    u, pa, ds = analysis(u, pf, y[0], \
+            #        save_hist=True, save_dh=True, icycle=i)
         else:
             if a_window > 1:
-                u, pa, chi2, ds = analysis(u, pf, y, \
-                    infl=linf, loc=lloc, tlm=ltlm,\
-                    icycle=i)
+                u, pa, ds = analysis(u, pf, y, icycle=i)
+            #elif ft == "ensemble":
             else:
-                u, pa, chi2, ds = analysis(u, pf, y[0], \
-                    infl=linf, loc=lloc, tlm=ltlm,\
-                    icycle=i)
+                u, pa, innv, chi2, ds = analysis(u, pf, y[0], icycle=i)
+                chi[i] = chi2
+                innov[i] = innv
+            #else:
+            #    u, pa, ds = analysis(u, pf, y[0], icycle=i)
 
-        xa[i] = u
+        if ft=="ensemble":
+            xa[i] = u[:, 0]
+        else:
+            xa[i] = u
         sqrtpa[i] = pa
-        chi[i] = chi2
         dof[i] = ds
         if i < na-1:
             if a_window > 1:
@@ -158,20 +168,17 @@ if __name__ == "__main__":
                 u = uf[-1]
                 pf = p[-1]
             else:
-                u, pf = func.forecast(u, pa, tlm=ltlm)
+                u, pf = func.forecast(u, pa, tlm=True)
+            if ft=="ensemble":
+                xf[i+1] = u[:, 0]
+            else:
                 xf[i+1] = u
         if a_window > 1:
-            if ft == "deterministic":
-                for k in range(i, min(i+a_window,na)):
-                    e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
-            else:
-                for k in range(i, min(i+a_window,na)):
-                    e[k] = np.sqrt(np.mean((xa[k, :, 0] - xt[k, :])**2))
+            for k in range(i, min(i+a_window,na)):
+                e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
         else:
-            if ft=="deterministic":
-                e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
-            else:
-                e[i] = np.sqrt(np.mean((xa[i, :, 0] - xt[i, :])**2))
+            e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
+            
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), xa)
     np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
     #if len(sys.argv) > 7:
@@ -179,5 +186,7 @@ if __name__ == "__main__":
     #    np.savetxt("{}_chi_{}_{}_w{}.txt".format(model, op, pt, a_window), chi)
     #else:
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
+    #if ft == "ensemble":
+    np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)

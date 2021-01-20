@@ -4,11 +4,11 @@ operators="quadratic cubic"
 perturbations="etkf-jh etkf-fh mlef grad"
 #perturbations="etkf po srf letkf var"
 na=20 # Number of assimilation cycle
-linf="T" # "T"->Apply inflation "F"->Not apply
+linf="F" # "T"->Apply inflation "F"->Not apply
 lloc="F" # "T"->Apply localization "F"->Not apply
 ltlm="T" # "T"->Use tangent linear approximation "F"->Not use
 #a_window=5
-exp="wI"
+exp="znoIL"
 echo ${exp}
 rm -rf ${exp}
 mkdir ${exp}

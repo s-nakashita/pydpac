@@ -44,7 +44,9 @@ for pt in perts:
         continue
     e = np.loadtxt(f)
     if np.isnan(e).any():
+        print("divergence in {}".format(pt))
         continue
+    print("{}, mean RMSE = {}".format(pt,np.mean(e[int(na/3):])))
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     ax.plot(x, e, linestyle="solid", color=linecolor[pt], label=pt)
     #f = "{}_e_{}-nodiff_{}.txt".format(model, op, pt)
@@ -62,7 +64,7 @@ ax.set(xlabel="analysis cycle", ylabel="RMSE",
 if model=="z08":
     ax.set_ylim(-0.01,0.2)
 elif model=="l96":
-    ax.set_ylim(-0.01,5.0)
+    ax.set_ylim(-0.01,10.0)
 if len(x) > 50:
     ax.set_xticks(x[::len(x)//10])
     ax.set_xticks(x[::len(x)//20], minor=True)

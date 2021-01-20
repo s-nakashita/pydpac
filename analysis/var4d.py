@@ -53,8 +53,7 @@ class Var4d():
         return djb + djo
 
     def __call__(self, xf, pf, y, gtol=1e-6,\
-        disp=False, save_hist=False, save_dh=False,
-        infl=False, loc = False, tlm = False, icycle=0):
+        disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
         JH = self.obs.dhdx(xf)
@@ -110,4 +109,4 @@ class Var4d():
     
         xa = xf + res.x
 
-        return xa, pf, 0.0, 0.0
+        return xa, pf, 0.0
