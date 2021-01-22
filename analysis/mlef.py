@@ -104,6 +104,8 @@ class Mlef():
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), sqrtpf)
         dist, l_mat = self.loc_mat(self.lsig, pf.shape[0], pf.shape[1])
+        if save_dh:
+            np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), l_mat)
         pf = pf * l_mat
         lam, v = la.eig(pf)
         lam[nmem:] = 0.0
@@ -145,6 +147,7 @@ class Mlef():
         if self.lloc:
             logger.info("==localization==, lsig={}".format(self.lsig))
             pf = self.pfloc(pf, save_dh, icycle)
+            xf = xc[:, None] + pf
         logger.debug("norm(pf)={}".format(la.norm(pf)))
         logger.debug("r={}".format(np.diag(r)))
         #if self.pt == "grad":

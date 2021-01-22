@@ -44,30 +44,61 @@ sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
 #infl = {"linear": 1.05, "quadratic": 1.3, "cubic": 1.6, \
 #    "quadratic-nodiff": 1.3, "cubic-nodiff": 1.6, "test":1.1}
-htype = {"operator": "linear", "perturbation": "mlef"}
+infl_l = {"mlef":1.2,"grad":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0}
+infl_q = {"mlef":1.2,"grad":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2}
+infl_c = {"mlef":1.2,"grad":1.2,"etkf":1.5,"po":1.0,"srf":1.7,"letkf":1.3}
+infl_qd = {"mlef":1.2,"grad":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2}
+infl_cd = {"mlef":1.2,"grad":1.2,"etkf":1.5,"po":1.0,"srf":1.7,"letkf":1.3}
+infl_t = {"mlef":1.2,"grad":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0}
+dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
+    "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t}
+sig_l = {"mlef":8.0,"grad":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0}
+sig_q = {"mlef":6.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
+sig_c = {"mlef":6.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":6.0,"letkf":10.0}
+sig_qd = {"mlef":6.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
+sig_cd = {"mlef":6.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0}
+sig_t = {"mlef":8.0,"grad":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0}
+dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
+    "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, "test":sig_t}
 ftype = {"mlef":"ensemble","grad":"ensemble","etkf":"ensemble",\
     "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
         "kf":"deterministic","var":"deterministic","var4d":"deterministic"}
 
+htype = {"operator": "linear", "perturbation": "mlef"}
 linf = False
 infl_parm = -1.0
 lloc = False
 lsig = -1.0
 ltlm = True
+
 if len(sys.argv) > 1:
     htype["operator"] = sys.argv[1]
 if len(sys.argv) > 2:
     htype["perturbation"] = sys.argv[2]
+
+global op, pt, ft
+op = htype["operator"]
+pt = htype["perturbation"]
+ft = ftype[pt]
+
 if len(sys.argv) > 3:
     na = int(sys.argv[3])
 if len(sys.argv) > 4:
     infl_parm = float(sys.argv[4])
     if infl_parm > 0.0:
         linf = True
+    #if sys.argv[4] == "T":
+    #    linf = True
+    #    dict_i = dict_infl[op]
+    #    infl_parm = dict_i[pt]
 if len(sys.argv) > 5:
-    lsig = float(sys.argv[5])
-    if lsig > 0.0:
+    #lsig = float(sys.argv[5])
+    #if lsig> 0.0:
+    #    lloc = True
+    if sys.argv[5] == "T":
         lloc = True
+        dict_s = dict_sig[op]
+        lsig = dict_s[pt]
 if len(sys.argv) > 6:
     if sys.argv[6] == "F":
         ltlm = False
@@ -75,10 +106,6 @@ if htype["perturbation"] == "var4d":
     if len(sys.argv) > 7:
         a_window = int(sys.argv[7])
 
-global op, pt, ft
-op = htype["operator"]
-pt = htype["perturbation"]
-ft = ftype[pt]
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -104,7 +131,8 @@ elif pt == "var4d":
 params = {"step":step, "obs":obs, "analysis":analysis, \
     "nmem":nmem, "t0c":t0c, "t0f":t0f, "nt":nt, "na":na,\
     "namax":namax, "a_window":a_window, "op":op, "pt":pt, "ft":ft,\
-    "linf":linf, "lloc":lloc, "ltlm":ltlm}
+    "linf":linf, "lloc":lloc, "ltlm":ltlm,\
+    "infl_parm":infl_parm, "lsig":lsig}
 func = L96_func(params)
 
 if __name__ == "__main__":
@@ -123,7 +151,7 @@ if __name__ == "__main__":
     for i in a_time:
         y = yobs[i:i+a_window]
         logger.debug("observation shape {}".format(y.shape))
-        if i in range(0,4):
+        if i in [0, 50, 100, 150]:
             logger.info("cycle{} analysis".format(i))
             if a_window > 1:
                 u, pa, ds = analysis(u, pf, y, \

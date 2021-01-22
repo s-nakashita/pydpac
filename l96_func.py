@@ -29,12 +29,15 @@ class L96_func():
         self.linf = params["linf"]
         self.lloc = params["lloc"]
         self.ltlm = params["ltlm"]
+        self.infl_parm = params["infl_parm"]
+        self.lsig = params["lsig"]
         logger.info("nx={} F={} dt={:7.3e}".format(self.nx, self.F, self.dt))
         logger.info("nmem={} t0f={}".format(self.nmem, self.t0f))
         logger.info("nt={} na={}".format(self.nt, self.na))
-        logger.info("operator={} perturbation={} sigma={} ftype={}".format\
+        logger.info("operator={} perturbation={} sig_obs={} ftype={}".format\
         (self.op, self.pt, self.obs.get_sig(), self.ft))
         logger.info("inflation={} localization={} TLM={}".format(self.linf,self.lloc,self.ltlm))
+        logger.info("infl_parm={} loc_parm={}".format(self.infl_parm, self.lsig))
         logger.info("Assimilation window size = {}".format(self.a_window))
     
     # generate truth
@@ -94,13 +97,14 @@ class L96_func():
         maxiter = np.max(np.array(self.t0f))+1
         if(opt==0): # random
             logger.info("spin up max = {}".format(self.t0c))
-            X0c = np.ones(self.nx)*self.F
-            X0c[self.nx//2 - 1] += 0.001*self.F
+            X0c = self.init_ctl()
+            #X0c = np.ones(self.nx)*self.F
+            #X0c[self.nx//2 - 1] += 0.001*self.F
             np.random.seed(514)
-            X0 = np.random.normal(0.0,1.0,size=(self.nx,self.nmem)) + X0c[:, None]
-            for j in range(self.t0c):
-                X0c = self.step(X0c)
-                X0 = self.step(X0)
+            X0 = np.random.normal(0.0,5.0,size=(self.nx,self.nmem)) + X0c[:, None]
+            #for j in range(self.t0c):
+            #    X0c = self.step(X0c)
+            #    X0 = self.step(X0)
         else: # lagged forecast
             logger.info("spin up max = {}".format(maxiter))
             X0 = np.zeros((self.nx,self.nmem))

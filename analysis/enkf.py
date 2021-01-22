@@ -183,7 +183,8 @@ class EnKF():
             xa_ = np.squeeze(xa_)
 
         elif self.da=="letkf":
-            sigma = 7.5
+            #sigma = 7.5
+            sigma = self.lsig
             r0 = 100.0 # all
             if self.lloc:
                 logger.info("==localized r0==")
