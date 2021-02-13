@@ -18,7 +18,7 @@ if model == "z08" or model == "z05":
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 elif model == "l96":
-    perts = ["mlef", "etkf", "po", "srf", "letkf"]
+    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
         "var4d":"tab:brown"    }
@@ -31,10 +31,14 @@ if ptype == "loc":
     var = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
 elif ptype == "infl":
     var = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9]
+elif ptype == "nobs":
+    var = [40, 35, 30, 25, 20, 15, 10]
+elif ptype == "nmem":
+    var = [40, 35, 30, 25, 20, 15, 10, 5]
 #y = np.ones(len(var)) * sigma[op]
-#fig, ax = plt.subplots()
+fig, ax = plt.subplots()
 for pt in perts:
-    fig, ax = plt.subplots()
+    #fig, ax = plt.subplots()
     i = 0
     el = np.zeros(len(var))
     for ivar in var:
@@ -55,9 +59,10 @@ for pt in perts:
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if i > 0:
         ax.plot(var, el, linestyle="solid", color=linecolor[pt], label=pt)
-        ax.set(xlabel="{} parameter".format(ptype), ylabel="RMSE",
+ax.set(xlabel="{} parameter".format(ptype), ylabel="RMSE",
             title=op)
-        ax.set_xticks(var)
-#ax.legend()
-        fig.savefig("{}_e{}_{}_{}.png".format(model, ptype, op, pt))
+ax.set_xticks(var)
+ax.legend()
+        #fig.savefig("{}_e{}_{}_{}.png".format(model, ptype, op, pt))
+fig.savefig("{}_e{}_{}.png".format(model, ptype, op))
 #fig.savefig("{}_e_{}+nodiff.pdf".format(model, op))

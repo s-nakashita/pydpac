@@ -36,6 +36,8 @@ elif model == "l96":
     x = np.arange(na) + 1
 y = np.ones(x.size) * sigma[op]
 fig, ax = plt.subplots()
+fig2, ax2 = plt.subplots()
+#ax2 = ax.twinx()
 i = 0
 for pt in perts:
     f = "{}_e_{}_{}.txt".format(model, op, pt)
@@ -49,6 +51,21 @@ for pt in perts:
     print("{}, mean RMSE = {}".format(pt,np.mean(e[int(na/3):])))
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     ax.plot(x, e, linestyle="solid", color=linecolor[pt], label=pt)
+    f = "{}_pa_{}_{}.npy".format(model, op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    trpa = np.zeros(na)
+    if pt == "mlef" or pt == "grad":
+        spa = np.load(f)
+        for i in range(na):
+            pa = spa[i] @ spa[i].T
+            trpa[i] = np.mean(np.diag(pa))
+    else:
+        pa = np.load(f)
+        for i in range(na):
+            trpa[i] = np.mean(np.diag(pa[i]))
+    ax2.plot(x, trpa/e, linestyle="solid", color=linecolor[pt], label=pt)
     #f = "{}_e_{}-nodiff_{}.txt".format(model, op, pt)
     #if not os.path.isfile(f):
     #    print("not exist {}".format(f))
@@ -61,6 +78,8 @@ for pt in perts:
 ax.plot(x, y, linestyle="dotted", color='black')
 ax.set(xlabel="analysis cycle", ylabel="RMSE",
         title=op)
+ax2.set(xlabel="analysis cycle", ylabel="Pa/RMSE",
+        title=op)
 if model=="z08":
     ax.set_ylim(-0.01,0.2)
 elif model=="l96":
@@ -68,9 +87,16 @@ elif model=="l96":
 if len(x) > 50:
     ax.set_xticks(x[::len(x)//10])
     ax.set_xticks(x[::len(x)//20], minor=True)
+    ax2.set_xticks(x[::len(x)//10])
+    ax2.set_xticks(x[::len(x)//20], minor=True)
 else:
     ax.set_xticks(x[::5])
     ax.set_xticks(x, minor=True)
+    ax2.set_xticks(x[::5])
+    ax2.set_xticks(x, minor=True)
+ax2.set_yscale("log")
 ax.legend()
+ax2.legend()
 fig.savefig("{}_e_{}.png".format(model, op))
+fig2.savefig("{}_e+pa_{}.png".format(model, op))
 #fig.savefig("{}_e_{}+nodiff.pdf".format(model, op))

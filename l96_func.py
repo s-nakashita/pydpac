@@ -16,6 +16,7 @@ class L96_func():
         self.nx, self.dt, self.F = self.step.get_params()
         self.obs = params["obs"]
         self.analysis = params["analysis"]
+        self.nobs = params["nobs"]
         self.nmem = params["nmem"]
         self.t0c = params["t0c"]
         self.t0f = params["t0f"]
@@ -32,6 +33,7 @@ class L96_func():
         self.infl_parm = params["infl_parm"]
         self.lsig = params["lsig"]
         logger.info("nx={} F={} dt={:7.3e}".format(self.nx, self.F, self.dt))
+        logger.info("nobs={}".format(self.nobs))
         logger.info("nmem={} t0f={}".format(self.nmem, self.t0f))
         logger.info("nt={} na={}".format(self.nt, self.na))
         logger.info("operator={} perturbation={} sig_obs={} ftype={}".format\
@@ -70,12 +72,25 @@ class L96_func():
             logger.info("read truth")
             xt = np.load(truefile)
 
+        xloc = np.arange(self.nx)
         obs_s = self.obs.get_sig()
         oberr = int(obs_s*1e4)
         obsfile="obs_{}_{}.npy".format(self.op, oberr)
         if not os.path.isfile(obsfile):
             logger.info("create obs")
-            yobs = self.obs.add_noise(self.obs.h_operator(xt))
+            yobs = np.zeros((self.na,self.nobs,2)) # location and value
+            if self.nobs == self.nx:
+                obsloc = xloc.copy()
+                for k in range(self.na):
+                    yobs[k,:,0] = obsloc[:]
+                    yobs[k,:,1] = self.obs.add_noise(self.obs.h_operator(obsloc, xt[k]))
+            else:
+                for k in range(self.na):
+                    obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
+                    #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs)
+                    yobs[k,:,0] = obsloc[:]
+                    yobs[k,:,1] = self.obs.add_noise(self.obs.h_operator(obsloc, xt[k]))
+            #yobs = self.obs.add_noise(self.obs.h_operator(xt))
             np.save(obsfile, yobs)
         else:
             logger.info("read obs")
@@ -100,8 +115,13 @@ class L96_func():
             X0c = self.init_ctl()
             #X0c = np.ones(self.nx)*self.F
             #X0c[self.nx//2 - 1] += 0.001*self.F
-            np.random.seed(514)
-            X0 = np.random.normal(0.0,5.0,size=(self.nx,self.nmem)) + X0c[:, None]
+            #np.random.seed(514)
+            X0 = np.zeros((self.nx, self.nmem))
+            if self.pt == "mlef" or self.pt == "grad":
+                X0[:, 0] = X0c
+                X0[:, 1:] = np.random.normal(0.0,3.0,size=(self.nx,self.nmem-1)) / np.sqrt(self.nmem-1) + X0c[:, None]
+            else:
+                X0[:, :] = np.random.normal(0.0,3.0,size=(self.nx,self.nmem)) + X0c[:, None]
             #for j in range(self.t0c):
             #    X0c = self.step(X0c)
             #    X0 = self.step(X0)
@@ -112,12 +132,14 @@ class L96_func():
             tmp[self.nx//2 - 1] += 0.001*self.F
             for j in range(maxiter):
                 tmp = self.step(tmp)
-                if j == self.t0f[0]:
-                    X0c = tmp
-                if j in self.t0f[1:]:
-                    X0[:,self.t0f.index(j)-1] = tmp
-        pf = (X0 - X0c[:, None]) @ (X0 - X0c[:, None]).T / (self.nmem-1)
-        return X0c, X0, pf
+                if j in self.t0f:
+                    X0[:,self.t0f.index(j)] = tmp
+        if self.pt == "mlef" or self.pt == "grad":
+            pf = (X0[:, 1:] - X0c[:, None]) @ (X0[:, 1:] - X0c[:, None]).T
+        else:
+            pf = (X0 - np.mean(X0, axis=1)[:, None]) @ (X0 - np.mean(X0, axis=1)[:, None]).T / (self.nmem-1)
+        logger.info("p0 max {}, min {}".format(np.max(pf),np.min(pf)))
+        return X0, pf
 
     # initialize variables
     def initialize(self, opt=0):
@@ -131,11 +153,14 @@ class L96_func():
             else:
                 pf = np.eye(self.nx)*0.2
         else:
-            u = np.zeros((self.nx, self.nmem+1))
-            u[:, 0], u[:, 1:], pf = self.init_ens(opt)
-            xf[0] = u[:, 0]
+            u = np.zeros((self.nx, self.nmem))
+            u, pf = self.init_ens(opt)
+            if self.pt == "mlef" or self.pt == "grad":
+                xf[0] = u[:, 0]
+            else:
+                xf[0] = np.mean(u, axis=1)
         if self.pt == "mlef" or self.pt == "grad":
-            sqrtpa = np.zeros((self.na, self.nx, self.nmem))
+            sqrtpa = np.zeros((self.na, self.nx, self.nmem-1))
         else:
             sqrtpa = np.zeros((self.na, self.nx, self.nx))
         return u, xa, xf, pf, sqrtpa
@@ -153,8 +178,8 @@ class L96_func():
             uf[l] = u
         
             if self.pt == "etkf" or self.pt == "po" or self.pt == "letkf" or self.pt == "srf":
-                u[:, 0] = np.mean(u[:, 1:], axis=1)
-                dxf = u[:, 1:] - u[:, 0].reshape(-1,1)
+                #u[:, 0] = np.mean(u[:, 1:], axis=1)
+                dxf = u - np.mean(u, axis=1).reshape(-1,1)
                 p = dxf @ dxf.T / (self.nmem-1)
             elif self.pt == "mlef" or self.pt == "grad":
                 spf = u[:, 1:] - u[:, 0].reshape(-1,1)

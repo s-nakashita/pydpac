@@ -33,7 +33,8 @@ for pt in perts:
         chim[k] = np.mean(chi[k:k+10])
     ax.plot(x, chim, linestyle="solid", color=linecolor[pt], label=pt)
 ax.plot(x, y, linestyle="dotted", color='black')
-#ax.set_yscale("log")
+ax.set_yscale("log")
+ax.set_ylim(1e-1, 1e2)
 #if np.max(chi) > 1000.0:
 #    ax.set_ylim(0.1, 1000.0)
 #    ax.set_yticks([1,10,100,1000])

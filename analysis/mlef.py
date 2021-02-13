@@ -50,10 +50,11 @@ class Mlef():
         zetak.append(xk)
 
     def calc_j(self, zeta, *args):
-        xc, pf, y, tmat, gmat, heinv, rinv = args
+        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
         nmem = zeta.size
         x = xc + gmat @ zeta
-        ob = y - self.obs.h_operator(x)
+        #ob = y - self.obs.h_operator(x)
+        ob = y - self.obs.h_operator(yloc, x)
         j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
         logger.debug("zeta.shape={}".format(zeta.shape))
         logger.debug("j={} zeta={}".format(j, zeta))
@@ -61,20 +62,23 @@ class Mlef():
     
 
     def calc_grad_j(self, zeta, *args):
-        xc, pf, y, tmat, gmat, heinv, rinv = args
+        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
         nmem = zeta.size
         x = xc + gmat @ zeta
-        hx = self.obs.h_operator(x)
+        #hx = self.obs.h_operator(x)
+        hx = self.obs.h_operator(yloc, x)
         ob = y - hx
-        #if self.pt == "grad":
-        if self.ltlm:
-            dh = self.obs.dhdx(x) @ pf
+        if self.pt == "grad":
+        #if self.ltlm:
+            #dh = self.obs.dhdx(x) @ pf
+            dh = self.obs.dh_operator(yloc, x) @ pf
         else:
-            dh = self.obs.h_operator(x[:, None] + pf) - hx[:, None]
+            #dh = self.obs.h_operator(x[:, None] + pf) - hx[:, None]
+            dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
         return tmat @ zeta - dh.transpose() @ rinv @ ob
         
     def cost_j(self, nx, nmem, xopt, icycle, *args):
-        xc, pf, y, tmat, gmat, heinv, rinv= args
+        xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
         delta = np.linspace(-nx,nx,4*nx)
         jvalb = np.zeros((len(delta)+1,nmem))
         jvalb[0,:] = xopt
@@ -100,23 +104,30 @@ class Mlef():
     def pfloc(self, sqrtpf, save_dh, icycle):
         nmem = sqrtpf.shape[1]
         pf = sqrtpf @ sqrtpf.T
-        if save_dh:
-            np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-            np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), sqrtpf)
+        #if save_dh:
+        #    np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+        #    np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), sqrtpf)
         dist, l_mat = self.loc_mat(self.lsig, pf.shape[0], pf.shape[1])
         if save_dh:
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), l_mat)
         pf = pf * l_mat
-        lam, v = la.eig(pf)
-        lam[nmem:] = 0.0
-        logger.debug("eigen value = {}".format(lam))
-        pf = v @ np.diag(lam) @ v.T
+        if save_dh:
+            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+        #lam, v = la.eig(pf)
+        lam, v = la.eigh(pf)
+        lam = lam[::-1]
+        v = v[:,::-1]
+        if save_dh:
+            np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), lam)
+        #lam[nmem:] = 0.0
+        logger.info("eigen value = {}".format(lam))
+        pf = v[:,:nmem] @ np.diag(lam[:nmem]) @ v[:,:nmem].T
         spf = v[:,:nmem] @ np.diag(np.sqrt(lam[:nmem])) 
         #spf0 = v @ np.diag(np.sqrt(lam)) @ v.T
         #spf = spf0[:,:nmem]
-        logger.debug("pf - spf@spf.T={}".format(pf - spf@spf.T))
+        logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
         if save_dh:
-            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+            np.save("{}_lpfr_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
             np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
         return spf
 
@@ -131,7 +142,7 @@ class Mlef():
         l_mat[dist>d0] = 0
         return dist, l_mat 
 
-    def __call__(self, xb, pb, y, gtol=1e-6, 
+    def __call__(self, xb, pb, y, yloc, gtol=1e-6, 
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
@@ -144,21 +155,28 @@ class Mlef():
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pf *= self.infl_parm
+        fpf = pf @ pf.T
+        if save_dh:
+            np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
+            np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
         if self.lloc:
             logger.info("==localization==, lsig={}".format(self.lsig))
             pf = self.pfloc(pf, save_dh, icycle)
             xf = xc[:, None] + pf
         logger.debug("norm(pf)={}".format(la.norm(pf)))
         logger.debug("r={}".format(np.diag(r)))
-        #if self.pt == "grad":
-        if self.ltlm:
+        if self.pt == "grad":
+        #if self.ltlm:
             logger.debug("dhdx.shape={}".format(self.obs.dhdx(xc).shape))
-            dh = self.obs.dhdx(xc) @ pf
+            #dh = self.obs.dhdx(xc) @ pf
+            dh = self.obs.dh_operator(yloc,xc) @ pf
         else:
-            dh = self.obs.h_operator(xf) - self.obs.h_operator(xc)[:, None]
+            #dh = self.obs.h_operator(xf) - self.obs.h_operator(xc)[:, None]
+            dh = self.obs.h_operator(yloc,xf) - self.obs.h_operator(yloc,xc)[:, None]
         if save_dh:
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
-            ob = y - self.obs.h_operator(xc)
+            #ob = y - self.obs.h_operator(xc)
+            ob = y - self.obs.h_operator(yloc,xc)
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
         logger.info("save_dh={}".format(save_dh))
         zmat = rmat @ dh
@@ -170,12 +188,12 @@ class Mlef():
         gmat = pf @ tmat
         logger.debug("gmat.shape={}".format(gmat.shape))
         x0 = np.zeros(xf.shape[1])
-        args_j = (xc, pf, y, tmat, gmat, heinv, rinv)
+        args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
         logger.info("save_hist={}".format(save_hist))
         if save_hist:
             g = self.calc_grad_j(x0, *args_j)
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS', \
-                jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp}, callback=self.callback)
+                jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp, 'maxiter':5}, callback=self.callback)
             jh = np.zeros(len(zetak))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
@@ -197,22 +215,25 @@ class Mlef():
                 self.cost_j(200, xf.shape[1], res.x, icycle, *args_j)
         else:
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS', \
-                jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp})
+                jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp, 'maxiter':5})
         logger.info("success={} message={}".format(res.success, res.message))
         logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
             res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
         xa = xc + gmat @ res.x
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@res.x)
-        #if self.pt == "grad":
-        if self.ltlm:
-            dh = self.obs.dhdx(xa) @ pf
+        if self.pt == "grad":
+        #if self.ltlm:
+            #dh = self.obs.dhdx(xa) @ pf
+            dh = self.obs.dh_operator(yloc,xa) @ pf
         else:
-            dh = self.obs.h_operator(xa[:, None] + pf) - self.obs.h_operator(xa)[:, None]
+            #dh = self.obs.h_operator(xa[:, None] + pf) - self.obs.h_operator(xa)[:, None]
+            dh = self.obs.h_operator(yloc, xa[:, None] + pf) - self.obs.h_operator(yloc, xa)[:, None]
         zmat = rmat @ dh
         logger.debug("cond(zmat)={}".format(la.cond(zmat)))
         tmat, heinv = self.precondition(zmat)
-        d = y - self.obs.h_operator(xa)
+        #d = y - self.obs.h_operator(xa)
+        d = y - self.obs.h_operator(yloc, xa)
         logger.info("zmat shape={}".format(zmat.shape))
         logger.info("d shape={}".format(d.shape))
         innv, chi2 = chi2_test(zmat, d)

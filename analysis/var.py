@@ -36,13 +36,15 @@ class Var():
         d = JH @ x - ob
         return binv @ x + JH.T @ rinv @ d
 
-    def __call__(self, xf, pf, y, gtol=1e-6,\
+    def __call__(self, xf, pf, y, yloc, gtol=1e-6,\
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
         dum1, dum2, rinv = self.obs.set_r(y.size)
-        JH = self.obs.dhdx(xf)
-        ob = y - self.obs.h_operator(xf)
+        #JH = self.obs.dhdx(xf)
+        JH = self.obs.dh_operator(yloc, xf)
+        #ob = y - self.obs.h_operator(xf)
+        ob = y - self.obs.h_operator(yloc,xf)
         nobs = ob.size
 
         x0 = np.zeros_like(xf)

@@ -19,8 +19,9 @@ class Kf():
         self.step = step
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} linf={self.linf}")
 
-    def __call__(self, xf, pf, y, save_hist=False, save_dh=False, icycle=0):
-        JH = self.obs.dhdx(xf)
+    def __call__(self, xf, pf, y, yloc, save_hist=False, save_dh=False, icycle=0):
+        #JH = self.obs.dhdx(xf)
+        JH = self.obs.dh_operator(yloc,xf)
         R, dum1, dum2 = self.obs.set_r(y.size)
 
         if self.linf:
@@ -29,7 +30,8 @@ class Kf():
         # Kalman gain
         K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
 
-        ob = y - self.obs.h_operator(xf)
+        #ob = y - self.obs.h_operator(xf)
+        ob = y - self.obs.h_operator(yloc,xf)
         xa = xf + K @ ob
 
         pa = (np.eye(xf.size) - K @ JH) @ pf
