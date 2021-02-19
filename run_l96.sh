@@ -3,7 +3,7 @@
 operators="linear" # quadratic cubic"
 #perturbations="mlef grad etkf po srf letkf" # kf var var4d"
 perturbations="etkf po srf letkf kf var mlef grad"
-na=100 # Number of assimilation cycle
+na=500 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
 lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use

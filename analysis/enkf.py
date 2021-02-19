@@ -100,7 +100,7 @@ class EnKF():
             lam, v = la.eigh(A)
             Dinv = np.diag(1.0/lam)
             TT = v @ Dinv @ v.T
-            T = np.sqrt(nmem-1) * v @ np.sqrt(Dinv) @ v.T
+            T = v @ np.diag(np.sqrt(float(nmem-1)/lam)) @ v.T
 
             K = dxf @ TT @ dy.T @ rinv
             if save_dh:
@@ -185,14 +185,15 @@ class EnKF():
                 #hrow = JH[i].reshape(1,-1)
                 dyi = dy0[i].reshape(1,-1)
                 #d1 = hrow @ p0 @ hrow.T + self.sig*self.sig
-                d1 = dyi @ dyi.T + self.sig*self.sig
+                d1 = dyi @ dyi.T + self.sig*self.sig * (nmem-1)
                 #k1 = p0 @ hrow.T /d1
                 k1 = dx0 @ dyi.T /d1
-                k1_ = k1 / (1.0 + self.sig/np.sqrt(d1))
+                k1_ = k1 / (1.0 + self.sig/np.sqrt(d1/(nmem-1)))
                 if self.lloc: # K-localization
                     k1_ = k1_ * l_mat[:,i].reshape(k1_.shape)
                 #xa_ = x0_.reshape(k1_.shape) + k1_ * (y[i] - hrow@x0_)
-                xa_ = x0_.reshape(k1_.shape) + k1_ * d0[i]
+                xa_ = x0_.reshape(k1.shape) + k1 * d0[i]
+                #xa_ = x0_.reshape(k1_.shape) + k1_ * d0[i]
                 #dxa = (I - k1_@hrow) @ dx0
                 dxa = dx0 - k1_@ dyi
                 pa = dxa@dxa.T/(nmem-1)
