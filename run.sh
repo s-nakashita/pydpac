@@ -24,7 +24,7 @@ for pt in ${perturbations}; do
     wait
   done
 done
-python ../plote.py ${operators} ${model} ${na}
+python ../plot/plote.py ${operators} ${model} ${na}
 mv ${model}_e_${operators}.png ../res/${model}_e_${operators}_${exp}.png
 rm ${model}*.txt 
 rm ${model}*.npy 

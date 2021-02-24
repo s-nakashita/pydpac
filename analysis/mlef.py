@@ -142,7 +142,7 @@ class Mlef():
         l_mat[dist>d0] = 0
         return dist, l_mat 
 
-    def __call__(self, xb, pb, y, yloc, gtol=1e-6, 
+    def __call__(self, xb, pb, y, yloc, gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
@@ -215,7 +215,7 @@ class Mlef():
                 self.cost_j(200, xf.shape[1], res.x, icycle, *args_j)
         else:
             res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS', \
-                jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp, 'maxiter':5})
+                jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp, 'maxiter':maxiter})
         logger.info("success={} message={}".format(res.success, res.message))
         logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
             res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))

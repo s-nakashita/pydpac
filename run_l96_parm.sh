@@ -53,7 +53,7 @@ for op in ${operators}; do
         #cp l96_innv_${op}_${pt}.npy innv_${op}_${pt}_${count}.npy
         rm obs*.npy
       done
-      python ../calc_mean.py ${op} l96 ${na} ${count} e ${pt}
+      python ../plot/calc_mean.py ${op} l96 ${na} ${count} e ${pt}
       rm e_${op}_${pt}_*.txt
       #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${lsig}.txt
       #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${infl_parm}.txt
@@ -68,18 +68,16 @@ for op in ${operators}; do
       #  rm ${vname}_${op}_${pt}_*.npy
       #done
     done
-    #python ../ploteparam.py ${op} l96 ${na} loc
-    #python ../ploteparam.py ${op} l96 ${na} infl
   done
-  #python ../plote.py ${op} l96 ${na}
-  #python ../plotchi.py ${op} l96 ${na}
-  #python ../plotinnv.py ${op} l96 ${na}
-  #python ../plotxa.py ${op} l96 ${na}
-  #python ../plotdof.py ${op} l96 ${na}
-  #python ../ploteparam.py ${op} l96 ${na} loc
-  #python ../ploteparam.py ${op} l96 ${na} infl
-  python ../ploteparam.py ${op} l96 ${na} nobs
-  #python ../ploteparam.py ${op} l96 ${na} nmem
+  #python ../plot/plote.py ${op} l96 ${na}
+  #python ../plot/plotchi.py ${op} l96 ${na}
+  #python ../plot/plotinnv.py ${op} l96 ${na}
+  #python ../plot/plotxa.py ${op} l96 ${na}
+  #python ../plot/plotdof.py ${op} l96 ${na}
+  #python ../plot/ploteparam.py ${op} l96 ${na} loc
+  #python ../plot/ploteparam.py ${op} l96 ${na} infl
+  python ../plot/ploteparam.py ${op} l96 ${na} nobs
+  #python ../plot/ploteparam.py ${op} l96 ${na} nmem
   rm obs*.npy
 done
 #mv l96_e_${operators}.png l96_e_${operators}_${exp}.png

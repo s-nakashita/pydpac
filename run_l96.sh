@@ -34,14 +34,14 @@ for op in ${operators}; do
     python ../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} > l96_${op}_${pt}.log 2>&1
     #python ../l96.py ${op} ${pt} ${na} ${infl_parm} ${lloc} ${ltlm} ${a_window} > l96_${op}_${pt}.log 2>&1
     wait
-    #python ../plotpf.py ${op} l96 ${na} ${pt} > plotpf_${op}_${pt}.log 2>&1
-    #python ../plotlpf.py ${op} l96 ${na} ${pt} > plotlpf_${op}_${pt}.log 2>&1
+    #python ../plot/plotpf.py ${op} l96 ${na} ${pt} > plotpf_${op}_${pt}.log 2>&1
+    #python ../plot/plotlpf.py ${op} l96 ${na} ${pt} > plotlpf_${op}_${pt}.log 2>&1
   done
-  python ../plote.py ${op} l96 ${na}
-  python ../plotchi.py ${op} l96 ${na}
-  python ../plotinnv.py ${op} l96 ${na} > innv_${op}.log
-  #python ../plotxa.py ${op} l96 ${na}
-  #python ../plotdof.py ${op} l96 ${na}
+  python ../plot/plote.py ${op} l96 ${na}
+  python ../plot/plotchi.py ${op} l96 ${na}
+  python ../plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
+  #python ../plot/plotxa.py ${op} l96 ${na}
+  #python ../plot/plotdof.py ${op} l96 ${na}
   
   rm obs*.npy
 done

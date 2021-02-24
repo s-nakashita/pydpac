@@ -38,7 +38,7 @@ namax = 1460 # max number of analysis (1 year)
 
 a_window = 1 # assimilation window length
 
-nobs = 40 # obsevation number (nobs<=nx)
+nobs = 40 # observation number (nobs<=nx)
 
 #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
 #    "quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}

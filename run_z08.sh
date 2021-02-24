@@ -36,8 +36,8 @@ done
 #  wait
 #done
 for op in ${operators}; do
-  python ../plote.py ${op} z08 ${na}
-  python ../plotdof.py ${op} z08 ${na}
+  python ../plot/plote.py ${op} z08 ${na}
+  python ../plot/plotdof.py ${op} z08 ${na}
 done
 #mv l96_e_${operators}.png l96_e_${operators}_${exp}.png
 rm z08*.txt 
