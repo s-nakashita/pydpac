@@ -4,12 +4,18 @@ import numpy as np
 #rng = default_rng()
 from numpy import random
 import math
+import logging
+from logging.config import fileConfig
+
+logging.config.fileConfig("./logging_config.ini")
+logger = logging.getLogger('anl')
 
 class Obs():
     def __init__(self, operator, sigma):
         self.operator = operator
         self.sigma = sigma
         self.gamma = 3
+        logger.info(f"operator={self.operator}, sigma={self.sigma}, gamma={self.gamma}")
 
     def get_op(self):
         return self.operator
@@ -24,7 +30,9 @@ class Obs():
         return r, rmat, rinv
 
     def h_operator(self, obsloc, x):
+        #logger.debug(f"x={x}")
         hxf = self.hx(x)
+        #logger.debug(f"hx={hxf}")
         nobs = obsloc.size
         if hxf.ndim == 1:
             obs = np.zeros(nobs)
@@ -55,6 +63,8 @@ class Obs():
             return np.where(x >= 0.5, x**4, -x**4)
         elif self.operator == "test":
             return 0.5*x*(1.0+np.power((0.1*np.abs(x)), (self.gamma-1)))
+        elif self.operator == "abs":
+            return np.abs(x)
 
     def dh_operator(self, obsloc, x):
         nobs = obsloc.size
@@ -98,6 +108,8 @@ class Obs():
         elif self.operator == "test":
             #return np.diag(0.5+0.5*self.gamma*np.power((0.1*np.abs(x)), (self.gamma-1)))
             return 0.5+0.5*self.gamma*np.power((0.1*np.abs(x)), (self.gamma-1))
+        elif self.operator == "abs":
+            return x/np.abs(x)
 
     def add_noise(self, x):
 # numpy 1.17.0 or later

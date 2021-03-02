@@ -5,6 +5,7 @@ import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
 from .chi_test import Chi
+from .minimize import Minimize
 
 zetak = []
 logging.config.fileConfig("./logging_config.ini")
@@ -27,21 +28,20 @@ class Mlef():
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} lloc={self.lloc} ltlm={self.ltlm}")
-
+        
     def precondition(self,zmat):
-        u, s, vt = la.svd(zmat)
-        v = vt.transpose()
-        is2r = 1 / (1 + s**2)
-        #c = zmat.transpose() @ zmat
-        #s, v = la.eigh(c)
-        #s[s<0] = 0.0
-        #is2r = 1 / (1 + s)
-        #vt = v.transpose()
-        tmat = v @ np.diag(np.sqrt(is2r)) @ vt
-        heinv = v @ np.diag(is2r) @ vt
+        #u, s, vt = la.svd(zmat)
+        #v = vt.transpose()
+        #is2r = 1 / (1 + s**2)
+        c = zmat.transpose() @ zmat
+        lam, v = la.eigh(c)
+        D = np.diag(1.0/(np.sqrt(lam + np.ones(lam.size))))
+        vt = v.transpose()
+        tmat = v @ D @ vt
+        heinv = tmat @ tmat.T
         logger.debug("tmat={}".format(tmat))
         logger.debug("heinv={}".format(heinv))
-        logger.info("singular value ={}".format(s))
+        logger.info("eigen value ={}".format(lam))
         return tmat, heinv
 
     def callback(self, xk):
@@ -56,8 +56,8 @@ class Mlef():
         #ob = y - self.obs.h_operator(x)
         ob = y - self.obs.h_operator(yloc, x)
         j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
-        logger.debug("zeta.shape={}".format(zeta.shape))
-        logger.debug("j={} zeta={}".format(j, zeta))
+        #logger.debug("zeta.shape={}".format(zeta.shape))
+        #logger.debug("j={} zeta={}".format(j, zeta))
         return j
     
 
@@ -75,7 +75,8 @@ class Mlef():
         else:
             #dh = self.obs.h_operator(x[:, None] + pf) - hx[:, None]
             dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-        return tmat @ zeta - dh.transpose() @ rinv @ ob
+        #return tmat @ zeta - dh.transpose() @ rinv @ ob
+        return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
         
     def cost_j(self, nx, nmem, xopt, icycle, *args):
         xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
@@ -142,7 +143,7 @@ class Mlef():
         l_mat[dist>d0] = 0
         return dist, l_mat 
 
-    def __call__(self, xb, pb, y, yloc, gtol=1e-6, maxiter=None,
+    def __call__(self, xb, pb, y, yloc, method="LBFGS", gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
@@ -167,7 +168,7 @@ class Mlef():
         logger.debug("r={}".format(np.diag(r)))
         if self.pt == "grad":
         #if self.ltlm:
-            logger.debug("dhdx.shape={}".format(self.obs.dhdx(xc).shape))
+            logger.debug("dhdx={}".format(self.obs.dhdx(xc)))
             #dh = self.obs.dhdx(xc) @ pf
             dh = self.obs.dh_operator(yloc,xc) @ pf
         else:
@@ -189,11 +190,13 @@ class Mlef():
         logger.debug("gmat.shape={}".format(gmat.shape))
         x0 = np.zeros(xf.shape[1])
         args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+        iprint = np.zeros(2, dtype=np.int32)
+        options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+        minimize = Minimize(x0.size, 7, self.calc_j, self.calc_grad_j, 
+                            args_j, iprint, method, options)
         logger.info("save_hist={}".format(save_hist))
         if save_hist:
-            g = self.calc_grad_j(x0, *args_j)
-            res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS', \
-                jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp, 'maxiter':5}, callback=self.callback)
+            x = minimize(x0, callback=self.callback)
             jh = np.zeros(len(zetak))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
@@ -203,25 +206,21 @@ class Mlef():
             np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
             np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
             if self.model=="z08":
-                xmax = max(np.abs(np.min(res.x)),np.max(res.x))
+                xmax = max(np.abs(np.min(x)),np.max(x))
                 logger.debug("resx max={}".format(xmax))
                 if xmax < 1000:
-                    self.cost_j(1000, xf.shape[1], res.x, icycle, *args_j)
+                    self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
                 else:
-                    xmax = int(xmax*0.01+1)*100
+                    xmax = np.ceil(xmax*0.001)*1000
                     logger.debug("resx max={}".format(xmax))
-                    self.cost_j(xmax, xf.shape[1], res.x, icycle, *args_j)
+                    self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
             elif self.model=="l96":
-                self.cost_j(200, xf.shape[1], res.x, icycle, *args_j)
+                self.cost_j(200, xf.shape[1], x, icycle, *args_j)
         else:
-            res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS', \
-                jac=self.calc_grad_j, options={'gtol':gtol, 'disp':disp, 'maxiter':maxiter})
-        logger.info("success={} message={}".format(res.success, res.message))
-        logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
-            res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
-        xa = xc + gmat @ res.x
+            x = minimize(x0)
+        xa = xc + gmat @ x
         if save_dh:
-            np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@res.x)
+            np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
         if self.pt == "grad":
         #if self.ltlm:
             #dh = self.obs.dhdx(xa) @ pf

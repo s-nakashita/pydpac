@@ -32,7 +32,7 @@ elif model == "l96":
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
-    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
+    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
     x = np.arange(na) + 1
 y = np.ones(x.size) * sigma[op]
 fig, ax = plt.subplots()
@@ -82,8 +82,8 @@ ax2.set(xlabel="analysis cycle", ylabel="Pa/RMSE",
         title=op)
 if model=="z08":
     ax.set_ylim(-0.01,0.2)
-elif model=="l96":
-    ax.set_ylim(-0.01,10.0)
+#elif model=="l96":
+#    ax.set_ylim(-0.01,10.0)
 if len(x) > 50:
     ax.set_xticks(x[::len(x)//10])
     ax.set_xticks(x[::len(x)//20], minor=True)

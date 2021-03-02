@@ -48,7 +48,9 @@ class L96_func():
         x = np.ones(self.nx)*self.F
         x[self.nx//2 - 1] += 0.001*self.F
         # spin up for 1 years
+        logger.debug(self.namax*self.nt)
         for k in range(self.namax*self.nt):
+        #for k in range(10000):
             x = self.step(x)
         xt[0, :] = x
         for i in range(self.na-1):
@@ -59,18 +61,19 @@ class L96_func():
 
     # get truth and make observation
     def get_true_and_obs(self):
-        #f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
-        #    "data/data.csv")
-        #truth = pd.read_csv(f)
-        #xt = truth.values.reshape(self.namax,self.nx)
-        truefile = "truth.npy"
-        if not os.path.isfile(truefile):
-            logger.info("create truth")
-            xt = self.gen_true()
-            np.save("truth.npy",xt)
-        else:
-            logger.info("read truth")
-            xt = np.load(truefile)
+        f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
+            "data/data.csv")
+        truth = pd.read_csv(f)
+        xt = truth.values.reshape(self.namax,self.nx)
+        #truefile = "truth.npy"
+        #if not os.path.isfile(truefile):
+        #    logger.info("create truth")
+        #    xt = self.gen_true()
+        #    np.save("truth.npy",xt)
+        #else:
+        #    logger.info("read truth")
+        #    xt = np.load(truefile)
+        logger.debug("xt={}".format(xt))
 
         xloc = np.arange(self.nx)
         obs_s = self.obs.get_sig()
@@ -80,16 +83,22 @@ class L96_func():
             logger.info("create obs")
             yobs = np.zeros((self.na,self.nobs,2)) # location and value
             if self.nobs == self.nx:
+                logger.info("regular observation")
                 obsloc = xloc.copy()
                 for k in range(self.na):
                     yobs[k,:,0] = obsloc[:]
-                    yobs[k,:,1] = self.obs.add_noise(self.obs.h_operator(obsloc, xt[k]))
+                    yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
+                    #yobs[k,:,1] = self.obs.add_noise(self.obs.h_operator(obsloc, xt[k]))
+                yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
             else:
+                logger.info("random observation")
                 for k in range(self.na):
                     obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
                     #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs)
                     yobs[k,:,0] = obsloc[:]
-                    yobs[k,:,1] = self.obs.add_noise(self.obs.h_operator(obsloc, xt[k]))
+                    yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
+                    #yobs[k,:,1] = self.obs.add_noise(self.obs.h_operator(obsloc, xt[k]))
+                yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
             #yobs = self.obs.add_noise(self.obs.h_operator(xt))
             np.save(obsfile, yobs)
         else:
@@ -113,15 +122,16 @@ class L96_func():
         if(opt==0): # random
             logger.info("spin up max = {}".format(self.t0c))
             X0c = self.init_ctl()
+            logger.debug("X0c={}".format(X0c))
             #X0c = np.ones(self.nx)*self.F
             #X0c[self.nx//2 - 1] += 0.001*self.F
-            #np.random.seed(514)
+            np.random.seed(514)
             X0 = np.zeros((self.nx, self.nmem))
-            if self.pt == "mlef" or self.pt == "grad":
-                X0[:, 0] = X0c
-                X0[:, 1:] = np.random.normal(0.0,3.0,size=(self.nx,self.nmem-1)) / np.sqrt(self.nmem-1) + X0c[:, None]
-            else:
-                X0[:, :] = np.random.normal(0.0,3.0,size=(self.nx,self.nmem)) + X0c[:, None]
+            #if self.pt == "mlef" or self.pt == "grad":
+            #    X0[:, 0] = X0c
+            #    X0[:, 1:] = np.random.normal(0.0,1.0,size=(self.nx,self.nmem-1)) + X0c[:, None]
+            #else:
+            X0[:, :] = np.random.normal(0.0,1.0,size=(self.nx,self.nmem)) + X0c[:, None]
             #for j in range(self.t0c):
             #    X0c = self.step(X0c)
             #    X0 = self.step(X0)

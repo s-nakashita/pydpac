@@ -17,7 +17,7 @@ model = "l96"
 # model parameter
 nx = 40     # number of points
 F  = 8.0    # forcing
-nt =   6    # number of step per forecast (=6 hour)
+nt =   1    # number of step per forecast (=6 hour)
 dt = 0.05 / nt  # time step (=1 hour)
 
 # forecast model forward operator
@@ -43,17 +43,17 @@ nobs = 40 # observation number (nobs<=nx)
 #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
 #    "quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
-    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
+    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
 #infl = {"linear": 1.05, "quadratic": 1.3, "cubic": 1.6, \
 #    "quadratic-nodiff": 1.3, "cubic-nodiff": 1.6, "test":1.1}
-infl_l = {"mlef":1.2,"grad":1.2,"etkf":1.1,"po":1.2,"srf":1.2,"letkf":1.1,"kf":1.1}
+infl_l = {"mlef":1.2,"grad":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.1}
 infl_q = {"mlef":1.2,"grad":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2}
 infl_c = {"mlef":1.2,"grad":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3}
 infl_qd = {"mlef":1.2,"grad":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2}
 infl_cd = {"mlef":1.2,"grad":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3}
 infl_t = {"mlef":1.2,"grad":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0}
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
-    "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t}
+    "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t, "abs": infl_l}
 sig_l = {"mlef":8.0,"grad":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5}
 sig_q = {"mlef":3.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
 sig_c = {"mlef":4.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0}
@@ -61,7 +61,7 @@ sig_qd = {"mlef":6.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
 sig_cd = {"mlef":6.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0}
 sig_t = {"mlef":8.0,"grad":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0}
 dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
-    "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, "test":sig_t}
+    "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, "test":sig_t, "abs":sig_l}
 ftype = {"mlef":"ensemble","grad":"ensemble","etkf":"ensemble",\
     "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
         "kf":"deterministic","var":"deterministic","var4d":"deterministic"}
@@ -161,7 +161,7 @@ if __name__ == "__main__":
         yloc = yobs[i:i+a_window,:,0]
         y = yobs[i:i+a_window,:,1]
         logger.debug("observation location {}".format(yloc))
-        logger.debug("observation shape {}".format(y.shape))
+        logger.debug("obs={}".format(y))
         #if i in [1, 50, 100, 150, 200, 250]:
         if i in range(1):
             logger.info("cycle{} analysis".format(i))
