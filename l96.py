@@ -40,32 +40,33 @@ a_window = 1 # assimilation window length
 
 nobs = 40 # observation number (nobs<=nx)
 
-#sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
-#    "quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
+# observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
-#infl = {"linear": 1.05, "quadratic": 1.3, "cubic": 1.6, \
-#    "quadratic-nodiff": 1.3, "cubic-nodiff": 1.6, "test":1.1}
-infl_l = {"mlef":1.2,"grad":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.1}
-infl_q = {"mlef":1.2,"grad":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2}
-infl_c = {"mlef":1.2,"grad":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3}
-infl_qd = {"mlef":1.2,"grad":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2}
-infl_cd = {"mlef":1.2,"grad":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3}
-infl_t = {"mlef":1.2,"grad":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0}
+# inflation parameter (dictionary for each observation type)
+infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2}
+infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2}
+infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3}
+infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2}
+infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3}
+infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0}
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t, "abs": infl_l}
-sig_l = {"mlef":8.0,"grad":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5}
-sig_q = {"mlef":3.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
-sig_c = {"mlef":4.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0}
-sig_qd = {"mlef":6.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
-sig_cd = {"mlef":6.0,"grad":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0}
-sig_t = {"mlef":8.0,"grad":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0}
+# localization parameter (dictionary for each observation type)
+sig_l = {"mlef":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5}
+sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
+sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0}
+sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
+sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0}
+sig_t = {"mlef":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0}
 dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
     "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, "test":sig_t, "abs":sig_l}
-ftype = {"mlef":"ensemble","grad":"ensemble","etkf":"ensemble",\
+# forecast type (ensemble or deterministic)
+ftype = {"mlef":"ensemble","etkf":"ensemble",\
     "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
         "kf":"deterministic","var":"deterministic","var4d":"deterministic"}
 
+## default parameter
 htype = {"operator": "linear", "perturbation": "mlef"}
 linf = False
 infl_parm = -1.0
@@ -73,18 +74,23 @@ lloc = False
 lsig = -1.0
 ltlm = True
 
+## read from command options
+# observation type
 if len(sys.argv) > 1:
     htype["operator"] = sys.argv[1]
+# assimilation scheme
 if len(sys.argv) > 2:
     htype["perturbation"] = sys.argv[2]
+# number of assimilation type
+if len(sys.argv) > 3:
+    na = int(sys.argv[3])
 
 global op, pt, ft
 op = htype["operator"]
 pt = htype["perturbation"]
 ft = ftype[pt]
 
-if len(sys.argv) > 3:
-    na = int(sys.argv[3])
+# switch of with/without inflation
 if len(sys.argv) > 4:
     #infl_parm = float(sys.argv[4])
     #if infl_parm > 0.0:
@@ -94,6 +100,7 @@ if len(sys.argv) > 4:
         dict_i = dict_infl[op]
         dict_i["var"] = None
         infl_parm = dict_i[pt]
+# switch of with/without localization
 if len(sys.argv) > 5:
     #lsig = float(sys.argv[5])
     #if lsig> 0.0:
@@ -104,22 +111,20 @@ if len(sys.argv) > 5:
         dict_s["kf"] = None
         dict_s["var"] = None
         lsig = dict_s[pt]
+# switch of using/not using tangent linear operator
 if len(sys.argv) > 6:
     if sys.argv[6] == "F":
         ltlm = False
+# number of ensemble member (or observation size)
 if len(sys.argv) > 7:
     #nobs = int(sys.argv[7])
     nmem = int(sys.argv[7])
-#if htype["perturbation"] == "var4d":
-#    if len(sys.argv) > 7:
-#        a_window = int(sys.argv[7])
-
 
 # observation operator
 obs = Obs(op, sigma[op])
 
 # assimilation method
-if pt == "mlef" or pt == "grad":
+if pt == "mlef":
     from analysis.mlef import Mlef
     analysis = Mlef(pt, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
@@ -157,7 +162,6 @@ if __name__ == "__main__":
     chi = np.zeros(na)
     dof = np.zeros(na)
     for i in a_time:
-        #y = yobs[i:i+a_window]
         yloc = yobs[i:i+a_window,:,0]
         y = yobs[i:i+a_window,:,1]
         logger.debug("observation location {}".format(yloc))
@@ -168,28 +172,21 @@ if __name__ == "__main__":
             if a_window > 1:
                 u, pa, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
-            #elif ft == "ensemble":
             else:
                 u, pa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
-            #else:
-            #    u, pa, ds = analysis(u, pf, y[0], \
-            #        save_hist=True, save_dh=True, icycle=i)
         else:
             if a_window > 1:
                 u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
-            #elif ft == "ensemble":
             else:
                 u, pa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
-            #else:
-            #    u, pa, ds = analysis(u, pf, y[0], icycle=i)
-
+            
         if ft=="ensemble":
-            if pt == "mlef" or pt == "grad":
+            if pt == "mlef":
                 xa[i] = u[:, 0]
             else:
                 xa[i] = np.mean(u, axis=1)
@@ -213,7 +210,7 @@ if __name__ == "__main__":
             else:
                 u, pf = func.forecast(u, pa, tlm=True)
             if ft=="ensemble":
-                if pt == "mlef" or pt == "grad":
+                if pt == "mlef":
                     xf[i+1] = u[:, 0]
                 else:
                     xf[i+1] = np.mean(u, axis=1)
@@ -227,12 +224,8 @@ if __name__ == "__main__":
             
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), xa)
     np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
-    #if len(sys.argv) > 7:
-    #    np.savetxt("{}_e_{}_{}_w{}.txt".format(model, op, pt, a_window), e)
-    #    np.savetxt("{}_chi_{}_{}_w{}.txt".format(model, op, pt, a_window), chi)
-    #else:
+    
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
-    #if ft == "ensemble":
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)

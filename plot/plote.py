@@ -18,8 +18,7 @@ if model == "z08" or model == "z05":
     #linestyle = {"mlef":"solid", "grad":"dashed",
     # "etkf-fh":"solid", "etkf-jh":"dashed"}
     #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red'}   
-    na += 1
-    x = np.arange(na)
+    x = np.arange(na+1)
     #sigma = {"linear": 8.0e-2, "quadratic": 8.0e-2, "cubic": 7.0e-4, "quartic": 7.0e-4,\
     #"quadratic-nodiff": 8.0e-2, "cubic-nodiff": 7.0e-4, "quartic-nodiff": 7.0e-4}
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
@@ -56,7 +55,7 @@ for pt in perts:
         print("not exist {}".format(f))
         continue
     trpa = np.zeros(na)
-    if pt == "mlef" or pt == "grad":
+    if pt == "mlef":
         spa = np.load(f)
         for i in range(na):
             pa = spa[i] @ spa[i].T
@@ -65,7 +64,10 @@ for pt in perts:
         pa = np.load(f)
         for i in range(na):
             trpa[i] = np.mean(np.diag(pa[i]))
-    ax2.plot(x, trpa/e, linestyle="solid", color=linecolor[pt], label=pt)
+    if e.size > na:
+        ax2.plot(x[1:], trpa/e[1:], linestyle="solid", color=linecolor[pt], label=pt)
+    else:
+        ax2.plot(x, trpa/e, linestyle="solid", color=linecolor[pt], label=pt)
     #f = "{}_e_{}-nodiff_{}.txt".format(model, op, pt)
     #if not os.path.isfile(f):
     #    print("not exist {}".format(f))

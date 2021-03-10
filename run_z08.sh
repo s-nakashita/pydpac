@@ -1,12 +1,12 @@
 #!/bin/sh
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="quadratic cubic"
-perturbations="etkf-jh etkf-fh mlef grad"
+perturbations="etkf-jh etkf-fh mlef"
 #perturbations="etkf po srf letkf var"
 na=20 # Number of assimilation cycle
 linf="F" # "T"->Apply inflation "F"->Not apply
 lloc="F" # "T"->Apply localization "F"->Not apply
-ltlm="T" # "T"->Use tangent linear approximation "F"->Not use
+ltlm="F" # "T"->Use tangent linear approximation "F"->Not use
 #a_window=5
 exp="znoIL"
 echo ${exp}
@@ -22,11 +22,12 @@ for pert in ${perturbations}; do
     ltlm="F"
   fi
   for op in ${operators}; do
-    echo ${op} ${pt} ${linf} ${lloc} ${ltlm}
+    echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm}
     python ../z08.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} > z08_${op}_${pert}.log 2>&1
     wait
     mv z08_e_${op}_${pt}.txt z08_e_${op}_${pert}.txt
     mv z08_dof_${op}_${pt}.txt z08_dof_${op}_${pert}.txt
+    mv z08_pa_${op}_${pt}.npy z08_pa_${op}_${pert}.npy
   done
 done
 #pt="kf"
@@ -39,6 +40,5 @@ for op in ${operators}; do
   python ../plot/plote.py ${op} z08 ${na}
   python ../plot/plotdof.py ${op} z08 ${na}
 done
-#mv l96_e_${operators}.png l96_e_${operators}_${exp}.png
 rm z08*.txt 
 rm z08*.npy 

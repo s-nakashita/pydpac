@@ -139,9 +139,7 @@ class Minimize():
             fval = self.func(x0)
             gval = self.jac(x0)
         logger.info("initial function value = {}".format(fval))
-#        print("initial function value = {}".format(fval))
         logger.info("initial gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
-#        print("initial gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
 
         x = x0.copy()
         if callback != None:
@@ -165,30 +163,21 @@ class Minimize():
                     callback(x)
                 logger.info("minimization success")
                 logger.info("iteration = {}".format(icall))
-#                print("iteration = {}".format(icall))
                 logger.info("final function value = {}".format(fval))
-#                print("final function value = {}".format(fval))
                 logger.info("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
-#                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
                 break
             if iflag <= 0:
                 if callback != None:
                     callback(x)
                 logger.info("minimization failed, FLAG = {}".format(iflag))
                 logger.info("iteration = {}".format(icall))
-#                print("iteration = {}".format(icall))
                 logger.info("final function value = {}".format(fval))
-#                print("final function value = {}".format(fval))
                 logger.info("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
-#                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
                 break
         if iflag > 0:
             logger.info("minimization not converged")
-#            print("minimization not converged")
             logger.info("current function value = {}".format(fval))
-#            print("current function value = {}".format(fval))
             logger.info("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
-#            print("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
 
         return x    
 
@@ -242,7 +231,6 @@ if __name__ == "__main__":
         x0[i+1] = 1.0
     
     start = time.time()
-    #x = minimize.minimize_lbfgs(x0)
     x = minimize(x0)
     elapsed_time = time.time() - start
     print("{} elapsed_time:{:7.3e}".format(method, elapsed_time)+"s")
@@ -253,7 +241,6 @@ if __name__ == "__main__":
     minimize = Minimize(n, m, rosen, rosen_der, args, iprint, method)
 
     start = time.time()
-    #x = minimize.minimize_scipy(x0)
     x = minimize(x0)
     elapsed_time = time.time() - start
     print("{} elapsed_time:{:7.3e}".format(method, elapsed_time)+"s")
@@ -264,7 +251,6 @@ if __name__ == "__main__":
     minimize = Minimize(n, m, rosen, rosen_der, args, iprint, method)
 
     start = time.time()
-    #x = minimize.minimize_scipy(x0)
     x = minimize(x0)
     elapsed_time = time.time() - start
     print("{} elapsed_time:{:7.3e}".format(method, elapsed_time)+"s")
@@ -275,7 +261,6 @@ if __name__ == "__main__":
     minimize = Minimize(n, m, rosen, rosen_der, args, iprint, method)
 
     start = time.time()
-    #x = minimize.minimize_scipy(x0)
     x = minimize(x0)
     elapsed_time = time.time() - start
     print("{} elapsed_time:{:7.3e}".format(method, elapsed_time)+"s")
@@ -286,7 +271,6 @@ if __name__ == "__main__":
     minimize = Minimize(n, m, rosen, rosen_der, args, iprint, method)
 
     start = time.time()
-    #x = minimize.minimize_scipy(x0)
     x = minimize(x0)
     elapsed_time = time.time() - start
     print("{} elapsed_time:{:7.3e}".format(method, elapsed_time)+"s")

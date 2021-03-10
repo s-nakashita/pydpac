@@ -20,11 +20,9 @@ for pt in ${perturbations}; do
   for op in ${operators}; do
     echo ${op} ${pt}  ${na} ${linf} ${lloc} ${ltlm}
     python ../${model}.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} > ${model}_${op}_${pt}.log 2>&1
-    mv const.log ../res/${model}_parm.${exp}
     wait
   done
 done
 python ../plot/plote.py ${operators} ${model} ${na}
-mv ${model}_e_${operators}.png ../res/${model}_e_${operators}_${exp}.png
 rm ${model}*.txt 
 rm ${model}*.npy 

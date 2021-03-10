@@ -16,6 +16,7 @@ class Z08_func():
             = self.step.get_params()
         self.obs = params["obs"]
         self.analysis = params["analysis"]
+        self.nobs = params["nobs"]
         self.nmem = params["nmem"]
         self.t0off = params["t0off"]
         self.t0true = params["t0true"]
@@ -94,13 +95,30 @@ class Z08_func():
 
     # make observation
     def gen_obs(self, u):
-        y = self.obs.add_noise(self.obs.h_operator(u))
-        return y
+        xloc = np.arange(self.nx)
+        obs_s = self.obs.get_sig()
+        yobs = np.zeros((self.na, self.nobs, 2)) # location and value
+        if self.nobs == self.nx:
+            logger.info("regular observation")
+            obsloc = xloc.copy()
+            for k in range(self.na):
+                yobs[k,:,0] = obsloc[:]
+                yobs[k,:,1] = self.obs.h_operator(obsloc, u[k])
+            yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
+        else:
+            logger.infio("random observation")
+            for k in range(self.na):
+                obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
+                #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs) 
+                yobs[k,:,0] = obsloc[:]
+                yobs[k,:,1] = self.obs.h_operator(obsloc, u[k])
+            yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
+        return yobs
 
     # (if observation file exist) get observation
     def get_obs(self, f):
-        y = np.load(f)
-        return y
+        yobs = np.load(f)
+        return yobs
 
 
     def forecast(self, u, pa, tlm=False):

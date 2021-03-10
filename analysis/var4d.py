@@ -4,6 +4,7 @@ from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
+from .minimize import Minimize
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('anl')
@@ -52,7 +53,7 @@ class Var4d():
             djo = djo + MkT @ JH.T @ rinv @ d
         return djb + djo
 
-    def __call__(self, xf, pf, y, gtol=1e-6,\
+    def __call__(self, xf, pf, y, method="LBFGS", gtol=1e-6, maxiter=None,\
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
@@ -88,10 +89,13 @@ class Var4d():
         binv = la.inv(pf)
 
         args_j = (binv, JH, rinv, ob, TM, AM)
+        iprint = np.zeros(2, dtype=np.int32)
+        options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+        minimize = Minimize(x0.size, 7, self.calc_j, self.calc_grad_j, 
+                            args_j, iprint, method, options)
         logger.info(f"save_hist={save_hist} cycle={icycle}")
         if save_hist:
-            res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS',\
-                jac=self.calc_grad_j,options={'gtol':gtol, 'disp':disp}, callback=self.callback)
+            x = minimize(x0, callback=self.callback)
             jh = np.zeros(len(zetak))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
@@ -101,12 +105,8 @@ class Var4d():
             np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
             np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
         else:
-            res = spo.minimize(self.calc_j, x0, args=args_j, method='BFGS',\
-                jac=self.calc_grad_j,options={'gtol':gtol, 'disp':disp})
-        logger.info("success={} message={}".format(res.success, res.message))
-        logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
-                res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
-    
-        xa = xf + res.x
+            x = minimize(x0)
+
+        xa = xf + x
 
         return xa, pf, 0.0

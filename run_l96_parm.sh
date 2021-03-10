@@ -1,8 +1,8 @@
 #!/bin/sh
+# This is a run script for parameter sensitivity experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
 perturbations="mlef etkf po srf letkf" # kf var" # var4d"
-#perturbations="mlef" # grad etkf"
 na=500 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
 lloc="T" # "T":Apply localization "F":Not apply
@@ -19,17 +19,6 @@ Nobs="40 35 30 25 20 15 10"
 #Nmem="40 35 30 25 20 15 10 5"
 cp ../logging_config.ini .
 for op in ${operators}; do
-  #if [ ${linf} = "T" ]; then
-  #  if [ ${op} = "linear" ]; then
-  #    infl_parm=1.1
-  #  elif [ ${op} = "quadratic" ]; then
-  #    infl_parm=1.3
-  #  elif [ ${op} = "cubic" ]; then
-  #    infl_parm=1.6
-  #  fi
-  #else
-  #  infl_parm=-1.0
-  #fi
   for pt in ${perturbations}; do
     #for lsig in ${sig}; do
     #for infl_parm in ${inf}; do
@@ -47,10 +36,6 @@ for op in ${operators}; do
         wait
         echo ${count}
         cp l96_e_${op}_${pt}.txt e_${op}_${pt}_${count}.txt
-        #cp l96_chi_${op}_${pt}.txt chi_${op}_${pt}_${count}.txt
-        #cp l96_dof_${op}_${pt}.txt dof_${op}_${pt}_${count}.txt
-        #cp l96_ua_${op}_${pt}.npy ua_${op}_${pt}_${count}.npy
-        #cp l96_innv_${op}_${pt}.npy innv_${op}_${pt}_${count}.npy
         rm obs*.npy
       done
       python ../plot/calc_mean.py ${op} l96 ${na} ${count} e ${pt}
@@ -59,27 +44,13 @@ for op in ${operators}; do
       #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${infl_parm}.txt
       cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${nobs}.txt
       #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${nmem}.txt
-      #for vname in e chi dof; do
-      #  python ../calc_mean.py ${op} l96 ${na} ${count} ${vname} ${pt}
-      #  rm ${vname}_${op}_${pt}_*.txt
-      #done
-      #for vname in ua innv; do
-      #  python ../calc_mean.py ${op} l96 ${na} ${count} ${vname} ${pt}
-      #  rm ${vname}_${op}_${pt}_*.npy
-      #done
     done
   done
-  #python ../plot/plote.py ${op} l96 ${na}
-  #python ../plot/plotchi.py ${op} l96 ${na}
-  #python ../plot/plotinnv.py ${op} l96 ${na}
-  #python ../plot/plotxa.py ${op} l96 ${na}
-  #python ../plot/plotdof.py ${op} l96 ${na}
   #python ../plot/ploteparam.py ${op} l96 ${na} loc
   #python ../plot/ploteparam.py ${op} l96 ${na} infl
   python ../plot/ploteparam.py ${op} l96 ${na} nobs
   #python ../plot/ploteparam.py ${op} l96 ${na} nmem
   rm obs*.npy
 done
-#mv l96_e_${operators}.png l96_e_${operators}_${exp}.png
 rm l96*.txt 
 rm l96*.npy 

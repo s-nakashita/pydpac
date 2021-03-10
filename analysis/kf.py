@@ -20,7 +20,6 @@ class Kf():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} linf={self.linf}")
 
     def __call__(self, xf, pf, y, yloc, save_hist=False, save_dh=False, icycle=0):
-        #JH = self.obs.dhdx(xf)
         JH = self.obs.dh_operator(yloc,xf)
         R, dum1, dum2 = self.obs.set_r(y.size)
 
@@ -30,7 +29,6 @@ class Kf():
         # Kalman gain
         K = pf @ JH.T @ la.inv(JH @ pf @ JH.T + R)
 
-        #ob = y - self.obs.h_operator(xf)
         ob = y - self.obs.h_operator(yloc,xf)
         xa = xf + K @ ob
 
@@ -53,8 +51,6 @@ class Kf():
         return M @ Mb
 
     def dof(self, K, JH):
-        #I = np.eye(pa.shape[0])
-        #A = I - (pa @ la.inv(pf))
         A = K @ JH
         ds = np.sum(np.diag(A))
         logger.info(ds)

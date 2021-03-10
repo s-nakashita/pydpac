@@ -47,15 +47,18 @@ class L96_func():
         xt = np.zeros((self.na, self.nx))
         x = np.ones(self.nx)*self.F
         x[self.nx//2 - 1] += 0.001*self.F
+        tmp = x.copy()
         # spin up for 1 years
         logger.debug(self.namax*self.nt)
         for k in range(self.namax*self.nt):
         #for k in range(10000):
-            x = self.step(x)
+            tmp = self.step(x)
+            x = tmp
         xt[0, :] = x
         for i in range(self.na-1):
             for k in range(self.nt):
-                x = self.step(x)
+                tmp = self.step(x)
+                x = tmp
             xt[i+1, :] = x
         return xt
 
@@ -72,7 +75,7 @@ class L96_func():
         #    np.save("truth.npy",xt)
         #else:
         #    logger.info("read truth")
-        #    xt = np.load(truefile)
+         #   xt = np.load(truefile)
         logger.debug("xt={}".format(xt))
 
         xloc = np.arange(self.nx)
@@ -111,8 +114,10 @@ class L96_func():
     def init_ctl(self):
         X0c = np.ones(self.nx)*self.F
         X0c[self.nx//2 - 1] += 0.001*self.F
+        tmp = X0c.copy()
         for j in range(self.t0c):
-            X0c = self.step(X0c)
+            tmp = self.step(X0c)
+            X0c = tmp
         return X0c
 
     # initialize ensemble member

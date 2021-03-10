@@ -53,11 +53,8 @@ class Mlef():
         xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
         nmem = zeta.size
         x = xc + gmat @ zeta
-        #ob = y - self.obs.h_operator(x)
         ob = y - self.obs.h_operator(yloc, x)
         j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
-        #logger.debug("zeta.shape={}".format(zeta.shape))
-        #logger.debug("j={} zeta={}".format(j, zeta))
         return j
     
 
@@ -65,17 +62,12 @@ class Mlef():
         xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
         nmem = zeta.size
         x = xc + gmat @ zeta
-        #hx = self.obs.h_operator(x)
         hx = self.obs.h_operator(yloc, x)
         ob = y - hx
-        if self.pt == "grad":
-        #if self.ltlm:
-            #dh = self.obs.dhdx(x) @ pf
+        if self.ltlm:
             dh = self.obs.dh_operator(yloc, x) @ pf
         else:
-            #dh = self.obs.h_operator(x[:, None] + pf) - hx[:, None]
             dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-        #return tmat @ zeta - dh.transpose() @ rinv @ ob
         return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
         
     def cost_j(self, nx, nmem, xopt, icycle, *args):
@@ -114,18 +106,14 @@ class Mlef():
         pf = pf * l_mat
         if save_dh:
             np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-        #lam, v = la.eig(pf)
         lam, v = la.eigh(pf)
         lam = lam[::-1]
         v = v[:,::-1]
         if save_dh:
             np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), lam)
-        #lam[nmem:] = 0.0
-        logger.info("eigen value = {}".format(lam))
+        logger.info("pf eigen value = {}".format(lam))
         pf = v[:,:nmem] @ np.diag(lam[:nmem]) @ v[:,:nmem].T
         spf = v[:,:nmem] @ np.diag(np.sqrt(lam[:nmem])) 
-        #spf0 = v @ np.diag(np.sqrt(lam)) @ v.T
-        #spf = spf0[:,:nmem]
         logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
         if save_dh:
             np.save("{}_lpfr_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
@@ -143,7 +131,7 @@ class Mlef():
         l_mat[dist>d0] = 0
         return dist, l_mat 
 
-    def __call__(self, xb, pb, y, yloc, method="LBFGS", gtol=1e-6, maxiter=None,
+    def __call__(self, xb, pb, y, yloc, method="BFGS", gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
@@ -153,9 +141,9 @@ class Mlef():
         nmem = xf.shape[1]
         chi2_test = Chi(y.size, nmem, rmat)
         pf = xf - xc[:, None]
-        if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
-            pf *= self.infl_parm
+        #if self.linf:
+        #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
+        #    pf *= self.infl_parm
         fpf = pf @ pf.T
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
@@ -166,13 +154,10 @@ class Mlef():
             xf = xc[:, None] + pf
         logger.debug("norm(pf)={}".format(la.norm(pf)))
         logger.debug("r={}".format(np.diag(r)))
-        if self.pt == "grad":
-        #if self.ltlm:
+        if self.ltlm:
             logger.debug("dhdx={}".format(self.obs.dhdx(xc)))
-            #dh = self.obs.dhdx(xc) @ pf
             dh = self.obs.dh_operator(yloc,xc) @ pf
         else:
-            #dh = self.obs.h_operator(xf) - self.obs.h_operator(xc)[:, None]
             dh = self.obs.h_operator(yloc,xf) - self.obs.h_operator(yloc,xc)[:, None]
         if save_dh:
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
@@ -211,8 +196,8 @@ class Mlef():
                 if xmax < 1000:
                     self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
                 else:
-                    xmax = np.ceil(xmax*0.001)*1000
-                    logger.debug("resx max={}".format(xmax))
+                    xmax = int(np.ceil(xmax*0.001)*1000)
+                    logger.info("resx max={}".format(xmax))
                     self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
             elif self.model=="l96":
                 self.cost_j(200, xf.shape[1], x, icycle, *args_j)
@@ -221,17 +206,13 @@ class Mlef():
         xa = xc + gmat @ x
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
-        if self.pt == "grad":
-        #if self.ltlm:
-            #dh = self.obs.dhdx(xa) @ pf
+        if self.ltlm:
             dh = self.obs.dh_operator(yloc,xa) @ pf
         else:
-            #dh = self.obs.h_operator(xa[:, None] + pf) - self.obs.h_operator(xa)[:, None]
             dh = self.obs.h_operator(yloc, xa[:, None] + pf) - self.obs.h_operator(yloc, xa)[:, None]
         zmat = rmat @ dh
         logger.debug("cond(zmat)={}".format(la.cond(zmat)))
         tmat, heinv = self.precondition(zmat)
-        #d = y - self.obs.h_operator(xa)
         d = y - self.obs.h_operator(yloc, xa)
         logger.info("zmat shape={}".format(zmat.shape))
         logger.info("d shape={}".format(d.shape))
@@ -245,9 +226,9 @@ class Mlef():
             ua[:, 0] = xa
             ua[:, 1:] = xa[:, None] + pa
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ua)
-        #if infl:
-        #    logger.info("==inflation==")
-        #    pa *= self.infl_parm
+        if self.linf:
+            logger.info("==inflation==, alpha={}".format(self.infl_parm))
+            pa *= self.infl_parm
 
         u = np.zeros_like(xb)
         u[:, 0] = xa
