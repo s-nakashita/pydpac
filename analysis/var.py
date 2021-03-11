@@ -21,6 +21,15 @@ class Var():
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
 
+    def calc_pf(self, xf, pa, cycle):
+        if cycle == 0:
+            if self.model == "l96":
+                return np.eye(xf.size)*0.2
+            elif self.model == "z08":
+                return np.eye(xf.size)*0.02
+        else:
+            return pa
+
     def callback(self, xk):
         global zetak
         zetak.append(xk)

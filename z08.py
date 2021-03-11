@@ -24,10 +24,17 @@ np.savetxt("x.txt", x)
 # forecast model forward operator
 step = Bg(nx, dx, dt, nu)
 
-nmem =    4 # ensemble size
+nmem =    4 # ensemble size (except control run)
 t0off =  12 # initial offset between adjacent members
 t0true = 20 # t0 for true
 t0c =    60 # t0 for control
+# t0 for control run and ensemble members
+if nmem%2 == 0: # even
+    t0m = [t0c + t0off//2 + t0off * i for i in range(-nmem//2, nmem//2)]
+    t0f = [t0c] + t0m
+else: # odd
+    t0m = [t0c + t0off//2 + t0off * i for i in range((nmem+1)//2)]
+    t0f = t0m + [t0c + t0off//2 + t0off * i for i in range(-(nmem+1)//2, 0)]
 #t0c = t0true
 nt =     20 # number of step per forecast
 na =     20 # number of analysis
@@ -76,11 +83,7 @@ if len(sys.argv) > 6:
 obs_s = sigma[htype["operator"]]
 # observation error
 if len(sys.argv) > 7:
-    #t0off = int(sys.argv[6])
     obs_s = float(sys.argv[7])
-# t0 for ensemble members
-t0m = [t0c + t0off//2 + t0off * i for i in range(-nmem//2, nmem//2)]
-t0f = [t0c] + t0m
 
 global op, pt, ft
 op = htype["operator"]
@@ -93,27 +96,28 @@ obs = Obs(op, obs_s)
 # assimilation method
 if pt == "mlef":
     from analysis.mlef import Mlef
-    analysis = Mlef(pt, obs, infl_parm, lsig, linf, lloc, ltlm, model)
+    analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, obs, infl_parm, lsig, linf, lloc, ltlm, model)
+    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl_parm, linf, step)
+    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model)
 elif pt == "var":
     from analysis.var import Var
     analysis = Var(pt, obs, model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, \
-    "nobs":nobs, "nmem":nmem, "t0off":t0off, "t0true":t0true,  "t0f":t0f, \
+    "nobs":nobs, "t0off":t0off, "t0true":t0true, "t0f":t0f, \
     "nt":nt, "na":na, "op":op, "pt":pt, "ft":ft,\
     "linf":linf, "lloc":lloc, "ltlm":ltlm}
 func = Z08_func(params)
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
-    ut, u, pf = func.gen_true(x)
+    ut, u, pa = func.gen_true(x)
+    pf = analysis.calc_pf(u, pa, 0)
     oberr = int(obs_s*1e4)
     obsfile="obs_{}_{}.npy".format(op, oberr)
     if not os.path.isfile(obsfile):
@@ -161,7 +165,8 @@ if __name__ == "__main__":
         dof[i] = ds
         innov[i] = innv
         if i < na-1:
-            u, pf = func.forecast(u, pa)
+            u = func.forecast(u, pa)
+            pf = analysis.calc_pf(u, pa, i+1)
             uf[i+1] = u
         if ft == "ensemble":
             e[i+1] = np.sqrt(np.mean((ua[i, :, 0] - ut[i, :])**2))

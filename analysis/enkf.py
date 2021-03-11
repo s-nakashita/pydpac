@@ -12,9 +12,10 @@ logger = logging.getLogger('anl')
 
 class EnKF():
 
-    def __init__(self, da, obs, infl, lsig,
+    def __init__(self, da, nmem, obs, infl, lsig,
                  linf, lloc, ltlm, model="model"):
         self.da = da # DA type (ETKF, PO, SRF, or LETKF)
+        self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
@@ -27,9 +28,14 @@ class EnKF():
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.da} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} lloc={self.lloc} ltlm={self.ltlm}")
+
+    def calc_pf(self, xf, pa, cycle):
+        dxf = xf - np.mean(xf,axis=1)[:, None]
+        pf = dxf @ dxf.transpose() / (self.nmem-1)
+        return pf
         
-    def __call__(self, xb, pf, y, yloc, save_hist=False, save_dh=False, icycle=0):
-        xf = xb[:]
+    def __call__(self, xf, pf, y, yloc, save_hist=False, save_dh=False, icycle=0):
+        #xf = xb[:]
         xf_ = np.mean(xf, axis=1)
         logger.debug(f"obsloc={yloc}")
         logger.debug(f"obssize={y.size}")
@@ -38,6 +44,7 @@ class EnKF():
         nmem = xf.shape[1]
         chi2_test = Chi(y.size, nmem, rmat)
         dxf = xf - xf_[:,None]
+        logger.debug(xf.shape)
         xloc = np.arange(xf_.size)
         if self.ltlm:
             dy = JH @ dxf
@@ -45,6 +52,7 @@ class EnKF():
             dy = self.obs.h_operator(yloc, xf) - np.mean(self.obs.h_operator(yloc, xf), axis=1)[:, None]
         d = y - np.mean(self.obs.h_operator(yloc, xf), axis=1)
         if save_dh:
+            np.save("{}_dxf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxf)
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dy)
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), d)
         logger.info("save_dh={} cycle{}".format(save_dh, icycle))
@@ -223,9 +231,9 @@ class EnKF():
         ds = self.dof(dy,nmem)
         logger.info("dof={}".format(ds))
         
-        u = np.zeros_like(xb)
-        u = xa[:,:]
-        return u, pa, innv, chi2, ds
+        #u = np.zeros_like(xb)
+        #u = xa[:,:]
+        return xa, pa, innv, chi2, ds
 
     def b_loc(self, sigma, nx, ny):
         if sigma < 0.0:

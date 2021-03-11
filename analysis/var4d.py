@@ -26,6 +26,15 @@ class Var4d():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
         logger.info(f"nt={self.nt} window_l={self.window_l}")
 
+    def calc_pf(self, xf, pa, cycle):
+        if cycle == 0:
+            if self.model == "l96":
+                return np.eye(xf.size)*0.2
+            elif self.model == "z08":
+                return np.eye(xf.size)*0.02
+        else:
+            return pa
+    
     def callback(self, xk):
         global zetak
         zetak.append(xk)
@@ -37,7 +46,7 @@ class Var4d():
         jo = 0
         for k in range(window_l):
             Mk = TM[k]
-            d = JH @ Mk @ x - ob[k]
+            d = JH[k] @ Mk @ x - ob[k]
             jo = jo + 0.5 * d.T @ rinv @ d
         return jb + jo
 
@@ -49,15 +58,15 @@ class Var4d():
         for k in range(window_l):
             Mk = TM[k]
             MkT = AM[k]
-            d = JH @ Mk @ x - ob[k]
-            djo = djo + MkT @ JH.T @ rinv @ d
+            d = JH[k] @ Mk @ x - ob[k]
+            djo = djo + MkT @ JH[k].T @ rinv @ d
         return djb + djo
 
-    def __call__(self, xf, pf, y, method="LBFGS", gtol=1e-6, maxiter=None,\
+    def __call__(self, xf, pf, y, yloc, method="LBFGS", gtol=1e-6, maxiter=None,\
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
-        JH = self.obs.dhdx(xf)
+        #JH = self.obs.dh_operator(yloc, xf)
         dum1, dum2, rinv = self.obs.set_r(np.array(y).shape[1])
         xb = xf
         bg = [xb] # background state
@@ -67,11 +76,13 @@ class Var4d():
             bg.append(xb)
         TM = [np.eye(xb.size)] # tangent linear model
         AM = [np.eye(xb.size)] # adjoint model
+        JH = [self.obs.dh_operator(yloc[0], xf)] # tangent linear observation operator
         E = np.eye(xb.size)
         for k in range(self.window_l-1):
             xk = bg[k]
             M = np.eye(xk.size)
             MT = np.eye(xk.size)
+            Hk = self.obs.dh_operator(yloc[k+1], bg[k+1])
             for l in range(self.nt):
                 Mk = self.step_t(xk[:, None], E)
                 M = Mk @ M
@@ -80,10 +91,11 @@ class Var4d():
                 xk = self.step(xk)
             TM.append(M@TM[k])
             AM.append(AM[k]@MT)
+            JH.append(Hk@JH[k])
         logger.debug("Assimilation window size = {}".format(len(TM)))
         ob = [] # innovation
         for k in range(len(bg)):
-            ob.append(y[k] - self.obs.h_operator(bg[k]))
+            ob.append(y[k] - self.obs.h_operator(yloc[k],bg[k]))
 
         x0 = np.zeros_like(xf)
         binv = la.inv(pf)

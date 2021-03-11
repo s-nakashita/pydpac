@@ -9,7 +9,7 @@ logger = logging.getLogger('anl')
 
 class Kf():
 
-    def __init__(self, pt, obs, infl, linf, step):
+    def __init__(self, pt, obs, infl, linf, step, nt, model):
         self.pt = pt # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
@@ -17,8 +17,29 @@ class Kf():
         self.infl_parm = infl # inflation parameter
         self.linf = linf
         self.step = step
+        self.nt = nt
+        self.model = model
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} linf={self.linf}")
 
+    def calc_pf(self, xf, pa, cycle):
+        if cycle == 0:
+            if self.model == "l96":
+                return np.eye(xf.size)*25.0
+            elif self.model == "z08":
+                return np.eye(xf.size)*0.02
+        else:
+            M = np.eye(xf.shape[0])
+            MT = np.eye(xf.shape[0])
+            E = np.eye(xf.shape[0])
+            xk = xf.copy()
+            for k in range(self.nt):
+                Mk = self.step.step_t(xk[:, None], E)
+                M = Mk @ M
+                MkT = self.step.step_adj(xk[:, None], E)
+                MT = MT @ MkT
+                xk = self.step(xk)
+            return M @ pa @ M.transpose()
+        
     def __call__(self, xf, pf, y, yloc, save_hist=False, save_dh=False, icycle=0):
         JH = self.obs.dh_operator(yloc,xf)
         R, dum1, dum2 = self.obs.set_r(y.size)

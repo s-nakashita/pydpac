@@ -27,12 +27,16 @@ x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   20 # ensemble size
+nmem =   20 # ensemble size (not include control run)
 t0off =   8 # initial offset between adjacent members
 t0c =   500 # t0 for control
-            # t0 for ensemble members
-t0m = [t0c + t0off//2 + t0off * i for i in range(-nmem//2, nmem//2)]
-t0f = [t0c] + t0m
+# t0 for ensemble members
+if nmem%2 == 0: # even
+    t0m = [t0c + t0off//2 + t0off * i for i in range(nmem//2)]
+    t0f = t0m + [t0c + t0off//2 + t0off * i for i in range(-nmem//2, 0)]
+else: # odd
+    t0m = [t0c + t0off//2 + t0off * i for i in range(-(nmem-1)//2, (nmem-1)//2)]
+    t0f = [t0c] + t0m
 na =   100 # number of analysis
 namax = 1460 # max number of analysis (1 year)
 
@@ -44,21 +48,21 @@ nobs = 40 # observation number (nobs<=nx)
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2}
-infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2}
-infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3}
-infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2}
-infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3}
-infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0}
+infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,"var4d":None}
+infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var4d":None}
+infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"var4d":None}
+infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var4d":None}
+infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"var4d":None}
+infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"var4d":None}
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t, "abs": infl_l}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5}
-sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
-sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0}
-sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0}
-sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0}
-sig_t = {"mlef":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0}
+sig_l = {"mlef":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5,"kf":None,"var":None,"var4d":None}
+sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var4d":None}
+sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"var4d":None}
+sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var4d":None}
+sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"var4d":None}
+sig_t = {"mlef":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0,"kf":None,"var":None,"var4d":None}
 dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
     "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, "test":sig_t, "abs":sig_l}
 # forecast type (ensemble or deterministic)
@@ -98,7 +102,6 @@ if len(sys.argv) > 4:
     if sys.argv[4] == "T":
         linf = True
         dict_i = dict_infl[op]
-        dict_i["var"] = None
         infl_parm = dict_i[pt]
 # switch of with/without localization
 if len(sys.argv) > 5:
@@ -108,8 +111,6 @@ if len(sys.argv) > 5:
     if sys.argv[5] == "T":
         lloc = True
         dict_s = dict_sig[op]
-        dict_s["kf"] = None
-        dict_s["var"] = None
         lsig = dict_s[pt]
 # switch of using/not using tangent linear operator
 if len(sys.argv) > 6:
@@ -126,23 +127,24 @@ obs = Obs(op, sigma[op])
 # assimilation method
 if pt == "mlef":
     from analysis.mlef import Mlef
-    analysis = Mlef(pt, obs, infl_parm, lsig, linf, lloc, ltlm, model)
+    analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, obs, infl_parm, lsig, linf, lloc, ltlm, model)
+    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl_parm, linf, step)
+    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model)
 elif pt == "var":
     from analysis.var import Var
     analysis = Var(pt, obs, model)
 elif pt == "var4d":
     from analysis.var4d import Var4d
+    a_window = 5
     analysis = Var4d(pt, obs, step, nt, a_window, model)
     
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
-    "nmem":nmem, "t0c":t0c, "t0f":t0f, "nt":nt, "na":na,\
+    "t0c":t0c, "t0f":t0f, "nt":nt, "na":na,\
     "namax":namax, "a_window":a_window, "op":op, "pt":pt, "ft":ft,\
     "linf":linf, "lloc":lloc, "ltlm":ltlm,\
     "infl_parm":infl_parm, "lsig":lsig}
@@ -152,12 +154,12 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
-    u, xa, xf, pf, sqrtpa = func.initialize(opt=0)
+    u, xa, xf, pa, sqrtpa = func.initialize(opt=0)
+    pf = analysis.calc_pf(u, pa, 0)
     
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
-    #if ft == "ensemble":
     innov = np.zeros((na,yobs.shape[1]))
     chi = np.zeros(na)
     dof = np.zeros(na)
@@ -196,19 +198,27 @@ if __name__ == "__main__":
         dof[i] = ds
         if i < na-1:
             if a_window > 1:
-                uf, p = func.forecast(u, pa)
+                uf = func.forecast(u)
                 if (i+1+a_window <= na):
                     xa[i+1:i+1+a_window] = uf
                     xf[i+1:i+1+a_window] = uf
-                    sqrtpa[i+1:i+1+a_window, :, :] = p[:, :]
+                    ii = 0
+                    for k in range(i+1,i+1+a_window):
+                        sqrtpa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
+                        ii += 1
                 else:
                     xa[i+1:na] = uf[:na-i-1]
                     xf[i+1:na] = uf[:na-i-1]
-                    sqrtpa[i+1:na, :, :] = p[:na-i-1, :, :]
+                    ii = 0
+                    for k in range(i+1,na):
+                        sqrtpa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
+                        ii += 1
                 u = uf[-1]
-                pf = p[-1]
+                pf = analysis.calc_pf(u, pa, i+1)
             else:
-                u, pf = func.forecast(u, pa, tlm=True)
+                u = func.forecast(u)
+                pf = analysis.calc_pf(u, pa, i+1)
+
             if ft=="ensemble":
                 if pt == "mlef":
                     xf[i+1] = u[:, 0]

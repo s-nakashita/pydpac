@@ -7,13 +7,13 @@ op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
 if model == "z08" or model == "z05":
-    #perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf", "var"]
-    perts = ["mlef", "grad", "etkf-jh", "etkf-fh", "kf"]
-    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
-     "kf":"tab:cyan"}
-    #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-    #    "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
-    #    "var4d":"tab:brown"}
+    perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf", "var"]
+    #perts = ["mlef", "grad", "etkf-jh", "etkf-fh", "kf"]
+    #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
+    # "kf":"tab:cyan"}
+    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+        "var4d":"tab:brown"}
     #perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     #linestyle = {"mlef":"solid", "grad":"dashed",
     # "etkf-fh":"solid", "etkf-jh":"dashed"}

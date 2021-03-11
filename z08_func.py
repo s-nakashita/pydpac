@@ -17,7 +17,6 @@ class Z08_func():
         self.obs = params["obs"]
         self.analysis = params["analysis"]
         self.nobs = params["nobs"]
-        self.nmem = params["nmem"]
         self.t0off = params["t0off"]
         self.t0true = params["t0true"]
         self.t0f = params["t0f"]
@@ -31,8 +30,8 @@ class Z08_func():
         self.ltlm = params["ltlm"]
         logger.info("nx={} nu={} dt={:7.3e} dx={:7.3e}"\
             .format(self.nx, self.nu, self.dt, self.dx))
-        logger.info("nmem={} t0true={} t0f={}".format(self.nmem, self.t0true, self.t0f))
-        logger.info("nt={} na={}".format(self.nt, self.na))
+        logger.info("t0true={} t0f={}".format(self.t0true, self.t0f))
+        logger.info("nt={} na={} nobs={}".format(self.nt, self.na, self.nobs))
         logger.info("operator={} perturbation={} sigma={} ftype={}".format\
             (self.op, self.pt, self.obs.get_sig(), self.ft))
         logger.info("inflation={} localization={} TLM={}".format(self.linf,self.lloc,self.ltlm))
@@ -46,7 +45,7 @@ class Z08_func():
         if self.ft == "deterministic":
             u0 = np.zeros(self.nx)
         else:
-            u0 = np.zeros((self.nx, self.nmem+1))
+            u0 = np.zeros((self.nx, len(self.t0f)))
         for k in range(self.t0true):
             u = self.step(u)
             if self.ft == "ensemble":
@@ -65,30 +64,19 @@ class Z08_func():
                     if j in self.t0f:
                         u0[:, self.t0f.index(j)] = u
             ut[i+1, :] = u
-        if self.pt == "etkf" or self.pt == "po" \
-            or self.pt == "letkf" or self.pt == "srf":
-            u0[:, 0] = np.mean(u0[:, 1:], axis=1)
-            dxf = (u0[:, 1:] - u0[:, 0].reshape(-1,1))/ np.sqrt(self.nmem-1)
-            pf = dxf @ dxf.T
-            self.plot_spread(dxf)
-        elif self.pt == "mlef" or self.pt == "grad":
-            dxf = u0[:, 1:] - u0[:, 0].reshape(-1,1)
-            pf = dxf @ dxf.T
-            self.plot_spread(dxf)
-        else:
-            pf = np.eye(self.nx) * 0.02
-        return ut, u0, pf
+        pa = np.eye(self.nx)
+        return ut, u0, pa
 
     # initialize variables
     def init_hist(self, u0):
         if self.ft == "ensemble":
-            ua = np.zeros((self.na, self.nx, self.nmem+1))
+            ua = np.zeros((self.na, u0.shape[0], u0.shape[1]))
         else:
-            ua = np.zeros((self.na, self.nx))
+            ua = np.zeros((self.na, u0.size))
         uf = np.zeros_like(ua)
         uf[0] = u0
         if self.pt == "mlef" or self.pt == "grad":
-            sqrtpa = np.zeros((self.na, self.nx, self.nmem))
+            sqrtpa = np.zeros((self.na, u0.shape[0], u0.shape[1]-1))
         else:
             sqrtpa = np.zeros((self.na, self.nx, self.nx))
         return ua, uf, sqrtpa
@@ -106,7 +94,7 @@ class Z08_func():
                 yobs[k,:,1] = self.obs.h_operator(obsloc, u[k])
             yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
         else:
-            logger.infio("random observation")
+            logger.info("random observation")
             for k in range(self.na):
                 obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
                 #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs) 
@@ -124,52 +112,32 @@ class Z08_func():
     def forecast(self, u, pa, tlm=False):
         for k in range(self.nt):
             u = self.step(u)
-        if self.pt == "etkf" or self.pt == "po" \
-            or self.pt == "letkf" or self.pt == "srf":
-            u[:, 0] = np.mean(u[:, 1:], axis=1)
-            dxf = u[:, 1:] - u[:, 0].reshape(-1,1) / np.sqrt(self.nmem-1)
-            pf = dxf @ dxf.T
-        elif self.pt == "mlef" or self.pt == "grad":
-            dxf = u[:, 1:] - u[:, 0].reshape(-1,1)
-            pf = dxf @ dxf.T
-        elif self.pt == "kf":
-            M = np.eye(u.shape[0])
-            MT = np.eye(u.shape[0])
-            if tlm:
-                E = np.eye(u.shape[0])
-                uk = u
-                for k in range(self.nt):
-                    Mk = self.step.step_t(uk[:,None], E)
-                    M = Mk @ M
-                    MkT = self.step.step_adj(uk[:,None], E)
-                    MT = MT @ MkT
-                    uk = self.step(uk)
-            else:
-                for k in range(self.nt):
-                    M = self.analysis.get_linear(u, M)
-                MT = M.T
-            pf = M @ pa @ MT
-        else:
-            pf = pa
-        return u, pf
+        return u
 
     # plot initial state (for ensemble)
     def plot_initial(self, u, ut, model):
         fig, ax = plt.subplots()
         x = np.arange(ut.size) + 1
         ax.plot(x, ut, label="true")
-        for i in range(u.shape[1]):
-            if i==0:
-                ax.plot(x, u[:,i], label="control")
-            else:
-                ax.plot(x, u[:,i], linestyle="--", color="tab:green", label="mem{}".format(i))
-        diff = u[:,0] - ut
-        ax.plot(x, diff, linestyle="dotted",color="tab:red",label="cntl-true")
+        if self.pt != "mlef":
+            ax.plot(x, np.mean(u, axis=1), label="mean")
+            for i in range(u.shape[1]):
+                ax.plot(x, u[:,i], linestyle="--", color="tab:green", label="mem{}".format(i+1))
+            diff = np.mean(u, axis=1) - ut
+            ax.plot(x, diff, linestyle="dotted",color="tab:red",label="cntl-mean")
+        else:
+            for i in range(u.shape[1]):
+                if i==0:
+                    ax.plot(x, u[:,i], label="control")
+                else:
+                    ax.plot(x, u[:,i], linestyle="--", color="tab:green", label="mem{}".format(i))
+            diff = u[:,0] - ut
+            ax.plot(x, diff, linestyle="dotted",color="tab:red",label="cntl-true")
         ax.set(xlabel="points", ylabel="u", title="initial lag={}".format(self.t0off))
         ax.set_xticks(x[::10])
         ax.set_xticks(x[::5], minor=True)
         ax.legend()
-        fig.savefig("{}_initial_lag{}.png".format(model, self.t0off))
+        fig.savefig("{}_initial_{}_lag{}.png".format(model, self.pt, self.t0off))
 
     # plot initial spread
     def plot_spread(self, dxf):

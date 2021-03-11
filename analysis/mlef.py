@@ -13,9 +13,10 @@ logger = logging.getLogger('anl')
         
 class Mlef():
 
-    def __init__(self, pt, obs, infl, lsig, 
+    def __init__(self, pt, nmem, obs, infl, lsig, 
                  linf, lloc, ltlm, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
+        self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
@@ -28,7 +29,13 @@ class Mlef():
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} lloc={self.lloc} ltlm={self.ltlm}")
-        
+
+    def calc_pf(self, xf, pa, cycle):
+        spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
+        pf = spf @ spf.transpose()
+        logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
+        return pf
+
     def precondition(self,zmat):
         #u, s, vt = la.svd(zmat)
         #v = vt.transpose()
