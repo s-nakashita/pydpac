@@ -138,7 +138,7 @@ class Mlef():
         l_mat[dist>d0] = 0
         return dist, l_mat 
 
-    def __call__(self, xb, pb, y, yloc, method="BFGS", gtol=1e-6, maxiter=None,
+    def __call__(self, xb, pb, y, yloc, method="LBFGS", gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak
         zetak = []
@@ -168,7 +168,6 @@ class Mlef():
             dh = self.obs.h_operator(yloc,xf) - self.obs.h_operator(yloc,xc)[:, None]
         if save_dh:
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
-            #ob = y - self.obs.h_operator(xc)
             ob = y - self.obs.h_operator(yloc,xc)
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
         logger.info("save_dh={}".format(save_dh))

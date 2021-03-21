@@ -232,6 +232,8 @@ if __name__ == "__main__":
         else:
             e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
             
+    np.save("{}_ut.npy".format(model), xt)
+    np.save("{}_uf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), xa)
     np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
     

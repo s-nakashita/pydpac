@@ -169,9 +169,13 @@ if __name__ == "__main__":
             pf = analysis.calc_pf(u, pa, i+1)
             uf[i+1] = u
         if ft == "ensemble":
-            e[i+1] = np.sqrt(np.mean((ua[i, :, 0] - ut[i, :])**2))
+            if pt == "mlef":
+                e[i+1] = np.sqrt(np.mean((ua[i, :, 0] - ut[i, :])**2))
+            else:
+                e[i+1] = np.sqrt(np.mean((np.mean(ua[i, :, :], axis=1) - ut[i, :])**2))
         else:
             e[i+1] = np.sqrt(np.mean((ua[i, :] - ut[i, :])**2))
+    
     np.save("{}_ut.npy".format(model), ut)
     np.save("{}_uf_{}_{}.npy".format(model, op, pt), uf)
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), ua)

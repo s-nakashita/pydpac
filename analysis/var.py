@@ -26,7 +26,7 @@ class Var():
             if self.model == "l96":
                 return np.eye(xf.size)*0.2
             elif self.model == "z08":
-                return np.eye(xf.size)*0.02
+                return np.eye(xf.size)*0.1
         else:
             return pa
 
