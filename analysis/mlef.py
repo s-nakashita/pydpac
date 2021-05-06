@@ -8,6 +8,7 @@ from .chi_test import Chi
 from .minimize import Minimize
 
 zetak = []
+alphak = []
 logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
         
@@ -51,10 +52,12 @@ class Mlef():
         logger.info("eigen value ={}".format(lam))
         return tmat, heinv
 
-    def callback(self, xk):
-        global zetak
+    def callback(self, xk, alpha=None):
+        global zetak, alphak
         logger.debug("xk={}".format(xk))
         zetak.append(xk)
+        if alpha is not None:
+            alphak.append(alpha)
 
     def calc_j(self, zeta, *args):
         xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
@@ -76,7 +79,17 @@ class Mlef():
         else:
             dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
         return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
-        
+
+    def calc_hess(self, zeta, *args):
+        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        x = xc + gmat @ zeta
+        if self.ltlm:
+            dh = self.obs.dh_operator(yloc, x) @ pf
+        else:
+            dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
+        hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
+        return hess
+
     def cost_j(self, nx, nmem, xopt, icycle, *args):
         xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
         delta = np.linspace(-nx,nx,4*nx)
@@ -138,10 +151,12 @@ class Mlef():
         l_mat[dist>d0] = 0
         return dist, l_mat 
 
-    def __call__(self, xb, pb, y, yloc, method="LBFGS", gtol=1e-6, maxiter=None,
+    def __call__(self, xb, pb, y, yloc, method="CGF", cgtype=1,
+        gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
-        global zetak
+        global zetak, alphak
         zetak = []
+        alphak = []
         r, rmat, rinv = self.obs.set_r(y.size)
         xf = xb[:, 1:]
         xc = xb[:, 0]
@@ -183,11 +198,12 @@ class Mlef():
         args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
-        minimize = Minimize(x0.size, 7, self.calc_j, self.calc_grad_j, 
-                            args_j, iprint, method, options)
+        minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
+                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
+                            maxiter=maxiter)
         logger.info("save_hist={}".format(save_hist))
         if save_hist:
-            x = minimize(x0, callback=self.callback)
+            x, flg = minimize(x0, callback=self.callback)
             jh = np.zeros(len(zetak))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
@@ -196,6 +212,7 @@ class Mlef():
                 gh[i] = np.sqrt(g.transpose() @ g)
             np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
             np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
+            np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
             if self.model=="z08":
                 xmax = max(np.abs(np.min(x)),np.max(x))
                 logger.debug("resx max={}".format(xmax))
@@ -208,7 +225,7 @@ class Mlef():
             elif self.model=="l96":
                 self.cost_j(200, xf.shape[1], x, icycle, *args_j)
         else:
-            x = minimize(x0)
+            x, flg = minimize(x0)
         xa = xc + gmat @ x
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
@@ -239,4 +256,5 @@ class Mlef():
         u = np.zeros_like(xb)
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa
-        return u, pa, innv, chi2, ds
+        fpa = pa @ pa.T
+        return u, fpa, pa, innv, chi2, ds

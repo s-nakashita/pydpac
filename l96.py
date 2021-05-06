@@ -85,7 +85,7 @@ if len(sys.argv) > 1:
 # assimilation scheme
 if len(sys.argv) > 2:
     htype["perturbation"] = sys.argv[2]
-# number of assimilation type
+# number of assimilation cycle
 if len(sys.argv) > 3:
     na = int(sys.argv[3])
 
@@ -175,7 +175,7 @@ if __name__ == "__main__":
                 u, pa, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
             else:
-                u, pa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
@@ -183,7 +183,7 @@ if __name__ == "__main__":
             if a_window > 1:
                 u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
             else:
-                u, pa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
             

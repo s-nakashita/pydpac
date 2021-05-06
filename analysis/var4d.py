@@ -9,6 +9,7 @@ from .minimize import Minimize
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('anl')
 zetak = []
+alphak = []
 
 class Var4d():
     def __init__(self, pt, obs, step, nt, window_l, model="model"):
@@ -28,16 +29,19 @@ class Var4d():
 
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
-            if self.model == "l96":
+            if self.model == "l96" or self.model == "hs00":
                 return np.eye(xf.size)*0.2
             elif self.model == "z08":
                 return np.eye(xf.size)*0.02
         else:
             return pa
     
-    def callback(self, xk):
-        global zetak
+    def callback(self, xk, alpha=None):
+        global zetak, alphak
+        logger.debug("xk={}".format(xk))
         zetak.append(xk)
+        if alpha is not None:
+            alphak.append(alpha)
 
     def calc_j(self, x, *args):
         binv, JH, rinv, ob, TM, AM = args
@@ -62,10 +66,24 @@ class Var4d():
             djo = djo + MkT @ JH[k].T @ rinv @ d
         return djb + djo
 
-    def __call__(self, xf, pf, y, yloc, method="LBFGS", gtol=1e-6, maxiter=None,\
+    def calc_hess(self, x, *args):
+        binv, JH, rinv, ob, TM, AM = args
+        window_l = len(TM)
+        djb = binv
+        djo = np.zeros(x.size)
+        for k in range(window_l):
+            Mk = TM[k]
+            MkT = AM[k]
+            d = JH[k] @ Mk 
+            djo = djo + MkT @ JH[k].T @ rinv @ d
+        return djb + djo
+
+    def __call__(self, xf, pf, y, yloc, method="CGF", cgtype=1,
+        gtol=1e-6, maxiter=None,\
         disp=False, save_hist=False, save_dh=False, icycle=0):
-        global zetak
+        global zetak, alphak
         zetak = []
+        alphak = []
         #JH = self.obs.dh_operator(yloc, xf)
         dum1, dum2, rinv = self.obs.set_r(np.array(y).shape[1])
         xb = xf
@@ -91,7 +109,7 @@ class Var4d():
                 xk = self.step(xk)
             TM.append(M@TM[k])
             AM.append(AM[k]@MT)
-            JH.append(Hk@JH[k])
+            JH.append(Hk)
         logger.debug("Assimilation window size = {}".format(len(TM)))
         ob = [] # innovation
         for k in range(len(bg)):
@@ -103,11 +121,12 @@ class Var4d():
         args_j = (binv, JH, rinv, ob, TM, AM)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
-        minimize = Minimize(x0.size, 7, self.calc_j, self.calc_grad_j, 
-                            args_j, iprint, method, options)
+        minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
+                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
+                            maxiter=maxiter)
         logger.info(f"save_hist={save_hist} cycle={icycle}")
         if save_hist:
-            x = minimize(x0, callback=self.callback)
+            x, flg = minimize(x0, callback=self.callback)
             jh = np.zeros(len(zetak))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
@@ -116,8 +135,9 @@ class Var4d():
                 gh[i] = np.sqrt(g.transpose() @ g)
             np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
             np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
+            np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
         else:
-            x = minimize(x0)
+            x, flg = minimize(x0)
 
         xa = xf + x
 

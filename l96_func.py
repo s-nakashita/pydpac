@@ -94,6 +94,7 @@ class L96_func():
                 logger.info("random observation")
                 for k in range(self.na):
                     obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
+                    #obsloc = xloc[:self.nobs]
                     #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs)
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
@@ -150,10 +151,10 @@ class L96_func():
             else:
                 xf[0] = np.mean(u, axis=1)
         pa  = np.zeros((self.nx, self.nx))
-        if self.pt == "mlef" or self.pt == "grad":
-            sqrtpa = np.zeros((self.na, self.nx, len(self.t0f)-1))
-        else:
-            sqrtpa = np.zeros((self.na, self.nx, self.nx))
+        #if self.pt == "mlef" or self.pt == "grad":
+        #    sqrtpa = np.zeros((self.na, self.nx, len(self.t0f)-1))
+        #else:
+        sqrtpa = np.zeros((self.na, self.nx, self.nx))
         return u, xa, xf, pa, sqrtpa
 
     # forecast

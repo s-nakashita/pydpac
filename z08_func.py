@@ -75,10 +75,10 @@ class Z08_func():
             ua = np.zeros((self.na, u0.size))
         uf = np.zeros_like(ua)
         uf[0] = u0
-        if self.pt == "mlef" or self.pt == "grad":
-            sqrtpa = np.zeros((self.na, u0.shape[0], u0.shape[1]-1))
-        else:
-            sqrtpa = np.zeros((self.na, self.nx, self.nx))
+        #if self.pt == "mlef" or self.pt == "grad":
+        #    sqrtpa = np.zeros((self.na, u0.shape[0], u0.shape[1]-1))
+        #else:
+        sqrtpa = np.zeros((self.na, self.nx, self.nx))
         return ua, uf, sqrtpa
 
     # make observation

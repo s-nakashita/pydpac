@@ -109,7 +109,7 @@ class EnKF():
 
         elif self.da=="po":
             Y = np.zeros((y.size,nmem))
-            np.random.seed(514)
+            #np.random.seed(514)
             #err = np.random.normal(0, scale=self.sig, size=Y.size)
             #err = err.reshape(Y.shape)
             mu = np.zeros(y.size)
@@ -216,6 +216,7 @@ class EnKF():
                 dxa[i] = dxf[i] @ sqrtPa
                 xa[i] = np.full(nmem,xa_[i]) + dxa[i]
             pa = dxa@dxa.T/(nmem-1)
+        spa = dxa / np.sqrt(nmem-1)
         
         if save_dh:
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), pa)
@@ -233,7 +234,7 @@ class EnKF():
         
         #u = np.zeros_like(xb)
         #u = xa[:,:]
-        return xa, pa, innv, chi2, ds
+        return xa, pa, spa, innv, chi2, ds
 
     def b_loc(self, sigma, nx, ny):
         if sigma < 0.0:

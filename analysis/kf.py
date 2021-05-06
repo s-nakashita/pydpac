@@ -23,7 +23,7 @@ class Kf():
 
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
-            if self.model == "l96":
+            if self.model == "l96" or self.model == "hs00":
                 return np.eye(xf.size)*25.0
             elif self.model == "z08":
                 return np.eye(xf.size)*0.02
@@ -54,12 +54,13 @@ class Kf():
         xa = xf + K @ ob
 
         pa = (np.eye(xf.size) - K @ JH) @ pf
+        spa = la.cholesky(pa)
 
         innv, chi2 = self.chi2(pf, JH, R, ob)
         ds = self.dof(K, JH)
         logger.info("dof={}".format(ds))
 
-        return xa, pa, innv, chi2, ds
+        return xa, pa, spa, innv, chi2, ds
 
     def get_linear(self, xa, Mb):
         eps = 1e-5

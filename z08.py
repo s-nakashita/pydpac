@@ -148,10 +148,10 @@ if __name__ == "__main__":
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis".format(i))
         if i in range(4):
-            u, pa, innv, chi2, ds = analysis(u, pf, y, yloc, \
+            u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
                 save_hist=True, save_dh=True, icycle=i)
         else:
-            u, pa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
+            u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
             
         ua[i] = u
         sqrtpa[i] = pa

@@ -10,6 +10,7 @@ from .minimize import Minimize
 logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
 zetak = []
+alphak = []
 
 class Var():
     def __init__(self, pt, obs, model="model"):
@@ -23,16 +24,19 @@ class Var():
 
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
-            if self.model == "l96":
+            if self.model == "l96" or self.model == "hs00":
                 return np.eye(xf.size)*0.2
             elif self.model == "z08":
                 return np.eye(xf.size)*0.1
         else:
             return pa
 
-    def callback(self, xk):
-        global zetak
+    def callback(self, xk, alpha=None):
+        global zetak, alphak
+        logger.debug("xk={}".format(xk))
         zetak.append(xk)
+        if alpha is not None:
+            alphak.append(alpha)
 
     def calc_j(self, x, *args):
         binv, JH, rinv, ob = args
@@ -46,10 +50,16 @@ class Var():
         d = JH @ x - ob
         return binv @ x + JH.T @ rinv @ d
 
-    def __call__(self, xf, pf, y, yloc, method="BFGS", gtol=1e-6, maxiter=None,\
+    def calc_hess(self, x, *args):
+        binv, JH, rinv, ob = args
+        return binv + JH.T @ rinv @ JH
+
+    def __call__(self, xf, pf, y, yloc, method="CGF", cgtype=1,
+        gtol=1e-6, maxiter=None,\
         disp=False, save_hist=False, save_dh=False, icycle=0):
-        global zetak
+        global zetak, alphak
         zetak = []
+        alphak = []
         dum1, dum2, rinv = self.obs.set_r(y.size)
         JH = self.obs.dh_operator(yloc, xf)
         ob = y - self.obs.h_operator(yloc,xf)
@@ -60,11 +70,12 @@ class Var():
         args_j = (binv, JH, rinv, ob)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
-        minimize = Minimize(x0.size, 7, self.calc_j, self.calc_grad_j, 
-                            args_j, iprint, method, options)
+        minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
+                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
+                            maxiter=maxiter)
         logger.info(f"save_hist={save_hist} cycle={icycle}")
         if save_hist:
-            x = minimize(x0, callback=self.callback)
+            x, flg = minimize(x0, callback=self.callback)
             jh = np.zeros(len(zetak))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
@@ -73,12 +84,15 @@ class Var():
                 gh[i] = np.sqrt(g.transpose() @ g)
             np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
             np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
+            np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
         else:
-            x = minimize(x0)
+            x, flg = minimize(x0)
         
         xa = xf + x
         innv = np.zeros_like(ob)
         fun = self.calc_j(x, *args_j)
         chi2 = fun / nobs
 
-        return xa, pf, innv, chi2, 0.0
+        spf = la.cholesky(pf)
+
+        return xa, pf, spf, innv, chi2, 0.0

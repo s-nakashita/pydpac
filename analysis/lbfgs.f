@@ -6,14 +6,14 @@ C     LBFGS SUBROUTINE
 C     ****************
 C
       SUBROUTINE LBFGS(N,M,X,F,G,DIAGCO,DIAG,IPRINT,EPS,XTOL,W,IFLAG,
-     *       XK, OFLAG)
+     *       IREST, XK, DK, STPK, OFLAG)
 C
       INTEGER, INTENT(IN) :: N,M,IPRINT(2)
-      INTEGER, INTENT(IN) :: IFLAG
+      INTEGER, INTENT(IN) :: IFLAG, IREST
       INTEGER, INTENT(OUT) :: OFLAG
       DOUBLE PRECISION, INTENT(INOUT) :: X(N),G(N),DIAG(N),
      * W(N*(2*M+1)+2*M)
-      DOUBLE PRECISION, INTENT(OUT) :: XK(N)
+      DOUBLE PRECISION, INTENT(OUT) :: XK(N), DK(N), STPK
       DOUBLE PRECISION, INTENT(IN) :: F,EPS,XTOL
       LOGICAL, INTENT(IN) :: DIAGCO
 C     intent(in) N, M, IPRINT(2), F, G(N), DIAGCO, DIAG, IPRINT, EPS, XTOL, W
@@ -173,6 +173,7 @@ C
 C              IFLAG=-3  Improper input parameters for LBFGS (N or M are
 C                        not positive).
 C 
+C     IREST  =  0 (NO RESTARTS); 1 (RESTART EVERY N STEPS)
 C
 C
 C    ON THE DRIVER:
@@ -236,8 +237,8 @@ C
       DOUBLE PRECISION GTOL,ONE,ZERO,GNORM,DDOT,STP1,FTOL,STPMIN,
      .                 STPMAX,STP,YS,YY,SQ,YR,BETA,XNORM
       INTEGER MP,LP,ITER,NFUN,POINT,ISPT,IYPT,MAXFEV,INFO,
-     .        BOUND,NPT,CP,I,J,NFEV,INMC,IYCN,ISCN
-      LOGICAL FINISH
+     .        BOUND,NPT,CP,I,J,NFEV,INMC,IYCN,ISCN,NRST
+      LOGICAL FINISH, NEW
 C
       SAVE
       DATA ONE,ZERO/1.0D+0,0.0D+0/
@@ -256,7 +257,7 @@ C      PRINT*, SIZE(W)
 C      PRINT*, IFLAG
 
       IF(IFLAG.EQ.0) GO TO 10
-      GO TO (172,100) IFLAG
+      GO TO (172,100,80) IFLAG
   10  ITER= 0
       IF(N.LE.0.OR.M.LE.0) GO TO 196
       IF(GTOL.LE.1.D-04) THEN
@@ -266,6 +267,8 @@ C      PRINT*, IFLAG
       NFUN= 1
       POINT= 0
       FINISH= .FALSE.
+      NEW=.TRUE.
+      NRST=0
       IF(DIAGCO) THEN
          DO 30 I=1,N
  30      IF (DIAG(I).LE.ZERO) GO TO 195
@@ -311,6 +314,8 @@ C     MAIN ITERATION LOOP
 C    --------------------
 C
  80   ITER= ITER+1
+C     WHEN NRST>N AND IREST=1 THEN RESTART
+      NRST= NRST+1
       INFO=0
       BOUND=ITER-1
       IF(ITER.EQ.1) GO TO 165
@@ -375,6 +380,18 @@ C     ------------------------------
 C
        DO 160 I=1,N
  160   W(ISPT+POINT*N+I)= W(I)
+       DO 162 I=1,N
+ 162   DK(I)= W(I)
+C      IF (IREST.EQ.1.AND.NRST.GT.N) THEN
+C        PRINT *, "RESTART"
+C        NRST=0
+C        NEW=.TRUE.
+C        DO 162 I=1,N
+C 162    W(ISPT+POINT*N+I)= -G(I)
+C        GO TO 165
+C      END IF
+C      NEW=.FALSE.
+
 C
 C     OBTAIN THE ONE-DIMENSIONAL MINIMIZER OF THE FUNCTION 
 C     BY USING THE LINE SEARCH ROUTINE MCSRCH
@@ -388,11 +405,13 @@ C     ----------------------------------------------------
       CALL MCSRCH(N,X,F,G,W(ISPT+POINT*N+1),STP,FTOL,
      *            XTOL,MAXFEV,INFO,NFEV,DIAG)
 C      PRINT*, "INFO=", INFO
+C      LSINFO = INFO
       IF (INFO .EQ. -1) THEN
 C        IFLAG=1
         OFLAG=1
 C        PRINT*, "IFLAG=", OFLAG
 C        PRINT*, "RETURN FROM L385"
+        STPK = STP
         DO 174 I=1,N 
  174    XK(I) = X(I)
         RETURN
@@ -416,7 +435,8 @@ C
       GNORM= DSQRT(DDOT(N,G,1,G,1))
       XNORM= DSQRT(DDOT(N,X,1,X,1))
       XNORM= DMAX1(1.0D0,XNORM)
-      IF (GNORM/XNORM .LE. EPS) FINISH=.TRUE.
+C      IF (GNORM/XNORM .LE. EPS) FINISH=.TRUE.
+      IF (GNORM .LE. EPS) FINISH=.TRUE.
 C
       IF(IPRINT(1).GE.0) CALL LB1(IPRINT,ITER,NFUN,
      *               GNORM,N,M,X,F,G,STP,FINISH)
@@ -424,11 +444,19 @@ C
 C         IFLAG=0
          OFLAG=0
 C         PRINT*, "RETURN FROM L413"
+         STPK = STP
          DO 176 I=1,N
  176     XK(I) = X(I)
          RETURN
+      ELSE
+         OFLAG=3
+C         PRINT*, "RETURN FROM L413"
+         STPK = STP
+         DO 178 I=1,N
+ 178     XK(I) = X(I)
+         RETURN
       ENDIF
-      GO TO 80
+C      GO TO 80
 C
 C     ------------------------------------------------------------
 C     END OF MAIN ITERATION LOOP. ERROR EXITS.
@@ -437,18 +465,21 @@ C
 C 190  IFLAG=-1
  190  OFLAG=-1
       IF(LP.GT.0) WRITE(LP,200) INFO
+      STPK = STP
       DO 192 I=1,N
  192     XK(I) = X(I)
       RETURN
 C 195  IFLAG=-2
  195  OFLAG=-2
       IF(LP.GT.0) WRITE(LP,235) I
+      STPK = STP
       DO 197 J=1,N
  197     XK(J) = X(J)
       RETURN
 C 196  IFLAG= -3
  196  OFLAG= -3
       IF(LP.GT.0) WRITE(LP,240)
+      STPK = STP
       DO 198 I=1,N
  198     XK(I) = X(I)
 C
@@ -935,7 +966,7 @@ C           AND TO COMPUTE THE NEW STEP.
 C
             CALL MCSTEP(STX,FXM,DGXM,STY,FYM,DGYM,STP,FM,DGM,
      *                 BRACKT,STMIN,STMAX,INFOC)
-            PRINT *, "INFOC=", INFOC
+C            PRINT *, "INFOC=", INFOC
 C
 C           RESET THE FUNCTION AND GRADIENT VALUES FOR F.
 C
@@ -950,7 +981,7 @@ C           AND TO COMPUTE THE NEW STEP.
 C
             CALL MCSTEP(STX,FX,DGX,STY,FY,DGY,STP,F,DG,
      *                 BRACKT,STMIN,STMAX,INFOC)
-            PRINT *, "INFOC=", INFOC
+C            PRINT *, "INFOC=", INFOC
             END IF
 C
 C        FORCE A SUFFICIENT DECREASE IN THE SIZE OF THE
