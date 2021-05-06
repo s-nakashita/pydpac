@@ -17,8 +17,8 @@ model = "l96"
 # model parameter
 nx = 40     # number of points
 F  = 8.0    # forcing
-nt =   1    # number of step per forecast (=6 hour)
-dt = 0.05 / nt  # time step (=1 hour)
+nt =   6    # number of step per forecast (=6 hour)
+dt = 0.05 / 6  # time step (=1 hour)
 
 # forecast model forward operator
 step = L96(nx, dt, F)
@@ -119,7 +119,8 @@ if len(sys.argv) > 6:
 # number of ensemble member (or observation size)
 if len(sys.argv) > 7:
     #nobs = int(sys.argv[7])
-    nmem = int(sys.argv[7])
+    #nmem = int(sys.argv[7])
+    nt = int(sys.argv[7]) * 6
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -127,6 +128,7 @@ obs = Obs(op, sigma[op])
 # assimilation method
 if pt == "mlef":
     from analysis.mlef import Mlef
+    #lloc = False
     analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF

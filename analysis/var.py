@@ -93,6 +93,6 @@ class Var():
         fun = self.calc_j(x, *args_j)
         chi2 = fun / nobs
 
-        spf = la.cholesky(pf)
+        #spf = la.cholesky(pf)
 
-        return xa, pf, spf, innv, chi2, 0.0
+        return xa, pf, None, innv, chi2, 0.0

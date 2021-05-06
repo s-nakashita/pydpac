@@ -35,6 +35,8 @@ elif ptype == "nobs":
     var = [40, 35, 30, 25, 20, 15, 10]
 elif ptype == "nmem":
     var = [40, 35, 30, 25, 20, 15, 10, 5]
+elif ptype == "nt":
+    var = [1, 2, 3, 4, 5, 6, 7, 8]
 #y = np.ones(len(var)) * sigma[op]
 fig, ax = plt.subplots()
 for pt in perts:
