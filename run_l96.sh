@@ -2,14 +2,14 @@
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
-perturbations="mlef etkf po srf letkf kf var var4d"
-#perturbations="etkf"
+#perturbations="mlef etkf po srf letkf kf var"
+perturbations="mlef etkf letkf var 4dmlef 4detkf 4dletkf 4dvar"
 na=100 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
 lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use
-a_window=
-exp="l96test"
+a_window=5
+exp="test4d"
 echo ${exp}
 rm -rf ${exp}
 mkdir ${exp}

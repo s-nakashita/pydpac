@@ -10,11 +10,13 @@ from .chi_test import Chi
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('anl')
 
-class EnKF():
-
+class EnKS():
+# Hunt et al. 2004: "Four-dimensional ensemble Kalman filtering," Tellus, 56A, 273-277
+# Fertig et al. 2007: "A comparative study of 4D-VAR and a 4D ensemble Kalman filter: perfect model simulations with Lorenz-96," Tellus, 59A, 96-100
     def __init__(self, da, nmem, obs, infl, lsig,
-                 linf, lloc, ltlm, model="model"):
-        self.da = da # DA type (ETKF, PO, SRF, or LETKF)
+                 linf, lloc, ltlm,
+                 step, nt, window_l, model="model"):
+        self.da = da[2:] # DA type (prefix 4d + ETKF, PO, SRF, or LETKF)
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
@@ -24,10 +26,14 @@ class EnKF():
         self.linf = linf # True->Apply inflation False->Not apply
         self.lloc = lloc # True->Apply localization False->Not apply
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
+        self.step = step 
+        self.nt = nt 
+        self.window_l = window_l
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.da} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} lloc={self.lloc} ltlm={self.ltlm}")
+        logger.info(f"nt={self.nt} window_l={self.window_l}")
 
     def calc_pf(self, xf, pa, cycle):
         dxf = xf - np.mean(xf,axis=1)[:, None]
@@ -37,20 +43,37 @@ class EnKF():
     def __call__(self, xf, pf, y, yloc, save_hist=False, save_dh=False, icycle=0):
         #xf = xb[:]
         xf_ = np.mean(xf, axis=1)
-        logger.debug(f"obsloc={yloc}")
-        logger.debug(f"obssize={y.size}")
-        JH = self.obs.dh_operator(yloc, xf_)
-        R, rmat, rinv = self.obs.set_r(y.size)
+        logger.debug(f"obsloc={yloc.shape}")
+        logger.debug(f"obssize={y.shape}")
+        R, rmat, rinv = self.obs.set_r(y.shape[1])
         nmem = xf.shape[1]
         chi2_test = Chi(y.size, nmem, rmat)
         dxf = xf - xf_[:,None]
         logger.debug(xf.shape)
         xloc = np.arange(xf_.size)
-        if self.ltlm:
-            dy = JH @ dxf
-        else:
-            dy = self.obs.h_operator(yloc, xf) - np.mean(self.obs.h_operator(yloc, xf), axis=1)[:, None]
-        d = y - np.mean(self.obs.h_operator(yloc, xf), axis=1)
+        xb = np.zeros_like(xf)
+        xb = xf[:,:] 
+        xb_ = np.zeros_like(xf_)
+        xb_ = xf_[:] 
+        dxb = np.zeros_like(dxf)
+        dxb = dxf[:,:]
+        bg = [] # background states
+        dy = [] # observation perturbations
+        d  = [] # innovation vectors
+        for l in range(min(self.window_l, y.shape[0])):
+            bg.append(xb_)
+            if self.ltlm:
+                JH = self.obs.dh_operator(yloc[l], bg[l])
+                dy.append(JH @ dxb)
+            else:
+                dy.append(self.obs.h_operator(yloc[l], xb) - np.mean(self.obs.h_operator(yloc[l], xb), axis=1)[:, None])
+            d.append(y[l] - np.mean(self.obs.h_operator(yloc[l], xb), axis=1))
+            for k in range(self.nt):
+                xb = self.step(xb)
+            xb_ = np.mean(xb, axis=1)
+            dxb = xb - xb_[:, None]
+        logger.debug(f"bg {len(bg)}")
+        logger.debug(f"d {len(d)}")
         if save_dh:
             np.save("{}_dxf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxf)
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dy)
@@ -77,27 +100,30 @@ class EnKF():
         if self.da == "etkf":
             if self.linf:
                 logger.info("==inflation==, alpha={}".format(alpha))
-                A = np.eye(nmem) / alpha
+                A = np.eye(nmem) * (nmem-1) / alpha
             else:
-                A = np.eye(nmem)
-            A = (nmem-1)*A + dy.T @ rinv @ dy
+                A = np.eye(nmem) * (nmem-1)
+            for l in range(len(dy)):
+                logger.debug(f"dy {dy[l].shape}")
+                A = A + dy[l].T @ rinv @ dy[l]
             lam, v = la.eigh(A)
             Dinv = np.diag(1.0/lam)
             TT = v @ Dinv @ v.T
             T = v @ np.sqrt((nmem-1)*Dinv) @ v.T
-
-            K = dxf @ TT @ dy.T @ rinv
-            if save_dh:
-                np.save("{}_K_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
-                np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K@d)
-            if self.lloc: # K-localization
-                logger.info("==K-localization==, lsig={}".format(self.lsig))
-                dist, l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
-                K = K * l_mat
-                if save_dh:
-                    np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
-                    np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
-            xa_ = xf_ + K @ d
+            xa_ = xf_
+            for l in range(len(dy)):
+                K = dxf @ TT @ dy[l].T @ rinv
+            #if save_dh:
+            #    np.save("{}_K_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
+            #    np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K@d)
+                if self.lloc: # K-localization
+                    logger.info("==K-localization==, lsig={}".format(self.lsig))
+                    dist, l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc[l], xloc=xloc)
+                    K = K * l_mat
+                #if save_dh:
+                #    np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
+                #    np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
+                xa_ = xa_ + K @ d[l]
             dxa = dxf @ T
             xa = dxa + xa_[:,None]
             if save_dh:
@@ -108,74 +134,84 @@ class EnKF():
             pa = dxa@dxa.T/(nmem-1)
 
         elif self.da=="po":
-            Y = np.zeros((y.size,nmem))
-            #np.random.seed(514)
-            #err = np.random.normal(0, scale=self.sig, size=Y.size)
-            #err = err.reshape(Y.shape)
-            mu = np.zeros(y.size)
-            sigr = np.eye(y.size)*self.sig
-            err = np.random.multivariate_normal(mu,sigr,nmem).T
-            err_ = np.mean(err, axis=1)
-            #Y = y[:,None] + err.reshape(Y.shape)
-            Y = y[:,None] + err
-            d_ = d + err_
-            K1 = dxf @ dy.T / (nmem-1)
-            K2 = dy @ dy.T / (nmem-1) + R
-            eigK, vK = la.eigh(K2)
-            logger.info("eigenvalues of K2")
-            logger.info(eigK)
-            K2inv = la.inv(K2)
-            K = K1 @ K2inv
+            xa = np.zeros_like(xf)
+            xa = xf[:,:]
+            xa_ = np.zeros_like(xf_)
+            xa_ = xf_[:]
+            for l in range(len(dy)):
+                Y = np.zeros((y[l].size,nmem))
+                #np.random.seed(514)
+                #err = np.random.normal(0, scale=self.sig, size=Y.size)
+                #err = err.reshape(Y.shape)
+                mu = np.zeros(y[l].size)
+                sigr = np.eye(y[l].size)*self.sig
+                err = np.random.multivariate_normal(mu,sigr,nmem).T
+                err_ = np.mean(err, axis=1)
+                #Y = y[:,None] + err.reshape(Y.shape)
+                Y = y[l].reshape(-1,1) + err
+                d_ = d[l] + err_
+                K1 = dxf @ dy[l].T / (nmem-1)
+                K2 = dy[l] @ dy[l].T / (nmem-1) + R
+                eigK, vK = la.eigh(K2)
+                logger.info("eigenvalues of K2 {}".format(eigK))
+                K2inv = la.inv(K2)
+                K = K1 @ K2inv
             #K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
-            if self.lloc:
-                logger.info("==K-localization== lsig={}".format(self.lsig))
-                dist, l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
-                K = K * l_mat
-                if save_dh:
-                    np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
-            xa_ = xf_ + K @ d_
-            if self.ltlm:
-                xa = xf + K @ (Y - JH @ xf)
-            else:
-                HX = self.obs.h_operator(yloc, xf)
-                xa = xf + K @ (Y - HX)
+                if self.lloc:
+                    logger.info("==K-localization== lsig={}".format(self.lsig))
+                    dist, l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc[l], xloc=xloc)
+                    K = K * l_mat
+                    if save_dh:
+                        np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
+                xa_ = xa_ + K @ d_
+                if self.ltlm:
+                    JH = self.obs.dh_operator(yloc[l], bg[l])
+                    xa = xa + K @ (Y - JH @ xf)
+                else:
+                    xa = xa + K @ (d[l].reshape(-1,1) + err - dy[l])
             dxa = xa - xa_[:, None]
             pa = dxa @ dxa.T /(nmem-1)
 
         elif self.da=="srf":
-            I = np.eye(xf_.size)
             p0 = np.zeros_like(pf)
             p0 = pf[:,:]
+            x0 = np.zeros_like(xf)
+            x0 = xf[:,:]
             dx0 = np.zeros_like(dxf)
             dx0 = dxf[:,:]
-            dy0 = np.zeros_like(dy)
-            dy0 = dy[:,:]
             x0_ = np.zeros_like(xf_)
             x0_ = xf_[:]
-            d0 = np.zeros_like(d)
-            d0 = d[:]
-            if self.lloc:
-                logger.info("==K-localization== lsig={}".format(self.lsig))
-                dist, l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
-                if save_dh:
-                    np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
-            for i in range(y.size):
-                dyi = dy0[i].reshape(1,-1)
-                d1 = dyi @ dyi.T + self.sig*self.sig * (nmem-1)
-                k1 = dx0 @ dyi.T /d1
-                k1_ = k1 / (1.0 + self.sig/np.sqrt(d1/(nmem-1)))
-                if self.lloc: # K-localization
-                    k1_ = k1_ * l_mat[:,i].reshape(k1_.shape)
-                xa_ = x0_.reshape(k1.shape) + k1 * d0[i]
-                dxa = dx0 - k1_@ dyi
-                pa = dxa@dxa.T/(nmem-1)
+            for l in range(len(dy)):
+                dy0 = np.zeros_like(dy[l])
+                dy0 = dy[l]
+                d0 = np.zeros_like(d[l])
+                d0 = d[l]
+                if self.lloc:
+                    logger.info("==K-localization== lsig={}".format(self.lsig))
+                    dist, l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc[l], xloc=xloc)
+                    if save_dh:
+                        np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
+                for i in range(y[l].size):
+                    dyi = dy0[i].reshape(1,-1)
+                    d1 = dyi @ dyi.T + self.sig*self.sig * (nmem-1)
+                    k1 = dx0 @ dyi.T /d1
+                    k1_ = k1 / (1.0 + self.sig/np.sqrt(d1/(nmem-1)))
+                    if self.lloc: # K-localization
+                        k1_ = k1_ * l_mat[:,i].reshape(k1_.shape)
+                    xa_ = x0_.reshape(k1.shape) + k1 * d0[i]
+                    dxa = dx0 - k1_@ dyi
+                    pa = dxa@dxa.T/(nmem-1)
 
-                x0_ = xa_[:]
-                dx0 = dxa[:,:]
-                x0 = x0_ + dx0
-                dy0 = self.obs.h_operator(yloc, x0) - np.mean(self.obs.h_operator(yloc, x0), axis=1)[:, None]
-                d0 = y - np.mean(self.obs.h_operator(yloc, x0), axis=1)
-                p0 = pa[:,:]
+                    x0_ = xa_[:]
+                    dx0 = dxa[:,:]
+                    x0 = x0_ + dx0
+                    dy0 = self.obs.h_operator(yloc[l], x0) - np.mean(self.obs.h_operator(yloc[l], x0), axis=1)[:, None]
+                    d0 = y[l] - np.mean(self.obs.h_operator(yloc[l], x0), axis=1)
+                    p0 = pa[:,:]
+                for k in range(self.nt):
+                    x0_ = self.step(x0_)
+                    x0 = self.step(x0)
+                dx0 = x0 - x0_
             xa = dxa + xa_
             xa_ = np.squeeze(xa_)
 
@@ -186,32 +222,35 @@ class EnKF():
             xa = np.zeros_like(xf)
             xa_ = np.zeros_like(xf_)
             dxa = np.zeros_like(dxf)
-            E = np.eye(nmem)
-            if self.linf:
-                logger.info("==inflation==, alpha={}".format(alpha))
-                E /= alpha
             for i in range(nx):
-                far, Rwf_loc = self.r_loc(sigma, nx, yloc, float(i))
-                logger.info("number of assimilated obs.={}".format(y.size - len(far)))
-                yi = np.delete(y,far)
-                di = np.delete(d,far)
-                dyi = np.delete(dy,far,axis=0)
-                if self.lloc:
-                    logger.info("==R-localization==, lsig={}".format(self.lsig))
-                    diagR = np.diag(R)
-                    Ri = np.diag(diagR/Rwf_loc)
-                else:
-                    Ri = R[:,:]
-                Ri = np.delete(Ri,far,axis=0)
-                Ri = np.delete(Ri,far,axis=1)
-                R_inv = la.inv(Ri)
+                A = np.eye(nmem)*(nmem-1)
+                if self.linf:   
+                    logger.info("==inflation==, alpha={}".format(alpha))
+                    A /= alpha
+                w = np.zeros(nmem)
+                for l in range(len(dy)):
+                    far, Rwf_loc = self.r_loc(sigma, nx, yloc[l], float(i))
+                    logger.info("number of assimilated obs.={}".format(y[l].size - len(far)))
+                    yi = np.delete(y[l],far)
+                    di = np.delete(d[l],far)
+                    dyi = np.delete(dy[l],far,axis=0)
+                    if self.lloc:
+                        logger.info("==R-localization==, lsig={}".format(self.lsig))
+                        diagR = np.diag(R)
+                        Ri = np.diag(diagR/Rwf_loc)
+                    else:
+                        Ri = R[:,:]
+                    Ri = np.delete(Ri,far,axis=0)
+                    Ri = np.delete(Ri,far,axis=1)
+                    R_inv = la.inv(Ri)
             
-                A = (nmem-1)*E + dyi.T @ R_inv @ dyi
+                    A = A + dyi.T @ R_inv @ dyi
+                    w = w + dyi.T @ R_inv @ di
                 lam,v = la.eigh(A)
                 D_inv = np.diag(1.0/lam)
                 pa_ = v @ D_inv @ v.T
             
-                xa_[i] = xf_[i] + dxf[i] @ pa_ @ dyi.T @ R_inv @ di
+                xa_[i] = xf_[i] + dxf[i] @ pa_ @ w
                 sqrtPa = v @ np.sqrt(D_inv) @ v.T * np.sqrt(nmem-1)
                 dxa[i] = dxf[i] @ sqrtPa
                 xa[i] = np.full(nmem,xa_[i]) + dxa[i]
@@ -221,20 +260,20 @@ class EnKF():
         if save_dh:
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), pa)
 
-        if self.ltlm:
-            dh = self.obs.dh_operator(yloc, xa_) @ dxf / np.sqrt(nmem-1)
-        else:
-            x1 = xa_[:, None] + dxf / np.sqrt(nmem-1)
-            dh = self.obs.h_operator(yloc, x1) - np.mean(self.obs.h_operator(yloc, x1), axis=1)[:, None]
-        zmat = rmat @ dh
-        d = y - np.mean(self.obs.h_operator(yloc, xa))
-        innv, chi2 = chi2_test(zmat, d)
+#        if self.ltlm:
+#            dh = self.obs.dh_operator(yloc, xa_) @ dxf / np.sqrt(nmem-1)
+#        else:
+#            x1 = xa_[:, None] + dxf / np.sqrt(nmem-1)
+#            dh = self.obs.h_operator(yloc, x1) - np.mean(self.obs.h_operator(yloc, x1), axis=1)[:, None]
+#        zmat = rmat @ dh
+#        d = y - np.mean(self.obs.h_operator(yloc, xa))
+#        innv, chi2 = chi2_test(zmat, d)
         ds = self.dof(dy,nmem)
         logger.info("dof={}".format(ds))
         
         #u = np.zeros_like(xb)
         #u = xa[:,:]
-        return xa, pa, spa, innv, chi2, ds
+        return xa, pa, ds
 
     def b_loc(self, sigma, nx, ny):
         if sigma < 0.0:
@@ -269,7 +308,7 @@ class EnKF():
             for i in range(nobs):
                 dist[j, i] = min(abs(obsloc[i]-j), nx-abs(obsloc[i]-j))
         l_mat = np.exp(-0.5*(dist/loc_scale)**2)
-        logger.debug(dist[dist>dist0])
+        #logger.debug(dist[dist>dist0])
         l_mat[dist>dist0] = 0
         return dist, l_mat        
 
@@ -323,7 +362,7 @@ class EnKF():
         return dxf
 
     def dof(self, dy, nmem):
-        zmat = dy / self.sig
+        zmat = np.sum(np.array(dy), axis=0) / self.sig
         u, s, vt = la.svd(zmat)
         ds = np.sum(s**2/(1.0+s**2))/(nmem-1)
         return ds

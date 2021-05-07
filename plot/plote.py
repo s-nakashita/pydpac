@@ -24,10 +24,12 @@ if model == "z08" or model == "z05":
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 elif model == "l96":
-    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var", "var4d"]
+    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",
+    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
-        "var4d":"tab:brown"    }
+        "4dmlef":'tab:blue',"4detkf":'tab:green', "4dpo":'tab:red',\
+        "4dsrf":"tab:pink", "4dletkf":"tab:purple","4dvar":"tab:olive"}
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
@@ -49,7 +51,10 @@ for pt in perts:
         continue
     print("{}, mean RMSE = {}".format(pt,np.mean(e[int(na/3):])))
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
-    ax.plot(x, e, linestyle="solid", color=linecolor[pt], label=pt)
+    if pt[:2] != "4d":
+        ax.plot(x, e, linestyle="solid", color=linecolor[pt], label=pt)
+    else:
+        ax.plot(x, e, linestyle="dashed", color=linecolor[pt], label=pt)
     f = "{}_pa_{}_{}.npy".format(model, op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))

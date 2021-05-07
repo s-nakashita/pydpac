@@ -106,7 +106,6 @@ class Var4d():
                 M = Mk @ M
                 MkT = self.step_adj(xk[:, None], E)
                 MT = MT @ MkT
-                xk = self.step(xk)
             TM.append(M@TM[k])
             AM.append(AM[k]@MT)
             JH.append(Hk)

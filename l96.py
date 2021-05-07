@@ -27,7 +27,7 @@ x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   20 # ensemble size (not include control run)
+nmem =   40 # ensemble size (not include control run)
 t0off =   8 # initial offset between adjacent members
 t0c =   500 # t0 for control
 # t0 for ensemble members
@@ -48,27 +48,30 @@ nobs = 40 # observation number (nobs<=nx)
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,"var4d":None}
-infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var4d":None}
-infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"var4d":None}
-infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var4d":None}
-infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"var4d":None}
-infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"var4d":None}
+infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
+          "4dmlef":1.2,"4detkf":1.2,"4dpo":1.4,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
+infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
+infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
+infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
+infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
+infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"4dvar":None}
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t, "abs": infl_l}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5,"kf":None,"var":None,"var4d":None}
-sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var4d":None}
-sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"var4d":None}
-sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var4d":None}
-sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"var4d":None}
-sig_t = {"mlef":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0,"kf":None,"var":None,"var4d":None}
+sig_l = {"mlef":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5,"kf":None,"var":None,
+        "4dmlef":8.0,"4detkf":8.0,"4dpo":2.0,"4dsrf":8.0,"4dletkf":7.5,"4dvar":None}
+sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
+sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
+sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
+sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"4dvar":None}
+sig_t = {"mlef":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0,"kf":None,"var":None,"4dvar":None}
 dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
     "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, "test":sig_t, "abs":sig_l}
 # forecast type (ensemble or deterministic)
-ftype = {"mlef":"ensemble","etkf":"ensemble",\
-    "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
-        "kf":"deterministic","var":"deterministic","var4d":"deterministic"}
+ftype = {"mlef":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
+    "kf":"deterministic","var":"deterministic",\
+    "4dmlef":"ensemble","4detkf":"ensemble","4dpo":"ensemble","4dsrf":"ensemble","4dletkf":"ensemble",\
+    "4dvar":"deterministic"}
 
 ## default parameter
 htype = {"operator": "linear", "perturbation": "mlef"}
@@ -120,7 +123,8 @@ if len(sys.argv) > 6:
 if len(sys.argv) > 7:
     #nobs = int(sys.argv[7])
     #nmem = int(sys.argv[7])
-    nt = int(sys.argv[7]) * 6
+    #nt = int(sys.argv[7]) * 6
+    a_window = int(sys.argv[7])
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -128,7 +132,7 @@ obs = Obs(op, sigma[op])
 # assimilation method
 if pt == "mlef":
     from analysis.mlef import Mlef
-    #lloc = False
+    lloc = False
     analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
@@ -138,12 +142,20 @@ elif pt == "kf":
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, model)
-elif pt == "var4d":
+    analysis = Var(pt, obs, a_window, model)
+elif pt == "4dvar":
     from analysis.var4d import Var4d
-    a_window = 5
+    #a_window = 5
     analysis = Var4d(pt, obs, step, nt, a_window, model)
-    
+elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
+    from analysis.enks import EnKS
+    #a_window = 5
+    analysis = EnKS(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model)
+elif pt == "4dmlef":
+    from analysis.mles import Mles
+    lloc = False
+    analysis = Mles(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model)
+
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
     "t0c":t0c, "t0f":t0f, "nt":nt, "na":na,\
@@ -173,7 +185,8 @@ if __name__ == "__main__":
         #if i in [1, 50, 100, 150, 200, 250]:
         if i in range(1):
             logger.info("cycle{} analysis".format(i))
-            if a_window > 1:
+            #if a_window > 1:
+            if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
             else:
@@ -182,7 +195,8 @@ if __name__ == "__main__":
                 chi[i] = chi2
                 innov[i] = innv
         else:
-            if a_window > 1:
+            #if a_window > 1:
+            if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
@@ -190,7 +204,7 @@ if __name__ == "__main__":
                 innov[i] = innv
             
         if ft=="ensemble":
-            if pt == "mlef":
+            if pt == "mlef" or pt == "4dmlef":
                 xa[i] = u[:, 0]
             else:
                 xa[i] = np.mean(u, axis=1)
@@ -202,15 +216,23 @@ if __name__ == "__main__":
             if a_window > 1:
                 uf = func.forecast(u)
                 if (i+1+a_window <= na):
-                    xa[i+1:i+1+a_window] = uf
-                    xf[i+1:i+1+a_window] = uf
+                    if ft=="ensemble":
+                        xa[i+1:i+1+a_window] = np.mean(uf, axis=2)
+                        xf[i+1:i+1+a_window] = np.mean(uf, axis=2)
+                    else:
+                        xa[i+1:i+1+a_window] = uf
+                        xf[i+1:i+1+a_window] = uf
                     ii = 0
                     for k in range(i+1,i+1+a_window):
                         sqrtpa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
                         ii += 1
                 else:
-                    xa[i+1:na] = uf[:na-i-1]
-                    xf[i+1:na] = uf[:na-i-1]
+                    if ft=="ensemble":
+                        xa[i+1:na] = np.mean(uf[:na-i-1], axis=2)
+                        xf[i+1:na] = np.mean(uf[:na-i-1], axis=2)
+                    else:
+                        xa[i+1:na] = uf[:na-i-1]
+                        xf[i+1:na] = uf[:na-i-1]
                     ii = 0
                     for k in range(i+1,na):
                         sqrtpa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
@@ -222,7 +244,7 @@ if __name__ == "__main__":
                 pf = analysis.calc_pf(u, pa, i+1)
 
             if ft=="ensemble":
-                if pt == "mlef":
+                if pt == "mlef" or pt == "4dmlef":
                     xf[i+1] = u[:, 0]
                 else:
                     xf[i+1] = np.mean(u, axis=1)

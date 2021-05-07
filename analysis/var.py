@@ -13,11 +13,12 @@ zetak = []
 alphak = []
 
 class Var():
-    def __init__(self, pt, obs, model="model"):
+    def __init__(self, pt, obs, window_l, model="model"):
         self.pt = pt # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
+        self.window_l = window_l
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
@@ -25,7 +26,7 @@ class Var():
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
             if self.model == "l96" or self.model == "hs00":
-                return np.eye(xf.size)*0.2
+                return np.eye(xf.size)*0.2*self.window_l
             elif self.model == "z08":
                 return np.eye(xf.size)*0.1
         else:
