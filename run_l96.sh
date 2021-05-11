@@ -15,11 +15,16 @@ rm -rf ${exp}
 mkdir ${exp}
 cd ${exp}
 cp ../logging_config.ini .
+touch timer
 for op in ${operators}; do
   for pt in ${perturbations}; do
     echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window}
+    start_time=$(gdate +"%s.%5N")
     python ../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} > l96_${op}_${pt}.log 2>&1
     wait
+    end_time=$(gdate +"%s.%5N")
+    echo ${pt} "time (sec)" >> timer
+    echo "scale=1; ${end_time}-${start_time}" | bc >> timer
     #python ../plot/plotpf.py ${op} l96 ${na} ${pt} > plotpf_${op}_${pt}.log 2>&1
     #python ../plot/plotlpf.py ${op} l96 ${na} ${pt} > plotlpf_${op}_${pt}.log 2>&1
   done

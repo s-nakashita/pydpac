@@ -14,6 +14,7 @@ logger = logging.getLogger('anl')
         
 class Mles():
 # 4-dimensional MLEF
+# Reference(En4DVar) Liu et al. 2008: "An ensemble-based four-dimensional variational data assimilation scheme. Part I: Technical formulation and preliminary test," Mon. Wea. Rev., 136, 3363-3373.
     def __init__(self, pt, nmem, obs, infl, lsig, 
                  linf, lloc, ltlm,
                  step, nt, window_l, model="model"):
@@ -67,56 +68,68 @@ class Mles():
             alphak.append(alpha)
 
     def calc_j(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        d, tmat, zmat, heinv = args
         nmem = zeta.size
-        x = xc + gmat @ zeta
-        j = 0.5 * (zeta.transpose() @ heinv @ zeta)
-        for l in range(y.shape[0]):
-            ob = y[l] - self.obs.h_operator(yloc[l], x)
-            j += 0.5 * (ob.transpose() @ rinv @ ob)
-            for k in range(self.nt):
-                x = self.step(x)
+        #x = xc + gmat @ zeta
+        w = tmat @ zeta
+        #j = 0.5 * (zeta.transpose() @ heinv @ zeta)
+        j = 0.5 * (w.transpose() @ w)
+        for l in range(len(d)):
+            #ob = y[l] - self.obs.h_operator(yloc[l], x)
+            #j += 0.5 * (ob.transpose() @ rinv @ ob)
+            ob = zmat[l] @ w - d[l]
+            j += 0.5 * (ob.transpose() @ ob)
+            #for k in range(self.nt):
+            #    x = self.step(x)
         return j
     
 
     def calc_grad_j(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        d, tmat, zmat, heinv = args
         nmem = zeta.size
-        x = xc + gmat @ zeta
-        xl = x[:, None] + pf
+        #x = xc + gmat @ zeta
+        w = tmat @ zeta
+        #xl = x[:, None] + pf
         g = heinv @ zeta
-        for l in range(y.shape[0]): 
-            hx = self.obs.h_operator(yloc[l], x)
-            ob = y[l] - hx
-            if self.ltlm:
-                dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
-            else:
-                dh = self.obs.h_operator(yloc[l], xl) - hx[:, None]
-            g = g - tmat @ dh.transpose() @ rinv @ ob
-            for k in range(self.nt):
-                x = self.step(x)
-                xl = self.step(xl) 
+        for l in range(len(d)): 
+            #hx = self.obs.h_operator(yloc[l], x)
+            #ob = y[l] - hx
+            #if self.ltlm:
+            #    dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
+            #else:
+            #    dh = self.obs.h_operator(yloc[l], xl) - hx[:, None]
+            #g = g - tmat @ dh.transpose() @ rinv @ ob
+            ob = zmat[l] @ w - d[l]
+            g = g + tmat @ zmat[l].transpose() @ ob
+            #for k in range(self.nt):
+            #    x = self.step(x)
+            #    xl = self.step(xl) 
         return g
 
     def calc_hess(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        x = xc + gmat @ zeta
-        xl = x[:, None] + pf
+        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        d, tmat, zmat, heinv = args
+        #x = xc + gmat @ zeta
+        #xl = x[:, None] + pf
         hess = np.eye(zeta.size)
-        for l in range(y.shape[0]):
-            if self.ltlm:
-                dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
-            else:
-                dh = self.obs.h_operator(yloc, xl) - self.obs.h_operator(yloc, x)[:, None]
-            hess = hess + dh.transpose() @ rinv @ dh
-            for k in range(self.nt):
-                x = self.step(x)
-                xl = self.step(xl)
+        for l in range(len(d)):
+            #if self.ltlm:
+            #    dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
+            #else:
+            #    dh = self.obs.h_operator(yloc, xl) - self.obs.h_operator(yloc, x)[:, None]
+            #hess = hess + dh.transpose() @ rinv @ dh
+            hess = hess + zmat[l].transpose() @ zmat[l]
+            #for k in range(self.nt):
+            #    x = self.step(x)
+            #    xl = self.step(xl)
         hess = tmat @ hess @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
+        #xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
+        d, tmat, zmat, heinv = args
         delta = np.linspace(-nx,nx,4*nx)
         jvalb = np.zeros((len(delta)+1,nmem))
         jvalb[0,:] = xopt
@@ -127,15 +140,6 @@ class Mles():
                 j = self.calc_j(x0, *args)
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
-
-    def chi2_test(self, zmat, heinv, rmat, d):
-        p = d.size
-        j = 0.0
-        for l in range(len(d)):
-            G_inv = np.eye(d[l].size) - zmat[l] @ heinv @ zmat[l].T
-            innv = rmat @ d[l]
-            j += innv.T @ G_inv @ innv
-        return j / p
 
     def dof(self, zmat):
         z = np.sum(np.array(zmat), axis=0)
@@ -180,7 +184,7 @@ class Mles():
         l_mat[dist>d0] = 0
         return dist, l_mat 
 
-    def __call__(self, xb, pb, y, yloc, method="CGF", cgtype=1,
+    def __call__(self, xb, pb, y, yloc, method="LBFGS", cgtype=None,
         gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak, alphak
@@ -213,6 +217,7 @@ class Mles():
         pl = np.zeros_like(pf)
         pl = pf[:,:]
         zmat = [] # observation perturbations
+        d = [] # normalized innovations
         for l in range(min(self.window_l, y.shape[0])):
             if self.ltlm:
                 logger.debug("dhdx={}".format(self.obs.dh_operator(yloc[l],xlc)))
@@ -220,10 +225,11 @@ class Mles():
             else:
                 dh = self.obs.h_operator(yloc[l],xl[:,1:]) - self.obs.h_operator(yloc[l],xlc)[:, None]
             zmat.append(rmat @ dh)
+            ob = y[l] - self.obs.h_operator(yloc[l],xlc)
+            d.append(rmat @ ob)
             if save_dh:
                 np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
-                ob = y[l] - self.obs.h_operator(yloc[l],xlc)
-                np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob) 
+                np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), d[l]) 
             for k in range(self.nt):
                 xl = self.step(xl)
             xlc = xl[:, 0]
@@ -237,7 +243,8 @@ class Mles():
         gmat = pf @ tmat
         logger.debug("gmat.shape={}".format(gmat.shape))
         x0 = np.zeros(xf.shape[1])
-        args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+        #args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+        args_j = (d, tmat, zmat, heinv)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
@@ -272,7 +279,7 @@ class Mles():
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
         zmat = [] # observation perturbations
-        d = [] # innovation vectors
+        d = [] # normalized innovation vectors
         xl = np.zeros_like(xb)
         xl[:, 1:] = xa[:, None] + pf 
         xl[:, 0] = xa
@@ -284,7 +291,8 @@ class Mles():
             else:
                 dh = self.obs.h_operator(yloc[l],xl[:,1:]) - self.obs.h_operator(yloc[l],xlc)[:, None]
             zmat.append(rmat @ dh)
-            d.append(y[l] - self.obs.h_operator(yloc[l], xlc))
+            ob = y[l] - self.obs.h_operator(yloc[l], xlc)
+            d.append(ob)
             for k in range(self.nt):
                 xl = self.step(xl)
             xlc = xl[:, 0]

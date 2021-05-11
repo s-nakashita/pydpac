@@ -49,7 +49,7 @@ sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
 # inflation parameter (dictionary for each observation type)
 infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
-          "4dmlef":1.2,"4detkf":1.2,"4dpo":1.4,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
+          "4dmlef":1.3,"4detkf":1.3,"4dpo":1.4,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
 infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
 infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
@@ -133,28 +133,28 @@ obs = Obs(op, sigma[op])
 if pt == "mlef":
     from analysis.mlef import Mlef
     lloc = False
-    analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model)
+    analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model)
+    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model)
+    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, a_window, model)
+    analysis = Var(pt, obs, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
-    analysis = Var4d(pt, obs, step, nt, a_window, model)
+    analysis = Var4d(pt, obs, step, nt, a_window, model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enks import EnKS
     #a_window = 5
-    analysis = EnKS(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model)
+    analysis = EnKS(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
 elif pt == "4dmlef":
     from analysis.mles import Mles
     lloc = False
-    analysis = Mles(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model)
+    analysis = Mles(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \

@@ -45,11 +45,11 @@ done
 #done
 for op in ${operators}; do
   python ../plot/plote.py ${op} z08 ${na}
-  python ../plot/plotdh.py ${op} z08 ${na}
-  python ../plot/plotua.py ${op} z08 ${na}
-  for pt in ${perturbations}; do
-    convert -delay 40 -loop 0 z08_ua_${op}_${pt}_cycle*.png z08_ua_${op}_${pt}.gif
-  done
+  #python ../plot/plotdh.py ${op} z08 ${na}
+  #python ../plot/plotua.py ${op} z08 ${na}
+  #for pt in ${perturbations}; do
+  #  convert -delay 40 -loop 0 z08_ua_${op}_${pt}_cycle*.png z08_ua_${op}_${pt}.gif
+  #done
 done
 rm z08*.txt 
 rm z08*.npy 

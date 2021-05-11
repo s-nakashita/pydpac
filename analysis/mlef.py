@@ -60,38 +60,46 @@ class Mlef():
             alphak.append(alpha)
 
     def calc_j(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        d, tmat, zmat, heinv = args
         nmem = zeta.size
-        x = xc + gmat @ zeta
-        ob = y - self.obs.h_operator(yloc, x)
-        j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+        #x = xc + gmat @ zeta
+        #ob = y - self.obs.h_operator(yloc, x)
+        #j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+        w = tmat @ zeta
+        j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         return j
     
 
     def calc_grad_j(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        d, tmat, zmat, heinv = args
         nmem = zeta.size
-        x = xc + gmat @ zeta
-        hx = self.obs.h_operator(yloc, x)
-        ob = y - hx
-        if self.ltlm:
-            dh = self.obs.dh_operator(yloc, x) @ pf
-        else:
-            dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-        return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
+        w = tmat @ zeta
+        #x = xc + gmat @ zeta
+        #hx = self.obs.h_operator(yloc, x)
+        #ob = y - hx
+        #if self.ltlm:
+        #    dh = self.obs.dh_operator(yloc, x) @ pf
+        #else:
+        #    dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
+        #return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
+        return heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
 
     def calc_hess(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        x = xc + gmat @ zeta
-        if self.ltlm:
-            dh = self.obs.dh_operator(yloc, x) @ pf
-        else:
-            dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
-        hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
+        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        d, tmat, zmat, heinv = args
+        #x = xc + gmat @ zeta
+        #if self.ltlm:
+        #    dh = self.obs.dh_operator(yloc, x) @ pf
+        #else:
+        #    dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
+        #hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
+        hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
+        #xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
         delta = np.linspace(-nx,nx,4*nx)
         jvalb = np.zeros((len(delta)+1,nmem))
         jvalb[0,:] = xopt
@@ -102,12 +110,6 @@ class Mlef():
                 j = self.calc_j(x0, *args)
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
-
-    def chi2_test(self, zmat, heinv, rmat, d):
-        p = d.size
-        G_inv = np.eye(p) - zmat @ heinv @ zmat.T
-        innv = rmat @ d[:,None]
-        return innv.T @ G_inv @ innv / p
 
     def dof(self, zmat):
         u, s, vt = la.svd(zmat)
@@ -181,12 +183,13 @@ class Mlef():
             dh = self.obs.dh_operator(yloc,xc) @ pf
         else:
             dh = self.obs.h_operator(yloc,xf) - self.obs.h_operator(yloc,xc)[:, None]
+        ob = y - self.obs.h_operator(yloc,xc)
         if save_dh:
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
-            ob = y - self.obs.h_operator(yloc,xc)
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
         logger.info("save_dh={}".format(save_dh))
         zmat = rmat @ dh
+        d = rmat @ ob
         logger.debug("cond(zmat)={}".format(la.cond(zmat)))
         tmat, heinv = self.precondition(zmat)
         logger.debug("pf.shape={}".format(pf.shape))
@@ -195,7 +198,8 @@ class Mlef():
         gmat = pf @ tmat
         logger.debug("gmat.shape={}".format(gmat.shape))
         x0 = np.zeros(xf.shape[1])
-        args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+        #args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+        args_j = (d, tmat, zmat, heinv)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,

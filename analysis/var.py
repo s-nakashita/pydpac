@@ -13,12 +13,11 @@ zetak = []
 alphak = []
 
 class Var():
-    def __init__(self, pt, obs, window_l, model="model"):
+    def __init__(self, pt, obs, model="model"):
         self.pt = pt # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        self.window_l = window_l
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
