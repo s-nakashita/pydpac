@@ -25,9 +25,11 @@ class Var():
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
             if self.model == "l96" or self.model == "hs00":
-                return np.eye(xf.size)*0.2*self.window_l
+                return np.eye(xf.size)*0.2
             elif self.model == "z08":
                 return np.eye(xf.size)*0.1
+            elif self.model == "tc87":
+                return np.eye(xf.size)*1.0
         else:
             return pa
 
@@ -93,6 +95,9 @@ class Var():
         fun = self.calc_j(x, *args_j)
         chi2 = fun / nobs
 
+        pai = self.calc_hess(x, *args_j)
+        lam, v = la.eigh(pai)
+        spa = v @ np.diag(1.0/np.sqrt(lam)) @ v.transpose()
         #spf = la.cholesky(pf)
 
-        return xa, pf, None, innv, chi2, 0.0
+        return xa, pf, spa, innv, chi2, 0.0

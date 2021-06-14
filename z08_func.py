@@ -124,7 +124,7 @@ class Z08_func():
             for i in range(u.shape[1]):
                 ax.plot(x, u[:,i], linestyle="--", color="tab:green", label="mem{}".format(i+1))
             diff = np.mean(u, axis=1) - ut
-            ax.plot(x, diff, linestyle="dotted",color="tab:red",label="cntl-mean")
+            ax.plot(x, diff, linestyle="dotted",color="tab:red",label="mean-true")
         else:
             for i in range(u.shape[1]):
                 if i==0:

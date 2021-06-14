@@ -30,9 +30,11 @@ class Var4d():
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
             if self.model == "l96" or self.model == "hs00":
-                return np.eye(xf.size)*0.2
+                return np.eye(xf.size)*0.2*self.window_l
             elif self.model == "z08":
                 return np.eye(xf.size)*0.02
+            elif self.model == "tc87":
+                return np.eye(xf.size)*1.0
         else:
             return pa
     

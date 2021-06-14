@@ -41,8 +41,8 @@ na =     20 # number of analysis
 nobs =   81 # number of observation
 
 # observation error
-sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
-    "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
+sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-3, \
+    "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-3}
 # forecast type (ensemble or deterministic)
 ftype = {"mlef":"ensemble","etkf":"ensemble",\
     "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
@@ -63,7 +63,7 @@ if len(sys.argv) > 1:
 # assimilation type
 if len(sys.argv) > 2:
     htype["perturbation"] = sys.argv[2]
-# number of assimilation type
+# number of assimilation cycles
 if len(sys.argv) > 3:
     na = int(sys.argv[3])
 # switch of with/without inflation
@@ -127,8 +127,8 @@ if __name__ == "__main__":
     else:
         print("read obs")
         yobs = func.get_obs(obsfile)
-    if ft=="ensemble":
-        func.plot_initial(u, ut[0], model)
+    #if ft=="ensemble":
+    #    func.plot_initial(u, ut[0], model)
     ua, uf, sqrtpa = func.init_hist(u)
         
     e = np.zeros(na+1)
@@ -147,7 +147,8 @@ if __name__ == "__main__":
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis".format(i))
-        if i in range(4):
+        #if i in range(4):
+        if i < 0:
             u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
                 save_hist=True, save_dh=True, icycle=i)
         else:
@@ -183,8 +184,14 @@ if __name__ == "__main__":
     np.savetxt("{}_dpa_{}_{}.txt".format(model, op, pt), dpa)
     np.savetxt("{}_ndpa_{}_{}.txt".format(model, op, pt), ndpa)
     
-    np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
-    np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
-    np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
+    if len(sys.argv) > 7:
+        oberr = str(int(obs_s*1e5)).zfill(5)
+        np.savetxt("{}_e_{}_{}_oberr{}.txt".format(model, op, pt, oberr), e)
+        np.savetxt("{}_chi_{}_{}_oberr{}.txt".format(model, op, pt, oberr), chi)
+        np.savetxt("{}_dof_{}_{}_oberr{}.txt".format(model, op, pt, oberr), dof)
+    else:
+        np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
+        np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
+        np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
     #if ft == "ensemble":
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)

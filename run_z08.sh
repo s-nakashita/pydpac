@@ -1,7 +1,7 @@
 #!/bin/sh
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-perturbations="etkf-jh etkf-fh mlef var"
+operators="linear quadratic cubic quartic quadratic-nodiff cubic-nodiff quartic-nodiff"
+perturbations="etkf-jh etkf-fh mlef-fh mlef-jh"
 #perturbations="etkf po srf letkf mlef var"
 na=20 # Number of assimilation cycle
 linf="F" # "T"->Apply inflation "F"->Not apply

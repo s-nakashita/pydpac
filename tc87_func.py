@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('param')
 
-class L96_func():
+class TC87_func():
 
     def __init__(self, params):
         self.step = params["step"]
-        self.nx, self.dt, self.F = self.step.get_params()
+        self.nx, self.dt, self.omega = self.step.get_params()
         self.obs = params["obs"]
         self.analysis = params["analysis"]
         self.nobs = params["nobs"]
@@ -31,7 +31,7 @@ class L96_func():
         self.ltlm = params["ltlm"]
         self.infl_parm = params["infl_parm"]
         self.lsig = params["lsig"]
-        logger.info("nx={} F={} dt={:7.3e}".format(self.nx, self.F, self.dt))
+        logger.info("nx={} omega={} dt={:7.3e}".format(self.nx, self.omega, self.dt))
         logger.info("nobs={}".format(self.nobs))
         logger.info("t0f={}".format(self.t0f))
         logger.info("nt={} na={}".format(self.nt, self.na))
@@ -43,37 +43,22 @@ class L96_func():
     
     # generate truth
     def gen_true(self):
-        xt = np.zeros((self.na, self.nx))
-        x = np.ones(self.nx)*self.F
-        x[self.nx//2 - 1] += 0.001*self.F
-        tmp = x.copy()
-        # spin up for 1 years
-        logger.debug(self.namax*self.nt)
-        for k in range(self.namax*self.nt):
-            tmp = self.step(x)
-            x = tmp
-        xt[0, :] = x
-        for i in range(self.na-1):
-            for k in range(self.nt):
-                tmp = self.step(x)
-                x = tmp
-            xt[i+1, :] = x
+        time = np.linspace(0.0, self.na*self.dt, self.na)
+        nm = np.array([0, 4])
+        phi0 = np.array([1.0, 1.0])
+        xt = self.step.analytical(phi0, nm, time)
         return xt
 
     # get truth and make observation
     def get_true_and_obs(self):
-        f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
-            "data/data.csv")
-        truth = pd.read_csv(f)
-        xt = truth.values.reshape(self.namax,self.nx)
-        #truefile = "truth.npy"
-        #if not os.path.isfile(truefile):
-        #    logger.info("create truth")
-        #    xt = self.gen_true()
-        #    np.save("truth.npy",xt)
-        #else:
-        #    logger.info("read truth")
-         #   xt = np.load(truefile)
+        truefile = "truth.npy"
+        if not os.path.isfile(truefile):
+            logger.info("create truth")
+            xt = self.gen_true()
+            np.save("truth.npy",xt)
+        else:
+            logger.info("read truth")
+            xt = np.load(truefile)
         logger.debug("xt={}".format(xt))
 
         xloc = np.arange(self.nx)
@@ -108,30 +93,17 @@ class L96_func():
 
     # initialize control 
     def init_ctl(self):
-        #X0c = np.ones(self.nx)*self.F
-        #X0c[self.nx//2 - 1] += 0.001*self.F
-        X0c = np.random.randn(self.nx)
-        tmp = X0c.copy()
-        for j in range(self.t0c):
-            tmp = self.step(X0c)
-            X0c = tmp
-        return X0c
+        nm = np.array([0, 3])
+        phi0 = np.array([1.0, 1.0])
+        return self.step.rh(phi0, nm)
 
     # initialize ensemble member
     def init_ens(self,opt):
         maxiter = np.max(np.array(self.t0f))+1
         if(opt==0): # random
-            logger.info("spin up max = {}".format(self.t0c))
-            X0c = self.init_ctl()
-            logger.debug("X0c={}".format(X0c))
-            np.random.seed(514)
-            X0 = np.zeros((self.nx, len(self.t0f)))
-            X0[:, :] = np.random.normal(0.0,1.0,size=(self.nx,len(self.t0f))) + X0c[:, None]
-        else: # lagged forecast
             logger.info("spin up max = {}".format(maxiter))
             X0 = np.zeros((self.nx,len(self.t0f)))
-            tmp = np.ones(self.nx)*self.F
-            tmp[self.nx//2 - 1] += 0.001*self.F
+            tmp = self.init_ctl()
             for j in range(maxiter):
                 tmp = self.step(tmp)
                 if j in self.t0f:
@@ -175,15 +147,17 @@ class L96_func():
             return u
 
     # (not used) plot initial state
-    def plot_initial(self, uc, u, ut, lag, model):
+    def plot_initial(self, uc, u, ut, cycle, model):
         fig, ax = plt.subplots()
-        x = np.arange(ut.size) + 1
+        x = self.step.get_lam() * 180.0 / np.pi
         ax.plot(x, ut, label="true")
         ax.plot(x, uc, label="control")
-        for i in range(u.shape[1]):
-            ax.plot(x, u[:,i], linestyle="--", label="mem{}".format(i+1))
-        ax.set(xlabel="points", ylabel="X", title="initial lag={}".format(lag))
-        ax.set_xticks(x[::5])
+        if self.ft == "ensemble":
+            for i in range(u.shape[1]):
+                ax.plot(x, u[:,i], linestyle="--", color="tab:green", label="mem{}".format(i+1))
+        ax.set(xlabel="longitude", ylabel=r"$\varphi$", title="cycle={}".format(cycle))
+        ax.set_xticks(x[::int(self.nx/4)])
         ax.set_xticks(x, minor=True)
-        ax.legend()
-        fig.savefig("{}_initial_lag{}.png".format(model, lag))
+        ax.set_ylim([-3.5,3.5])
+        #ax.legend()
+        fig.savefig("{}_{}_cycle{:03d}.png".format(model, self.pt, cycle))
