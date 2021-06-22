@@ -13,19 +13,47 @@ zetak = []
 alphak = []
 
 class Var():
-    def __init__(self, pt, obs, model="model"):
+    def __init__(self, pt, obs, lb, model="model"):
         self.pt = pt # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
+        self.lb = lb # correlation length (< 0.0 : diagonal)
         self.model = model
         logger.info(f"model : {self.model}")
-        logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
+        logger.info(f"pt={self.pt} op={self.op} sig={self.sig} lb={self.lb}")
 
     def calc_pf(self, xf, pa, cycle):
+        import matplotlib.pyplot as plt
         if cycle == 0:
             if self.model == "l96" or self.model == "hs00":
-                return np.eye(xf.size)*0.2
+                sigb = np.sqrt(0.2)
+                nx = xf.size
+                if self.lb < 0:
+                    bmat = sigb**2*np.eye(nx)
+                else:
+                    dist = np.eye(nx)
+                    for i in range(nx):
+                        for j in range(nx):
+                            dist[i,j] = np.abs(nx/np.pi*np.sin(np.pi*(i-j)/nx))
+                    bmat = sigb**2 * np.exp(-0.5*(dist/self.lb)**2)
+                fig, ax = plt.subplots(ncols=2)
+                xaxis = np.arange(nx+1)
+                mappable = ax[0].pcolor(xaxis, xaxis, bmat, cmap='Blues')
+                fig.colorbar(mappable, ax=ax[0])
+                ax[0].set_title(r"$\mathbf{B}$")
+                ax[0].invert_yaxis()
+                ax[0].set_aspect("equal")
+                binv = la.inv(bmat)
+                mappable = ax[1].pcolor(xaxis, xaxis, binv, cmap='Blues')
+                fig.colorbar(mappable, ax=ax[1])
+                ax[1].set_title(r"$\mathbf{B}^{-1}$")
+                ax[1].invert_yaxis()
+                ax[1].set_aspect("equal")
+                fig.tight_layout()
+                fig.savefig("B{}.png".format(self.lb))
+                return bmat
+
             elif self.model == "z08":
                 return np.eye(xf.size)*0.1
             elif self.model == "tc87":

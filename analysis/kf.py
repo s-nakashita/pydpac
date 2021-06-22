@@ -56,7 +56,10 @@ class Kf():
         xa = xf + K @ ob
 
         pa = (np.eye(xf.size) - K @ JH) @ pf
-        spa = la.cholesky(pa)
+        #spa = la.cholesky(pa)
+        lam, v = la.eigh(pa)
+        lam[lam<0.0] = 0.0
+        spa = v @ np.diag(np.sqrt(lam)) @ v.transpose()
 
         innv, chi2 = self.chi2(pf, JH, R, ob)
         ds = self.dof(K, JH)

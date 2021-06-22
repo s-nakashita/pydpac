@@ -44,6 +44,8 @@ a_window = 1 # assimilation window length
 
 nobs = 40 # observation number (nobs<=nx)
 
+lb = -1.0 # correlation length
+
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
@@ -124,7 +126,8 @@ if len(sys.argv) > 7:
     #nobs = int(sys.argv[7])
     #nmem = int(sys.argv[7])
     #nt = int(sys.argv[7]) * 6
-    a_window = int(sys.argv[7])
+    #a_window = int(sys.argv[7])
+    lb = float(sys.argv[7])
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -142,7 +145,7 @@ elif pt == "kf":
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, model=model)
+    analysis = Var(pt, obs, lb, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5

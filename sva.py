@@ -46,7 +46,9 @@ a_window = 1 # assimilation window length
 
 nobs = 40 # observation number (nobs<=nx)
 
-v_time = 4 # optimization time
+v_time = 4 * nt # optimization time
+
+lb = 0.5 # correlation length
 
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
@@ -84,7 +86,8 @@ infl_parm = -1.0
 lloc = False
 lsig = -1.0
 ltlm = True
-lplot = False
+#lplot = False
+ntype = "inner"
 
 ## read from command options
 # observation type
@@ -127,9 +130,12 @@ if len(sys.argv) > 6:
 # number of ensemble member (or observation size)
 if len(sys.argv) > 7:
     v_time = int(sys.argv[7])
+    v_time = v_time * nt
+#if len(sys.argv) > 8:
+#    if sys.argv[8] == "T":
+#        lplot = True
 if len(sys.argv) > 8:
-    if sys.argv[8] == "T":
-        lplot = True
+    ntype = sys.argv[8]
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -147,7 +153,7 @@ elif pt == "kf":
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, model=model)
+    analysis = Var(pt, obs, lb, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -185,6 +191,9 @@ if __name__ == "__main__":
     
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
+    count = 1
+    logger.info("ntype={}".format(ntype))
+    e = np.zeros(na)
     for i in a_time:
         yloc = yobs[i:i+a_window,:,0]
         y = yobs[i:i+a_window,:,1]
@@ -195,6 +204,93 @@ if __name__ == "__main__":
             u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
         else:
             u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
+        
+        if ft=="ensemble":
+            if pt == "mlef" or pt == "4dmlef":
+                u0 = u[:, 0]
+            else:
+                u0 = np.mean(u, axis=1)
+        else:
+            u0 = u.copy()
+        err = np.sqrt(np.mean((u0 - xt[i, :])**2))
+        e[i] = err
+        if i >= 100:
+            logger.info("RMSE={}".format(err))
+            if ntype == "aec":
+                gnorm = spa
+            elif ntype == "inner":
+                gnorm = None
+            logger.debug(gnorm)
+            if count == 1:
+                fig, ax = plt.subplots()
+                ax.plot(u0, linestyle="dotted", color="tab:gray", label="reference")
+            ua = [u0]
+            uf = u.copy()
+            for j in range(v_time-1):
+                #uf = func.forecast(uf)
+                uf = step(uf)
+                if ft=="ensemble":
+                    if pt == "mlef" or pt == "4dmlef":
+                        ua.append(uf[:, 0])
+                    else:
+                        ua.append(np.mean(uf, axis=1))
+                else:
+                    ua.append(uf)
+
+            v0 = SV.lanczos(np.array(ua), gnorm=gnorm)
+            v = v0.copy()
+            for j in range(v_time):
+                v = step.step_t(ua[j], v)
+            if count == 1:
+                ax.plot(v0*10, linestyle="dashed", label="initial")
+                ax.plot(v, label="final")
+                ax.set_title("{}h".format(v_time))
+                ax.legend()
+                fig.savefig("initialSVA_{}_{}h.png".format(pt,v_time))
+            #np.save("initialSVA_{}_{}h.npy".format(pt,6*v_time),v0)
+            np.save("isv_{}_{}h_{}.npy".format(pt,v_time,count),v0)
+            #np.save("finalSVA_{}_{}h.npy".format(pt,6*v_time),v)
+            np.save("fsv_{}_{}h_{}.npy".format(pt,v_time,count),v)
+
+            vr = np.random.rand(nx)
+            scale = np.sqrt(np.mean(vr**2))
+            scale0 = np.sqrt(np.mean(v0**2))
+            vr = vr / scale * 0.5
+            v0 = v0 / scale0 * 0.5
+            un = u0.copy()
+            ur = un + vr
+            us = un + v0
+            er = np.zeros(9*nt+1)
+            es = np.zeros(9*nt+1)
+            ert = np.zeros(9*nt+1)
+            est = np.zeros(9*nt+1)
+            er[0] = np.sqrt(np.mean((ur - un)**2))
+            es[0] = np.sqrt(np.mean((us - un)**2))
+            ert[0] = np.sqrt(np.mean(vr**2))
+            est[0] = np.sqrt(np.mean(v0**2))
+            #params["ft"] = "deterministic"
+            #func = L96_func(params)
+            j = 1
+            for l in range(9):
+                for k in range(nt):
+                    vr = step.step_t(un, vr)
+                    v0 = step.step_t(un, v0)
+                    un = step(un)
+                    ur = step(ur)
+                    us = step(us)
+                    er[j] = np.sqrt(np.mean((ur - un)**2))
+                    es[j] = np.sqrt(np.mean((us - un)**2))
+                    ert[j] = np.sqrt(np.mean(vr**2))
+                    est[j] = np.sqrt(np.mean(v0**2))
+                    j += 1
+            #np.savetxt("erandom.txt",er)
+            np.savetxt("er_{}_{}_{}.txt".format(op, pt, count),er)
+            np.savetxt("ert_{}_{}_{}.txt".format(op, pt, count),ert)
+            #np.savetxt("esv{}h.txt".format(6*v_time),es)
+            np.savetxt("es_{}_{}_{}.txt".format(op, pt, count),es)
+            np.savetxt("est_{}_{}_{}.txt".format(op, pt, count),est)
+            count += 1
+        
         if i < na-1:
             if a_window > 1:
                 uf = func.forecast(u)
@@ -203,73 +299,4 @@ if __name__ == "__main__":
             else:
                 u = func.forecast(u)
                 pf = analysis.calc_pf(u, pa, i+1)
-
-    if ft=="ensemble":
-        if pt == "mlef" or pt == "4dmlef":
-            xa = u[:, 0]
-        else:
-            xa = np.mean(u, axis=1)
-    else:
-        xa = u
-    err = np.sqrt(np.mean((xa - xt[na-1, :])**2))
-    logger.info("RMSE={}".format(err))
-    gnorm = spa
-    #gnorm = None
-    logger.debug(gnorm)
-    if ft=="ensemble":
-        if pt == "mlef" or pt == "4dmlef":
-            u0 = u[:, 0]
-        else:
-            u0 = np.mean(u, axis=1)
-    else:
-        u0 = u
-    if lplot:
-        fig, ax = plt.subplots()
-        ax.plot(u0, linestyle="dotted", color="tab:gray", label="reference")
-    ua = [u0]
-    for i in range(v_time-1):
-        uf = func.forecast(u)
-        u = uf
-        if ft=="ensemble":
-            if pt == "mlef" or pt == "4dmlef":
-                ua.append(u[:, 0])
-            else:
-                ua.append(np.mean(u, axis=1))
-        else:
-            ua.append(u)
-
-    v0 = SV.lanczos(np.array(ua), gnorm=gnorm)
-    v = v0.copy()
-    for i in range(v_time):
-        v = step.step_t(ua[i], v)
-    if lplot:
-        ax.plot(v0*10, linestyle="dashed", label="initial")
-        ax.plot(v, label="final")
-        ax.set_title("{}h".format(6*v_time))
-        ax.legend()
-        fig.savefig("initialSVA_{}_{}h.png".format(pt,6*v_time))
-    np.save("initialSVA_{}_{}h.npy".format(pt,6*v_time),v0)
-    np.save("finalSVA_{}_{}h.npy".format(pt,6*v_time),v)
-
-    vr = np.random.rand(nx)
-    scale = np.sqrt(np.mean(vr**2))
-    scale0 = np.sqrt(np.mean(v0**2))
-    vr = vr / scale * 0.5
-    v0 = v0 / scale0 * 0.5
-    un = u0.copy()
-    ur = un + vr
-    us = un + v0
-    er = np.zeros(10)
-    es = np.zeros(10)
-    er[0] = np.sqrt(np.mean((ur - un)**2))
-    es[0] = np.sqrt(np.mean((us - un)**2))
-    params["ft"] = "deterministic"
-    func = L96_func(params)
-    for i in range(9):
-        un = func.forecast(un)
-        ur = func.forecast(ur)
-        us = func.forecast(us)
-        er[i+1] = np.sqrt(np.mean((ur - un)**2))
-        es[i+1] = np.sqrt(np.mean((us - un)**2))
-    np.savetxt("erandom.txt",er)
-    np.savetxt("esv{}h.txt".format(6*v_time),es)
+    np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)

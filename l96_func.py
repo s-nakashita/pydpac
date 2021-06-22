@@ -44,8 +44,9 @@ class L96_func():
     # generate truth
     def gen_true(self):
         xt = np.zeros((self.na, self.nx))
-        x = np.ones(self.nx)*self.F
-        x[self.nx//2 - 1] += 0.001*self.F
+        #x = np.ones(self.nx)*self.F
+        #x[self.nx//2 - 1] += 0.001*self.F
+        x = np.random.randn(self.nx)
         tmp = x.copy()
         # spin up for 1 years
         logger.debug(self.namax*self.nt)
@@ -73,8 +74,8 @@ class L96_func():
         #    np.save("truth.npy",xt)
         #else:
         #    logger.info("read truth")
-         #   xt = np.load(truefile)
-        logger.debug("xt={}".format(xt))
+        #    xt = np.load(truefile)
+        #logger.debug("xt={}".format(xt))
 
         xloc = np.arange(self.nx)
         obs_s = self.obs.get_sig()

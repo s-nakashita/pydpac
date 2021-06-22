@@ -21,10 +21,10 @@ icount = 1
 istart = i + 1
 for i in range(istart, count+1):
     f = "isv_{}_{}h_{}.npy".format(pt,6*v_time,i)
-    v0 = np.load(f)
     if not os.path.isfile(f):
         print(f"not exist {f}")
         continue
+    v0 = np.load(f)
     f0 = np.fft.fft(v0)
     amp += np.abs(f0)
     icount += 1
@@ -43,10 +43,10 @@ icount = 1
 istart = i + 1
 for i in range(istart, count+1):
     f = "fsv_{}_{}h_{}.npy".format(pt,6*v_time,i)
-    v = np.load(f)
     if not os.path.isfile(f):
         print(f"not exist {f}")
         continue
+    v = np.load(f)
     fv = np.fft.fft(v)
     amp += np.abs(fv)
     icount += 1

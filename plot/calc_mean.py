@@ -75,7 +75,7 @@ else:
         e = np.loadtxt(f)
         emean += e
         i += 1
-    emean /= nmax
+    emean /= i
     if i>0:
         np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), emean)
 #np.savetxt("{}_{}_{}_{}_mean.txt".format(model, vname, op, pt), emean)

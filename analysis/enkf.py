@@ -283,8 +283,10 @@ class EnKF():
         Rwf_loc = np.ones(nobs)
 
         # distance threshold
-        dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
-        #dist0 = 6.5
+        if self.model == "l96":
+            dist0 = 6.5
+        else:
+            dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
         logger.debug(dist0)
 
         dist = np.zeros(nobs)
