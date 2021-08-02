@@ -27,6 +27,8 @@ class Kf():
                 return np.eye(xf.size)*25.0
             elif self.model == "z08":
                 return np.eye(xf.size)*0.02
+            elif self.model == "tc87":
+                return np.eye(xf.size)*1.0
         else:
             M = np.eye(xf.shape[0])
             MT = np.eye(xf.shape[0])
@@ -55,12 +57,15 @@ class Kf():
 
         pa = (np.eye(xf.size) - K @ JH) @ pf
         #spa = la.cholesky(pa)
+        lam, v = la.eigh(pa)
+        lam[lam<0.0] = 0.0
+        spa = v @ np.diag(np.sqrt(lam)) @ v.transpose()
 
         innv, chi2 = self.chi2(pf, JH, R, ob)
         ds = self.dof(K, JH)
         logger.info("dof={}".format(ds))
 
-        return xa, pa, None, innv, chi2, ds
+        return xa, pa, spa, innv, chi2, ds
 
     def get_linear(self, xa, Mb):
         eps = 1e-5

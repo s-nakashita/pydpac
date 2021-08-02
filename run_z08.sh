@@ -1,7 +1,7 @@
 #!/bin/sh
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-perturbations="etkf-jh etkf-fh mlef var"
+operators="linear quadratic cubic quartic quadratic-nodiff cubic-nodiff quartic-nodiff"
+perturbations="etkf-jh etkf-fh mlef-fh mlef-jh"
 #perturbations="etkf po srf letkf mlef var"
 na=20 # Number of assimilation cycle
 linf="F" # "T"->Apply inflation "F"->Not apply
@@ -45,11 +45,11 @@ done
 #done
 for op in ${operators}; do
   python ../plot/plote.py ${op} z08 ${na}
-  python ../plot/plotdh.py ${op} z08 ${na}
-  python ../plot/plotua.py ${op} z08 ${na}
-  for pt in ${perturbations}; do
-    convert -delay 40 -loop 0 z08_ua_${op}_${pt}_cycle*.png z08_ua_${op}_${pt}.gif
-  done
+  #python ../plot/plotdh.py ${op} z08 ${na}
+  #python ../plot/plotua.py ${op} z08 ${na}
+  #for pt in ${perturbations}; do
+  #  convert -delay 40 -loop 0 z08_ua_${op}_${pt}_cycle*.png z08_ua_${op}_${pt}.gif
+  #done
 done
 rm z08*.txt 
 rm z08*.npy 

@@ -12,11 +12,13 @@ alphak = []
 logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
         
-class Mlef():
-
+class Mles():
+# 4-dimensional MLEF
+# Reference(En4DVar) Liu et al. 2008: "An ensemble-based four-dimensional variational data assimilation scheme. Part I: Technical formulation and preliminary test," Mon. Wea. Rev., 136, 3363-3373.
     def __init__(self, pt, nmem, obs, infl, lsig, 
-                 linf, lloc, ltlm, model="model"):
-        self.pt = pt # DA type (MLEF or GRAD)
+                 linf, lloc, ltlm,
+                 step, nt, window_l, model="model"):
+        self.pt = pt # DA type (prefix 4d + MLEF)
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
@@ -26,10 +28,14 @@ class Mlef():
         self.linf = linf # True->Apply inflation False->Not apply
         self.lloc = lloc # True->Apply localization False->Not apply
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
+        self.step = step 
+        self.nt = nt
+        self.window_l = window_l
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} lloc={self.lloc} ltlm={self.ltlm}")
+        logger.info(f"nt={self.nt} window_l={self.window_l}")
 
     def calc_pf(self, xf, pa, cycle):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
@@ -41,7 +47,9 @@ class Mlef():
         #u, s, vt = la.svd(zmat)
         #v = vt.transpose()
         #is2r = 1 / (1 + s**2)
-        c = zmat.transpose() @ zmat
+        c = np.zeros((zmat[0].shape[1], zmat[0].shape[1]))
+        for l in range(len(zmat)):
+            c = c + zmat[l].transpose() @ zmat[l]
         lam, v = la.eigh(c)
         D = np.diag(1.0/(np.sqrt(lam + np.ones(lam.size))))
         vt = v.transpose()
@@ -50,7 +58,6 @@ class Mlef():
         logger.debug("tmat={}".format(tmat))
         logger.debug("heinv={}".format(heinv))
         logger.info("eigen value ={}".format(lam))
-        #print(f"rank(zmat)={lam[lam>1.0e-10].shape[0]}")
         return tmat, heinv
 
     def callback(self, xk, alpha=None):
@@ -65,10 +72,16 @@ class Mlef():
         d, tmat, zmat, heinv = args
         nmem = zeta.size
         #x = xc + gmat @ zeta
-        #ob = y - self.obs.h_operator(yloc, x)
-        #j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
         w = tmat @ zeta
-        j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+        #j = 0.5 * (zeta.transpose() @ heinv @ zeta)
+        j = 0.5 * (w.transpose() @ w)
+        for l in range(len(d)):
+            #ob = y[l] - self.obs.h_operator(yloc[l], x)
+            #j += 0.5 * (ob.transpose() @ rinv @ ob)
+            ob = zmat[l] @ w - d[l]
+            j += 0.5 * (ob.transpose() @ ob)
+            #for k in range(self.nt):
+            #    x = self.step(x)
         return j
     
 
@@ -76,31 +89,47 @@ class Mlef():
         #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
         d, tmat, zmat, heinv = args
         nmem = zeta.size
-        w = tmat @ zeta
         #x = xc + gmat @ zeta
-        #hx = self.obs.h_operator(yloc, x)
-        #ob = y - hx
-        #if self.ltlm:
-        #    dh = self.obs.dh_operator(yloc, x) @ pf
-        #else:
-        #    dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-        #return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
-        return heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+        w = tmat @ zeta
+        #xl = x[:, None] + pf
+        g = heinv @ zeta
+        for l in range(len(d)): 
+            #hx = self.obs.h_operator(yloc[l], x)
+            #ob = y[l] - hx
+            #if self.ltlm:
+            #    dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
+            #else:
+            #    dh = self.obs.h_operator(yloc[l], xl) - hx[:, None]
+            #g = g - tmat @ dh.transpose() @ rinv @ ob
+            ob = zmat[l] @ w - d[l]
+            g = g + tmat @ zmat[l].transpose() @ ob
+            #for k in range(self.nt):
+            #    x = self.step(x)
+            #    xl = self.step(xl) 
+        return g
 
     def calc_hess(self, zeta, *args):
         #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
         d, tmat, zmat, heinv = args
         #x = xc + gmat @ zeta
-        #if self.ltlm:
-        #    dh = self.obs.dh_operator(yloc, x) @ pf
-        #else:
-        #    dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
-        #hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
-        hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
+        #xl = x[:, None] + pf
+        hess = np.eye(zeta.size)
+        for l in range(len(d)):
+            #if self.ltlm:
+            #    dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
+            #else:
+            #    dh = self.obs.h_operator(yloc, xl) - self.obs.h_operator(yloc, x)[:, None]
+            #hess = hess + dh.transpose() @ rinv @ dh
+            hess = hess + zmat[l].transpose() @ zmat[l]
+            #for k in range(self.nt):
+            #    x = self.step(x)
+            #    xl = self.step(xl)
+        hess = tmat @ hess @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
         #xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
+        d, tmat, zmat, heinv = args
         delta = np.linspace(-nx,nx,4*nx)
         jvalb = np.zeros((len(delta)+1,nmem))
         jvalb[0,:] = xopt
@@ -113,7 +142,8 @@ class Mlef():
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
     def dof(self, zmat):
-        u, s, vt = la.svd(zmat)
+        z = np.sum(np.array(zmat), axis=0)
+        u, s, vt = la.svd(z)
         ds = np.sum(s**2/(1.0+s**2))
         return ds
 
@@ -154,13 +184,15 @@ class Mlef():
         l_mat[dist>d0] = 0
         return dist, l_mat 
 
-    def __call__(self, xb, pb, y, yloc, method="CGF", cgtype=1,
+    def __call__(self, xb, pb, y, yloc, method="LBFGS", cgtype=None,
         gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak, alphak
         zetak = []
         alphak = []
-        r, rmat, rinv = self.obs.set_r(y.size)
+        logger.debug(f"obsloc={yloc.shape}")
+        logger.debug(f"obssize={y.shape}")
+        r, rmat, rinv = self.obs.set_r(y.shape[1])
         xf = xb[:, 1:]
         xc = xb[:, 0]
         nmem = xf.shape[1]
@@ -179,19 +211,31 @@ class Mlef():
             xf = xc[:, None] + pf
         logger.debug("norm(pf)={}".format(la.norm(pf)))
         logger.debug("r={}".format(np.diag(r)))
-        if self.ltlm:
-            logger.debug("dhdx={}".format(self.obs.dhdx(xc)))
-            dh = self.obs.dh_operator(yloc,xc) @ pf
-        else:
-            dh = self.obs.h_operator(yloc,xf) - self.obs.h_operator(yloc,xc)[:, None]
-        ob = y - self.obs.h_operator(yloc,xc)
-        if save_dh:
-            np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
-            np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
+        xl = np.zeros_like(xb)
+        xl = xb[:,:]
+        xlc = xl[:, 0]
+        pl = np.zeros_like(pf)
+        pl = pf[:,:]
+        zmat = [] # observation perturbations
+        d = [] # normalized innovations
+        for l in range(min(self.window_l, y.shape[0])):
+            if self.ltlm:
+                logger.debug("dhdx={}".format(self.obs.dh_operator(yloc[l],xlc)))
+                dh = self.obs.dh_operator(yloc[l],xlc) @ pl
+            else:
+                dh = self.obs.h_operator(yloc[l],xl[:,1:]) - self.obs.h_operator(yloc[l],xlc)[:, None]
+            zmat.append(rmat @ dh)
+            ob = y[l] - self.obs.h_operator(yloc[l],xlc)
+            d.append(rmat @ ob)
+            if save_dh:
+                np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
+                np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), d[l]) 
+            for k in range(self.nt):
+                xl = self.step(xl)
+            xlc = xl[:, 0]
+            pl = xl[:, 1:] - xlc[:, None]
         logger.info("save_dh={}".format(save_dh))
-        zmat = rmat @ dh
-        d = rmat @ ob
-        logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+        logger.debug("cond(zmat)={}".format(la.cond(zmat[0])))
         tmat, heinv = self.precondition(zmat)
         logger.debug("pf.shape={}".format(pf.shape))
         logger.debug("tmat.shape={}".format(tmat.shape))
@@ -234,17 +278,30 @@ class Mlef():
         xa = xc + gmat @ x
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
-        if self.ltlm:
-            dh = self.obs.dh_operator(yloc,xa) @ pf
-        else:
-            dh = self.obs.h_operator(yloc, xa[:, None] + pf) - self.obs.h_operator(yloc, xa)[:, None]
-        zmat = rmat @ dh
-        logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+        zmat = [] # observation perturbations
+        d = [] # normalized innovation vectors
+        xl = np.zeros_like(xb)
+        xl[:, 1:] = xa[:, None] + pf 
+        xl[:, 0] = xa
+        xlc = xa
+        for l in range(min(self.window_l, y.shape[0])):
+            if self.ltlm:
+                logger.debug("dhdx={}".format(self.obs.dh_operator(yloc[l],xlc)))
+                dh = self.obs.dh_operator(yloc[l],xlc) @ pl
+            else:
+                dh = self.obs.h_operator(yloc[l],xl[:,1:]) - self.obs.h_operator(yloc[l],xlc)[:, None]
+            zmat.append(rmat @ dh)
+            ob = y[l] - self.obs.h_operator(yloc[l], xlc)
+            d.append(ob)
+            for k in range(self.nt):
+                xl = self.step(xl)
+            xlc = xl[:, 0]
+            pl = xl[:, 1:] - xlc[:, None]
+        logger.debug("cond(zmat)={}".format(la.cond(zmat[0])))
         tmat, heinv = self.precondition(zmat)
-        d = y - self.obs.h_operator(yloc, xa)
-        logger.info("zmat shape={}".format(zmat.shape))
-        logger.info("d shape={}".format(d.shape))
-        innv, chi2 = chi2_test(zmat, d)
+        logger.info("zmat shape={}".format(np.array(zmat).shape))
+        logger.info("d shape={}".format(np.array(d).shape))
+        #innv, chi2 = chi2_test(zmat, d)
         ds = self.dof(zmat)
         logger.info("dof={}".format(ds))
         pa = pf @ tmat 
@@ -262,4 +319,5 @@ class Mlef():
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa
         fpa = pa @ pa.T
-        return u, fpa, pa, innv, chi2, ds
+        #return u, fpa, pa, innv, chi2, ds
+        return u, fpa, ds

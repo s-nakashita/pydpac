@@ -5,31 +5,31 @@ from logging.config import fileConfig
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from model.lorenz import L96
+from model.bve import Bve
 from analysis.obs import Obs
-from l96_func import L96_func
+from tc87_func import TC87_func
 
 logging.config.fileConfig("logging_config.ini")
 
-global nx, F, dt, dx
+global nx, omega, dt, dx
 
-model = "l96"
+model = "tc87"
 # model parameter
-nx = 40     # number of points
-F  = 2.0    # forcing
-nt =   6    # number of step per forecast (=6 hour)
-dt = 0.05 / 6  # time step (=1 hour)
+nx = 64     # number of points
+omega = 2.0 * np.pi  # angular velocity for earth rotation
+nt =   1    # number of step per forecast
+dt = 0.1    # time step
 
 # forecast model forward operator
-step = L96(nx, dt, F)
+step = Bve(nx, dt, omega)
 
-x = np.linspace(-2.0, 2.0, nx)
+x = 180.0 / np.pi * step.get_lam()
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   40 # ensemble size (include control run)
-t0off =  24 # initial offset between adjacent members
-t0c =   1000 # t0 for control
+nmem =   20 # ensemble size (not include control run)
+t0off =   1 # initial offset between adjacent members
+t0c =   100 # t0 for control
 # t0 for ensemble members
 if nmem%2 == 0: # even
     t0m = [t0c + t0off//2 + t0off * i for i in range(nmem//2)]
@@ -42,9 +42,7 @@ namax = 1460 # max number of analysis (1 year)
 
 a_window = 1 # assimilation window length
 
-nobs = 40 # observation number (nobs<=nx)
-
-lb = -1.0 # correlation length
+nobs = 64 # observation number (nobs<=nx)
 
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
@@ -127,7 +125,6 @@ if len(sys.argv) > 7:
     #nmem = int(sys.argv[7])
     #nt = int(sys.argv[7]) * 6
     a_window = int(sys.argv[7])
-    #lb = float(sys.argv[7])
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -139,13 +136,13 @@ if pt == "mlef":
     analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
+    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, lb, model=model)
+    analysis = Var(pt, obs, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -153,7 +150,7 @@ elif pt == "4dvar":
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enks import EnKS
     #a_window = 5
-    analysis = EnKS(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
+    analysis = EnKS(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
 elif pt == "4dmlef":
     from analysis.mles import Mles
     lloc = False
@@ -165,15 +162,13 @@ params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
     "namax":namax, "a_window":a_window, "op":op, "pt":pt, "ft":ft,\
     "linf":linf, "lloc":lloc, "ltlm":ltlm,\
     "infl_parm":infl_parm, "lsig":lsig}
-func = L96_func(params)
+func = TC87_func(params)
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
-    u, xa, xf, pa, sqrtpa = func.initialize(opt=1)
-    logger.debug(u.shape)
-    func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
+    u, xa, xf, pa, sqrtpa = func.initialize(opt=0)
     pf = analysis.calc_pf(u, pa, 0)
     
     a_time = range(0, na, a_window)
@@ -187,6 +182,17 @@ if __name__ == "__main__":
         y = yobs[i:i+a_window,:,1]
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
+        if ft == "ensemble":
+            if pt == "mlef":
+                uc = u[:, 0]
+                um = u[:, 1:]
+            else:
+                uc = np.mean(u, axis=1)
+                um = u
+        else: 
+            uc = u
+            um = u
+        func.plot_initial(uc, um, xt[i], i, model)
         #if i in [1, 50, 100, 150, 200, 250]:
         if i in range(1):
             logger.info("cycle{} analysis".format(i))
@@ -207,13 +213,7 @@ if __name__ == "__main__":
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
-        # additive inflation
-        logger.info("==additive inflation==")
-        if linf:
-            if pt == "mlef" or pt == "4dmlef":
-                u[:, 1:] += np.random.randn(u.shape[0], u.shape[1]-1)
-            else:
-                u += np.random.randn(u.shape[0], u.shape[1])
+            
         if ft=="ensemble":
             if pt == "mlef" or pt == "4dmlef":
                 xa[i] = u[:, 0]
