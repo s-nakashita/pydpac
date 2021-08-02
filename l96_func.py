@@ -47,34 +47,34 @@ class L96_func():
         #x = np.ones(self.nx)*self.F
         #x[self.nx//2 - 1] += 0.001*self.F
         x = np.random.randn(self.nx)
-        tmp = x.copy()
+        #tmp = x.copy()
         # spin up for 1 years
         logger.debug(self.namax*self.nt)
         for k in range(self.namax*self.nt):
             tmp = self.step(x)
-            x = tmp
+            x[:] = tmp[:]
         xt[0, :] = x
         for i in range(self.na-1):
             for k in range(self.nt):
                 tmp = self.step(x)
-                x = tmp
+                x[:] = tmp[:]
             xt[i+1, :] = x
         return xt
 
     # get truth and make observation
     def get_true_and_obs(self):
-        f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
-            "data/data.csv")
-        truth = pd.read_csv(f)
-        xt = truth.values.reshape(self.namax,self.nx)
-        #truefile = "truth.npy"
-        #if not os.path.isfile(truefile):
-        #    logger.info("create truth")
-        #    xt = self.gen_true()
-        #    np.save("truth.npy",xt)
-        #else:
-        #    logger.info("read truth")
-        #    xt = np.load(truefile)
+        #f = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
+        #    "data/data.csv")
+        #truth = pd.read_csv(f)
+        #xt = truth.values.reshape(self.namax,self.nx)
+        truefile = "truth.npy"
+        if not os.path.isfile(truefile):
+            logger.info("create truth")
+            xt = self.gen_true()
+            np.save("truth.npy",xt)
+        else:
+            logger.info("read truth")
+            xt = np.load(truefile)
         #logger.debug("xt={}".format(xt))
 
         xloc = np.arange(self.nx)
@@ -112,6 +112,9 @@ class L96_func():
         #X0c = np.ones(self.nx)*self.F
         #X0c[self.nx//2 - 1] += 0.001*self.F
         X0c = np.random.randn(self.nx)
+        ix = np.arange(self.nx)/self.nx
+        nk = 2.0
+        X0c = np.cos(2.0*np.pi*ix*nk)*self.F
         tmp = X0c.copy()
         for j in range(self.t0c):
             tmp = self.step(X0c)
@@ -131,8 +134,11 @@ class L96_func():
         else: # lagged forecast
             logger.info("spin up max = {}".format(maxiter))
             X0 = np.zeros((self.nx,len(self.t0f)))
-            tmp = np.ones(self.nx)*self.F
-            tmp[self.nx//2 - 1] += 0.001*self.F
+            #tmp = np.ones(self.nx)*self.F
+            #tmp[self.nx//2 - 1] += 0.001*self.F
+            ix = np.arange(self.nx)/self.nx
+            nk = 2.0
+            tmp = np.cos(2.0*np.pi*ix*nk)*self.F
             for j in range(maxiter):
                 tmp = self.step(tmp)
                 if j in self.t0f:
@@ -181,7 +187,7 @@ class L96_func():
         x = np.arange(ut.size) + 1
         ax.plot(x, ut, label="true")
         ax.plot(x, uc, label="control")
-        for i in range(u.shape[1]):
+        for i in range(min(u.shape[1], 5)):
             ax.plot(x, u[:,i], linestyle="--", label="mem{}".format(i+1))
         ax.set(xlabel="points", ylabel="X", title="initial lag={}".format(lag))
         ax.set_xticks(x[::5])

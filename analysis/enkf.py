@@ -82,6 +82,7 @@ class EnKF():
                 A = np.eye(nmem)
             A = (nmem-1)*A + dy.T @ rinv @ dy
             lam, v = la.eigh(A)
+            #logger.info("eigen values={}".format(lam))
             Dinv = np.diag(1.0/lam)
             TT = v @ Dinv @ v.T
             T = v @ np.sqrt((nmem-1)*Dinv) @ v.T
@@ -97,6 +98,9 @@ class EnKF():
                 if save_dh:
                     np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
                     np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
+            #dumu, dums, dumvt = la.svd(K)
+            #logger.info("singular values of K={}".format(dums))
+            #print(f"rank(kmat)={dums[np.abs(dums)>1.0e-10].shape[0]}")
             xa_ = xf_ + K @ d
             dxa = dxf @ T
             xa = dxa + xa_[:,None]

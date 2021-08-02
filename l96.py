@@ -16,7 +16,7 @@ global nx, F, dt, dx
 model = "l96"
 # model parameter
 nx = 40     # number of points
-F  = 8.0    # forcing
+F  = 2.0    # forcing
 nt =   6    # number of step per forecast (=6 hour)
 dt = 0.05 / 6  # time step (=1 hour)
 
@@ -27,9 +27,9 @@ x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   40 # ensemble size (not include control run)
-t0off =   8 # initial offset between adjacent members
-t0c =   500 # t0 for control
+nmem =   40 # ensemble size (include control run)
+t0off =  24 # initial offset between adjacent members
+t0c =   1000 # t0 for control
 # t0 for ensemble members
 if nmem%2 == 0: # even
     t0m = [t0c + t0off//2 + t0off * i for i in range(nmem//2)]
@@ -126,8 +126,8 @@ if len(sys.argv) > 7:
     #nobs = int(sys.argv[7])
     #nmem = int(sys.argv[7])
     #nt = int(sys.argv[7]) * 6
-    #a_window = int(sys.argv[7])
-    lb = float(sys.argv[7])
+    a_window = int(sys.argv[7])
+    #lb = float(sys.argv[7])
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -139,7 +139,7 @@ if pt == "mlef":
     analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
+    analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
@@ -153,7 +153,7 @@ elif pt == "4dvar":
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enks import EnKS
     #a_window = 5
-    analysis = EnKS(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
+    analysis = EnKS(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
 elif pt == "4dmlef":
     from analysis.mles import Mles
     lloc = False
@@ -171,7 +171,9 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
-    u, xa, xf, pa, sqrtpa = func.initialize(opt=0)
+    u, xa, xf, pa, sqrtpa = func.initialize(opt=1)
+    logger.debug(u.shape)
+    func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
     pf = analysis.calc_pf(u, pa, 0)
     
     a_time = range(0, na, a_window)
@@ -205,7 +207,13 @@ if __name__ == "__main__":
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
-            
+        # additive inflation
+        logger.info("==additive inflation==")
+        if linf:
+            if pt == "mlef" or pt == "4dmlef":
+                u[:, 1:] += np.random.randn(u.shape[0], u.shape[1]-1)
+            else:
+                u += np.random.randn(u.shape[0], u.shape[1])
         if ft=="ensemble":
             if pt == "mlef" or pt == "4dmlef":
                 xa[i] = u[:, 0]

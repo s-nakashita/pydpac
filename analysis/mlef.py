@@ -50,6 +50,7 @@ class Mlef():
         logger.debug("tmat={}".format(tmat))
         logger.debug("heinv={}".format(heinv))
         logger.info("eigen value ={}".format(lam))
+        #print(f"rank(zmat)={lam[lam>1.0e-10].shape[0]}")
         return tmat, heinv
 
     def callback(self, xk, alpha=None):
