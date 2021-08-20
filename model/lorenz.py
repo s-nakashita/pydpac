@@ -81,6 +81,16 @@ class L96():
 
         return dxa
 
+    def calc_dist(self, iloc):
+        dist = np.zeros(self.nx)
+        for j in range(self.nx):
+            dist[j] = abs(self.nx / np.pi * np.sin(np.pi * (iloc - float(j)) / self.nx))
+        return dist
+    
+    def calc_dist1(self, iloc, jloc):
+        dist = abs(self.nx / np.pi * np.sin(np.pi * (iloc - jloc) / self.nx))
+        return dist
+
 if __name__ == "__main__":
     n = 40
     F = 8.0

@@ -16,7 +16,7 @@ global nx, F, dt, dx
 model = "l96"
 # model parameter
 nx = 40     # number of points
-F  = 2.0    # forcing
+F  = 8.0    # forcing
 nt =   6    # number of step per forecast (=6 hour)
 dt = 0.05 / 6  # time step (=1 hour)
 
@@ -27,9 +27,9 @@ x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   40 # ensemble size (include control run)
+nmem =    8 # ensemble size (include control run)
 t0off =  24 # initial offset between adjacent members
-t0c =   1000 # t0 for control
+t0c =   500 # t0 for control
 # t0 for ensemble members
 if nmem%2 == 0: # even
     t0m = [t0c + t0off//2 + t0off * i for i in range(nmem//2)]
@@ -60,7 +60,7 @@ infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":No
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t, "abs": infl_l}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5,"kf":None,"var":None,
+sig_l = {"mlef":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
         "4dmlef":8.0,"4detkf":8.0,"4dpo":2.0,"4dsrf":8.0,"4dletkf":7.5,"4dvar":None}
 sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
 sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
@@ -82,6 +82,8 @@ infl_parm = -1.0
 lloc = False
 lsig = -1.0
 ltlm = True
+rloc = False
+bloc = False
 
 ## read from command options
 # observation type
@@ -117,6 +119,11 @@ if len(sys.argv) > 5:
         lloc = True
         dict_s = dict_sig[op]
         lsig = dict_s[pt]
+        ## only for mlef
+        if sys.argv[8] == "T":
+            rloc = True
+        elif sys.argv[9] == "T":
+            bloc = True
 # switch of using/not using tangent linear operator
 if len(sys.argv) > 6:
     if sys.argv[6] == "F":
@@ -134,12 +141,19 @@ obs = Obs(op, sigma[op])
 
 # assimilation method
 if pt == "mlef":
-    from analysis.mlef import Mlef
-    lloc = False
-    analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
+    if bloc:
+        from analysis.mlef import Mlef
+        analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, bloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    elif rloc:
+        from analysis.mlef_rloc import Mlef_rloc
+        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    else:
+        from analysis.mlef import Mlef
+        lloc = False
+        analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
+    analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
@@ -171,9 +185,9 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
-    u, xa, xf, pa, sqrtpa = func.initialize(opt=1)
+    u, xa, xf, pa, sqrtpa = func.initialize(opt=0)
     logger.debug(u.shape)
-    func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
+    #func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
     pf = analysis.calc_pf(u, pa, 0)
     
     a_time = range(0, na, a_window)
@@ -207,13 +221,13 @@ if __name__ == "__main__":
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
-        # additive inflation
-        logger.info("==additive inflation==")
-        if linf:
-            if pt == "mlef" or pt == "4dmlef":
-                u[:, 1:] += np.random.randn(u.shape[0], u.shape[1]-1)
-            else:
-                u += np.random.randn(u.shape[0], u.shape[1])
+        ## additive inflation
+        #if linf:
+        #    logger.info("==additive inflation==")
+        #    if pt == "mlef" or pt == "4dmlef":
+        #        u[:, 1:] += np.random.randn(u.shape[0], u.shape[1]-1)
+        #    else:
+        #        u += np.random.randn(u.shape[0], u.shape[1])
         if ft=="ensemble":
             if pt == "mlef" or pt == "4dmlef":
                 xa[i] = u[:, 0]

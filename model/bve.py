@@ -100,6 +100,16 @@ class Bve():
                     phit[t] += phi0[i] * np.ones_like(self.lam)
         return phit 
 
+    def calc_dist(self, iloc):
+        dist = np.zeros(self.nx)
+        for j in range(self.nx):
+            dist[j] = abs(self.nx / np.pi * np.sin(np.pi * (iloc - float(j)) / self.nx))
+        return dist
+    
+    def calc_dist1(self, iloc, jloc):
+        dist = abs(self.nx / np.pi * np.sin(np.pi * (iloc - jloc) / self.nx))
+        return dist
+
 if __name__ == "__main__":
     nx = 64
     dt = 0.1

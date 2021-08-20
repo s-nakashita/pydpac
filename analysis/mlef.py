@@ -15,7 +15,7 @@ logger = logging.getLogger('anl')
 class Mlef():
 
     def __init__(self, pt, nmem, obs, infl, lsig, 
-                 linf, lloc, ltlm, model="model"):
+                 linf, lloc, ltlm, calc_dist, calc_dist1, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
@@ -26,6 +26,8 @@ class Mlef():
         self.linf = linf # True->Apply inflation False->Not apply
         self.lloc = lloc # True->Apply localization False->Not apply
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
+        self.calc_dist = calc_dist # distance calculation routine
+        self.calc_dist1 = calc_dist1 # distance calculation routine
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
@@ -61,42 +63,45 @@ class Mlef():
             alphak.append(alpha)
 
     def calc_j(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        d, tmat, zmat, heinv = args
-        nmem = zeta.size
-        #x = xc + gmat @ zeta
-        #ob = y - self.obs.h_operator(yloc, x)
-        #j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
-        w = tmat @ zeta
-        j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        x = xc + gmat @ zeta
+        ob = y - self.obs.h_operator(yloc, x)
+        j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+        ## incremental form
+        #d, tmat, zmat, heinv = args
+        #nmem = zeta.size
+        #w = tmat @ zeta
+        #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         return j
     
 
     def calc_grad_j(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        d, tmat, zmat, heinv = args
-        nmem = zeta.size
-        w = tmat @ zeta
-        #x = xc + gmat @ zeta
-        #hx = self.obs.h_operator(yloc, x)
-        #ob = y - hx
-        #if self.ltlm:
-        #    dh = self.obs.dh_operator(yloc, x) @ pf
-        #else:
-        #    dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-        #return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
-        return heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        x = xc + gmat @ zeta
+        hx = self.obs.h_operator(yloc, x)
+        ob = y - hx
+        if self.ltlm:
+            dh = self.obs.dh_operator(yloc, x) @ pf
+        else:
+            dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
+        return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
+        ## incremental form
+        #d, tmat, zmat, heinv = args
+        #nmem = zeta.size
+        #w = tmat @ zeta
+        #return heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
 
     def calc_hess(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        d, tmat, zmat, heinv = args
-        #x = xc + gmat @ zeta
-        #if self.ltlm:
-        #    dh = self.obs.dh_operator(yloc, x) @ pf
-        #else:
-        #    dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
-        #hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
-        hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
+        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+        x = xc + gmat @ zeta
+        if self.ltlm:
+            dh = self.obs.dh_operator(yloc, x) @ pf
+        else:
+            dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
+        hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
+        ## incremental form
+        #d, tmat, zmat, heinv = args
+        #hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
@@ -119,6 +124,8 @@ class Mlef():
 
     def pfloc(self, sqrtpf, save_dh, icycle):
         nmem = sqrtpf.shape[1]
+        nmode = min(100, sqrtpf.shape[0])
+        logger.info(f"== Pf localization, nmode={nmode} ==")
         pf = sqrtpf @ sqrtpf.T
         #if save_dh:
         #    np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
@@ -131,24 +138,58 @@ class Mlef():
             np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
         lam, v = la.eigh(pf)
         lam = lam[::-1]
+        lam[lam < 0.0] = 0.0
         v = v[:,::-1]
         if save_dh:
             np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), lam)
         logger.info("pf eigen value = {}".format(lam))
-        pf = v[:,:nmem] @ np.diag(lam[:nmem]) @ v[:,:nmem].T
-        spf = v[:,:nmem] @ np.diag(np.sqrt(lam[:nmem])) 
+        pf = v[:,:nmode] @ np.diag(lam[:nmode]) @ v[:,:nmode].T
+        spf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) 
         logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
         if save_dh:
             np.save("{}_lpfr_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
             np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
-        return spf
+        return spf, np.sqrt(lam[:nmode])
+    
+    def pfmod(self, sqrtpf, save_dh, icycle):
+        nmem = sqrtpf.shape[1]
+        nmode = min(100, sqrtpf.shape[0])
+        logger.info(f"== modulated ensemble, nmode={nmode} ==")
+        pf = sqrtpf @ sqrtpf.T
+        #if save_dh:
+        #    np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+        #    np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), sqrtpf)
+        dist, l_mat = self.loc_mat(self.lsig, pf.shape[0], pf.shape[1])
+        if save_dh:
+            np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), l_mat)
+        l_sqrt = la.cholesky(l_mat)
+        
+        pf = pf * l_mat
+        if save_dh:
+            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+        lam, v = la.eigh(pf)
+        lam = lam[::-1]
+        lam[lam < 0.0] = 0.0
+        v = v[:,::-1]
+        if save_dh:
+            np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), lam)
+        logger.info("pf eigen value = {}".format(lam))
+        pf = v[:,:nmode] @ np.diag(lam[:nmode]) @ v[:,:nmode].T
+        spf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) 
+        logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
+        if save_dh:
+            np.save("{}_lpfr_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+            np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
+        return spf, np.sqrt(lam[:nmode])
 
     def loc_mat(self, sigma, nx, ny):
         dist = np.zeros((nx,ny))
         l_mat = np.zeros_like(dist)
-        for j in range(nx):
-            for i in range(ny):
-                dist[j,i] = min(abs(j-i),nx-abs(j-i))
+        #for j in range(nx):
+        #    for i in range(ny):
+        #        dist[j,i] = min(abs(j-i),nx-abs(j-i))
+        for i in range(ny):
+            dist[:, i] = self.calc_dist(float(i))
         d0 = 2.0 * np.sqrt(10.0/3.0) * sigma
         l_mat = np.exp(-dist**2/(2.0*sigma**2))
         l_mat[dist>d0] = 0
@@ -175,15 +216,16 @@ class Mlef():
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
         if self.lloc:
             logger.info("==localization==, lsig={}".format(self.lsig))
-            pf = self.pfloc(pf, save_dh, icycle)
+            spf = pf.copy()
+            pf, wts = self.pfloc(spf, save_dh, icycle)
             xf = xc[:, None] + pf
-        logger.debug("norm(pf)={}".format(la.norm(pf)))
-        logger.debug("r={}".format(np.diag(r)))
+        #logger.debug("norm(pf)={}".format(la.norm(pf)))
+        #logger.debug("r={}".format(np.diag(r)))
         if self.ltlm:
             logger.debug("dhdx={}".format(self.obs.dhdx(xc)))
             dh = self.obs.dh_operator(yloc,xc) @ pf
         else:
-            dh = self.obs.h_operator(yloc,xf) - self.obs.h_operator(yloc,xc)[:, None]
+            dh = self.obs.h_operator(yloc,xc[:, None]+pf) - self.obs.h_operator(yloc,xc)[:, None]
         ob = y - self.obs.h_operator(yloc,xc)
         if save_dh:
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
@@ -191,16 +233,16 @@ class Mlef():
         logger.info("save_dh={}".format(save_dh))
         zmat = rmat @ dh
         d = rmat @ ob
-        logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+        #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
         tmat, heinv = self.precondition(zmat)
         logger.debug("pf.shape={}".format(pf.shape))
         logger.debug("tmat.shape={}".format(tmat.shape))
         logger.debug("heinv.shape={}".format(heinv.shape))
         gmat = pf @ tmat
         logger.debug("gmat.shape={}".format(gmat.shape))
-        x0 = np.zeros(xf.shape[1])
-        #args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
-        args_j = (d, tmat, zmat, heinv)
+        x0 = np.zeros(pf.shape[1])
+        args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+        #args_j = (d, tmat, zmat, heinv)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
@@ -248,18 +290,26 @@ class Mlef():
         ds = self.dof(zmat)
         logger.info("dof={}".format(ds))
         pa = pf @ tmat 
-        if save_dh:
-            np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pa)
-            ua = np.zeros((xa.size, nmem+1))
-            ua[:, 0] = xa
-            ua[:, 1:] = xa[:, None] + pa
-            np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ua)
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm
 
         u = np.zeros_like(xb)
         u[:, 0] = xa
-        u[:, 1:] = xa[:, None] + pa
+        if self.lloc:
+            # random sampling
+            rvec = np.random.randn(pf.shape[1], nmem)
+            #rvec = rvec * wts[:, None] / np.sum(wts)
+            rvec_mean = np.mean(rvec, axis=0)
+            rvec = rvec - rvec_mean[None,:]
+            rvec_stdv = np.sqrt((rvec**2).sum(axis=0))
+            rvec = rvec / rvec_stdv[None,:]
+            logger.info("rvec={}".format(rvec))
+            u[:, 1:] = xa[:, None] + pa @ rvec
+        else:
+            u[:, 1:] = xa[:, None] + pa
         fpa = pa @ pa.T
+        if save_dh:
+            np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pa)
+            np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
         return u, fpa, pa, innv, chi2, ds

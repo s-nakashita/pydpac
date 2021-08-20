@@ -13,7 +13,7 @@ logger = logging.getLogger('anl')
 class EnKF():
 
     def __init__(self, da, nmem, obs, infl, lsig,
-                 linf, lloc, ltlm, model="model"):
+                 linf, lloc, ltlm, calc_dist, calc_dist1, model="model"):
         self.da = da # DA type (ETKF, PO, SRF, or LETKF)
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
@@ -24,6 +24,8 @@ class EnKF():
         self.linf = linf # True->Apply inflation False->Not apply
         self.lloc = lloc # True->Apply localization False->Not apply
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
+        self.calc_dist = calc_dist # distance calculation routine
+        self.calc_dist1 = calc_dist1 # distance calculation routine
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.da} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
@@ -195,7 +197,7 @@ class EnKF():
                 logger.info("==inflation==, alpha={}".format(alpha))
                 E /= alpha
             for i in range(nx):
-                far, Rwf_loc = self.r_loc(sigma, nx, yloc, float(i))
+                far, Rwf_loc = self.r_loc(sigma, yloc, float(i))
                 logger.info("number of assimilated obs.={}".format(y.size - len(far)))
                 yi = np.delete(y,far)
                 di = np.delete(d,far)
@@ -250,9 +252,11 @@ class EnKF():
         # distance threshold
         dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
         logger.debug(dist0)
-        for j in range(nx):
-            for i in range(ny):
-                dist[j,i] = min(abs(j-i),nx-abs(j-i))
+        #for j in range(nx):
+        #    for i in range(ny):
+        #        dist[j,i] = min(abs(j-i),nx-abs(j-i))
+        for i in range(ny):
+            dist[:, i] = self.calc_dist(float(i))
         l_mat = np.exp(-0.5*(dist/loc_scale)**2)
         logger.debug(dist[dist>dist0])
         l_mat[dist>dist0] = 0
@@ -269,15 +273,17 @@ class EnKF():
         # distance threshold
         dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
         logger.debug(dist0)
-        for j in range(nx):
-            for i in range(nobs):
-                dist[j, i] = min(abs(obsloc[i]-j), nx-abs(obsloc[i]-j))
+        #for j in range(nx):
+        #    for i in range(nobs):
+        #        dist[j, i] = min(abs(obsloc[i]-j), nx-abs(obsloc[i]-j))
+        for i in range(nobs):
+            dist[:, i] = self.calc_dist(obsloc[i])
         l_mat = np.exp(-0.5*(dist/loc_scale)**2)
         logger.debug(dist[dist>dist0])
         l_mat[dist>dist0] = 0
         return dist, l_mat        
 
-    def r_loc(self, sigma, nx, obsloc, xloc):
+    def r_loc(self, sigma, obsloc, xloc):
         if sigma < 0.0:
             loc_scale = 1.0e5
         else:
@@ -287,15 +293,17 @@ class EnKF():
         Rwf_loc = np.ones(nobs)
 
         # distance threshold
-        if self.model == "l96":
-            dist0 = 6.5
-        else:
-            dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
+        #if self.model == "l96":
+        #    dist0 = 6.5
+        #else:
+        dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
         logger.debug(dist0)
 
         dist = np.zeros(nobs)
+        #for k in range(nobs):
+        #    dist[k] = min(abs(obsloc[k] - xloc), nx-abs(obsloc[k] - xloc))
         for k in range(nobs):
-            dist[k] = min(abs(obsloc[k] - xloc), nx-abs(obsloc[k] - xloc))
+            dist[k] = self.calc_dist1(xloc, obsloc[k])
         far = far[dist>dist0]
         logger.debug(far)
         Rwf_loc = np.exp(-0.5*(dist/loc_scale)**2)

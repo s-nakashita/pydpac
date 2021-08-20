@@ -140,11 +140,16 @@ obs = Obs(op, sigma[op])
 
 # assimilation method
 if pt == "mlef":
-    from analysis.mlef import Mlef
-    analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model)
+    if not lloc:
+        from analysis.mlef import Mlef
+    #    lloc = False
+        analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    else:
+        from analysis.mlef_rloc import Mlef_rloc
+        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model)
+    analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model)

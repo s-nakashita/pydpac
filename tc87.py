@@ -27,7 +27,7 @@ x = 180.0 / np.pi * step.get_lam()
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   20 # ensemble size (not include control run)
+nmem =    2 # ensemble size (include control run)
 t0off =   1 # initial offset between adjacent members
 t0c =   100 # t0 for control
 # t0 for ensemble members
@@ -58,7 +58,7 @@ infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":No
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t, "abs": infl_l}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":8.0,"etkf":8.0,"po":2.0,"srf":8.0,"letkf":7.5,"kf":None,"var":None,
+sig_l = {"mlef":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
         "4dmlef":8.0,"4detkf":8.0,"4dpo":2.0,"4dsrf":8.0,"4dletkf":7.5,"4dvar":None}
 sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
 sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
@@ -131,12 +131,16 @@ obs = Obs(op, sigma[op])
 
 # assimilation method
 if pt == "mlef":
-    from analysis.mlef import Mlef
-    lloc = False
-    analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
+    if not lloc:
+        from analysis.mlef import Mlef
+    #    lloc = False
+        analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    else:
+        from analysis.mlef_rloc import Mlef_rloc
+        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
+    analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
@@ -150,7 +154,7 @@ elif pt == "4dvar":
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enks import EnKS
     #a_window = 5
-    analysis = EnKS(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
+    analysis = EnKS(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
 elif pt == "4dmlef":
     from analysis.mles import Mles
     lloc = False
