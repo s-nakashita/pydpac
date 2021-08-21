@@ -24,7 +24,7 @@ if model == "z08" or model == "z05":
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 elif model == "l96" or model == "tc87":
-    #perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",
+    #perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
     #"4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
     #    "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\

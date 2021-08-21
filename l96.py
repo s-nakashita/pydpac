@@ -42,9 +42,9 @@ namax = 1460 # max number of analysis (1 year)
 
 a_window = 1 # assimilation window length
 
-nobs = 40 # observation number (nobs<=nx)
+nobs = 20 # observation number (nobs<=nx)
 
-lb = -1.0 # correlation length
+lb = -1.0 # (For var & 4dvar) correlation length for background error covariance
 
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
@@ -120,10 +120,13 @@ if len(sys.argv) > 5:
         dict_s = dict_sig[op]
         lsig = dict_s[pt]
         ## only for mlef
-        if sys.argv[8] == "T":
+        if len(sys.argv) > 8 and sys.argv[8] == "T":
             rloc = True
-        elif sys.argv[9] == "T":
+        elif len(sys.argv) > 9 and sys.argv[9] == "T":
             bloc = True
+        else:
+            # default is R-localization
+            rloc = True
 # switch of using/not using tangent linear operator
 if len(sys.argv) > 6:
     if sys.argv[6] == "F":
@@ -140,17 +143,18 @@ if len(sys.argv) > 7:
 obs = Obs(op, sigma[op])
 
 # assimilation method
+state_size = nx
 if pt == "mlef":
     if bloc:
         from analysis.mlef import Mlef
-        analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, bloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, bloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
     elif rloc:
         from analysis.mlef_rloc import Mlef_rloc
         analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
     else:
         from analysis.mlef import Mlef
         lloc = False
-        analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
@@ -201,9 +205,9 @@ if __name__ == "__main__":
         y = yobs[i:i+a_window,:,1]
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
+        logger.info("cycle{} analysis".format(i))
         #if i in [1, 50, 100, 150, 200, 250]:
-        if i in range(1):
-            logger.info("cycle{} analysis".format(i))
+        if i < 0:
             #if a_window > 1:
             if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, \

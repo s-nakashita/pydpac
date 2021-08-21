@@ -256,11 +256,6 @@ class Mlef_rloc():
         logger.info("dof={}".format(ds))
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xa - xc)
-            np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pa)
-            ua = np.zeros((xa.size, nmem+1))
-            ua[:, 0] = xa
-            ua[:, 1:] = xa[:, None] + pa
-            np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ua)
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm
@@ -269,4 +264,7 @@ class Mlef_rloc():
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa
         fpa = pa @ pa.T
+        if save_dh:
+            np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
+            np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
         return u, fpa, pa, innv, chi2, ds

@@ -14,9 +14,10 @@ logger = logging.getLogger('anl')
         
 class Mlef():
 
-    def __init__(self, pt, nmem, obs, infl, lsig, 
+    def __init__(self, pt, state_size, nmem, obs, infl, lsig, 
                  linf, lloc, ltlm, calc_dist, calc_dist1, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
+        self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
@@ -30,8 +31,14 @@ class Mlef():
         self.calc_dist1 = calc_dist1 # distance calculation routine
         self.model = model
         logger.info(f"model : {self.model}")
+        logger.info(f"ndim={self.ndim} nmem={self.nmem}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} lloc={self.lloc} ltlm={self.ltlm}")
+        if self.lloc:
+            self.l_mat, self.l_sqrt, self.nmode, self.enswts \
+            = self.loc_mat(self.lsig, self.ndim, self.ndim)
+            np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
+        
 
     def calc_pf(self, xf, pa, cycle):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
@@ -124,18 +131,12 @@ class Mlef():
 
     def pfloc(self, sqrtpf, save_dh, icycle):
         nmem = sqrtpf.shape[1]
-        nmode = min(100, sqrtpf.shape[0])
+        nmode = min(100, self.ndim)
         logger.info(f"== Pf localization, nmode={nmode} ==")
         pf = sqrtpf @ sqrtpf.T
+        pf = pf * self.l_mat
         #if save_dh:
-        #    np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-        #    np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), sqrtpf)
-        dist, l_mat = self.loc_mat(self.lsig, pf.shape[0], pf.shape[1])
-        if save_dh:
-            np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), l_mat)
-        pf = pf * l_mat
-        if save_dh:
-            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+        #    np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
         lam, v = la.eigh(pf)
         lam = lam[::-1]
         lam[lam < 0.0] = 0.0
@@ -147,40 +148,24 @@ class Mlef():
         spf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) 
         logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
         if save_dh:
-            np.save("{}_lpfr_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
             np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
         return spf, np.sqrt(lam[:nmode])
     
     def pfmod(self, sqrtpf, save_dh, icycle):
         nmem = sqrtpf.shape[1]
-        nmode = min(100, sqrtpf.shape[0])
-        logger.info(f"== modulated ensemble, nmode={nmode} ==")
-        pf = sqrtpf @ sqrtpf.T
-        #if save_dh:
-        #    np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-        #    np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), sqrtpf)
-        dist, l_mat = self.loc_mat(self.lsig, pf.shape[0], pf.shape[1])
-        if save_dh:
-            np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), l_mat)
-        l_sqrt = la.cholesky(l_mat)
+        logger.info(f"== modulated ensemble, nmode={self.nmode} ==")
         
-        pf = pf * l_mat
+        spf = np.empty((self.ndim, nmem*self.nmode), sqrtpf.dtype)
+        for l in range(self.nmode):
+            for k in range(nmem):
+                m = l*nmem + k
+                spf[:, m] = self.l_sqrt[:, l]*sqrtpf[:, k]
         if save_dh:
-            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-        lam, v = la.eigh(pf)
-        lam = lam[::-1]
-        lam[lam < 0.0] = 0.0
-        v = v[:,::-1]
-        if save_dh:
-            np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), lam)
-        logger.info("pf eigen value = {}".format(lam))
-        pf = v[:,:nmode] @ np.diag(lam[:nmode]) @ v[:,:nmode].T
-        spf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) 
-        logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
-        if save_dh:
-            np.save("{}_lpfr_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
             np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
-        return spf, np.sqrt(lam[:nmode])
+            fullpf = spf @ spf.T
+            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fullpf)
+        return spf
 
     def loc_mat(self, sigma, nx, ny):
         dist = np.zeros((nx,ny))
@@ -193,7 +178,22 @@ class Mlef():
         d0 = 2.0 * np.sqrt(10.0/3.0) * sigma
         l_mat = np.exp(-dist**2/(2.0*sigma**2))
         l_mat[dist>d0] = 0
-        return dist, l_mat 
+
+        lam, v = la.eigh(l_mat)
+        lam = lam[::-1]
+        lam[lam < 1.e-10] = 1.e-10
+        lamsum = np.sum(lam)
+        v = v[:,::-1]
+        nmode = 1
+        thres = 0.99
+        frac = 0.0
+        while frac < thres:
+            frac = np.sum(lam[:nmode]) / lamsum
+            nmode += 1
+        nmode = min(nmode, nx, ny)
+        logger.info("contribution rate = {}".format(np.sum(lam[:nmode])/np.sum(lam)))
+        l_sqrt = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode]/frac))
+        return l_mat, l_sqrt, nmode, np.sqrt(lam[:nmode])
 
     def __call__(self, xb, pb, y, yloc, method="CGF", cgtype=1,
         gtol=1e-6, maxiter=None,
@@ -217,7 +217,9 @@ class Mlef():
         if self.lloc:
             logger.info("==localization==, lsig={}".format(self.lsig))
             spf = pf.copy()
-            pf, wts = self.pfloc(spf, save_dh, icycle)
+            #pf, wts = self.pfloc(spf, save_dh, icycle)
+            pf = self.pfmod(spf, save_dh, icycle)
+            logger.info("pf.shape={}".format(pf.shape))
             xf = xc[:, None] + pf
         #logger.debug("norm(pf)={}".format(la.norm(pf)))
         #logger.debug("r={}".format(np.diag(r)))
@@ -289,27 +291,31 @@ class Mlef():
         innv, chi2 = chi2_test(zmat, d)
         ds = self.dof(zmat)
         logger.info("dof={}".format(ds))
-        pa = pf @ tmat 
+        pa = pf @ tmat
+        if self.lloc:
+            # random sampling
+            ptrace = np.sum(np.diag(pa @ pa.T))
+            rvec = np.random.randn(pf.shape[1], nmem)
+            #for l in range(len(wts)):
+            #    rvec[l*nmem:(l+1)*nmem,:] = rvec[l*nmem:(l+1)*nmem,:] * wts[l] / np.sum(wts)
+            rvec_mean = np.mean(rvec, axis=0)
+            rvec = rvec - rvec_mean[None,:]
+            rvec_stdv = np.sqrt((rvec**2).sum(axis=0))
+            rvec = rvec / rvec_stdv[None,:]
+            logger.debug("rvec={}".format(rvec[:,0]))
+            pa = pf @ tmat @ rvec
+            trace = np.sum(np.diag(pa @ pa.T))
+            logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
+            pa *= np.sqrt(ptrace / trace)
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm
 
         u = np.zeros_like(xb)
         u[:, 0] = xa
-        if self.lloc:
-            # random sampling
-            rvec = np.random.randn(pf.shape[1], nmem)
-            #rvec = rvec * wts[:, None] / np.sum(wts)
-            rvec_mean = np.mean(rvec, axis=0)
-            rvec = rvec - rvec_mean[None,:]
-            rvec_stdv = np.sqrt((rvec**2).sum(axis=0))
-            rvec = rvec / rvec_stdv[None,:]
-            logger.info("rvec={}".format(rvec))
-            u[:, 1:] = xa[:, None] + pa @ rvec
-        else:
-            u[:, 1:] = xa[:, None] + pa
+        u[:, 1:] = xa[:, None] + pa
         fpa = pa @ pa.T
         if save_dh:
-            np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pa)
+            np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
         return u, fpa, pa, innv, chi2, ds
