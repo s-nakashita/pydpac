@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+ninfl = -1
 if model == "z08" or model == "z05":
     #perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf", "var"]
     perts = ["mlef-fh", "mlef-jh", "etkf-fh", "etkf-jh", "var"]
@@ -34,6 +35,11 @@ elif model == "l96" or model == "tc87":
         pt = sys.argv[4]
         perts = [pt, pt+"be", pt+"bm", pt+"r"]
         linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',pt+"r":'tab:red'}
+    if len(sys.argv) > 5:
+        ninfl = int(sys.argv[5])
+        infltype = ['mult', 'add', 'rtpp', 'rtps']
+        #linecolor = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
+        linestyle = ['solid', 'dashed', 'dashdot', 'dotted']
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
@@ -45,44 +51,76 @@ fig2, ax2 = plt.subplots()
 #ax2 = ax.twinx()
 i = 0
 for pt in perts:
-    f = "{}_e_{}_{}.txt".format(model, op, pt)
-    if not os.path.isfile(f):
-        print("not exist {}".format(f))
-        continue
-    e = np.loadtxt(f)
-    if np.isnan(e).any():
-        print("divergence in {}".format(pt))
-        continue
-    print("{}, mean RMSE = {}".format(pt,np.mean(e[int(na/3):])))
-    #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
-    if pt[:2] != "4d":
-        ax.plot(x, e, linestyle="solid", color=linecolor[pt], label=pt)
-    else:
-        ax.plot(x, e, linestyle="dashed", color=linecolor[pt], label=pt)
-    f = "{}_pa_{}_{}.npy".format(model, op, pt)
-    if not os.path.isfile(f):
-        print("not exist {}".format(f))
-        continue
-    trpa = np.zeros(na)
-    if pt[:4] == "mlef":
-        spa = np.load(f)
-        for i in range(na):
-            pa = spa[i] @ spa[i].T
-            trpa[i] = np.mean(np.diag(pa))
-    else:
-        pa = np.load(f)
-        for i in range(na):
-            trpa[i] = np.mean(np.diag(pa[i]))
-    if e.size > na:
+    if ninfl < 0:
+        f = "{}_e_{}_{}.txt".format(model, op, pt)
+        if not os.path.isfile(f):
+            print("not exist {}".format(f))
+            continue
+        e = np.loadtxt(f)
+        if np.isnan(e).any():
+            print("divergence in {}".format(pt))
+            continue
+        print("{}, mean RMSE = {}".format(pt,np.mean(e[int(na/3):])))
+        #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
         if pt[:2] != "4d":
-            ax2.plot(x[1:], trpa/e[1:], linestyle="solid", color=linecolor[pt], label=pt)
+            ax.plot(x, e, linestyle="solid", color=linecolor[pt], label=pt)
         else:
-            ax2.plot(x[1:], trpa/e[1:], linestyle="dashed", color=linecolor[pt], label=pt)
+            ax.plot(x, e, linestyle="dashed", color=linecolor[pt], label=pt)
+        f = "{}_pa_{}_{}.npy".format(model, op, pt)
+        if not os.path.isfile(f):
+            print("not exist {}".format(f))
+            continue
+        trpa = np.zeros(na)
+        if pt[:4] == "mlef":
+            spa = np.load(f)
+            for i in range(na):
+                pa = spa[i] @ spa[i].T
+                trpa[i] = np.mean(np.diag(pa))
+        else:
+            pa = np.load(f)
+            for i in range(na):
+                trpa[i] = np.mean(np.diag(pa[i]))
+        if e.size > na:
+            if pt[:2] != "4d":
+                ax2.plot(x[1:], trpa/e[1:], linestyle="solid", color=linecolor[pt], label=pt)
+            else:
+                ax2.plot(x[1:], trpa/e[1:], linestyle="dashed", color=linecolor[pt], label=pt)
+        else:
+            if pt[:2] != "4d":
+                ax2.plot(x, trpa/e, linestyle="solid", color=linecolor[pt], label=pt)
+            else:
+                ax2.plot(x, trpa/e, linestyle="dashed", color=linecolor[pt], label=pt)
     else:
-        if pt[:2] != "4d":
-            ax2.plot(x, trpa/e, linestyle="solid", color=linecolor[pt], label=pt)
-        else:
-            ax2.plot(x, trpa/e, linestyle="dashed", color=linecolor[pt], label=pt)
+        for iinfl in range(ninfl+1):
+            f = "{}_e_{}_{}_{}.txt".format(model, op, pt, iinfl)
+            if not os.path.isfile(f):
+                print("not exist {}".format(f))
+                continue
+            e = np.loadtxt(f)
+            if np.isnan(e).any():
+                print("divergence in {}".format(pt))
+                continue
+            print("{}, infl={}, mean RMSE = {}".format(pt,infltype[iinfl],np.mean(e[int(na/3):])))
+            ax.plot(x, e, linestyle=linestyle[iinfl], color=linecolor[pt], label=pt+' '+infltype[iinfl])
+            
+            f = "{}_pa_{}_{}_{}.npy".format(model, op, pt, iinfl)
+            if not os.path.isfile(f):
+                print("not exist {}".format(f))
+                continue
+            trpa = np.zeros(na)
+            if pt[:4] == "mlef":
+                spa = np.load(f)
+                for i in range(na):
+                    pa = spa[i] @ spa[i].T
+                    trpa[i] = np.mean(np.diag(pa))
+            else:
+                pa = np.load(f)
+                for i in range(na):
+                    trpa[i] = np.mean(np.diag(pa[i]))
+            if e.size > na:
+                ax2.plot(x[1:], trpa/e[1:], linestyle=linestyle[iinfl], color=linecolor[pt], label=pt+' '+infltype[iinfl])
+            else:
+                ax2.plot(x, trpa/e, linestyle=linestyle[iinfl], color=linecolor[pt], label=pt+' '+infltype[iinfl])
     #f = "{}_e_{}-nodiff_{}.txt".format(model, op, pt)
     #if not os.path.isfile(f):
     #    print("not exist {}".format(f))

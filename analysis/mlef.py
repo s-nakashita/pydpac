@@ -13,7 +13,7 @@ logger = logging.getLogger('anl')
 class Mlef():
 
     def __init__(self, pt, state_size, nmem, obs, infl, lsig, 
-                 linf, iloc, ltlm, calc_dist, calc_dist1, model="model"):
+                 iinf, iloc, ltlm, calc_dist, calc_dist1, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
@@ -22,7 +22,11 @@ class Mlef():
         self.sig = obs.get_sig() # observation error standard deviation
         self.infl_parm = infl # inflation parameter
         self.lsig = lsig # localization parameter
-        self.linf = linf # True->Apply inflation False->Not apply
+        self.iinf = iinf # iinf = None->No inflation
+                         #      = 0   ->Multiplicative inflation
+                         #      = 1   ->Additive inflation
+                         #      = 2   ->RTPP(Relaxation To Prior Perturbations)
+                         #      = 3   ->RTPS(Relaxation To Prior Spread)
         self.iloc = iloc # iloc = None->No localization
                          #      = 0   ->R-localization
                          #      = 1   ->Eigen value decomposition of localized Pf
@@ -34,7 +38,7 @@ class Mlef():
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
+        logger.info(f"iinf={self.iinf} iloc={self.iloc} ltlm={self.ltlm}")
         if self.iloc is not None:
             self.l_mat, self.l_sqrt, self.nmode, self.enswts \
             = self.loc_mat(self.lsig, self.ndim, self.ndim)
@@ -207,20 +211,22 @@ class Mlef():
         nmem = xf.shape[1]
         chi2_test = Chi(y.size, nmem, rmat)
         pf = xf - xc[:, None]
-        #if self.linf:
-        #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
+        pf_orig = pf.copy()
+        #if self.iinf == 0:
+        #    logger.info("==multiplicative inflation==, alpha={}".format(self.infl_parm))
         #    pf *= self.infl_parm
         fpf = pf @ pf.T
+        if self.iinf == 3:
+            stdv_f = np.sqrt(np.diag(fpf))
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
         if self.iloc is not None:
             logger.info("==localization==, lsig={}".format(self.lsig))
-            spf = pf.copy()
             if self.iloc == 1:
-                pf, wts = self.pfloc(spf, save_dh, icycle)
+                pf, wts = self.pfloc(pf_orig, save_dh, icycle)
             elif self.iloc == 2:
-                pf = self.pfmod(spf, save_dh, icycle)
+                pf = self.pfmod(pf_orig, save_dh, icycle)
             logger.info("pf.shape={}".format(pf.shape))
             xf = xc[:, None] + pf
         #logger.debug("norm(pf)={}".format(la.norm(pf)))
@@ -294,6 +300,9 @@ class Mlef():
         ds = self.dof(zmat)
         logger.info("dof={}".format(ds))
         pa = pf @ tmat
+        if self.iinf == 2:
+            logger.info("==RTPP, alpha={}".format(self.infl_parm))
+            pa = (1.0 - self.infl_parm)*pa + self.infl_parm * pf
         if self.iloc is not None:
             # random sampling
             ptrace = np.sum(np.diag(pa @ pa.T))
@@ -309,14 +318,21 @@ class Mlef():
             trace = np.sum(np.diag(pa @ pa.T))
             logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
             pa *= np.sqrt(ptrace / trace)
-        if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
+        if self.iinf == 0:
+            logger.info("==multiplicative inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm
-
+        if self.iinf == 1:
+            logger.info("==additive inflation==, alpha={}".format(self.infl_parm))
+            pa += np.random.randn(pa.shape[0], pa.shape[1])*self.infl_parm
+        if self.iinf == 3:
+            logger.info("==RTPS, alpha={}".format(self.infl_parm))
+            fpa = pa @ pa.T
+            stdv_a = np.sqrt(np.diag(fpa))
+            pa = ((1.0 - self.infl_parm)*stdv_a[:, None] + self.infl_parm*stdv_f[:, None])*pa / stdv_a[:, None]
+        fpa = pa @ pa.T
         u = np.zeros_like(xb)
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa
-        fpa = pa @ pa.T
         if save_dh:
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)

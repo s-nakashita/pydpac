@@ -15,7 +15,7 @@ logger = logging.getLogger('anl')
 class Mlef_rloc():
 
     def __init__(self, pt, nmem, obs, infl, lsig, 
-                 linf, ltlm, calc_dist, calc_dist1, model="model"):
+                 iinf, ltlm, calc_dist, calc_dist1, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
@@ -23,14 +23,18 @@ class Mlef_rloc():
         self.sig = obs.get_sig() # observation error standard deviation
         self.infl_parm = infl # inflation parameter
         self.lsig = lsig # localization parameter
-        self.linf = linf # True->Apply inflation False->Not apply
+        self.iinf = iinf # iinf = None->No inflation
+                         #      = 0   ->Multiplicative inflation
+                         #      = 1   ->Additive inflation
+                         #      = 2   ->RTPP(Relaxation To Prior Perturbations)
+                         #      = 3   ->RTPS(Relaxation To Prior Spread)
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         self.calc_dist = calc_dist # distance calculation routine
         self.calc_dist1 = calc_dist1 # distance calculation routine
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} ltlm={self.ltlm}")
+        logger.info(f"iinf={self.iinf} ltlm={self.ltlm}")
 
     def calc_pf(self, xf, pa, cycle):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
@@ -163,6 +167,8 @@ class Mlef_rloc():
         #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
         #    pf *= self.infl_parm
         fpf = pf @ pf.T
+        if self.iinf == 3:
+            stdv_f = np.sqrt(np.diag(fpf))
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
@@ -186,7 +192,7 @@ class Mlef_rloc():
         for i in range(xc.size):
             far, Rwf_loc = self.r_loc(self.lsig, yloc, float(i))
             logger.info(f"Number of assimilated obs.={y.size - len(far)}")
-            yi = np.delete(y, far)
+            #yi = np.delete(y, far)
             obi = np.delete(ob, far)
             dhi = np.delete(dh, far, axis=0)
             Rmat = np.diag(np.diag(rmat) * np.sqrt(Rwf_loc))
@@ -256,10 +262,21 @@ class Mlef_rloc():
         logger.info("dof={}".format(ds))
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xa - xc)
-        if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
+        if self.iinf == 0:
+            logger.info("==multiplicative inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm
-
+        if self.iinf == 1:
+            logger.info("==additive inflation==, alpha={}".format(self.infl_parm))
+            pa += np.random.randn(pa.shape[0], pa.shape[1])*self.infl_parm
+        if self.iinf == 2:
+            logger.info("==RTPP, alpha={}".format(self.infl_parm))
+            pa = (1.0 - self.infl_parm)*pa + self.infl_parm * pf
+        if self.iinf == 3:
+            logger.info("==RTPS, alpha={}".format(self.infl_parm))
+            fpa = pa @ pa.T
+            stdv_a = np.sqrt(np.diag(fpa))
+            pa = ((1.0 - self.infl_parm)*stdv_a[:, None] + self.infl_parm*stdv_f[:, None])*pa / stdv_a[:, None]
+        
         u = np.zeros_like(xb)
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa

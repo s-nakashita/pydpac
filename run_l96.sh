@@ -3,8 +3,8 @@
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
 #perturbations="mlef etkf po srf letkf" # kf var"
-datype="srf"
-perturbations="${datype}be ${datype}bm ${datype}r ${datype}"
+datype="mlef"
+perturbations="${datype}r" #"${datype}be ${datype}bm ${datype}r ${datype}"
 #perturbations="var"
 na=100 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
@@ -12,7 +12,7 @@ lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use
 a_window=5
 #L="-1.0 0.5 1.0 2.0"
-exp="${datype}_loc"
+exp="${datype}_infl"
 echo ${exp}
 rm -rf work/${exp}
 mkdir -p work/${exp}
@@ -47,19 +47,20 @@ for op in ${operators}; do
       lloc="F"
       iloc=
     fi
-    #for lb in $L; do
-    echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc}
+    for iinf in $(seq 0 3); do
+    #iinf=0
+    echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iinf} ${iloc}
     #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb}
     start_time=$(gdate +"%s.%5N")
-    python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pert}.log 2>&1
+    python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iinf} ${iloc} > l96_${op}_${pert}${iinf}.log 2>&1
     #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb} > l96_${op}_${pt}_${lb}.log 2>&1
     wait
     end_time=$(gdate +"%s.%5N")
-    echo ${pert} "time (sec)" >> timer
+    echo ${pert} ${iinfl} "time (sec)" >> timer
     echo "scale=1; ${end_time}-${start_time}" | bc >> timer
     #mv l96_e_${op}_${pt}.txt e_${op}_${pt}_${lb}.txt
-    mv l96_e_${op}_${pt}.txt l96_e_${op}_${pert}.txt
-    mv l96_pa_${op}_${pt}.npy l96_pa_${op}_${pert}.npy
+    mv l96_e_${op}_${pt}.txt l96_e_${op}_${pert}_${iinf}.txt
+    mv l96_pa_${op}_${pt}.npy l96_pa_${op}_${pert}_${iinf}.npy
     #if [ "${pert:4:1}" = "b" ]; then
     #mv l96_rho_${op}_${pt}.npy l96_rho_${op}_${pert}.npy
     #fi
@@ -74,9 +75,9 @@ for op in ${operators}; do
     #done
     #python ../../plot/plotpf.py ${op} l96 ${na} ${pert}
     #python ../../plot/plotlpf.py ${op} l96 ${na} ${pert} 
-    #done
+    done
   done
-  python ../../plot/plote.py ${op} l96 ${na} ${datype}
+  python ../../plot/plote.py ${op} l96 ${na} ${datype} ${iinf}
   #python ../../plot/plotchi.py ${op} l96 ${na}
   #python ../../plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
   #python ../../plot/plotxa.py ${op} l96 ${na}

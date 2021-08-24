@@ -79,10 +79,11 @@ ftype = {"mlef":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","l
 htype = {"operator": "linear", "perturbation": "mlef"}
 linf = False
 infl_parm = -1.0
+iinf = None
 lloc = False
 lsig = -1.0
-ltlm = True
 iloc = None
+ltlm = True
 
 ## read from command options
 # observation type
@@ -107,8 +108,22 @@ if len(sys.argv) > 4:
     #    linf = True
     if sys.argv[4] == "T":
         linf = True
-        dict_i = dict_infl[op]
-        infl_parm = dict_i[pt]
+        if len(sys.argv) > 8:
+            iinf = int(sys.argv[8])
+            if iinf == 0: # multiplicative
+                dict_i = dict_infl[op]
+                infl_parm = dict_i[pt]
+            elif iinf == 1: # additive
+                infl_parm = 0.1
+            elif iinf == 2: # RTPP
+                infl_parm = 0.1
+            elif iinf == 3: # RTPS
+                infl_parm = 0.1
+            else:
+                # default : multiplicative
+                iinf = 0
+                dict_i = dict_infl[op]
+                infl_parm = dict_i[pt]
 # switch of with/without localization
 if len(sys.argv) > 5:
     #lsig = float(sys.argv[5])
@@ -118,9 +133,8 @@ if len(sys.argv) > 5:
         lloc = True
         dict_s = dict_sig[op]
         lsig = dict_s[pt]
-        ## only for mlef
-        if len(sys.argv) > 8:
-            iloc = int(sys.argv[8])
+        if len(sys.argv) > 9:
+            iloc = int(sys.argv[9])
         else:
             # default is R-localization
             iloc = 0
@@ -144,10 +158,10 @@ state_size = nx
 if pt == "mlef":
     if iloc == 0:
         from analysis.mlef_rloc import Mlef_rloc
-        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
+        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, iinf, ltlm, step.calc_dist, step.calc_dist1, model=model)
     else:
         from analysis.mlef import Mlef
-        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, iinf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis = EnKF(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
