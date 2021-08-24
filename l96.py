@@ -42,7 +42,7 @@ namax = 1460 # max number of analysis (1 year)
 
 a_window = 1 # assimilation window length
 
-nobs = 20 # observation number (nobs<=nx)
+nobs = 40 # observation number (nobs<=nx)
 
 lb = -1.0 # (For var & 4dvar) correlation length for background error covariance
 
@@ -82,8 +82,7 @@ infl_parm = -1.0
 lloc = False
 lsig = -1.0
 ltlm = True
-rloc = False
-bloc = False
+iloc = None
 
 ## read from command options
 # observation type
@@ -120,13 +119,11 @@ if len(sys.argv) > 5:
         dict_s = dict_sig[op]
         lsig = dict_s[pt]
         ## only for mlef
-        if len(sys.argv) > 8 and sys.argv[8] == "T":
-            rloc = True
-        elif len(sys.argv) > 9 and sys.argv[9] == "T":
-            bloc = True
+        if len(sys.argv) > 8:
+            iloc = int(sys.argv[8])
         else:
             # default is R-localization
-            rloc = True
+            iloc = 0
 # switch of using/not using tangent linear operator
 if len(sys.argv) > 6:
     if sys.argv[6] == "F":
@@ -145,19 +142,15 @@ obs = Obs(op, sigma[op])
 # assimilation method
 state_size = nx
 if pt == "mlef":
-    if bloc:
-        from analysis.mlef import Mlef
-        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, bloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
-    elif rloc:
+    if iloc == 0:
         from analysis.mlef_rloc import Mlef_rloc
         analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
     else:
         from analysis.mlef import Mlef
-        lloc = False
-        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    analysis = EnKF(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)

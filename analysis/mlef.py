@@ -1,9 +1,7 @@
-import sys
 import logging
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
-import scipy.optimize as spo
 from .chi_test import Chi
 from .minimize import Minimize
 
@@ -15,7 +13,7 @@ logger = logging.getLogger('anl')
 class Mlef():
 
     def __init__(self, pt, state_size, nmem, obs, infl, lsig, 
-                 linf, lloc, ltlm, calc_dist, calc_dist1, model="model"):
+                 linf, iloc, ltlm, calc_dist, calc_dist1, model="model"):
         self.pt = pt # DA type (MLEF or GRAD)
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
@@ -25,7 +23,10 @@ class Mlef():
         self.infl_parm = infl # inflation parameter
         self.lsig = lsig # localization parameter
         self.linf = linf # True->Apply inflation False->Not apply
-        self.lloc = lloc # True->Apply localization False->Not apply
+        self.iloc = iloc # iloc = None->No localization
+                         #      = 0   ->R-localization
+                         #      = 1   ->Eigen value decomposition of localized Pf
+                         #      = 2   ->Modulated ensemble
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         self.calc_dist = calc_dist # distance calculation routine
         self.calc_dist1 = calc_dist1 # distance calculation routine
@@ -33,8 +34,8 @@ class Mlef():
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} lloc={self.lloc} ltlm={self.ltlm}")
-        if self.lloc:
+        logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
+        if self.iloc is not None:
             self.l_mat, self.l_sqrt, self.nmode, self.enswts \
             = self.loc_mat(self.lsig, self.ndim, self.ndim)
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
@@ -130,7 +131,6 @@ class Mlef():
         return ds
 
     def pfloc(self, sqrtpf, save_dh, icycle):
-        nmem = sqrtpf.shape[1]
         nmode = min(100, self.ndim)
         logger.info(f"== Pf localization, nmode={nmode} ==")
         pf = sqrtpf @ sqrtpf.T
@@ -214,11 +214,13 @@ class Mlef():
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-        if self.lloc:
+        if self.iloc is not None:
             logger.info("==localization==, lsig={}".format(self.lsig))
             spf = pf.copy()
-            #pf, wts = self.pfloc(spf, save_dh, icycle)
-            pf = self.pfmod(spf, save_dh, icycle)
+            if self.iloc == 1:
+                pf, wts = self.pfloc(spf, save_dh, icycle)
+            elif self.iloc == 2:
+                pf = self.pfmod(spf, save_dh, icycle)
             logger.info("pf.shape={}".format(pf.shape))
             xf = xc[:, None] + pf
         #logger.debug("norm(pf)={}".format(la.norm(pf)))
@@ -292,7 +294,7 @@ class Mlef():
         ds = self.dof(zmat)
         logger.info("dof={}".format(ds))
         pa = pf @ tmat
-        if self.lloc:
+        if self.iloc is not None:
             # random sampling
             ptrace = np.sum(np.diag(pa @ pa.T))
             rvec = np.random.randn(pf.shape[1], nmem)
