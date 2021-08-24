@@ -65,52 +65,78 @@ class Obs():
             return 0.5*x*(1.0+np.power((0.1*np.abs(x)), (self.gamma-1)))
         elif self.operator == "abs":
             return np.abs(x)
+        elif self.operator == "hint":
+            x_int = np.zeros_like(x)
+            for i in range(-3, 4):
+                x_int += np.roll(x, i, axis=0)
+            x_int /= 7
+            return x_int
 
     def dh_operator(self, obsloc, x):
         nobs = obsloc.size
         nx = x.size
         jach = np.zeros((nobs, nx))
+        itpl_mat = np.zeros((nobs, nx))
         dhdxf = self.dhdx(x)
         for k in range(nobs):
             ri = obsloc[k]
             i = math.floor(ri)
             ai = ri - float(i)
             if i < nx-1:
-                jach[k,i] = (1.0 - ai)*dhdxf[i]
-                jach[k,i+1] = ai*dhdxf[i+1]
+                #jach[k,i] = (1.0 - ai)*dhdxf[i]
+                itpl_mat[k,i] = (1.0 - ai)
+                #jach[k,i+1] = ai*dhdxf[i+1]
+                itpl_mat[k,i+1] = ai
             else:
-                jach[k,i] = (1.0 - ai)*dhdxf[i]
-                jach[k,0] = ai*dhdxf[0]
+                #jach[k,i] = (1.0 - ai)*dhdxf[i]
+                itpl_mat[k,i] = (1.0 - ai)
+                #jach[k,0] = ai*dhdxf[0]
+                itpl_mat[k,0] = ai
+        jach = itpl_mat @ dhdxf
         return jach
 
     def dhdx(self, x):
         if self.operator == "linear":
-            #return np.diag(np.ones(x.size))
-            return np.ones(x.size)
+            return np.diag(np.ones(x.size))
+            #return np.ones(x.size)
         elif self.operator == "quadratic":
-            #return np.diag(2 * x)
-            return 2 * x
+            return np.diag(2 * x)
+            #return 2 * x
         elif self.operator == "cubic":
-            #return np.diag(3 * x**2)
-            return 3 * x**2
+            return np.diag(3 * x**2)
+            #return 3 * x**2
         elif self.operator == "quartic":
-            #return np.diag(4 * x**3)
-            return 4 * x**3
+            return np.diag(4 * x**3)
+            #return 4 * x**3
         elif self.operator == "quadratic-nodiff":
-            #return np.diag(np.where(x >= 0.5, 2*x, -2*x))
-            return np.where(x >= 0.5, 2*x, -2*x)
+            return np.diag(np.where(x >= 0.5, 2*x, -2*x))
+            #return np.where(x >= 0.5, 2*x, -2*x)
         elif self.operator == "cubic-nodiff":
-            #return np.diag(np.where(x >= 0.5, 3*x**2, -3*x**2))
-            return np.where(x >= 0.5, 3*x**2, -3*x**2)
+            return np.diag(np.where(x >= 0.5, 3*x**2, -3*x**2))
+            #return np.where(x >= 0.5, 3*x**2, -3*x**2)
         elif self.operator == "quartic-nodiff":
-            #return np.diag(np.where(x >= 0.5, 4*x**3, -4*x**3))
-            return np.where(x >= 0.5, 4*x**3, -4*x**3)
+            return np.diag(np.where(x >= 0.5, 4*x**3, -4*x**3))
+            #return np.where(x >= 0.5, 4*x**3, -4*x**3)
         elif self.operator == "test":
-            #return np.diag(0.5+0.5*self.gamma*np.power((0.1*np.abs(x)), (self.gamma-1)))
-            return 0.5+0.5*self.gamma*np.power((0.1*np.abs(x)), (self.gamma-1))
+            return np.diag(0.5+0.5*self.gamma*np.power((0.1*np.abs(x)), (self.gamma-1)))
+            #return 0.5+0.5*self.gamma*np.power((0.1*np.abs(x)), (self.gamma-1))
         elif self.operator == "abs":
-            return x/np.abs(x)
-
+            return np.diag(x/np.abs(x))
+            #return x/np.abs(x)
+        elif self.operator == "hint":
+            dhdx = np.zeros((x.size, x.size))
+            val = 1.0/7.0
+            for i in range(dhdx.shape[0]):
+                for j in range(i-3, i+4):
+                    if j < 0:
+                        jj = j + x.size
+                        dhdx[i, jj] = val
+                    elif j >= x.size:
+                        jj = j - x.size
+                        dhdx[i, jj] = val
+                    else:
+                        dhdx[i, j] = val
+            return dhdx
     def add_noise(self, x):
 # numpy 1.17.0 or later
 #    return x + rng.normal(0, mu=sigma, size=x.size)

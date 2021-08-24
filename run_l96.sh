@@ -1,9 +1,9 @@
 #!/bin/sh
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic cubic"
+operators="hint" # quadratic cubic"
 #perturbations="mlef etkf po srf letkf" # kf var"
-datype="srf"
+datype="mlef"
 perturbations="${datype}be ${datype}bm ${datype}r ${datype}"
 #perturbations="var"
 na=100 # Number of assimilation cycle
@@ -12,7 +12,7 @@ lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use
 a_window=5
 #L="-1.0 0.5 1.0 2.0"
-exp="${datype}_loc"
+exp="${datype}_loc_hint"
 echo ${exp}
 rm -rf work/${exp}
 mkdir -p work/${exp}

@@ -37,7 +37,8 @@ elif model == "l96" or model == "tc87":
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
-    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
+    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
+    "test":1.0, "abs":1.0, "hint":1.0}
     x = np.arange(na) + 1
 y = np.ones(x.size) * sigma[op]
 fig, ax = plt.subplots()
