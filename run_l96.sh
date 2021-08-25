@@ -2,17 +2,17 @@
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
-perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
-#datype="mlef"
-#perturbations="${datype}be ${datype}bm ${datype}r ${datype}"
+#perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
+datype="4dsrf"
+perturbations="${datype}be ${datype}bm ${datype}r ${datype}"
 #perturbations="var"
 na=100 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
 lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use
-a_window=5
+a_window=3
 #L="-1.0 0.5 1.0 2.0"
-exp="test4dloc"
+exp="ensrs_loc"
 #exp="${datype}_loc_hint"
 echo ${exp}
 rm -rf work/${exp}
@@ -26,30 +26,30 @@ touch timer
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
-    pt=${pert}
-    #pt=${datype}
-    if [ "${pt:0:2}" = "4d" ]; then
-      a_window=5
-    else
-      a_window=1
-    fi
-    #loctype=${pert##"${datype}"}
-    #echo $loctype
-    #if [ "$loctype" = "be" ]; then
+    #pt=${pert}
+    pt=${datype}
+    #if [ "${pt:0:2}" = "4d" ]; then
+    #  a_window=5
+    #else
+    #  a_window=1
+    #fi
+    loctype=${pert##"${datype}"}
+    echo $loctype
+    if [ "$loctype" = "be" ]; then
     #if [ $pert = "mlef" ]; then
       lloc="T"
       iloc=1
-    #elif [ "$loctype" = "bm" ]; then
-    #  lloc="T"
-    #  iloc=2
-    #elif [ "$loctype" = "r" ]; then
+    elif [ "$loctype" = "bm" ]; then
+      lloc="T"
+      iloc=2
+    elif [ "$loctype" = "r" ]; then
     #elif [ $pert = "etkf" ]; then
-    #  lloc="T"
-    #  iloc=0
-    #else
-    #  lloc="F"
-    #  iloc=
-    #fi
+      lloc="T"
+      iloc=0
+    else
+      lloc="F"
+      iloc=
+    fi
     #for lb in $L; do
     echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc}
     #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb}

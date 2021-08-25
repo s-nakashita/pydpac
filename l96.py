@@ -52,7 +52,7 @@ sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
 infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
-          "4dmlef":1.3,"4detkf":1.3,"4dpo":1.4,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
+          "4dmlef":1.3,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
 infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
 infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
@@ -168,7 +168,7 @@ elif pt == "4dvar":
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enks import EnKS
     #a_window = 5
-    analysis = EnKS(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
+    analysis = EnKS(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
 elif pt == "4dmlef":
     if iloc == 0:
         from analysis.mles_rloc import Mles_rloc

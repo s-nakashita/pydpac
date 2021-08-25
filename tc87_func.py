@@ -100,7 +100,7 @@ class TC87_func():
     # initialize ensemble member
     def init_ens(self,opt):
         maxiter = np.max(np.array(self.t0f))+1
-        if(opt==0): # random
+        if(opt==0): # lag forecast
             logger.info("spin up max = {}".format(maxiter))
             X0 = np.zeros((self.nx,len(self.t0f)))
             tmp = self.init_ctl()
