@@ -27,7 +27,7 @@ x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   10 # ensemble size (include control run)
+nmem =    8 # ensemble size (include control run)
 t0off =  24 # initial offset between adjacent members
 t0c =   500 # t0 for control
 # t0 for ensemble members
@@ -64,7 +64,7 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
 sig_l = {"mlef":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
-        "4dmlef":8.0,"4detkf":8.0,"4dpo":2.0,"4dsrf":8.0,"4dletkf":7.5,"4dvar":None}
+        "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
 sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
 sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
@@ -170,9 +170,12 @@ elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     #a_window = 5
     analysis = EnKS(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
 elif pt == "4dmlef":
-    from analysis.mles import Mles
-    lloc = False
-    analysis = Mles(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
+    if iloc == 0:
+        from analysis.mles_rloc import Mles_rloc
+        analysis = Mles_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
+    else:
+        from analysis.mles import Mles
+        analysis = Mles(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \

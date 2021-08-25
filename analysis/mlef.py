@@ -24,7 +24,7 @@ class Mlef():
         self.lsig = lsig # localization parameter
         self.linf = linf # True->Apply inflation False->Not apply
         self.iloc = iloc # iloc = None->No localization
-                         #      = 0   ->R-localization
+                         #      = 0   ->R-localization (mlef_rloc.py)
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
@@ -39,7 +39,6 @@ class Mlef():
             self.l_mat, self.l_sqrt, self.nmode, self.enswts \
             = self.loc_mat(self.lsig, self.ndim, self.ndim)
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
-        
 
     def calc_pf(self, xf, pa, cycle):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
@@ -81,7 +80,6 @@ class Mlef():
         #w = tmat @ zeta
         #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         return j
-    
 
     def calc_grad_j(self, zeta, *args):
         xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
