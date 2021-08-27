@@ -87,6 +87,8 @@ lloc = False
 lsig = -1.0
 ltlm = True
 iloc = None
+ss = False
+getkf = False
 
 ## read from command options
 # observation type
@@ -148,13 +150,24 @@ state_size = nx
 if pt == "mlef":
     if iloc == 0:
         from analysis.mlef_rloc import Mlef_rloc
-        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
+        analysis = Mlef_rloc(pt, nmem, obs, \
+            linf=linf, infl_parm=infl_parm, \
+            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
+            ltlm=ltlm, model=model)
     else:
         from analysis.mlef import Mlef
-        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+        analysis = Mlef(pt, state_size, nmem, obs, \
+            linf=linf, infl_parm=infl_parm, \
+            iloc=iloc, lsig=lsig, ss=True, gain=False, \
+            calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
+            ltlm=ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    analysis = EnKF(pt, state_size, nmem, obs, \
+        linf=linf, infl_parm=infl_parm, \
+        iloc=iloc, lsig=lsig, ss=True, getkf=False, \
+        ltlm=ltlm, \
+        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
@@ -168,14 +181,23 @@ elif pt == "4dvar":
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enks import EnKS
     #a_window = 5
-    analysis = EnKS(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
+    analysis = EnKS(pt, state_size, nmem, obs, step, nt, a_window, \
+        linf=linf, infl_parm=infl_parm, 
+        iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+        ltlm=ltlm, model=model)
 elif pt == "4dmlef":
     if iloc == 0:
         from analysis.mles_rloc import Mles_rloc
-        analysis = Mles_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
+        analysis = Mles_rloc(pt, nmem, obs, step, nt, a_window, \
+            linf=linf, infl_parm=infl_parm, \
+            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+            ltlm=ltlm, model=model)
     else:
         from analysis.mles import Mles
-        analysis = Mles(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
+        analysis = Mles(pt, state_size, nmem, obs, step, nt, a_window, \
+            linf=linf, infl_parm=infl_parm, \
+            iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+            ltlm=ltlm, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \

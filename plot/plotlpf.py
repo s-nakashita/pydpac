@@ -56,7 +56,9 @@ for icycle in range(5):
     if os.path.isfile(f):
         lspf = np.load(f)
 
+    plot = False
     if pf is not None:
+        plot = True
         ymax = np.max(pf)
         ymin = np.min(pf)
         ylim = max(ymax, np.abs(ymin))
@@ -68,7 +70,10 @@ for icycle in range(5):
         ax[0, 0].invert_yaxis()
         ax[0, 0].set_title("Pf")
         fig.colorbar(mappable, ax=ax[0,0],orientation="vertical")
+    else:
+        ax[0, 0].remove()
     if lpf is not None:
+        plot = True
         ymax = np.max(lpf)
         ymin = np.min(lpf)
         ylim = max(ymax, np.abs(ymin))
@@ -80,7 +85,10 @@ for icycle in range(5):
         ax[1, 0].invert_yaxis()
         ax[1, 0].set_title("localized Pf")
         fig.colorbar(mappable, ax=ax[1,0],orientation="vertical")
+    else:
+        ax[1, 0].remove()
     if spf is not None:
+        plot = True
         nmem = spf.shape[1]
         y = np.arange(nmem) 
         ymax = np.max(spf)
@@ -96,7 +104,10 @@ for icycle in range(5):
         else:
             ax[0, 1].set_title("dXf")
         fig.colorbar(mappable, ax=ax[0,1],orientation="vertical")
+    else:
+        ax[0, 1].remove()
     if lspf is not None:
+        plot = True
         nmem = lspf.shape[1]
         y = np.arange(nmem) 
         ymax = np.max(lspf)
@@ -112,9 +123,12 @@ for icycle in range(5):
         else:
             ax[1, 1].set_title("localized dXf")
         fig.colorbar(mappable, ax=ax[1,1],orientation="vertical")
+    else:
+        ax[1, 1].remove()
     #axpos = ax[0, 1].get_position()
     #cbar_ax = fig.add_axes([0.90, axpos.y0/4, 0.02, 2*axpos.height])
     #mappable = ScalarMappable(cmap=cmap)
     #fig.colorbar(mappable, cax=cbar_ax)
-    fig.tight_layout()
-    fig.savefig("{}_lpf_{}_{}_cycle{}.png".format(model,op,pt,icycle))
+    if plot:
+        fig.tight_layout()
+        fig.savefig("{}_lpf_{}_{}_cycle{}.png".format(model,op,pt,icycle))

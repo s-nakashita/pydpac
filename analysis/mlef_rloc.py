@@ -14,19 +14,37 @@ logger = logging.getLogger('anl')
         
 class Mlef_rloc():
 
-    def __init__(self, pt, nmem, obs, infl, lsig, 
-                 linf, ltlm, calc_dist, calc_dist1, model="model"):
+    def __init__(self, pt, nmem, obs, 
+        linf=False, infl_parm=1.0, 
+        lsig=-1.0, calc_dist=None, calc_dist1=None, 
+        ltlm=False, model="model"):
+        # necessary parameters
         self.pt = pt # DA type (MLEF or GRAD)
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        self.infl_parm = infl # inflation parameter
-        self.lsig = lsig # localization parameter
+        # optional parameters
+        # inflation
         self.linf = linf # True->Apply inflation False->Not apply
+        self.infl_parm = infl_parm # inflation parameter
+        # localization
+        self.lsig = lsig # localization parameter
+        if calc_dist is None:
+            def calc_dist(self, i):
+                dist = np.zeros(self.ndim)
+                for j in range(self.ndim):
+                    dist[j] = min(abs(j-i),self.ndim-abs(j-i))
+                return dist
+        else:
+            self.calc_dist = calc_dist # distance calculation routine
+        if calc_dist1 is None:
+            def calc_dist1(self, i, j):
+                return min(abs(j-i),self.ndim-abs(j-i))
+        else:
+            self.calc_dist1 = calc_dist1 # distance calculation routine
+        # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
-        self.calc_dist = calc_dist # distance calculation routine
-        self.calc_dist1 = calc_dist1 # distance calculation routine
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")

@@ -34,6 +34,7 @@ class Obs():
         hxf = self.hx(x)
         #logger.debug(f"hx={hxf}")
         nobs = obsloc.size
+        logger.debug(f"nobs={nobs}")
         if hxf.ndim == 1:
             obs = np.zeros(nobs)
             for k in range(nobs):

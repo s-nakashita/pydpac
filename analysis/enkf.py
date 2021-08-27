@@ -2,6 +2,7 @@ import logging
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
+from scipy.linalg import cho_solve, cho_factor
 from .chi_test import Chi
 
 logging.config.fileConfig("logging_config.ini")
@@ -9,24 +10,46 @@ logger = logging.getLogger('anl')
 
 class EnKF():
 
-    def __init__(self, da, state_size, nmem, obs, infl, lsig,
-                 linf, iloc, ltlm, calc_dist, calc_dist1, model="model"):
+    def __init__(self, da, state_size, nmem, obs, 
+        linf=False, infl_parm=1.0, 
+        iloc=None, lsig=-1.0, ss=False, getkf=False,
+        calc_dist=None, calc_dist1=None, 
+        ltlm=False, model="model"):
+        # necessary parameters
         self.da = da # DA type (ETKF, PO, SRF, or LETKF)
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        self.infl_parm = infl # inflation parameter
-        self.lsig = lsig # localization parameter
+        # optional parameters
+        # inflation
         self.linf = linf # True->Apply inflation False->Not apply
+        self.infl_parm = infl_parm # inflation parameter
+        # localization
         self.iloc = iloc # iloc = None->No localization
                          #      = 0   ->R-localization
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
+        self.lsig = lsig # localization parameter
+        self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
+        self.getkf = getkf # ensemble reduction method : True->Gain ETKF (Bishop et al. 2017)
+        if calc_dist is None:
+            def calc_dist(self, i):
+                dist = np.zeros(self.ndim)
+                for j in range(self.ndim):
+                    dist[j] = min(abs(j-i),self.ndim-abs(j-i))
+                return dist
+        else:
+            self.calc_dist = calc_dist # distance calculation routine
+        if calc_dist1 is None:
+            def calc_dist1(self, i, j):
+                return min(abs(j-i),self.ndim-abs(j-i))
+        else:
+            self.calc_dist1 = calc_dist1 # distance calculation routine
+        self.rs = np.random.RandomState() # random generator
+        # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
-        self.calc_dist = calc_dist # distance calculation routine
-        self.calc_dist1 = calc_dist1 # distance calculation routine
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.da} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
@@ -74,12 +97,21 @@ class EnKF():
             logger.info("dxf.shape={}".format(dxf.shape))
         else:
             nmem2 = nmem
-            xf_orig = xf.copy()
+            dxf_orig = dxf
+            xf_orig = xf
         
         if self.ltlm:
             dy = JH @ dxf
+            if (self.iloc == 1 or self.iloc == 2):
+                dy_orig = JH @ dxf_orig
+            else:
+                dy_orig = dy
         else:
             dy = self.obs.h_operator(yloc, xf) - np.mean(self.obs.h_operator(yloc, xf), axis=1)[:, None]
+            if (self.iloc == 1 or self.iloc == 2):
+                dy_orig = self.obs.h_operator(yloc, xf_orig) - np.mean(self.obs.h_operator(yloc, xf_orig), axis=1)[:, None]
+            else:
+                dy_orig = dy
         d = y - np.mean(self.obs.h_operator(yloc, xf), axis=1)
         if save_dh:
             np.save("{}_dxf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxf)
@@ -87,17 +119,16 @@ class EnKF():
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), d)
         logger.info("save_dh={} cycle{}".format(save_dh, icycle))
 
-        alpha = self.infl_parm # inflation parameter
         if self.linf:
             if self.da != "letkf" and self.da != "etkf":
                 logger.info("==inflation==, alpha={}".format(self.infl_parm))
-                dxf *= alpha
+                dxf *= self.infl_parm
             #xf = xf_[:, None] + dxf
         
         if self.da == "etkf":
             if self.linf:
-                logger.info("==inflation==, alpha={}".format(alpha))
-                A = np.eye(nmem2) / alpha
+                logger.info("==inflation==, alpha={}".format(self.infl_parm))
+                A = np.eye(nmem2) / self.infl_parm
             else:
                 A = np.eye(nmem2)
             A = (nmem2-1)*A + dy.T @ rinv @ dy
@@ -123,103 +154,150 @@ class EnKF():
             #print(f"rank(kmat)={dums[np.abs(dums)>1.0e-10].shape[0]}")
             xa_ = xf_ + K @ d
             dxa = dxf @ T
-            if self.iloc == 1 or self.iloc == 2:
-                # random sampling
-                ptrace = np.sum(np.diag(dxa @ dxa.T / (nmem2-1)))
-                rvec = np.random.randn(nmem2, nmem)
-                rvec_mean = np.mean(rvec, axis=0)
-                rvec = rvec - rvec_mean[None, :]
-                rvec_stdv = np.sqrt((rvec**2).sum(axis=0))
-                rvec = rvec / rvec_stdv[None, :]
-                logger.debug("rvec={}".format(rvec[:, 0]))
-                dxa = dxf @ T @ rvec * np.sqrt((nmem2-1)/(nmem-1))
-                trace = np.sum(np.diag(dxa @ dxa.T / (nmem-1)))
-                logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-                if np.sqrt(ptrace / trace) > 1.0:
-                    dxa *= np.sqrt(ptrace / trace)
+            if (self.iloc == 1 or self.iloc == 2):
+                if save_dh:
+                    np.save("{}_dxaorig_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
+                if self.ss:
+                    # random sampling
+                    ptrace = np.sum(np.diag(dxa @ dxa.T / (nmem2-1)))
+                    rvec = self.rs.standard_normal(size=(nmem2, nmem))
+                    rvec_mean = np.mean(rvec, axis=0)
+                    rvec = rvec - rvec_mean[None, :]
+                    rvec_stdv = np.sqrt((rvec**2).sum(axis=0)/(nmem2-1))
+                    rvec = rvec / rvec_stdv[None, :]
+                    logger.debug("rvec={}".format(rvec[:, 0]))
+                    dxa = dxf @ T @ rvec / np.sqrt(nmem2-1)
+                    trace = np.sum(np.diag(dxa @ dxa.T / (nmem-1)))
+                    logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
+                    if np.sqrt(ptrace / trace) > 1.0:
+                        dxa *= np.sqrt(ptrace / trace)
+                elif self.getkf:
+                    # Gain ETKF
+                    u, s, vt = la.svd(rmat @ dy)
+                    logger.debug(f"s.shape={s.shape}")
+                    logger.debug(f"u.shape={u.shape}")
+                    logger.debug(f"vt.shape={vt.shape}")
+                    sp = s**2 + (nmem2-1)
+                    D = (1.0 - np.sqrt((nmem2-1)/sp))/s
+                    nsig = D.size
+                    rK = dxf @ vt[:nsig,:].transpose() @ np.diag(D) @ u.transpose() @ rmat
+                    dxa = dxf_orig - rK @ dy_orig
+                else:
+                    scalefact = np.sqrt(float(nmem2-1)/float(nmem-1))*self.l_sqrt[:,0]
+                    dxa = dxf @ T[:,:nmem] / scalefact[:, None]
+            if save_dh:
+                np.save("{}_dxa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
             xa = dxa + xa_[:,None]
             
         elif self.da=="po":
-            Y = np.zeros((y.size,nmem))
-            #np.random.seed(514)
-            #err = np.random.normal(0, scale=self.sig, size=Y.size)
-            #err = err.reshape(Y.shape)
-            mu = np.zeros(y.size)
-            sigr = np.eye(y.size)*self.sig
-            err = np.random.multivariate_normal(mu,sigr,nmem).T
-            err_ = np.mean(err, axis=1)
-            #Y = y[:,None] + err.reshape(Y.shape)
-            Y = y[:,None] + err
-            d_ = d + err_
-            K1 = dxf @ dy.T / (nmem2-1)
-            K2 = dy @ dy.T / (nmem2-1) + R
-            eigK, vK = la.eigh(K2)
-            logger.info("eigenvalues of K2")
-            logger.info(eigK)
-            K2inv = la.inv(K2)
-            K = K1 @ K2inv
+            err = self.rs.standard_normal(size=(y.size,nmem))
+            err = err - err.mean(axis=1)[:, None]
+            err_var = np.sum(err**2, axis=1)/(nmem-1)
+            err = self.sig * err / np.sqrt(err_var.mean())
+            ## original
+            #K1 = dxf @ dy.T / (nmem2-1)
+            #K2 = dy @ dy.T / (nmem2-1) + R
+            #eigK, vK = la.eigh(K2)
+            #eigK = eigK[::-1]
+            #vK = vK[:,::-1]
+            #neig = eigK[eigK>1.e-10].size
+            #logger.info(f"neig={neig}")
+            #logger.debug("eigenvalues of K2")
+            #logger.debug(eigK)
+            #K2inv = vK[:, :neig] @ np.diag(1.0/eigK[:neig]) @ vK[:,:neig].transpose()
+            ##K2inv = la.inv(K2)
+            ##K2inv = cho_solve(cho_factor(K2), np.eye(y.size))
+            #K = K1 @ K2inv
+            # like ETKF
+            A = (nmem2-1)*np.eye(nmem2) + dy.T @ rinv @ dy
+            lam, v = la.eigh(A)
+            #logger.info("eigen values={}".format(lam))
+            Dinv = np.diag(1.0/lam)
+            TT = v @ Dinv @ v.T
+            K = dxf @ TT @ dy.T @ rinv
             #K = dxf @ dy.T @ la.inv(dy @ dy.T + (nmem-1)*R)
+            if save_dh:
+                np.save("{}_K_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
             if self.iloc == 0:
                 logger.info("==K-localization== lsig={}".format(self.lsig))
                 l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
                 K = K * l_mat
                 if save_dh:
+                    np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
                     np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
-            xa_ = xf_ + K @ d_
-            if self.ltlm:
-                xa = xf_orig + K @ (Y - JH @ xf_orig)
-            else:
-                HX = self.obs.h_operator(yloc, xf_orig)
-                xa = xf_orig + K @ (Y - HX)
-            dxa = xa - xa_[:, None]
+            xa_ = xf_ + K @ d
+            dxa = dxf_orig - K @ (dy_orig + err)
+            #if self.ltlm:
+            #    xa = xf_orig + K @ (Y - JH @ xf_orig)
+            #else:
+            #    HX = self.obs.h_operator(yloc, xf_orig)
+            #    xa = xf_orig + K @ (Y - HX)
+            if save_dh:
+                np.save("{}_dxa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
+            xa = dxa + xa_[:, None]
 
         elif self.da=="srf":
-            I = np.eye(xf_.size)
-            dx0 = np.zeros_like(dxf)
-            dx0 = dxf[:,:]
-            dy0 = np.zeros_like(dy)
-            dy0 = dy[:,:]
-            x0_ = np.zeros_like(xf_)
-            x0_ = xf_[:]
-            d0 = np.zeros_like(d)
-            d0 = d[:]
+            xa = xf_orig
+            x0 = xf
+            xa_ = np.mean(x0, axis=1)
+            dx0 = dxf
+            dxa = dxf_orig
             if self.iloc == 0:
                 logger.info("==K-localization== lsig={}".format(self.lsig))
                 l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
                 if save_dh:
                     np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
-            for i in range(y.size):
-                dyi = dy0[i].reshape(1,-1)
-                d1 = dyi @ dyi.T + self.sig*self.sig * (nmem2-1)
-                k1 = dx0 @ dyi.T /d1
-                k1_ = k1 / (1.0 + self.sig/np.sqrt(d1/(nmem2-1)))
+            for i, obloc, ob in zip(np.arange(y.size), yloc, y):
+                logger.debug(f"{i}, {obloc}, {ob}")
+                logger.debug(f"{np.atleast_1d(obloc)}")
+                logger.debug(f"xa.shape={x0.shape}")
+                if self.ltlm:
+                    dyi = JH[i,:].reshape(1,-1) @ dx0
+                    if (self.iloc == 1 or self.iloc == 2):
+                        if not self.ss:
+                            dyi_orig = JH[i,:].reshape(1,-1) @ dxa
+                else:
+                    dyi = self.obs.h_operator(np.atleast_1d(obloc), x0) - np.mean(self.obs.h_operator(np.atleast_1d(obloc), x0), axis=1)[:, None]
+                    if (self.iloc == 1 or self.iloc == 2):
+                        if not self.ss:
+                            dyi_orig \
+                            = self.obs.h_operator(np.atleast_1d(obloc), xa) - np.mean(self.obs.h_operator(np.atleast_1d(obloc), xa), axis=1)[:, None]
+                dymean = np.mean(self.obs.h_operator(np.atleast_1d(obloc), xa), axis=1)
+                d1 = dyi @ dyi.T / (nmem2-1) + self.sig*self.sig 
+                k1 = dxf @ dyi.T / (nmem2-1) /d1
                 if self.iloc == 0: # K-localization
-                    k1_ = k1_ * l_mat[:,i].reshape(k1_.shape)
-                xa_ = x0_.reshape(k1.shape) + k1 * d0[i]
-                dxa = dx0 - k1_@ dyi
-            
-                x0_ = xa_[:]
-                dx0 = dxa[:,:]
-                x0 = x0_ + dx0
-                dy0 = self.obs.h_operator(yloc, x0) - np.mean(self.obs.h_operator(yloc, x0), axis=1)[:, None]
-                d0 = y - np.mean(self.obs.h_operator(yloc, x0), axis=1)
-            if self.iloc == 1 or self.iloc == 2:
-                # random sampling
-                ptrace = np.sum(np.diag(dxa @ dxa.T / (nmem2-1)))
-                rvec = np.random.randn(nmem2, nmem)
-                rvec_mean = np.mean(rvec, axis=0)
-                rvec = rvec - rvec_mean[None, :]
-                rvec_stdv = np.sqrt((rvec**2).sum(axis=0))
-                rvec = rvec / rvec_stdv[None, :]
-                logger.debug("rvec={}".format(rvec[:, 0]))
-                dxa = dxa @ rvec
-                trace = np.sum(np.diag(dxa @ dxa.T / (nmem-1)))
-                logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-                if np.sqrt(ptrace / trace) > 1.0:
-                    dxa *= np.sqrt(ptrace / trace)
-            xa = dxa + xa_
+                    k1 = k1 * l_mat[:,i].reshape(k1.shape)
+                k1_ = k1 * np.sqrt(d1) / (np.sqrt(d1) + self.sig)
+                xa_ = xa_.reshape(k1.shape) + k1 * (ob - dymean)
+                dx0 = dx0 - k1_@ dyi
+                x0 = xa_ + dx0
+                if (self.iloc == 1 or self.iloc == 2):
+                    if not self.ss:
+                        dxa = dxa - k1_@ dyi_orig
+                        xa = xa_ + dxa
+            if (self.iloc == 1 or self.iloc == 2):
+                if self.ss:
+                    if save_dh:
+                        np.save("{}_dxaorig_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
+                    logger.info("random sampling")
+                    ptrace = np.sum(np.diag(dx0 @ dx0.T / (nmem2-1)))
+                    rvec = self.rs.standard_normal(size=(nmem2, nmem))
+                    rvec_mean = np.mean(rvec, axis=0)
+                    rvec = rvec - rvec_mean[None, :]
+                    rvec_stdv = np.sqrt((rvec**2).sum(axis=0)/(nmem2-1))
+                    rvec = rvec / rvec_stdv[None, :]
+                    logger.debug("rvec={}".format(rvec[:, 0]))
+                    dxa = dx0 @ rvec / np.sqrt(nmem2-1)
+                    trace = np.sum(np.diag(dx0 @ dx0.T / (nmem-1)))
+                    logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
+                    if np.sqrt(ptrace / trace) > 1.0:
+                        dxa *= np.sqrt(ptrace / trace)
+                    xa = xa_ + dxa
+            else:
+                xa = x0
+            if save_dh:
+                np.save("{}_dxa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
             xa_ = np.squeeze(xa_)
-
         elif self.da=="letkf":
             #sigma = 7.5
             sigma = self.lsig
@@ -229,8 +307,8 @@ class EnKF():
             dxa = np.zeros_like(dxf)
             E = np.eye(nmem)
             if self.linf:
-                logger.info("==inflation==, alpha={}".format(alpha))
-                E /= alpha
+                logger.info("==inflation==, alpha={}".format(self.infl_parm))
+                E /= self.infl_parm
             for i in range(nx):
                 far, Rwf_loc = self.r_loc(sigma, yloc, float(i))
                 logger.info("number of assimilated obs.={}".format(y.size - len(far)))
@@ -393,6 +471,7 @@ class EnKF():
             for k in range(nmem):
                 m = l*nmem + k
                 dxf[:, m] = self.l_sqrt[:, l]*dxf_orig[:, k]
+        dxf = dxf * np.sqrt((nmem*self.nmode-1)/(nmem-1))
         if save_dh:
             np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxf)
             fullpf = dxf @ dxf.T / (nmem*self.nmode - 1)

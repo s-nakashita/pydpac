@@ -15,23 +15,40 @@ logger = logging.getLogger('anl')
 class Mles_rloc():
 # 4-dimensional MLEF with R-localization
 # Reference(En4DVar) Liu et al. 2008: "An ensemble-based four-dimensional variational data assimilation scheme. Part I: Technical formulation and preliminary test," Mon. Wea. Rev., 136, 3363-3373.
-    def __init__(self, pt, nmem, obs, infl, lsig, 
-                 linf, ltlm, calc_dist, calc_dist1,
-                 step, nt, window_l, model="model"):
+    def __init__(self, pt, nmem, obs, step, nt, window_l, 
+                linf=False, infl_parm=1.0, 
+                lsig=-1.0, calc_dist=None, calc_dist1=None,
+                ltlm=False, model="model"):
+        # necessary parameters
         self.pt = pt # DA type (prefix 4d + MLEF)
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        self.infl_parm = infl # inflation parameter
-        self.lsig = lsig # localization parameter
+        self.step = step # forward model
+        self.nt = nt     # assimilation interval
+        self.window_l = window_l # assimilation window length
+        # optional parameters
+        # inflation
         self.linf = linf # True->Apply inflation False->Not apply
+        self.infl_parm = infl_parm # inflation parameter
+        # localization
+        self.lsig = lsig # localization parameter
+        if calc_dist is None:
+            def calc_dist(self, i):
+                dist = np.zeros(self.ndim)
+                for j in range(self.ndim):
+                    dist[j] = min(abs(j-i),self.ndim-abs(j-i))
+                return dist
+        else:
+            self.calc_dist = calc_dist # distance calculation routine
+        if calc_dist1 is None:
+            def calc_dist1(self, i, j):
+                return min(abs(j-i),self.ndim-abs(j-i))
+        else:
+            self.calc_dist1 = calc_dist1 # distance calculation routine
+        # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
-        self.calc_dist = calc_dist # distance calculation routine
-        self.calc_dist1 = calc_dist1 # distance calculation routine
-        self.step = step 
-        self.nt = nt
-        self.window_l = window_l
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")

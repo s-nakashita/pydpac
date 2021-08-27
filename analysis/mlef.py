@@ -12,24 +12,46 @@ logger = logging.getLogger('anl')
         
 class Mlef():
 
-    def __init__(self, pt, state_size, nmem, obs, infl, lsig, 
-                 linf, iloc, ltlm, calc_dist, calc_dist1, model="model"):
+    def __init__(self, pt, state_size, nmem, obs, 
+        linf=False, infl_parm=1.0, 
+        iloc=None, lsig=-1.0, ss=True, gain=False,
+        calc_dist=None, calc_dist1=None, 
+        ltlm=False, model="model"):
+        # necessary parameters
         self.pt = pt # DA type (MLEF or GRAD)
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        self.infl_parm = infl # inflation parameter
-        self.lsig = lsig # localization parameter
+        # optional parameters
+        # inflation
         self.linf = linf # True->Apply inflation False->Not apply
+        self.infl_parm = infl_parm # inflation parameter
+        # localization
         self.iloc = iloc # iloc = None->No localization
                          #      = 0   ->R-localization (mlef_rloc.py)
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
+        self.lsig = lsig # localization parameter
+        self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
+        self.gain = gain # ensemble reduction method : True->Use reduced gain (Bishop et al. 2017)
+        if calc_dist is None:
+            def calc_dist(self, i):
+                dist = np.zeros(self.ndim)
+                for j in range(self.ndim):
+                    dist[j] = min(abs(j-i),self.ndim-abs(j-i))
+                return dist
+        else:
+            self.calc_dist = calc_dist # distance calculation routine
+        if calc_dist1 is None:
+            def calc_dist1(self, i, j):
+                return min(abs(j-i),self.ndim-abs(j-i))
+        else:
+            self.calc_dist1 = calc_dist1 # distance calculation routine
+        self.rs = np.random.RandomState()
+        # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
-        self.calc_dist = calc_dist # distance calculation routine
-        self.calc_dist1 = calc_dist1 # distance calculation routine
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
@@ -214,11 +236,11 @@ class Mlef():
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
         if self.iloc is not None:
             logger.info("==localization==, lsig={}".format(self.lsig))
-            spf = pf.copy()
+            pf_orig = pf.copy()
             if self.iloc == 1:
-                pf, wts = self.pfloc(spf, save_dh, icycle)
+                pf, wts = self.pfloc(pf_orig, save_dh, icycle)
             elif self.iloc == 2:
-                pf = self.pfmod(spf, save_dh, icycle)
+                pf = self.pfmod(pf_orig, save_dh, icycle)
             logger.info("pf.shape={}".format(pf.shape))
             xf = xc[:, None] + pf
         #logger.debug("norm(pf)={}".format(la.norm(pf)))
@@ -293,20 +315,42 @@ class Mlef():
         logger.info("dof={}".format(ds))
         pa = pf @ tmat
         if self.iloc is not None:
-            # random sampling
+            nmem2 = pf.shape[1]
             ptrace = np.sum(np.diag(pa @ pa.T))
-            rvec = np.random.randn(pf.shape[1], nmem)
-            #for l in range(len(wts)):
-            #    rvec[l*nmem:(l+1)*nmem,:] = rvec[l*nmem:(l+1)*nmem,:] * wts[l] / np.sum(wts)
-            rvec_mean = np.mean(rvec, axis=0)
-            rvec = rvec - rvec_mean[None,:]
-            rvec_stdv = np.sqrt((rvec**2).sum(axis=0))
-            rvec = rvec / rvec_stdv[None,:]
-            logger.debug("rvec={}".format(rvec[:,0]))
-            pa = pf @ tmat @ rvec
-            trace = np.sum(np.diag(pa @ pa.T))
-            logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-            pa *= np.sqrt(ptrace / trace)
+            if self.ss:
+                # random sampling
+                rvec = self.rs.standard_normal(size=(nmem2, nmem))
+                #for l in range(len(wts)):
+                #    rvec[l*nmem:(l+1)*nmem,:] = rvec[l*nmem:(l+1)*nmem,:] * wts[l] / np.sum(wts)
+                rvec_mean = np.mean(rvec, axis=0)
+                rvec = rvec - rvec_mean[None,:]
+                rvec_stdv = np.sqrt((rvec**2).sum(axis=0) / (nmem2-1))
+                rvec = rvec / rvec_stdv[None,:]
+                logger.debug("rvec={}".format(rvec[:,0]))
+                pa = pf @ tmat @ rvec / np.sqrt(nmem-1)
+                trace = np.sum(np.diag(pa @ pa.T))
+                logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
+                if np.sqrt(ptrace / trace) > 1.05:
+                    pa *= np.sqrt(ptrace / trace)
+            elif self.gain:
+                if self.ltlm:
+                    dh = self.obs.dh_operator(yloc,xa) @ pf_orig
+                else:
+                    dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
+                zmat_orig = rmat @ dh
+                u, s, vt = la.svd(zmat)
+                logger.debug(f"s.shape={s.shape}")
+                logger.debug(f"u.shape={u.shape}")
+                logger.debug(f"vt.shape={vt.shape}")
+                sp = s**2 + 1.0
+                D = (1.0 - np.sqrt(1.0/sp))/s
+                nsig = D.size
+                reducedgain = pf @ vt[:nsig,:].transpose() @ np.diag(D) @ u.transpose()
+                pa = pf_orig - reducedgain @ zmat_orig
+                trace = np.sum(np.diag(pa @ pa.T))
+                logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
+                if np.sqrt(ptrace / trace) > 1.05:
+                    pa *= np.sqrt(ptrace / trace)
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm

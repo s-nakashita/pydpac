@@ -15,28 +15,45 @@ logger = logging.getLogger('anl')
 class Mles():
 # 4-dimensional MLEF
 # Reference(En4DVar) Liu et al. 2008: "An ensemble-based four-dimensional variational data assimilation scheme. Part I: Technical formulation and preliminary test," Mon. Wea. Rev., 136, 3363-3373.
-    def __init__(self, pt, state_size, nmem, obs, infl, lsig, 
-                 linf, iloc, ltlm, calc_dist, calc_dist1,
-                 step, nt, window_l, model="model"):
+    def __init__(self, pt, state_size, nmem, obs, step, nt, window_l, 
+                linf=False, infl_parm=1.0,
+                iloc=None, lsig=-1.0, calc_dist=None, calc_dist1=None,
+                ltlm=False, model="model"):
+        # necessary parameters
         self.pt = pt # DA type (prefix 4d + MLEF)
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        self.infl_parm = infl # inflation parameter
-        self.lsig = lsig # localization parameter
+        self.step = step # forward model
+        self.nt = nt     # assimilation interval
+        self.window_l = window_l # assimilation window length
+        # optional parameters
+        # inflation
         self.linf = linf # True->Apply inflation False->Not apply
+        self.infl_parm = infl_parm # inflation parameter
+        # localization
         self.iloc = iloc # iloc = None->No localization
                          #      = 0   ->R-localization (mles_rloc.py)
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
+        self.lsig = lsig # localization parameter
+        if calc_dist is None:
+            def calc_dist(self, i):
+                dist = np.zeros(self.ndim)
+                for j in range(self.ndim):
+                    dist[j] = min(abs(j-i),self.ndim-abs(j-i))
+                return dist
+        else:
+            self.calc_dist = calc_dist # distance calculation routine
+        if calc_dist1 is None:
+            def calc_dist1(self, i, j):
+                return min(abs(j-i),self.ndim-abs(j-i))
+        else:
+            self.calc_dist1 = calc_dist1 # distance calculation routine
+        # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
-        self.calc_dist = calc_dist # distance calculation routine
-        self.calc_dist1 = calc_dist1 # distance calculation routine
-        self.step = step 
-        self.nt = nt
-        self.window_l = window_l
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
@@ -359,13 +376,14 @@ class Mles():
             #    rvec[l*nmem:(l+1)*nmem,:] = rvec[l*nmem:(l+1)*nmem,:] * wts[l] / np.sum(wts)
             rvec_mean = np.mean(rvec, axis=0)
             rvec = rvec - rvec_mean[None,:]
-            rvec_stdv = np.sqrt((rvec**2).sum(axis=0))
+            rvec_stdv = np.sqrt((rvec**2).sum(axis=0) / (pf.shape[1]-1))
             rvec = rvec / rvec_stdv[None,:]
             logger.debug("rvec={}".format(rvec[:,0]))
-            pa = pf @ tmat @ rvec
+            pa = pf @ tmat @ rvec / np.sqrt(nmem-1)
             trace = np.sum(np.diag(pa @ pa.T))
             logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-            pa *= np.sqrt(ptrace / trace)
+            if np.sqrt(ptrace / trace) > 1.05:
+                pa *= np.sqrt(ptrace / trace)
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm
