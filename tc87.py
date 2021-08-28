@@ -5,31 +5,31 @@ from logging.config import fileConfig
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from model.lorenz import L96
+from model.bve import Bve
 from analysis.obs import Obs
-from l96_func import L96_func
+from tc87_func import TC87_func
 
 logging.config.fileConfig("logging_config.ini")
 
-global nx, F, dt, dx
+global nx, omega, dt, dx
 
-model = "l96"
+model = "tc87"
 # model parameter
-nx = 40     # number of points
-F  = 8.0    # forcing
-nt =   6    # number of step per forecast (=6 hour)
-dt = 0.05 / 6  # time step (=1 hour)
+nx = 64     # number of points
+omega = 2.0 * np.pi  # angular velocity for earth rotation
+nt =   1    # number of step per forecast
+dt = 0.1    # time step
 
 # forecast model forward operator
-step = L96(nx, dt, F)
+step = Bve(nx, dt, omega)
 
-x = np.linspace(-2.0, 2.0, nx)
+x = 180.0 / np.pi * step.get_lam()
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =    8 # ensemble size (include control run)
-t0off =  24 # initial offset between adjacent members
-t0c =   500 # t0 for control
+nmem =   20 # ensemble size (include control run)
+t0off =   1 # initial offset between adjacent members
+t0c =   100 # t0 for control
 # t0 for ensemble members
 if nmem%2 == 0: # even
     t0m = [t0c + t0off//2 + t0off * i for i in range(nmem//2)]
@@ -42,37 +42,31 @@ namax = 1460 # max number of analysis (1 year)
 
 a_window = 1 # assimilation window length
 
-nobs = 40 # observation number (nobs<=nx)
-
-lb = -1.0 # (For var & 4dvar) correlation length for background error covariance
+nobs = 64 # observation number (nobs<=nx)
 
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
-    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
-    "test":1.0, "abs":1.0, "hint":1.0}
+    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
 # inflation parameter (dictionary for each observation type)
 infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
-          "4dmlef":1.3,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
+          "4dmlef":1.3,"4detkf":1.3,"4dpo":1.4,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
 infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
 infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
 infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
 infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"4dvar":None}
-infl_h = {"mlef":1.3,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"4dvar":None}
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
-    "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
-        "test": infl_t, "abs": infl_l, "hint": infl_h}
+    "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t, "abs": infl_l}
 # localization parameter (dictionary for each observation type)
 sig_l = {"mlef":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
-        "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
+        "4dmlef":8.0,"4detkf":8.0,"4dpo":2.0,"4dsrf":8.0,"4dletkf":7.5,"4dvar":None}
 sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
 sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
 sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
 sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"4dvar":None}
 sig_t = {"mlef":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0,"kf":None,"var":None,"4dvar":None}
 dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
-    "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, \
-    "test":sig_t, "abs":sig_l, "hint": sig_l}
+    "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, "test":sig_t, "abs":sig_l}
 # forecast type (ensemble or deterministic)
 ftype = {"mlef":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
     "kf":"deterministic","var":"deterministic",\
@@ -87,8 +81,6 @@ lloc = False
 lsig = -1.0
 ltlm = True
 iloc = None
-ss = False
-getkf = False
 
 ## read from command options
 # observation type
@@ -140,7 +132,6 @@ if len(sys.argv) > 7:
     #nmem = int(sys.argv[7])
     #nt = int(sys.argv[7]) * 6
     a_window = int(sys.argv[7])
-    #lb = float(sys.argv[7])
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -150,30 +141,19 @@ state_size = nx
 if pt == "mlef":
     if iloc == 0:
         from analysis.mlef_rloc import Mlef_rloc
-        analysis = Mlef_rloc(pt, nmem, obs, \
-            linf=linf, infl_parm=infl_parm, \
-            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-            ltlm=ltlm, model=model)
+        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
     else:
         from analysis.mlef import Mlef
-        analysis = Mlef(pt, state_size, nmem, obs, \
-            linf=linf, infl_parm=infl_parm, \
-            iloc=iloc, lsig=lsig, ss=True, gain=False, \
-            calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-            ltlm=ltlm, model=model)
+        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, state_size, nmem, obs, \
-        linf=linf, infl_parm=infl_parm, \
-        iloc=iloc, lsig=lsig, ss=True, getkf=False, \
-        ltlm=ltlm, \
-        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
+    analysis = EnKF(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, lb, model=model)
+    analysis = Var(pt, obs, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -181,23 +161,14 @@ elif pt == "4dvar":
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enks import EnKS
     #a_window = 5
-    analysis = EnKS(pt, state_size, nmem, obs, step, nt, a_window, \
-        linf=linf, infl_parm=infl_parm, 
-        iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
-        ltlm=ltlm, model=model)
+    analysis = EnKS(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
 elif pt == "4dmlef":
     if iloc == 0:
         from analysis.mles_rloc import Mles_rloc
-        analysis = Mles_rloc(pt, nmem, obs, step, nt, a_window, \
-            linf=linf, infl_parm=infl_parm, \
-            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
-            ltlm=ltlm, model=model)
+        analysis = Mles_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
     else:
         from analysis.mles import Mles
-        analysis = Mles(pt, state_size, nmem, obs, step, nt, a_window, \
-            linf=linf, infl_parm=infl_parm, \
-            iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
-            ltlm=ltlm, model=model)
+        analysis = Mles(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
@@ -205,15 +176,13 @@ params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
     "namax":namax, "a_window":a_window, "op":op, "pt":pt, "ft":ft,\
     "linf":linf, "lloc":lloc, "ltlm":ltlm,\
     "infl_parm":infl_parm, "lsig":lsig}
-func = L96_func(params)
+func = TC87_func(params)
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
     u, xa, xf, pa, sqrtpa = func.initialize(opt=0)
-    logger.debug(u.shape)
-    #func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
     pf = analysis.calc_pf(u, pa, 0)
     
     a_time = range(0, na, a_window)
@@ -227,9 +196,20 @@ if __name__ == "__main__":
         y = yobs[i:i+a_window,:,1]
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
-        logger.info("cycle{} analysis".format(i))
+        if ft == "ensemble":
+            if pt == "mlef":
+                uc = u[:, 0]
+                um = u[:, 1:]
+            else:
+                uc = np.mean(u, axis=1)
+                um = u
+        else: 
+            uc = u
+            um = u
+        func.plot_initial(uc, um, xt[i], i, model)
         #if i in [1, 50, 100, 150, 200, 250]:
-        if i < 0:
+        if i in range(1):
+            logger.info("cycle{} analysis".format(i))
             #if a_window > 1:
             if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, \
@@ -247,13 +227,7 @@ if __name__ == "__main__":
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
-        ## additive inflation
-        #if linf:
-        #    logger.info("==additive inflation==")
-        #    if pt == "mlef" or pt == "4dmlef":
-        #        u[:, 1:] += np.random.randn(u.shape[0], u.shape[1]-1)
-        #    else:
-        #        u += np.random.randn(u.shape[0], u.shape[1])
+            
         if ft=="ensemble":
             if pt == "mlef" or pt == "4dmlef":
                 xa[i] = u[:, 0]

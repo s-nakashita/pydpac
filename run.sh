@@ -1,8 +1,8 @@
 #!/bin/sh
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear"
+operators="quadratic"
 #perturbations="mlef grad etkf po srf letkf kf var var4d"
-perturbations="mlef etkf kf var"
+perturbations="mlef"
 #model=l96 or z08
 model=z08
 na=20 # Number of assimilation cycle
@@ -20,11 +20,9 @@ for pt in ${perturbations}; do
   for op in ${operators}; do
     echo ${op} ${pt}  ${na} ${linf} ${lloc} ${ltlm}
     python ../${model}.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} > ${model}_${op}_${pt}.log 2>&1
-    mv const.log ../res/${model}_parm.${exp}
     wait
   done
 done
-python ../plote.py ${operators} ${model} ${na}
-mv ${model}_e_${operators}.png ../res/${model}_e_${operators}_${exp}.png
+python ../plot/plote.py ${operators} ${model} ${na}
 rm ${model}*.txt 
 rm ${model}*.npy 
