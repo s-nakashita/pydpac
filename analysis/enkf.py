@@ -13,6 +13,7 @@ class EnKF():
     def __init__(self, da, state_size, nmem, obs, 
         linf=False, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, getkf=False,
+        l_mat=None, l_sqrt=None, 
         calc_dist=None, calc_dist1=None, 
         ltlm=False, model="model"):
         # necessary parameters
@@ -35,18 +36,18 @@ class EnKF():
         self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
         self.getkf = getkf # ensemble reduction method : True->Gain ETKF (Bishop et al. 2017)
         if calc_dist is None:
-            def calc_dist(self, i):
+            def calc_dist(i):
                 dist = np.zeros(self.ndim)
                 for j in range(self.ndim):
                     dist[j] = min(abs(j-i),self.ndim-abs(j-i))
                 return dist
-        else:
-            self.calc_dist = calc_dist # distance calculation routine
+        #else:
+        self.calc_dist = calc_dist # distance calculation routine
         if calc_dist1 is None:
-            def calc_dist1(self, i, j):
+            def calc_dist1(i, j):
                 return min(abs(j-i),self.ndim-abs(j-i))
-        else:
-            self.calc_dist1 = calc_dist1 # distance calculation routine
+        #else:
+        self.calc_dist1 = calc_dist1 # distance calculation routine
         self.rs = np.random.RandomState() # random generator
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
@@ -54,9 +55,15 @@ class EnKF():
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.da} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
-        if self.iloc == 1 or self.iloc == 2:
-            self.l_mat, self.l_sqrt, self.nmode, self.enswts\
+        if self.iloc is not None:
+        #if self.iloc == 1 or self.iloc == 2:
+            if l_mat is None or l_sqrt is None:
+                self.l_mat, self.l_sqrt, self.nmode, self.enswts\
                 = self.b_loc(self.lsig, self.ndim, self.ndim)
+            else:
+                self.l_mat = l_mat
+                self.l_sqrt = l_sqrt
+                self.nmode = l_sqrt.shape[1]
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), self.l_mat)
 
 
@@ -65,13 +72,18 @@ class EnKF():
         pf = dxf @ dxf.transpose() / (self.nmem-1)
         return pf
         
-    def __call__(self, xf, pf, y, yloc, save_hist=False, save_dh=False, icycle=0):
+    def __call__(self, xf, pf, y, yloc, R=None, rmat=None, rinv=None,
+        save_hist=False, save_dh=False, icycle=0):
         #xf = xb[:]
         xf_ = np.mean(xf, axis=1)
         logger.debug(f"obsloc={yloc}")
         logger.debug(f"obssize={y.size}")
         JH = self.obs.dh_operator(yloc, xf_)
-        R, rmat, rinv = self.obs.set_r(y.size)
+        if (R is None) or (rmat is None) or (rinv is None):
+            logger.info("set R")
+            R, rmat, rinv = self.obs.set_r(y.size)
+        else:
+            logger.info("use input R")
         nmem = xf.shape[1]
         chi2_test = Chi(y.size, nmem, rmat)
         dxf = xf - xf_[:,None]
@@ -145,7 +157,7 @@ class EnKF():
             if self.iloc == 0: # K-localization
                 logger.info("==K-localization==, lsig={}".format(self.lsig))
                 l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
-                K = K * l_mat
+                K = K * self.l_mat # change later
                 if save_dh:
                     np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
                     np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
@@ -155,11 +167,11 @@ class EnKF():
             xa_ = xf_ + K @ d
             dxa = dxf @ T
             if (self.iloc == 1 or self.iloc == 2):
+                ptrace = np.sum(np.diag(dxa @ dxa.T / (nmem2-1)))
                 if save_dh:
                     np.save("{}_dxaorig_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
                 if self.ss:
-                    # random sampling
-                    ptrace = np.sum(np.diag(dxa @ dxa.T / (nmem2-1)))
+                    logger.info("random sampling")
                     rvec = self.rs.standard_normal(size=(nmem2, nmem))
                     rvec_mean = np.mean(rvec, axis=0)
                     rvec = rvec - rvec_mean[None, :]
@@ -167,24 +179,27 @@ class EnKF():
                     rvec = rvec / rvec_stdv[None, :]
                     logger.debug("rvec={}".format(rvec[:, 0]))
                     dxa = dxf @ T @ rvec / np.sqrt(nmem2-1)
-                    trace = np.sum(np.diag(dxa @ dxa.T / (nmem-1)))
-                    logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-                    if np.sqrt(ptrace / trace) > 1.0:
-                        dxa *= np.sqrt(ptrace / trace)
+                    dxa = dxa - dxa.mean(axis=1)[:, None]
                 elif self.getkf:
-                    # Gain ETKF
-                    u, s, vt = la.svd(rmat @ dy)
+                    logger.info("Gain ETKF")
+                    u, s, vt = la.svd(rmat @ dy, full_matrices=False)
                     logger.debug(f"s.shape={s.shape}")
                     logger.debug(f"u.shape={u.shape}")
                     logger.debug(f"vt.shape={vt.shape}")
-                    sp = s**2 + (nmem2-1)
-                    D = (1.0 - np.sqrt((nmem2-1)/sp))/s
+                    sp = s**2 + nmem2-1
+                    D = (1.0 - np.sqrt((nmem2-1)/sp))#/(s**2)
                     nsig = D.size
-                    rK = dxf @ vt[:nsig,:].transpose() @ np.diag(D) @ u.transpose() @ rmat
+                    #rK = dxf @ vt[:nsig,:].transpose() @ np.diag(D) @ vt[:nsig,:] @ dy.transpose() @ rinv
+                    rK = np.dot(dxf, vt.transpose()) * D
+                    rK = np.dot(np.dot(rK, (u/s).transpose()), rmat)
                     dxa = dxf_orig - rK @ dy_orig
                 else:
                     scalefact = np.sqrt(float(nmem2-1)/float(nmem-1))*self.l_sqrt[:,0]
                     dxa = dxf @ T[:,:nmem] / scalefact[:, None]
+                trace = np.sum(np.diag(dxa @ dxa.T / (nmem-1)))
+                logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
+                if np.sqrt(ptrace / trace) > 1.0:
+                    dxa *= np.sqrt(ptrace / trace)
             if save_dh:
                 np.save("{}_dxa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
             xa = dxa + xa_[:,None]
@@ -251,6 +266,7 @@ class EnKF():
                 logger.debug(f"{i}, {obloc}, {ob}")
                 logger.debug(f"{np.atleast_1d(obloc)}")
                 logger.debug(f"xa.shape={x0.shape}")
+                logger.debug(f"xa_.shape={xa_.shape}")
                 if self.ltlm:
                     dyi = JH[i,:].reshape(1,-1) @ dx0
                     if (self.iloc == 1 or self.iloc == 2):
@@ -262,12 +278,17 @@ class EnKF():
                         if not self.ss:
                             dyi_orig \
                             = self.obs.h_operator(np.atleast_1d(obloc), xa) - np.mean(self.obs.h_operator(np.atleast_1d(obloc), xa), axis=1)[:, None]
-                dymean = np.mean(self.obs.h_operator(np.atleast_1d(obloc), xa), axis=1)
-                d1 = dyi @ dyi.T / (nmem2-1) + self.sig*self.sig 
+                dymean = np.mean(self.obs.h_operator(np.atleast_1d(obloc), x0), axis=1)
+                logger.debug(f"dyi.shape={dyi.shape}")
+                logger.debug(f"dymean={dymean}")
+                #d1 = dyi @ dyi.T / (nmem2-1) + self.sig*self.sig 
+                d1 = dyi @ dyi.T / (nmem2-1) + R[i,i] 
                 k1 = dxf @ dyi.T / (nmem2-1) /d1
+                logger.debug(f"k1={np.squeeze(k1)}")
                 if self.iloc == 0: # K-localization
-                    k1 = k1 * l_mat[:,i].reshape(k1.shape)
-                k1_ = k1 * np.sqrt(d1) / (np.sqrt(d1) + self.sig)
+                    k1 = k1 * l_mat[:,i].reshape(k1.shape) # change later
+                #k1_ = k1 * np.sqrt(d1) / (np.sqrt(d1) + self.sig)
+                k1_ = k1 * np.sqrt(d1) / (np.sqrt(d1) + np.sqrt(R[i,i])) # change later
                 xa_ = xa_.reshape(k1.shape) + k1 * (ob - dymean)
                 dx0 = dx0 - k1_@ dyi
                 x0 = xa_ + dx0
@@ -288,13 +309,17 @@ class EnKF():
                     rvec = rvec / rvec_stdv[None, :]
                     logger.debug("rvec={}".format(rvec[:, 0]))
                     dxa = dx0 @ rvec / np.sqrt(nmem2-1)
-                    trace = np.sum(np.diag(dx0 @ dx0.T / (nmem-1)))
+                    dxa = dxa - dxa.mean(axis=1)[:, None]
+                    logger.debug(f"dxa.mean={dxa.mean(axis=1)}")
+                    trace = np.sum(np.diag(dxa @ dxa.T / (nmem-1)))
                     logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
                     if np.sqrt(ptrace / trace) > 1.0:
                         dxa *= np.sqrt(ptrace / trace)
                     xa = xa_ + dxa
+                    logger.debug(f"xa_ - xa.mean={np.squeeze(xa_) - xa.mean(axis=1)}")
             else:
                 xa = x0
+            logger.debug(f"xa.mean={xa.mean(axis=1)}")
             if save_dh:
                 np.save("{}_dxa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
             xa_ = np.squeeze(xa_)
@@ -441,7 +466,7 @@ class EnKF():
 
     def pfloc(self, dxf_orig, save_dh, icycle):
         nmem = dxf_orig.shape[1]
-        nmode = min(100, self.ndim)
+        #nmode = min(100, self.ndim)
         pf = dxf_orig @ dxf_orig.T / (nmem - 1)
         pf = pf * self.l_mat
         logger.info("lpf max={} min={}".format(np.max(pf),np.min(pf)))
@@ -450,10 +475,19 @@ class EnKF():
         lam, v = la.eigh(pf)
         lam = lam[::-1]
         lam[lam < 0.0] = 0.0
+        lamsum = lam.sum()
         v = v[:,::-1]
         if save_dh:
             np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), lam)
         logger.info("pf eigen value = {}".format(lam))
+        nmode = 1
+        thres = 0.99
+        frac = 0.0
+        while frac < thres:
+            frac = np.sum(lam[:nmode]) / lamsum
+            nmode += 1
+        nmode = min(nmode, self.ndim)
+        logger.info(f"== eigen value decomposition of Pf, nmode={nmode} ==")
         pf = v[:,:nmode] @ np.diag(lam[:nmode]) @ v[:,:nmode].T
         dxf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) * np.sqrt(nmode-1)
         logger.info("pf - spf@spf.T={}".format(np.mean(pf - dxf@dxf.T/(nmode-1))))

@@ -31,18 +31,18 @@ class Mlef_rloc():
         # localization
         self.lsig = lsig # localization parameter
         if calc_dist is None:
-            def calc_dist(self, i):
+            def calc_dist(i):
                 dist = np.zeros(self.ndim)
                 for j in range(self.ndim):
                     dist[j] = min(abs(j-i),self.ndim-abs(j-i))
                 return dist
-        else:
-            self.calc_dist = calc_dist # distance calculation routine
+        #else:
+        self.calc_dist = calc_dist # distance calculation routine
         if calc_dist1 is None:
-            def calc_dist1(self, i, j):
+            def calc_dist1(i, j):
                 return min(abs(j-i),self.ndim-abs(j-i))
-        else:
-            self.calc_dist1 = calc_dist1 # distance calculation routine
+        #else:
+        self.calc_dist1 = calc_dist1 # distance calculation routine
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         self.model = model
@@ -165,13 +165,18 @@ class Mlef_rloc():
         Rwf_loc = np.exp(-0.5*(dist/loc_scale)**2)
         return far, Rwf_loc
 
-    def __call__(self, xb, pb, y, yloc, method="CGF", cgtype=1,
+    def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
+        method="CGF", cgtype=1,
         gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak, alphak
         zetak = []
         alphak = []
-        r, rmat, rinv = self.obs.set_r(y.size)
+        if (r is None) or (rmat is None) or (rinv is None):
+            logger.info("set R")
+            r, rmat, rinv = self.obs.set_r(y.size)
+        else:
+            logger.info("use input R")
         xf = xb[:, 1:]
         xc = xb[:, 0]
         nmem = xf.shape[1]

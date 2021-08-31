@@ -158,7 +158,7 @@ if pt == "mlef":
         from analysis.mlef import Mlef
         analysis = Mlef(pt, state_size, nmem, obs, \
             linf=linf, infl_parm=infl_parm, \
-            iloc=iloc, lsig=lsig, ss=True, gain=False, \
+            iloc=iloc, lsig=lsig, ss=False, gain=False, \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":

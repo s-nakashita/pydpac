@@ -3,8 +3,8 @@
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
 #perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
-datype="mlef"
-perturbations="${datype}be ${datype}bm" # ${datype}r ${datype}"
+datype="srf"
+perturbations="${datype}be ${datype}bm ${datype}r ${datype}"
 #perturbations="var"
 na=100 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
@@ -12,7 +12,7 @@ lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use
 a_window=3
 #L="-1.0 0.5 1.0 2.0"
-exp="mlef_ss_loc"
+exp="srf_loc"
 #exp="${datype}_loc_hint"
 echo ${exp}
 rm -rf work/${exp}

@@ -14,7 +14,8 @@ class Mlef():
 
     def __init__(self, pt, state_size, nmem, obs, 
         linf=False, infl_parm=1.0, 
-        iloc=None, lsig=-1.0, ss=True, gain=False,
+        iloc=None, lsig=-1.0, ss=False, gain=False,
+        l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
         ltlm=False, model="model"):
         # necessary parameters
@@ -58,8 +59,13 @@ class Mlef():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
         if self.iloc is not None:
-            self.l_mat, self.l_sqrt, self.nmode, self.enswts \
-            = self.loc_mat(self.lsig, self.ndim, self.ndim)
+            if l_mat is None or l_sqrt is None:
+                self.l_mat, self.l_sqrt, self.nmode, self.enswts \
+                = self.loc_mat(self.lsig, self.ndim, self.ndim)
+            else:
+                self.l_mat = l_mat
+                self.l_sqrt = l_sqrt
+                self.nmode = l_sqrt.shape[1]
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
 
     def calc_pf(self, xf, pa, cycle):
@@ -151,8 +157,8 @@ class Mlef():
         return ds
 
     def pfloc(self, sqrtpf, save_dh, icycle):
-        nmode = min(100, self.ndim)
-        logger.info(f"== Pf localization, nmode={nmode} ==")
+        #nmode = min(100, self.ndim)
+        #logger.info(f"== Pf localization, nmode={nmode} ==")
         pf = sqrtpf @ sqrtpf.T
         pf = pf * self.l_mat
         #if save_dh:
@@ -160,10 +166,19 @@ class Mlef():
         lam, v = la.eigh(pf)
         lam = lam[::-1]
         lam[lam < 0.0] = 0.0
+        lamsum = lam.sum()
         v = v[:,::-1]
         if save_dh:
             np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), lam)
         logger.info("pf eigen value = {}".format(lam))
+        nmode = 1
+        thres = 0.99
+        frac = 0.0
+        while frac < thres:
+            frac = np.sum(lam[:nmode]) / lamsum
+            nmode += 1
+        nmode = min(nmode, self.ndim)
+        logger.info(f"== eigen value decomposition of Pf, nmode={nmode} ==")
         pf = v[:,:nmode] @ np.diag(lam[:nmode]) @ v[:,:nmode].T
         spf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) 
         logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
@@ -215,13 +230,18 @@ class Mlef():
         l_sqrt = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode]/frac))
         return l_mat, l_sqrt, nmode, np.sqrt(lam[:nmode])
 
-    def __call__(self, xb, pb, y, yloc, method="CGF", cgtype=1,
+    def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
+        method="CGF", cgtype=1,
         gtol=1e-6, maxiter=None,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak, alphak
         zetak = []
         alphak = []
-        r, rmat, rinv = self.obs.set_r(y.size)
+        if (r is None) or (rmat is None) or (rinv is None):
+            logger.info("set R")
+            r, rmat, rinv = self.obs.set_r(y.size)
+        else:
+            logger.info("use input R")
         xf = xb[:, 1:]
         xc = xb[:, 0]
         nmem = xf.shape[1]
@@ -328,29 +348,33 @@ class Mlef():
                 rvec = rvec / rvec_stdv[None,:]
                 logger.debug("rvec={}".format(rvec[:,0]))
                 pa = pf @ tmat @ rvec / np.sqrt(nmem-1)
-                trace = np.sum(np.diag(pa @ pa.T))
-                logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-                if np.sqrt(ptrace / trace) > 1.05:
-                    pa *= np.sqrt(ptrace / trace)
             elif self.gain:
                 if self.ltlm:
                     dh = self.obs.dh_operator(yloc,xa) @ pf_orig
                 else:
                     dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
                 zmat_orig = rmat @ dh
-                u, s, vt = la.svd(zmat)
+                u, s, vt = la.svd(zmat, full_matrices=False)
                 logger.debug(f"s.shape={s.shape}")
                 logger.debug(f"u.shape={u.shape}")
                 logger.debug(f"vt.shape={vt.shape}")
                 sp = s**2 + 1.0
                 D = (1.0 - np.sqrt(1.0/sp))/s
                 nsig = D.size
-                reducedgain = pf @ vt[:nsig,:].transpose() @ np.diag(D) @ u.transpose()
+                reducedgain = pf @ vt.transpose() @ np.diag(D) @ u.transpose()
                 pa = pf_orig - reducedgain @ zmat_orig
-                trace = np.sum(np.diag(pa @ pa.T))
-                logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-                if np.sqrt(ptrace / trace) > 1.05:
-                    pa *= np.sqrt(ptrace / trace)
+            else: # tmat computed from original forecast ensemble
+                if self.ltlm:
+                    dh = self.obs.dh_operator(yloc,xa) @ pf_orig
+                else:
+                    dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
+                zmat_orig = rmat @ dh
+                tmat, heinv = self.precondition(zmat_orig)
+                pa = pf_orig @ tmat
+            trace = np.sum(np.diag(pa @ pa.T))
+            logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
+            if np.sqrt(ptrace / trace) > 1.05:
+                pa *= np.sqrt(ptrace / trace)
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm
