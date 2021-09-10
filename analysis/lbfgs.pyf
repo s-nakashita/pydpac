@@ -109,5 +109,5 @@ python module lbfgs ! in
     end interface 
 end python module lbfgs
 
-! This file was auto-generated with f2py (version:2).
+! This file was auto-generated with f2py (version:1.21.2).
 ! See http://cens.ioc.ee/projects/f2py2e/

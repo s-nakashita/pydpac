@@ -1,0 +1,16 @@
+Python interface for minimization methods (lbfgs, cgf) used in minimize.py 
+are generated with f2py (https://numpy.org/doc/stable/f2py/index.html).
+
+Commands for generating wrappers are as follows:
+
+lbfgs.cpython-<VERSION>-<OS>.so: 
+    Fortran source : lbfgs.f
+    python -m numpy.f2py lbfgs.f -m lbfgs -h lbfgs.pyf
+    python -m numpy.f2py -c lbfgs.pyf lbfgs.f
+
+cgf.cpython-<VERSION>-<OS>.so:
+    Fortran source : cgsearch.f cgfam.f
+    Library dependency : BLAS
+    python -m numpy.f2py cgsearch.f cgfam.f -m cgf -h cgf.pyf
+    python -m numpy.f2py -c cgf.pyf -L<LIBRARY PATH FOR BLAS> -lblas cgsearch.f cgfam.f 
+    (!! The order of Fortran sources cannot change !!)

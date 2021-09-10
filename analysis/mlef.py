@@ -17,7 +17,7 @@ class Mlef():
         iloc=None, lsig=-1.0, ss=False, gain=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
-        ltlm=False, model="model"):
+        ltlm=False, incremental=False, model="model"):
         # necessary parameters
         self.pt = pt # DA type (MLEF or GRAD)
         self.ndim = state_size # state size
@@ -53,11 +53,14 @@ class Mlef():
         self.rs = np.random.RandomState()
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
+        # incremental form
+        self.incremental = incremental
+        # forecast model name
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
+        logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         if self.iloc is not None:
             if l_mat is None or l_sqrt is None:
                 self.l_mat, self.l_sqrt, self.nmode, self.enswts \
@@ -86,7 +89,7 @@ class Mlef():
         heinv = tmat @ tmat.T
         logger.debug("tmat={}".format(tmat))
         logger.debug("heinv={}".format(heinv))
-        logger.info("eigen value ={}".format(lam))
+        logger.debug("eigen value ={}".format(lam))
         #print(f"rank(zmat)={lam[lam>1.0e-10].shape[0]}")
         return tmat, heinv
 
@@ -98,44 +101,51 @@ class Mlef():
             alphak.append(alpha)
 
     def calc_j(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        x = xc + gmat @ zeta
-        ob = y - self.obs.h_operator(yloc, x)
-        j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+        if not self.incremental:
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
+            ob = y - self.obs.h_operator(yloc, x)
+            j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+        else:
         ## incremental form
-        #d, tmat, zmat, heinv = args
-        #nmem = zeta.size
-        #w = tmat @ zeta
-        #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+            d, tmat, zmat, heinv = args
+            nmem = zeta.size
+            w = tmat @ zeta
+            j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         return j
 
     def calc_grad_j(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        x = xc + gmat @ zeta
-        hx = self.obs.h_operator(yloc, x)
-        ob = y - hx
-        if self.ltlm:
-            dh = self.obs.dh_operator(yloc, x) @ pf
+        if not self.incremental:
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
+            hx = self.obs.h_operator(yloc, x)
+            ob = y - hx
+            if self.ltlm:
+                dh = self.obs.dh_operator(yloc, x) @ pf
+            else:
+                dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
+            grad = heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
         else:
-            dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-        return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
         ## incremental form
-        #d, tmat, zmat, heinv = args
-        #nmem = zeta.size
-        #w = tmat @ zeta
-        #return heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+            d, tmat, zmat, heinv = args
+            nmem = zeta.size
+            w = tmat @ zeta
+            grad = heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+        return grad 
 
     def calc_hess(self, zeta, *args):
-        xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        x = xc + gmat @ zeta
-        if self.ltlm:
-            dh = self.obs.dh_operator(yloc, x) @ pf
+        if not self.incremental:
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
+            if self.ltlm:
+                dh = self.obs.dh_operator(yloc, x) @ pf
+            else:
+                dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
+            hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
         else:
-            dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
-        hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
         ## incremental form
-        #d, tmat, zmat, heinv = args
-        #hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
+            d, tmat, zmat, heinv = args
+            hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
@@ -232,7 +242,7 @@ class Mlef():
 
     def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
         method="CGF", cgtype=1,
-        gtol=1e-6, maxiter=None,
+        gtol=1e-6, maxiter=None, restart=False, maxrest=20, update_ensemble=False,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak, alphak
         zetak = []
@@ -285,38 +295,106 @@ class Mlef():
         gmat = pf @ tmat
         logger.debug("gmat.shape={}".format(gmat.shape))
         x0 = np.zeros(pf.shape[1])
-        args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
-        #args_j = (d, tmat, zmat, heinv)
+        x = x0.copy()
+        if not self.incremental:
+            args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+        else:
+            args_j = (d, tmat, zmat, heinv)
         iprint = np.zeros(2, dtype=np.int32)
+        irest = 0 # restart counter
+        flg = -1  # optimilation result flag
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter)
+                            maxiter=maxiter, restart=restart)
         logger.info("save_hist={}".format(save_hist))
-        if save_hist:
-            x, flg = minimize(x0, callback=self.callback)
-            jh = np.zeros(len(zetak))
-            gh = np.zeros(len(zetak))
-            for i in range(len(zetak)):
-                jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
-                g = self.calc_grad_j(np.array(zetak[i]), *args_j)
-                gh[i] = np.sqrt(g.transpose() @ g)
-            np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
-            np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
-            np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
-            if self.model=="z08":
-                xmax = max(np.abs(np.min(x)),np.max(x))
-                logger.debug("resx max={}".format(xmax))
-                if xmax < 1000:
-                    self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
+        if restart:
+            if save_hist:
+                jh = []
+                gh = []
+            while irest < maxrest:
+                zetak = []
+                xold = x 
+                if save_hist:
+                    x, flg = minimize(x0, callback=self.callback)
+                    for i in range(len(zetak)):
+                        jh.append(self.calc_j(np.array(zetak[i]), *args_j))
+                        g = self.calc_grad_j(np.array(zetak[i]), *args_j)
+                        gh.append(np.sqrt(g.transpose() @ g))
                 else:
-                    xmax = int(np.ceil(xmax*0.001)*1000)
-                    logger.info("resx max={}".format(xmax))
-                    self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
-            elif self.model=="l96":
-                self.cost_j(200, xf.shape[1], x, icycle, *args_j)
+                    x, flg = minimize(x0)
+                irest += 1
+                if flg == 0:
+                    logger.info("Converged at {}th restart".format(irest))
+                    break
+                xup = x - xold
+                if np.sqrt(np.dot(xup,xup)) < 1e-10:
+                    logger.info("Stagnation at {}th restart : solution not updated"
+                    .format(irest))
+                    break
+                xa = xc + gmat @ x
+                xc = xa
+                if self.ltlm:
+                    dh = self.obs.dh_operator(yloc, xc) @ pf
+                else:
+                    dh = self.obs.h_operator(yloc, xc[:, None]+pf) - self.obs.h_operator(yloc, xc)[:, None]
+                zmat = rmat @ dh
+                tmat, heinv = self.precondition(zmat)
+                gmat = pf @ tmat
+                if update_ensemble:
+                    pf = pf @ tmat
+                # update arguments
+                if not self.incremental:
+                    args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+                else:
+                    d = rmat @ (y - self.obs.h_operator(yloc,xc))
+                    args_j = (d, tmat, zmat, heinv)
+                x0 = np.zeros(pf.shape[1])
+                # reload minimize class
+                minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
+                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
+                            maxiter=maxiter, restart=restart)
+            if save_hist:
+                logger.debug("zetak={} alpha={}".format(len(zetak), len(alphak)))
+                np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
+                np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
+                np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
+                if self.model=="z08":
+                    xmax = max(np.abs(np.min(x)),np.max(x))
+                    logger.debug("resx max={}".format(xmax))
+                    if xmax < 1000:
+                        self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
+                    else:
+                        xmax = int(np.ceil(xmax*0.001)*1000)
+                        logger.info("resx max={}".format(xmax))
+                        self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
+                elif self.model=="l96":
+                    self.cost_j(200, xf.shape[1], x, icycle, *args_j)
         else:
-            x, flg = minimize(x0)
+            if save_hist:
+                x, flg = minimize(x0, callback=self.callback)
+                jh = np.zeros(len(zetak))
+                gh = np.zeros(len(zetak))
+                for i in range(len(zetak)):
+                    jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                    g = self.calc_grad_j(np.array(zetak[i]), *args_j)
+                    gh[i] = np.sqrt(g.transpose() @ g)
+                np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
+                np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
+                np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
+                if self.model=="z08":
+                    xmax = max(np.abs(np.min(x)),np.max(x))
+                    logger.debug("resx max={}".format(xmax))
+                    if xmax < 1000:
+                        self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
+                    else:
+                        xmax = int(np.ceil(xmax*0.001)*1000)
+                        logger.info("resx max={}".format(xmax))
+                        self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
+                elif self.model=="l96":
+                    self.cost_j(200, xf.shape[1], x, icycle, *args_j)
+            else:
+                x, flg = minimize(x0)
         xa = xc + gmat @ x
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)

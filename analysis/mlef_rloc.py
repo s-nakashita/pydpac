@@ -17,7 +17,7 @@ class Mlef_rloc():
     def __init__(self, pt, nmem, obs, 
         linf=False, infl_parm=1.0, 
         lsig=-1.0, calc_dist=None, calc_dist1=None, 
-        ltlm=False, model="model"):
+        ltlm=False, incremental=False, model="model"):
         # necessary parameters
         self.pt = pt # DA type (MLEF or GRAD)
         self.nmem = nmem # ensemble size
@@ -45,10 +45,12 @@ class Mlef_rloc():
         self.calc_dist1 = calc_dist1 # distance calculation routine
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
+        # incremental form
+        self.incremental = incremental
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} ltlm={self.ltlm}")
+        logger.info(f"linf={self.linf} ltlm={self.ltlm} incremental={self.incremental}")
 
     def calc_pf(self, xf, pa, cycle):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
@@ -68,7 +70,7 @@ class Mlef_rloc():
         heinv = tmat @ tmat.T
         #logger.debug("tmat={}".format(tmat))
         #logger.debug("heinv={}".format(heinv))
-        logger.info("eigen value ={}".format(lam))
+        logger.debug("eigen value ={}".format(lam))
         #print(f"rank(zmat)={lam[lam>1.0e-10].shape[0]}")
         return tmat, heinv
 
@@ -80,45 +82,52 @@ class Mlef_rloc():
             alphak.append(alpha)
 
     def calc_j(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        #x = xc + gmat @ zeta
-        #ob = y - self.obs.h_operator(yloc, x)
-        #j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
-        # incremental form
-        d, tmat, zmat, heinv = args
-        nmem = zeta.size
-        w = tmat @ zeta
-        j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+        if not self.incremental:
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
+            ob = y - self.obs.h_operator(yloc, x)
+            j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+        else:
+            # incremental form
+            d, tmat, zmat, heinv = args
+            nmem = zeta.size
+            w = tmat @ zeta
+            j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         return j
     
 
     def calc_grad_j(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        #x = xc + gmat @ zeta
-        #hx = self.obs.h_operator(yloc, x)
-        #ob = y - hx
-        #if self.ltlm:
-        #    dh = self.obs.dh_operator(yloc, x) @ pf
-        #else:
-        #    dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-        #return heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
-        # incremental form
-        d, tmat, zmat, heinv = args
-        nmem = zeta.size
-        w = tmat @ zeta
-        return heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+        if not self.incremental:
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
+            hx = self.obs.h_operator(yloc, x)
+            ob = y - hx
+            if self.ltlm:
+                dh = self.obs.dh_operator(yloc, x) @ pf
+            else:
+                dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
+            grad = heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
+        else:
+            # incremental form
+            d, tmat, zmat, heinv = args
+            nmem = zeta.size
+            w = tmat @ zeta
+            grad = heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+        return grad
 
     def calc_hess(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        #x = xc + gmat @ zeta
-        #if self.ltlm:
-        #    dh = self.obs.dh_operator(yloc, x) @ pf
-        #else:
-        #    dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
-        #hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
-        # incremental form
-        d, tmat, zmat, heinv = args
-        hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
+        if not self.incremental:
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
+            if self.ltlm:
+                dh = self.obs.dh_operator(yloc, x) @ pf
+            else:
+                dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
+            hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
+        else:
+            # incremental form
+            d, tmat, zmat, heinv = args
+            hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
@@ -167,7 +176,7 @@ class Mlef_rloc():
 
     def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
         method="CGF", cgtype=1,
-        gtol=1e-6, maxiter=None,
+        gtol=1e-6, maxiter=None, restart=False, maxrest=20, update_ensemble=False,
         disp=False, save_hist=False, save_dh=False, icycle=0):
         global zetak, alphak
         zetak = []
@@ -209,27 +218,36 @@ class Mlef_rloc():
         for i in range(xc.size):
             far, Rwf_loc = self.r_loc(self.lsig, yloc, float(i))
             logger.info(f"Number of assimilated obs.={y.size - len(far)}")
-            yi = np.delete(y, far)
-            obi = np.delete(ob, far)
             dhi = np.delete(dh, far, axis=0)
             Rmat = np.diag(np.diag(rmat) * np.sqrt(Rwf_loc))
             Rmat = np.delete(Rmat, far, axis=0)
             Rmat = np.delete(Rmat, far, axis=1)
             zmat = Rmat @ dhi
-            di = Rmat @ obi
             logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
             logger.debug("zmat.shape={}".format(zmat.shape))
             logger.debug("tmat.shape={}".format(tmat.shape))
             logger.debug("heinv.shape={}".format(heinv.shape))
-            gvec = pf[i,:] @ tmat
-            logger.debug("gvec.shape={}".format(gvec.shape))
+            #gvec = pf[i,:] @ tmat
+            gmat = pf @ tmat
+            logger.debug("gmat.shape={}".format(gmat.shape))
+            if not self.incremental:
+                yi = np.delete(y, far)
+                yiloc = np.delete(yloc, far)
+                Rinv = np.diag(np.diag(rinv) * Rwf_loc)
+                Rinv = np.delete(Rinv, far, axis=0)
+                Rinv = np.delete(Rinv, far, axis=1)
+            else:
+                obi = np.delete(ob, far)
+                di = Rmat @ obi
             x0 = np.zeros(pf.shape[1])
-        #args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
-            args_j = (di, tmat, zmat, heinv)
+            if not self.incremental:
+                args_j = (xc, pf, yi, yiloc, tmat, gmat, heinv, Rinv)
+            else:
+                args_j = (di, tmat, zmat, heinv)
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter)
+                            maxiter=maxiter, restart=restart)
             if save_hist:
                 x, flg = minimize(x0, callback=self.callback)
                 jh = np.zeros(len(zetak))
@@ -254,7 +272,8 @@ class Mlef_rloc():
                     self.cost_j(200, xf.shape[1], x, icycle, *args_j)
             else:
                 x, flg = minimize(x0)
-            xa[i] = xc[i] + gvec @ x
+            #xa[i] = xc[i] + gvec @ x
+            xa[i] = xc[i] + gmat[i] @ x
             if self.ltlm:
                 dh = self.obs.dh_operator(yloc,xa) @ pf
             else:

@@ -157,7 +157,7 @@ class EnKF():
             if self.iloc == 0: # K-localization
                 logger.info("==K-localization==, lsig={}".format(self.lsig))
                 l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
-                K = K * self.l_mat # change later
+                K = K * l_mat
                 if save_dh:
                     np.save("{}_Kloc_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
                     np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), l_mat)
@@ -208,7 +208,7 @@ class EnKF():
             err = self.rs.standard_normal(size=(y.size,nmem))
             err = err - err.mean(axis=1)[:, None]
             err_var = np.sum(err**2, axis=1)/(nmem-1)
-            err = self.sig * err / np.sqrt(err_var.mean())
+            err = np.sqrt(np.diag(R))[:, None] * err / np.sqrt(err_var.mean())
             ## original
             #K1 = dxf @ dy.T / (nmem2-1)
             #K2 = dy @ dy.T / (nmem2-1) + R
