@@ -76,13 +76,13 @@ class Obs():
     def get_sig(self):
         return self.sigma
         
-    def set_r(self, p):
+    def set_r(self, obsloc):
         from scipy.linalg import inv
         oberrstdev = self.sigma
         oberrvar = oberrstdev**2
         #HsP = self.h_operator(np.arange(p), self.sPt)
         #HPHt = HsP @ HsP.transpose()
-        H = self.itpl_operator(np.arange(p), self.Pt.shape[0])
+        H = self.itpl_operator(obsloc, self.Pt.shape[0])
         HPHt = H @ self.Pt @ H.transpose()
         R = oberrvar * np.diag(np.diag(HPHt))
         Rsqrt = oberrstdev * np.diag(np.sqrt(np.diag(HPHt)))
@@ -134,11 +134,6 @@ H = obs.itpl_operator(np.arange(p), N)
 vindex = np.arange(1,p+1)
 
 oberrvar = obs.get_sig()**2
-R, Rsqrtinv, Rinv = obs.set_r(N)
-logger.info(f"oberr={oberrvar}, R={R.shape}, Rsqrtinv={Rsqrtinv.shape}, Rinv={Rinv.shape}")
-Rsqrt = inv(Rsqrtinv)
-logger.info(f"R - Rsqrt**2 ={norm(R - Rsqrt@Rsqrt)}")
-logger.info(f"Rinv - Rsqrtinv**2 ={norm(Rinv - Rsqrtinv@Rsqrtinv)}")
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
@@ -165,7 +160,16 @@ if __name__ == "__main__":
 
         ## True state and observation
         xt = sPt @ rstrue.standard_normal(size=N)
-        hxt = obs.h_operator(np.arange(p), xt)
+        obsloc = np.arange(p) # upward
+        obsloc = np.arange(p-1,1,-1) # downward
+        obsloc = rs.choice(p, size=p, replace=False) # random
+        print(obsloc)
+        hxt = obs.h_operator(obsloc, xt)
+        R, Rsqrtinv, Rinv = obs.set_r(obsloc)
+        logger.info(f"oberr={oberrvar}, R={R.shape}, Rsqrtinv={Rsqrtinv.shape}, Rinv={Rinv.shape}")
+        Rsqrt = inv(Rsqrtinv)
+        logger.info(f"R - Rsqrt**2 ={norm(R - Rsqrt@Rsqrt)}")
+        logger.info(f"Rinv - Rsqrtinv**2 ={norm(Rinv - Rsqrtinv@Rsqrtinv)}")
         y = hxt + Rsqrt @ rs.standard_normal(size=p)
 
         ## Ensemble Pf 
@@ -204,22 +208,24 @@ if __name__ == "__main__":
         logger.info(f"xf.shape={xf.shape}")
         initial_mean_err = np.sqrt(((xf.mean(axis=1) - xt)**2).mean())
         logger.info(f"initial error (mean) ={initial_mean_err}")
-        hxf = obs.h_operator(np.arange(p), xf)
+        hxf = obs.h_operator(obsloc, xf)
         initial_mean_obserr = np.sqrt(((hxf.mean(axis=1) - hxt)**2).mean())
         logger.info(f"initial error in observation space (mean) ={initial_mean_obserr}")
 #
-        params = {'enkf':('etkf',None,False,False),'enkf-b':('etkf',2,False,True),'enkf-k':('etkf',0,False,False),
+        params = {
+                #'enkf':('etkf',None,False,False),'enkf-b':('etkf',2,False,True),'enkf-k':('etkf',0,False,False),'letkf':('letkf',0,False,False),
                 #'po':('po',None,False,False),'po-b':('po',2,False,False),'po-k':('po',0,False,False),
                 'serial enkf':('srf',None,False,False),'serial enkf-b':('srf',2,False,True),'serial enkf-k':('srf',0,False,False),
-                'letkf':('letkf',0,False,False)}
-        names = ['enkf','enkf-b','enkf-k','letkf','serial enkf','serial enkf-b','serial enkf-k']
+                }
+        #names = ['enkf','enkf-b','enkf-k','letkf','serial enkf','serial enkf-b','serial enkf-k']
+        names = ['serial enkf','serial enkf-b','serial enkf-k']
         xa_list = []
         for ptype in names:
             pt, iloc, ss, getkf = params[ptype]
             analysis = EnKF(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, getkf=getkf, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
             xb = xf
             pb = Pe
-            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y[::-1], np.arange(p-1,-1,-1))
+            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
             xa_list.append(xa)
 #
         ### MLEF
@@ -234,25 +240,25 @@ if __name__ == "__main__":
         logger.info(f"xf.shape={xf.shape}")
         initial_ctrl_err = np.sqrt(((xfc - xt)**2).mean())
         logger.info(f"initial error (control) ={initial_ctrl_err}")
-        hxf = obs.h_operator(np.arange(p), xfc)
+        hxf = obs.h_operator(obsloc, xfc)
         initial_ctrl_obserr = np.sqrt(((hxf - hxt)**2).mean())
         logger.info(f"initial error in obs space (control) ={initial_ctrl_obserr}")
 #
         params = {'mlef':('mlef',None,False,False),'mlef-b':('mlef',2,False,True),'mlef-r':('mlef',0,False,False)}
         names2 = ['mlef','mlef-b','mlef-r']
-        for ptype in names2:
-            pt, iloc, ss, gain = params[ptype]
-            if ptype != 'mlef-r':
-                analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
-#                       ,incremental=True)
-            else:
-                analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1)
-            xb = xf
-            pb = Pe
-            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y[::-1], np.arange(p-1,-1,-1), method='LBFGS') #, restart=True)
-            xa_list.append(xa[:,0])
+        #for ptype in names2:
+        #    pt, iloc, ss, gain = params[ptype]
+        #    if ptype != 'mlef-r':
+        #        analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
+#       #                ,incremental=True)
+        #    else:
+        #        analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1)
+        #    xb = xf
+        #    pb = Pe
+        #    xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='LBFGS') #, restart=True)
+        #    xa_list.append(xa[:,0])
 
-        method = names + names2
+        method = names #+ names2
         #logger.info(names)
         xrmse = []
         hxrmse = []
@@ -262,12 +268,12 @@ if __name__ == "__main__":
             if i < len(names):
                 #logger.info(f"method:{method[i]} mean")
                 xrmse.append(np.sqrt(((xa.mean(axis=1) - xt)**2).mean())/initial_mean_err)
-                hxa = obs.h_operator(np.arange(p), xa.mean(axis=1))
+                hxa = obs.h_operator(obsloc, xa.mean(axis=1))
                 hxrmse.append(np.sqrt(((hxa - hxt)**2).mean())/initial_mean_obserr)
             else:
                 #logger.info(f"method:{method[i]} ctrl")
                 xrmse.append(np.sqrt(((xa - xt)**2).mean())/initial_ctrl_err)
-                hxa = obs.h_operator(np.arange(p), xa)
+                hxa = obs.h_operator(obsloc, xa)
                 hxrmse.append(np.sqrt(((hxa - hxt)**2).mean())/initial_ctrl_obserr)
             i += 1
         logger.info(f"initial error : mean={initial_mean_err}, ctrl={initial_ctrl_err}")

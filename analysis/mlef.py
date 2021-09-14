@@ -249,7 +249,7 @@ class Mlef():
         alphak = []
         if (r is None) or (rmat is None) or (rinv is None):
             logger.info("set R")
-            r, rmat, rinv = self.obs.set_r(y.size)
+            r, rmat, rinv = self.obs.set_r(yloc)
         else:
             logger.info("use input R")
         xf = xb[:, 1:]

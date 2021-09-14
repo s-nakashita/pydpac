@@ -194,7 +194,7 @@ class Mles_rloc():
         alphak = []
         logger.debug(f"obsloc={yloc.shape}")
         logger.debug(f"obssize={y.shape}")
-        r, rmat, rinv = self.obs.set_r(y.shape[1])
+        r, rmat, rinv = self.obs.set_r(yloc[0])
         xf = xb[:, 1:]
         xc = xb[:, 0]
         nmem = xf.shape[1]

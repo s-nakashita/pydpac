@@ -71,11 +71,11 @@ class Obs():
     def get_sig(self):
         return self.sigma
         
-    def set_r(self, N):
+    def set_r(self, obsloc):
         from scipy.linalg import inv
         oberrstdev = self.sigma
         oberrvar = oberrstdev**2
-        H = self.dh_operator(np.arange(N), np.zeros(N))
+        H = self.dh_operator(obsloc, np.zeros(N))
         HPHt = H @ self.Pt @ H.transpose()
         R = oberrvar * np.diag(np.diag(HPHt))
         Rsqrt = oberrstdev * np.diag(np.sqrt(np.diag(HPHt)))
@@ -111,11 +111,6 @@ obs = Obs('vint', oberrstdev,Pt)
 p = N #observed all grid
 H = obs.dh_operator(np.arange(p), np.zeros(N))
 oberrvar = obs.get_sig()**2
-R, Rsqrtinv, Rinv = obs.set_r(N)
-logger.info(f"oberr={oberrvar}, R={R.shape}, Rsqrtinv={Rsqrtinv.shape}, Rinv={Rinv.shape}")
-Rsqrt = inv(Rsqrtinv)
-logger.info(f"R - Rsqrt**2 ={norm(R - Rsqrt@Rsqrt)}")
-logger.info(f"Rinv - Rsqrtinv**2 ={norm(Rinv - Rsqrtinv@Rsqrtinv)}")
 
 ## Varidation
 def mse(Pa_app):
@@ -159,7 +154,16 @@ if __name__ == "__main__":
 
 ## True state and observation
         xt = sPt @ rstrue.standard_normal(size=N)
-        y = obs.dh_operator(np.arange(p), xt) @ xt + Rsqrt @ rs.standard_normal(size=p)
+        obsloc = np.arange(p) # upward
+        obsloc = np.arange(p-1,1,-1) # downward
+        obsloc = rs.choice(p, size=p, replace=False) # random
+        print(obsloc)
+        R, Rsqrtinv, Rinv = obs.set_r(obsloc)
+        logger.info(f"oberr={oberrvar}, R={R.shape}, Rsqrtinv={Rsqrtinv.shape}, Rinv={Rinv.shape}")
+        Rsqrt = inv(Rsqrtinv)
+        logger.info(f"R - Rsqrt**2 ={norm(R - Rsqrt@Rsqrt)}")
+        logger.info(f"Rinv - Rsqrtinv**2 ={norm(Rinv - Rsqrtinv@Rsqrtinv)}")
+        y = obs.dh_operator(obsloc, xt) @ xt + Rsqrt @ rs.standard_normal(size=p)
 
     ## Forecast ensemble
         K = 50
@@ -203,7 +207,7 @@ if __name__ == "__main__":
         logger.info(f"eigen value decomposition of Pfloc : {err}")
 
     # compute true analysis error covariance for modulated ensemble
-        Htilde = Rsqrtinv @ obs.dh_operator(np.arange(p), xf_)
+        Htilde = Rsqrtinv @ obs.dh_operator(obsloc, xf_)
         Z = Xfm / np.sqrt(M-1)
         HZ = Htilde @ Z
         A = HZ.transpose() @ HZ
@@ -226,7 +230,7 @@ if __name__ == "__main__":
             analysis = EnKF(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, getkf=getkf, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
             xb = xf
             pb = Pe
-            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y[::-1], np.arange(p-1,-1,-1))
+            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
             xa_list.append(xa.mean(axis=1))
             Pa_app_list.append(Pa)
     
@@ -253,7 +257,7 @@ if __name__ == "__main__":
                 analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1)
             xb = xf
             pb = Pe
-            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y[::-1], np.arange(p-1,-1,-1))
+            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
             xa_list.append(xa[:,0])
             Pa_app_list.append(Pa)
         

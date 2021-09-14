@@ -44,7 +44,7 @@ class Kf():
         
     def __call__(self, xf, pf, y, yloc, save_hist=False, save_dh=False, icycle=0):
         JH = self.obs.dh_operator(yloc,xf)
-        R, dum1, dum2 = self.obs.set_r(y.size)
+        R, dum1, dum2 = self.obs.set_r(yloc)
 
         if self.linf:
             logger.info("==inflation==")

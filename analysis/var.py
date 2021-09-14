@@ -90,7 +90,7 @@ class Var():
         global zetak, alphak
         zetak = []
         alphak = []
-        dum1, dum2, rinv = self.obs.set_r(y.size)
+        _, _, rinv = self.obs.set_r(yloc)
         JH = self.obs.dh_operator(yloc, xf)
         ob = y - self.obs.h_operator(yloc,xf)
         nobs = ob.size

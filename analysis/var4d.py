@@ -87,7 +87,7 @@ class Var4d():
         zetak = []
         alphak = []
         #JH = self.obs.dh_operator(yloc, xf)
-        dum1, dum2, rinv = self.obs.set_r(np.array(y).shape[1])
+        _, _, rinv = self.obs.set_r(yloc[0])
         xb = xf
         bg = [xb] # background state
         for k in range(self.window_l-1):

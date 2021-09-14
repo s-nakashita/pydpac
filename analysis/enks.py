@@ -72,7 +72,7 @@ class EnKS():
         xf_ = np.mean(xf, axis=1)
         logger.debug(f"obsloc={yloc.shape}")
         logger.debug(f"obssize={y.shape}")
-        R, rmat, rinv = self.obs.set_r(y.shape[1])
+        R, rmat, rinv = self.obs.set_r(yloc[0])
         nmem = xf.shape[1]
         chi2_test = Chi(y.size, nmem, rmat)
         dxf = xf - xf_[:,None]

@@ -23,9 +23,10 @@ class Obs():
     def get_sig(self):
         return self.sigma
 
-    def set_r(self, nx):
-        r = np.diag(np.ones(nx)*self.sigma*self.sigma)
-        rmat = np.diag(np.ones(nx) / self.sigma)
+    def set_r(self, obsloc):
+        p = obsloc.size
+        r = np.diag(np.ones(p)*self.sigma*self.sigma)
+        rmat = np.diag(np.ones(p) / self.sigma)
         rinv = rmat.transpose() @ rmat
         return r, rmat, rinv
 

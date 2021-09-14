@@ -81,7 +81,7 @@ class EnKF():
         JH = self.obs.dh_operator(yloc, xf_)
         if (R is None) or (rmat is None) or (rinv is None):
             logger.info("set R")
-            R, rmat, rinv = self.obs.set_r(y.size)
+            R, rmat, rinv = self.obs.set_r(yloc)
         else:
             logger.info("use input R")
         nmem = xf.shape[1]
