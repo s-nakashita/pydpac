@@ -1,5 +1,6 @@
-from .lbfgs import lbfgs
-from .cgf import cgfam, cvsmod
+from .lbfgs import lbfgs, lb3
+from .cgf import cgfam, cvsmod, cgdd
+from .file_utility import file_utility
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
@@ -332,6 +333,10 @@ class Minimize():
         return wk, warnflag
 
     def minimize_lbfgs(self, x0, callback=None):
+        lb3.mp = 10
+        lb3.lp = 11
+        file_utility.file_open(lb3.mp, "minimize_monitor.log")
+        file_utility.file_open(lb3.lp, "minimize.err")
         icall = 0
         iflag = 0
 
@@ -426,10 +431,16 @@ class Minimize():
 #            print("current function value = {}".format(fval))
             logger.info("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
 #            print("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
+        file_utility.file_close(lb3.mp)
+        file_utility.file_close(lb3.lp)
 
         return x, iflag
 
     def minimize_cgf(self, x0, callback=None):
+        cgdd.mp = 10
+        cgdd.lp = 11
+        file_utility.file_open(cgdd.mp, "minimize_monitor.log")
+        file_utility.file_open(cgdd.lp, "minimize.err")
         icall = 0
         iflag = 0
 
@@ -540,7 +551,8 @@ class Minimize():
 #            print("current function value = {}".format(fval))
             logger.info("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
 #            print("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
-
+        file_utility.file_close(cgdd.mp)
+        file_utility.file_close(cgdd.lp)
         return x, iflag
 
     def minimize_scipy(self, x0, callback=None):

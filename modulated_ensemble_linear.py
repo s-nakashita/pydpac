@@ -158,7 +158,7 @@ if __name__ == "__main__":
     ## True state and observation
         xt = sPt @ rstrue.standard_normal(size=N)
         obsloc = np.arange(p) # upward
-        obsloc = np.arange(p-1,1,-1) # downward
+        obsloc = np.arange(p-1,-1,-1) # downward
         obsloc = rs.choice(p, size=p, replace=False) # random
         print(obsloc)
         R, Rsqrtinv, Rinv = obs.set_r(obsloc)
