@@ -17,7 +17,7 @@ class Mlef_rloc():
     def __init__(self, pt, nmem, obs, 
         linf=False, infl_parm=1.0, 
         lsig=-1.0, calc_dist=None, calc_dist1=None, 
-        ltlm=False, incremental=False, model="model"):
+        ltlm=False, incremental=True, model="model"):
         # necessary parameters
         self.pt = pt # DA type (MLEF or GRAD)
         self.nmem = nmem # ensemble size

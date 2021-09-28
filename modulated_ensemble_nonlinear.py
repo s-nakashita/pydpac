@@ -83,13 +83,18 @@ class Obs():
         #HsP = self.h_operator(np.arange(p), self.sPt)
         #HPHt = HsP @ HsP.transpose()
         n = self.Pt.shape[0]
-        obsloc1 = obsloc[:n]
-        p2 = obsloc.size - n
-        H = self.itpl_operator(obsloc1, self.Pt.shape[0])
-        HPHt = H @ self.Pt @ H.transpose()
-        diagR1 = oberrvar * np.diag(HPHt)
-        diagR2 = oberrvar * np.ones(p2)
-        diagR = np.hstack((diagR1,diagR2))
+        if obsloc.size <= n:
+            H = self.itpl_operator(obsloc, self.Pt.shape[0])
+            HPHt = H @ self.Pt @ H.transpose()
+            diagR = oberrvar * np.diag(HPHt)
+        else:
+            obsloc1 = obsloc[:n]
+            p2 = obsloc.size - obsloc1.size
+            H = self.itpl_operator(obsloc1, self.Pt.shape[0])
+            HPHt = H @ self.Pt @ H.transpose()
+            diagR1 = oberrvar * np.diag(HPHt)
+            diagR2 = oberrvar * np.ones(p2)
+            diagR = np.hstack((diagR1,diagR2))
         R = np.diag(diagR)
         Rsqrt = np.diag(np.sqrt(diagR))
         #R = oberrvar * np.diag(np.diag(HPHt))
@@ -127,13 +132,17 @@ class Obs():
         return H
     
     def dh_operator(self, obsloc, x):
+        p = obsloc.size
         n = x.size
-        obsloc1 = obsloc[:n]
-        obsloc2 = obsloc[n:]
+        if p <= n:
+            H = self.itpl_operator(obsloc, n) @ np.diag(self.sb*self.nl*(x**(self.nl-1)))
+        else:
+            obsloc1 = obsloc[:n]
+            obsloc2 = obsloc[n:]
         #x_itpl = self.itpl_operator(obsloc, n) @ x
-        H1 = self.itpl_operator(obsloc1, n) @ np.diag(self.sb*self.nl*(x**(self.nl-1)))
-        H2 = self.itpl_operator2(obsloc2, n)
-        H = np.vstack((H1,H2))
+            H1 = self.itpl_operator(obsloc1, n) @ np.diag(self.sb*self.nl*(x**(self.nl-1)))
+            H2 = self.itpl_operator2(obsloc2, n)
+            H = np.vstack((H1,H2))
         logger.debug(f"H={H.shape}")
         return H
     
@@ -143,15 +152,18 @@ class Obs():
             n = x.shape[0]
         else:
             n = x.size
-        obsloc1 = obsloc[:n]
-        obsloc2 = obsloc[n:]
-        #x_itpl = self.itpl_operator(obsloc, n) @ x
-        hx1 = self.itpl_operator(obsloc1, n) @ (self.sb*(x**self.nl))
-        hx2 = self.itpl_operator2(obsloc2, n) @ x
-        if x.ndim > 1:
-            hx = np.vstack((hx1,hx2))
+        if p <= n:
+            hx = self.itpl_operator(obsloc, n) @ (self.sb*(x**self.nl))
         else:
-            hx = np.hstack((hx1,hx2))
+            obsloc1 = obsloc[:n]
+            obsloc2 = obsloc[n:]
+        #x_itpl = self.itpl_operator(obsloc, n) @ x
+            hx1 = self.itpl_operator(obsloc1, n) @ (self.sb*(x**self.nl))
+            hx2 = self.itpl_operator2(obsloc2, n) @ x
+            if x.ndim > 1:
+                hx = np.vstack((hx1,hx2))
+            else:
+                hx = np.hstack((hx1,hx2))
         logger.debug(f"hx={hx.shape}")
         return hx
 ntest_max = 10
@@ -198,8 +210,9 @@ if __name__ == "__main__":
         obsloc1 = np.arange(p) # upward
         obsloc1 = np.arange(p-1,-1,-1) # downward
         obsloc1 = rs.choice(p, size=p, replace=False) # random
-        obsloc2 = np.arange(0,p-1,10)
-        obsloc = np.hstack((obsloc1, obsloc2))
+        obsloc = obsloc1
+        #obsloc2 = np.arange(0,p-1,10)
+        #obsloc = np.hstack((obsloc1, obsloc2))
         print(obsloc)
         hxt = obs.h_operator(obsloc, xt)
         R, Rsqrtinv, Rinv = obs.set_r(obsloc)
@@ -257,13 +270,13 @@ if __name__ == "__main__":
         names = ['enkf','enkf-b','enkf-k','letkf','serial enkf','serial enkf-b','serial enkf-k']
         #names = ['serial enkf','serial enkf-b','serial enkf-k']
         xa_list = []
-        for ptype in names:
-            pt, iloc, ss, getkf = params[ptype]
-            analysis = EnKF(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, getkf=getkf, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
-            xb = xf
-            pb = Pe
-            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
-            xa_list.append(xa)
+#        for ptype in names:
+#            pt, iloc, ss, getkf = params[ptype]
+#            analysis = EnKF(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, getkf=getkf, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
+#            xb = xf
+#            pb = Pe
+#            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
+#            xa_list.append(xa)
 #
         ### MLEF
         # forecast ensemble
@@ -282,7 +295,8 @@ if __name__ == "__main__":
         logger.info(f"initial error in obs space (control) ={initial_ctrl_obserr}")
 #
         params = {'mlef':('mlef',None,False,False),'mlef-b':('mlef',2,False,True),'mlef-r':('mlef',0,False,False)}
-        names2 = ['mlef','mlef-b','mlef-r']
+        #names2 = ['mlef','mlef-b','mlef-r']
+        names2 = ['mlef-r']
         for ptype in names2:
             pt, iloc, ss, gain = params[ptype]
             if ptype != 'mlef-r':
@@ -295,14 +309,16 @@ if __name__ == "__main__":
             xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='LBFGS') #, restart=True)
             xa_list.append(xa[:,0])
 
-        method = names + names2
+        #method = names + names2
+        method = names2
         #logger.info(names)
         xrmse = []
         hxrmse = []
         i = 0
         for xa in xa_list:
             #logger.info(xam)
-            if i < len(names):
+            if i < 0:
+            #if i < len(names):
                 #logger.info(f"method:{method[i]} mean")
                 xrmse.append(np.sqrt(((xa.mean(axis=1) - xt)**2).mean())/initial_mean_err)
                 hxa = obs.h_operator(obsloc, xa.mean(axis=1))

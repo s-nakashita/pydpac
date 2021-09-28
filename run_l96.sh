@@ -4,7 +4,7 @@
 operators="linear" # quadratic cubic"
 #perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
 datype="mlef"
-perturbations="${datype}be ${datype}bm ${datype}r ${datype}"
+perturbations="${datype}be ${datype}bm l${datype} ${datype}"
 #perturbations="var"
 na=100 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
@@ -33,7 +33,7 @@ for op in ${operators}; do
     else
       a_window=1
     fi
-    loctype=${pert##"${datype}"}
+    loctype=$(echo "${pert}" | sed s/"${pt}"//g)
     echo $loctype
     if [ "$loctype" = "be" ]; then
     #if [ $pert = "mlef" ]; then
@@ -42,7 +42,7 @@ for op in ${operators}; do
     elif [ "$loctype" = "bm" ]; then
       lloc="T"
       iloc=2
-    elif [ "$loctype" = "r" ]; then
+    elif [ "$loctype" = "l" ]; then
     #elif [ $pert = "etkf" ]; then
       lloc="T"
       iloc=0
