@@ -153,7 +153,7 @@ if pt == "mlef":
         analysis = Mlef_rloc(pt, nmem, obs, \
             linf=linf, infl_parm=infl_parm, \
             lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-            ltlm=ltlm, model=model)
+            ltlm=ltlm, incremental=True, model=model)
     else:
         from analysis.mlef import Mlef
         analysis = Mlef(pt, state_size, nmem, obs, \

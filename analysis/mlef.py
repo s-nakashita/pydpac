@@ -302,7 +302,7 @@ class Mlef():
             args_j = (d, tmat, zmat, heinv)
         iprint = np.zeros(2, dtype=np.int32)
         irest = 0 # restart counter
-        flg = -1  # optimilation result flag
+        flg = -1  # optimization result flag
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
