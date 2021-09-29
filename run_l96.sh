@@ -1,12 +1,13 @@
 #!/bin/sh
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic cubic"
+operators="quadratic" # quadratic cubic"
 #perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
 datype="mlef"
 perturbations="${datype}be ${datype}bm l${datype} ${datype}"
+#perturbations="l${datype} ${datype}"
 #perturbations="var"
-na=100 # Number of assimilation cycle
+na=500 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
 lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use

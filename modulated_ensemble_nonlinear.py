@@ -304,6 +304,7 @@ if __name__ == "__main__":
 #                       ,incremental=True)
             else:
                 analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1)
+#                       ,incremental=False)
             xb = xf
             pb = Pe
             xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='LBFGS') #, restart=True)
