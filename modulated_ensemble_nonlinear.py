@@ -183,6 +183,7 @@ vindex = np.arange(1,p+1)
 oberrvar = obs.get_sig()**2
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
     logger = logging.getLogger(__name__)
 #
 ## Lists for storing results and counter
@@ -202,18 +203,19 @@ if __name__ == "__main__":
     while ntest < ntest_max:
         logger.info(f"{ntest}th test")
         ## Random seed
-        rs = np.random.RandomState(seeds[ntest]) #variable
+        #rs = np.random.RandomState(seeds[ntest]) #variable
+        rs = np.random.RandomState(5854) #variable
         rstrue = np.random.RandomState(514) #fix
 
         ## True state and observation
         xt = sPt @ rstrue.standard_normal(size=N)
         obsloc1 = np.arange(p) # upward
-        obsloc1 = np.arange(p-1,-1,-1) # downward
-        obsloc1 = rs.choice(p, size=p, replace=False) # random
+        #obsloc1 = np.arange(p-1,-1,-1) # downward
+        #obsloc1 = rs.choice(p, size=p, replace=False) # random
         obsloc = obsloc1
         #obsloc2 = np.arange(0,p-1,10)
         #obsloc = np.hstack((obsloc1, obsloc2))
-        print(obsloc)
+        logger.info(f"obsloc={obsloc}")
         hxt = obs.h_operator(obsloc, xt)
         R, Rsqrtinv, Rinv = obs.set_r(obsloc)
         logger.info(f"oberr={oberrvar}, R={R.shape}, Rsqrtinv={Rsqrtinv.shape}, Rinv={Rinv.shape}")
@@ -221,6 +223,8 @@ if __name__ == "__main__":
         logger.info(f"R - Rsqrt**2 ={norm(R - Rsqrt@Rsqrt)}")
         logger.info(f"Rinv - Rsqrtinv**2 ={norm(Rinv - Rsqrtinv@Rsqrtinv)}")
         y = hxt + Rsqrt @ rs.standard_normal(size=obsloc.size)
+        vmax = (int(np.max(y)/5.0) + 1)*5.0
+        vmin = (int(np.min(y)/5.0) - 1)*5.0
 
         ## Ensemble Pf 
         K = 50
@@ -267,16 +271,35 @@ if __name__ == "__main__":
                 #'po':('po',None,False,False),'po-b':('po',2,False,False),'po-k':('po',0,False,False),
                 'serial enkf':('srf',None,False,False),'serial enkf-b':('srf',2,False,True),'serial enkf-k':('srf',0,False,False),
                 }
-        names = ['enkf','enkf-b','enkf-k','letkf','serial enkf','serial enkf-b','serial enkf-k']
+        #names = ['enkf','enkf-b','enkf-k','letkf','serial enkf','serial enkf-b','serial enkf-k']
         #names = ['serial enkf','serial enkf-b','serial enkf-k']
+        names = ['letkf']
         xa_list = []
-#        for ptype in names:
-#            pt, iloc, ss, getkf = params[ptype]
-#            analysis = EnKF(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, getkf=getkf, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
-#            xb = xf
-#            pb = Pe
-#            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
-#            xa_list.append(xa)
+        for ptype in names:
+            pt, iloc, ss, getkf = params[ptype]
+            analysis = EnKF(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, getkf=getkf, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
+            xb = xf
+            pb = Pe
+            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
+            xa_list.append(xa)
+        # plot
+        fig, ax = plt.subplots(1,2,figsize=(12,4))
+        xaxis = np.arange(1, N+1)
+        ax[0].plot(xaxis, xt, linewidth=3.0, color='k', label='truth')
+        ax[1].plot(obsloc, hxt, linewidth=3.0, color='k', label='truth')
+        j = 0
+        for x in xa_list:
+            xam = x.mean(axis=1)
+            hx = obs.h_operator(obsloc, xam)
+            ax[0].plot(xaxis, xam, linewidth=1.5, label=names[j])
+            ax[1].plot(obsloc, hx, linewidth=1.5, label=names[j])
+            j += 1
+        ax[0].legend()
+        ax[1].legend()
+        ax[1].set_ylim(vmin,vmax)
+        ax[0].set_title('state space')
+        ax[1].set_title('obs space')
+        fig.savefig(f'letkf_analysis_nonlinear{obs.nl}.pdf')
 #
         ### MLEF
         # forecast ensemble
@@ -303,23 +326,40 @@ if __name__ == "__main__":
                 analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
 #                       ,incremental=True)
             else:
-                analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1)
-#                       ,incremental=False)
+                analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
+                       ,incremental=False)
             xb = xf
             pb = Pe
             xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='LBFGS') #, restart=True)
             xa_list.append(xa[:,0])
+        # plot
+        fig, ax = plt.subplots(1,2,figsize=(12,4))
+        xaxis = np.arange(1, N+1)
+        ax[0].plot(xaxis, xt, linewidth=3.0, color='k', label='truth')
+        ax[1].plot(obsloc, hxt, linewidth=3.0, color='k', label='truth')
+        j = 0
+        for x in xa_list[len(names):]:
+            hx = obs.h_operator(obsloc, x)
+            ax[0].plot(xaxis, x, linewidth=1.5, label=names2[j])
+            ax[1].plot(obsloc, hx, linewidth=1.5, label=names2[j])
+            j += 1
+        ax[0].legend()
+        ax[1].legend()
+        ax[1].set_ylim(vmin,vmax)
+        ax[0].set_title('state space')
+        ax[1].set_title('obs space')
+        fig.savefig(f'lmlef_analysis_nonlinear{obs.nl}.pdf')
 
-        #method = names + names2
-        method = names2
+        method = names + names2
+        #method = names2
         #logger.info(names)
         xrmse = []
         hxrmse = []
         i = 0
         for xa in xa_list:
             #logger.info(xam)
-            if i < 0:
-            #if i < len(names):
+            #if i < 0:
+            if i < len(names):
                 #logger.info(f"method:{method[i]} mean")
                 xrmse.append(np.sqrt(((xa.mean(axis=1) - xt)**2).mean())/initial_mean_err)
                 hxa = obs.h_operator(obsloc, xa.mean(axis=1))
