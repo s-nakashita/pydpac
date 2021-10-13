@@ -153,6 +153,18 @@ if pt == "mlef":
         analysis = Mlef_rloc(pt, nmem, obs, \
             linf=linf, infl_parm=infl_parm, \
             lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
+            ltlm=ltlm, incremental=False, model=model)
+    elif iloc == -1:
+        from analysis.mlef_rloc import Mlef_rloc
+        analysis = Mlef_rloc(pt, nmem, obs, \
+            linf=linf, infl_parm=infl_parm, \
+            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
+            ltlm=ltlm, incremental=True, model=model)
+    elif iloc == -2:
+        from analysis.lmlef import Lmlef
+        analysis = Lmlef(pt, nmem, obs, \
+            linf=linf, infl_parm=infl_parm, \
+            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=ltlm, incremental=True, model=model)
     else:
         from analysis.mlef import Mlef

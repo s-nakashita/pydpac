@@ -32,8 +32,10 @@ elif model == "l96" or model == "tc87":
         "4dsrf":"tab:pink", "4dletkf":"tab:purple","4dvar":"tab:olive"}
     if len(sys.argv) > 4:
         pt = sys.argv[4]
-        perts = [pt, pt+"be", pt+"bm", "l"+pt]
-        linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'}
+        #perts = [pt, pt+"be", pt+"bm", "l"+pt]
+        #linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'}
+        perts = ["l"+pt+"1", "l"+pt+"2", "l"+pt+"3", 'letkf']
+        linecolor = {"l"+pt+"1":'tab:blue', "l"+pt+"2":'tab:orange', "l"+pt+"3":'tab:green', 'letkf':'tab:red'}
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \

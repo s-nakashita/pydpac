@@ -1,13 +1,13 @@
 #!/bin/sh
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="quadratic" # quadratic cubic"
+operators="linear quadratic" # cubic"
 #perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
 datype="mlef"
 #perturbations="${datype}be ${datype}bm l${datype} ${datype}"
-perturbations="l${datype}"
-#perturbations="var"
-na=500 # Number of assimilation cycle
+perturbations="l${datype}1 l${datype}2 l${datype}3 letkf"
+#perturbations="lmlef3"
+na=100 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
 lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use
@@ -27,8 +27,11 @@ touch timer
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
-    #pt=${pert}
-    pt=${datype}
+    if [ ${pert} = letkf ];then
+      pt=${pert}
+    else
+      pt=${datype}
+    fi
     if [ "${pt:0:2}" = "4d" ]; then
       a_window=5
     else
@@ -43,8 +46,19 @@ for op in ${operators}; do
     elif [ "$loctype" = "bm" ]; then
       lloc="T"
       iloc=2
-    elif [ "$loctype" = "l" ]; then
+    elif [ "$loctype" = "l1" ]; then
     #elif [ $pert = "etkf" ]; then
+      lloc="T"
+      iloc=0
+    elif [ "$loctype" = "l2" ]; then
+    #elif [ $pert = "etkf" ]; then
+      lloc="T"
+      iloc=-1
+    elif [ "$loctype" = "l3" ]; then
+    #elif [ $pert = "etkf" ]; then
+      lloc="T"
+      iloc=-2
+    elif [ $pert = letkf ]; then
       lloc="T"
       iloc=0
     else
