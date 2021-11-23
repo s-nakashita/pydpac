@@ -83,32 +83,35 @@ class Mlef_rloc():
 
     def calc_j(self, zeta, *args):
         if not self.incremental:
-            xc, i, pf, y, yloc, tmat, gvec, heinv, rinv = args
-            x = np.zeros(pf.shape[0])
-            x[i] = xc[i] + gvec @ zeta
+            xc, i, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
             ob = y - self.obs.h_operator(yloc, x)
-            j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+            jb = 0.5 * zeta.transpose() @ heinv @ zeta
+            jo = 0.5 * ob.transpose() @ rinv @ ob
+            #j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
         else:
             # incremental form
             d, tmat, zmat, heinv = args
             nmem = zeta.size
             w = tmat @ zeta
-            j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+            jb = 0.5 * zeta.transpose() @ heinv @ zeta
+            jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
+            #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+        logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
+        j = jb + jo
         return j
     
 
     def calc_grad_j(self, zeta, *args):
         if not self.incremental:
-            xc, i, pf, y, yloc, tmat, gvec, heinv, rinv = args
-            x = np.zeros(pf.shape[0])
-            x[i] = xc[i] + gvec @ zeta
+            xc, i, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
             hx = self.obs.h_operator(yloc, x)
             ob = y - hx
             if self.ltlm:
                 dh = self.obs.dh_operator(yloc,x) @ pf
             else:
-                xe = np.zeros_like(pf)
-                xe[i,:] = x[i] + pf[i,:]
+                xe = x[:,None] + pf
                 dh = self.obs.h_operator(yloc,xe) - self.obs.h_operator(yloc,x)[:, None]
             grad = heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
         else:
@@ -121,14 +124,12 @@ class Mlef_rloc():
 
     def calc_hess(self, zeta, *args):
         if not self.incremental:
-            xc, i, pf, y, yloc, tmat, gvec, heinv, rinv = args
-            x = np.zeros(pf.shape[0])
-            x[i] = xc[i] + gvec @ zeta
+            xc, i, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            x = xc + gmat @ zeta
             if self.ltlm:
                 dh = self.obs.dh_operator(yloc,x) @ pf
             else:
-                xe = np.zeros_like(pf)
-                xe[i,:] = x[i] + pf[i,:]
+                xe = x[:,None] + pf
                 dh = self.obs.h_operator(yloc,xe) - self.obs.h_operator(yloc,x)[:, None]
             hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
         else:
@@ -210,7 +211,6 @@ class Mlef_rloc():
         pa = np.zeros_like(pf)
         ob = y - self.obs.h_operator(yloc,xc)
         if self.ltlm:
-            logger.debug("dhdx={}".format(self.obs.dhdx(xc)))
             dh = self.obs.dh_operator(yloc,xc) @ pf
         else:
             dh = self.obs.h_operator(yloc,xc[:, None]+pf) - self.obs.h_operator(yloc,xc)[:, None]
@@ -222,6 +222,8 @@ class Mlef_rloc():
         logger.info("==R-localization==, lsig={}".format(self.lsig))
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+        wlist = []
+        Wlist = []
         for i in range(xc.size):
             far, Rwf_loc = self.r_loc(self.lsig, yloc, float(i))
             logger.info(f"Number of assimilated obs.={y.size - len(far)}")
@@ -256,15 +258,15 @@ class Mlef_rloc():
             logger.debug("zmat.shape={}".format(zmat.shape))
             logger.debug("tmat.shape={}".format(tmat.shape))
             logger.debug("heinv.shape={}".format(heinv.shape))
-            #gmat = pf @ tmat
-            #logger.debug("gmat.shape={}".format(gmat.shape))
-            gvec = pf[i,:] @ tmat
-            logger.debug("gvec.shape={}".format(gvec.shape))
+            gmat = pf @ tmat
+            logger.debug("gmat.shape={}".format(gmat.shape))
+            #gvec = pf[i,:] @ tmat
+            #logger.debug("gvec.shape={}".format(gvec.shape))
             if not self.incremental:
                 Rinv = np.diag(np.diag(rinv) * Rwf_loc)
                 Rinv = np.delete(Rinv, far, axis=0)
                 Rinv = np.delete(Rinv, far, axis=1)
-                args_j = (xc, i, pf, yi, yiloc, tmat, gvec, heinv, Rinv)
+                args_j = (xc, i, pf, yi, yiloc, tmat, gmat, heinv, Rinv)
             else:
                 obi = np.delete(ob, far)
                 di = Rmat @ obi
@@ -300,7 +302,7 @@ class Mlef_rloc():
                         logger.info("Stagnation at {}th restart : solution not updated"
                         .format(irest))
                         break
-                    xc[i] = xc[i] + gvec @ x
+                    xc[i] = xc[i] + gmat[i,:] @ x
                     if self.ltlm:
                         dhi = self.obs.dh_operator(yiloc,xc) @ pf
                     else:
@@ -311,12 +313,13 @@ class Mlef_rloc():
                     logger.debug("zmat.shape={}".format(zmat.shape))
                     logger.debug("tmat.shape={}".format(tmat.shape))
                     logger.debug("heinv.shape={}".format(heinv.shape))
-                    gvec = pf[i,:] @ tmat
+                    #gvec = pf[i,:] @ tmat
+                    gmat = pf @ tmat
                     if update_ensemble:
                         pf[i,:] = pf[i,:] @ tmat
                     # update arguments
                     if not self.incremental:
-                        args_j = (xc, i, pf, yi, yiloc, tmat, gvec, heinv, Rinv)
+                        args_j = (xc, i, pf, yi, yiloc, tmat, gmat, heinv, Rinv)
                     else:
                         di = Rmat @ (yi - self.obs.h_operator(yiloc, xc))
                         args_j = (di, tmat, zmat, heinv)
@@ -365,18 +368,22 @@ class Mlef_rloc():
                         self.cost_j(200, xf.shape[1], x, icycle, *args_j)
                 else:
                     x, flg = minimize(x0)
-            xa[i] = xc[i] + gvec @ x
+            wk = tmat @ x
+            logger.debug(f"wk={wk.shape}")
+            wlist.append(wk)
+            xa[i] = xc[i] + gmat[i,:] @ x
             if self.ltlm:
-                xtmp = np.zeros_like(xc)
-                xtmp[i] = xc[i]
-                logger.debug("xtmp={}".format(xtmp))
-                dhtmp = self.obs.dh_operator(yiloc,xtmp) @ pf
+                #xtmp = np.zeros_like(xc)
+                #xtmp[i] = xc[i]
+                #logger.debug("xtmp={}".format(xtmp))
+                dhtmp = self.obs.dh_operator(yiloc,xa) @ pf
             else:
-                xtmp = np.zeros_like(xc)
-                xtmp[i] = xc[i]
-                xetmp = np.zeros_like(pf)
-                xetmp[i,:] = xc[i] + pf[i,:]
-                dhtmp = self.obs.h_operator(yiloc,xetmp) - self.obs.h_operator(yiloc,xtmp)[:, None]
+                #xtmp = np.zeros_like(xc)
+                #xtmp[i] = xc[i]
+                #xetmp = np.zeros_like(pf)
+                #xetmp[i,:] = xc[i] + pf[i,:]
+                xetmp = xa[:,None] + pf
+                dhtmp = self.obs.h_operator(yiloc,xetmp) - self.obs.h_operator(yiloc,xa)[:, None]
             zmat = Rmat @ dhtmp
             logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
@@ -389,6 +396,11 @@ class Mlef_rloc():
             #zmat = Rmat @ dhi
             #tmat, heinv = self.precondition(zmat)
             pa[i,:] = pf[i,:] @ tmat 
+            Wlist.append(tmat)
+        logger.debug(f"wlist={np.array(wlist).shape}")
+        logger.debug(f"Wlist={np.array(Wlist).shape}")
+        np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(wlist))
+        np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(Wlist))
         # statistical evaluation
         if self.ltlm:
             dh = self.obs.dh_operator(yloc,xa) @ pf

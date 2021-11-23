@@ -1,19 +1,19 @@
 #!/bin/sh
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear quadratic" # cubic"
+operators="quadratic cubic hint"
 #perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
 datype="mlef"
 #perturbations="${datype}be ${datype}bm l${datype} ${datype}"
-perturbations="l${datype}1 l${datype}2 l${datype}3 letkf"
-#perturbations="lmlef3"
+#perturbations="l${datype}1 l${datype}2 l${datype}3 letkf"
+perturbations="mlefbm lmlef1 lmlef2 lmlef3"
 na=100 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
 lloc="T" # "T":Apply localization "F":Not apply
-ltlm="F" # "T":Use tangent linear approximation "F":Not use
+#ltlm="T" # "T":Use tangent linear approximation "F":Not use
 a_window=3
 #L="-1.0 0.5 1.0 2.0"
-exp="mlef_rloc"
+exp="hinttest"
 #exp="${datype}_loc_hint"
 echo ${exp}
 rm -rf work/${exp}
@@ -26,7 +26,7 @@ rm -rf timer
 touch timer
 for op in ${operators}; do
   for pert in ${perturbations}; do
-    echo $pert
+    #echo $pert
     if [ ${pert} = letkf ];then
       pt=${pert}
     else
@@ -65,6 +65,11 @@ for op in ${operators}; do
       lloc="F"
       iloc=
     fi
+    for ltlm in F T; do
+    if [ "$ltlm" = "T" ]; then
+      pert=${pert}_t
+    fi
+    echo $pert
     #for lb in $L; do
     echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc}
     #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb}
@@ -97,7 +102,7 @@ for op in ${operators}; do
     #python ../../plot/plotdxa.py ${op} l96 ${na} ${pert}
     #python ../../plot/plotpf.py ${op} l96 ${na} ${pert}
     #python ../../plot/plotlpf.py ${op} l96 ${na} ${pert} 
-    #done
+    done
   done
   python ../../plot/plote.py ${op} l96 ${na} ${datype}
   #python ../../plot/plotchi.py ${op} l96 ${na}

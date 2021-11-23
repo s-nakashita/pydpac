@@ -17,7 +17,10 @@ class Chi():
     def calc_gmat(self, zmat, tol=1e-5):
         Iobs = np.eye(self.nobs)
         cmat = zmat.T @ zmat
-        lam, v = la.eigh(cmat)
+        try:
+            lam, v = la.eigh(cmat)
+        except la.LinAlgError:
+            return Iobs, Iobs
         logger.debug("lam shape={}".format(lam.shape))
         logger.debug("v shape={}".format(v.shape))
         phi0 = - 1.0 / (1.0+lam)

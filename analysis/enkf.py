@@ -334,6 +334,8 @@ class EnKF():
             if self.linf:
                 logger.info("==inflation==, alpha={}".format(self.infl_parm))
                 E /= self.infl_parm
+            wlist = []
+            Wlist = []
             for i in range(nx):
                 far, Rwf_loc = self.r_loc(sigma, yloc, float(i))
                 logger.info("number of assimilated obs.={}".format(y.size - len(far)))
@@ -354,10 +356,18 @@ class EnKF():
                 D_inv = np.diag(1.0/lam)
                 pa_ = v @ D_inv @ v.T
             
-                xa_[i] = xf_[i] + dxf[i] @ pa_ @ dyi.T @ R_inv @ di
+                wk = pa_ @ dyi.T @ R_inv @ di
+                logger.debug(f"wk={wk.shape}")
+                wlist.append(wk)
+                xa_[i] = xf_[i] + dxf[i] @ wk
                 sqrtPa = v @ np.sqrt(D_inv) @ v.T * np.sqrt(nmem-1)
+                Wlist.append(sqrtPa)
                 dxa[i] = dxf[i] @ sqrtPa
                 xa[i] = np.full(nmem,xa_[i]) + dxa[i]
+            logger.debug(f"wlist={np.array(wlist).shape}")
+            logger.debug(f"Wlist={np.array(Wlist).shape}")
+            np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.da, icycle), np.array(wlist))
+            np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.da, icycle), np.array(Wlist))
         pa = dxa@dxa.T/(nmem-1)
         spa = dxa / np.sqrt(nmem-1)
         if save_dh:

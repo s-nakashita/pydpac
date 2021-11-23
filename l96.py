@@ -51,30 +51,30 @@ sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
+infl_l = {"mlef":1.2,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
           "4dmlef":1.3,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
-infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
-infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
-infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
-infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
-infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"4dvar":None}
-infl_h = {"mlef":1.3,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"4dvar":None}
+infl_q = {"mlef":1.2,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
+infl_c = {"mlef":1.3,"mlefw":1.3,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
+infl_qd = {"mlef":1.2,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
+infl_cd = {"mlef":1.2,"mlefw":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
+infl_t = {"mlef":1.2,"mlefw":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"4dvar":None}
+infl_h = {"mlef":1.3,"mlefw":1.3,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"4dvar":None}
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
+sig_l = {"mlef":2.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
-sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
-sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
-sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
-sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"4dvar":None}
-sig_t = {"mlef":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0,"kf":None,"var":None,"4dvar":None}
+sig_q = {"mlef":2.0,"mlefw":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
+sig_c = {"mlef":2.0,"mlefw":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
+sig_qd = {"mlef":6.0,"mlefw":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
+sig_cd = {"mlef":6.0,"mlefw":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"4dvar":None}
+sig_t = {"mlef":8.0,"mlefw":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0,"kf":None,"var":None,"4dvar":None}
 dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
     "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, \
     "test":sig_t, "abs":sig_l, "hint": sig_l}
 # forecast type (ensemble or deterministic)
-ftype = {"mlef":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
+ftype = {"mlef":"ensemble","mlefw":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
     "kf":"deterministic","var":"deterministic",\
     "4dmlef":"ensemble","4detkf":"ensemble","4dpo":"ensemble","4dsrf":"ensemble","4dletkf":"ensemble",\
     "4dvar":"deterministic"}
@@ -162,10 +162,10 @@ if pt == "mlef":
             ltlm=ltlm, incremental=True, model=model)
     elif iloc == -2:
         from analysis.lmlef import Lmlef
-        analysis = Lmlef(pt, nmem, obs, \
+        analysis = Lmlef(pt, state_size, nmem, obs, \
             linf=linf, infl_parm=infl_parm, \
             lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-            ltlm=ltlm, incremental=True, model=model)
+            ltlm=ltlm, incremental=False, model=model)
     else:
         from analysis.mlef import Mlef
         analysis = Mlef(pt, state_size, nmem, obs, \
@@ -173,6 +173,13 @@ if pt == "mlef":
             iloc=iloc, lsig=lsig, ss=False, gain=False, \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=ltlm, model=model)
+elif pt == "mlefw":
+    from analysis.mlefw import Mlefw
+    analysis = Mlefw(pt, state_size, nmem, obs, \
+        linf=linf, infl_parm=infl_parm, \
+        iloc=iloc, lsig=lsig, ss=False, gain=False, \
+        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
+        ltlm=ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis = EnKF(pt, state_size, nmem, obs, \
@@ -267,7 +274,7 @@ if __name__ == "__main__":
         #    else:
         #        u += np.random.randn(u.shape[0], u.shape[1])
         if ft=="ensemble":
-            if pt == "mlef" or pt == "4dmlef":
+            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
                 xa[i] = u[:, 0]
             else:
                 xa[i] = np.mean(u, axis=1)
@@ -307,7 +314,7 @@ if __name__ == "__main__":
                 pf = analysis.calc_pf(u, pa, i+1)
 
             if ft=="ensemble":
-                if pt == "mlef" or pt == "4dmlef":
+                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
                     xf[i+1] = u[:, 0]
                 else:
                     xf[i+1] = np.mean(u, axis=1)

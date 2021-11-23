@@ -150,16 +150,16 @@ C     **********
       IF(INFO.EQ.-1) GO TO 45
       IF(INFO.EQ.1) GO TO 321
       INFOC = 1
-C      PRINT *, "NFEV=", NFEV, "MAXFEV=", MAXFEV
-C      PRINT *, "DGINIT=", DGINIT
+      WRITE(10,*) "NFEV=", NFEV, "MAXFEV=", MAXFEV
+      WRITE(10,*) "DGINIT=", DGINIT
 C
 C     CHECK THE INPUT PARAMETERS FOR ERRORS.
 C
       IF (N .LE. 0 .OR. STP .LE. ZERO .OR. FTOL .LT. ZERO .OR.
      *    GTOL .LT. ZERO .OR. XTOL .LT. ZERO .OR. STPMIN .LT. ZERO
      *    .OR. STPMAX .LT. STPMIN .OR. MAXFEV .LE. 0) THEN
-C      PRINT *, N, STP, FTOL, GTOL, XTOL, STPMIN, STPMAX, MAXFEV
-C      PRINT*, "RETURN FROM L160"
+      WRITE(10,*) N, STP, FTOL, GTOL, XTOL, STPMIN, STPMAX, MAXFEV
+      WRITE(10,*) "RETURN FROM L160"
       RETURN
       ENDIF
 C
@@ -167,7 +167,7 @@ C     COMPUTE THE INITIAL GRADIENT IN THE SEARCH DIRECTION
 C     AND CHECK THAT S IS A DESCENT DIRECTION.
 C
       IF (DGINIT .GE. ZERO) THEN
-C         PRINT*, "RETURN FROM L167"
+         WRITE(10,*) "RETURN FROM L170"
          RETURN
       ENDIF
 C
@@ -237,7 +237,7 @@ C        Return to compute function value
          INFOOUT=INFO
          XOUT = X
          STPOUT=STP
-C         PRINT *, "RETURN FROM L236"
+         WRITE(10,*) "RETURN FROM L236"
          RETURN
 C
    45    INFO=0
@@ -274,7 +274,7 @@ C
             DO 60 J = 1, N 
                XOUT(J) = X(J)
    60          CONTINUE
-C            PRINT*, "RETURN FROM L272"
+            WRITE(10,*) "RETURN FROM L272"
             RETURN
          ENDIF
  321     continue

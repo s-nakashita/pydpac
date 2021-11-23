@@ -90,7 +90,7 @@ C     NFUN: KEEPS TRACK OF THE NUMBER OF FUNCTION/GRADIENT EVALUATIONS
       SAVE
       DATA ONE,ZERO/1.0D+0,0.0D+0/
 
-C      PRINT *, FINISH
+C      WRITE(MP,'(A6,I2)') "IFLAG=",IFLAG
 C
 C IFLAG = 1 INDICATES A RE-ENTRY WITH NEW FUNCTION VALUES
       IF(IFLAG.EQ.1) GO TO 72
@@ -118,6 +118,9 @@ C
 C
       DO 5 I=1,N
  5    D(I)= -G(I)
+C      WRITE(MP,*) G
+C      WRITE(MP,*) D
+C      WRITE(MP,*) X
       GNORM= DSQRT(DDOT(N,G,1,G,1))
       STP1= ONE/GNORM
 C
@@ -173,7 +176,11 @@ C
       NFEV=0
       DO 70 I=1,N
   70  GOLD(I)= G(I)
+C      WRITE(MP,*) G
+C      WRITE(MP,*) GOLD
+C      WRITE(MP,*) D
       DG= DDOT(N,D,1,G,1)
+C      WRITE(MP,*) DG
       DGOLD=DG
       STP=ONE
 C
@@ -218,7 +225,7 @@ C       RETURN TO FETCH FUNCTION AND GRADIENT
         DOUT=D 
         GOLDOUT=GOLD
         STPK = STP
-C        PRINT*, "RETURN FROM L214"
+C        WRITE(MP,*) "RETURN FROM L214"
         RETURN
       ENDIF
       IF (INFO .NE. 1) GO TO 90
@@ -286,7 +293,7 @@ C
       DOUT=D 
       GOLDOUT=GOLD
       STPK = STP
-C      PRINT*, "RETURN FROM L281"
+C      WRITE(MP,*) "RETURN FROM L281"
       RETURN
 
   80  CONTINUE
@@ -304,7 +311,7 @@ C
          DOUT=D 
          GOLDOUT=GOLD
          STPK = STP
-C        PRINT*, "RETURN FROM L298"
+C        WRITE(MP,*) "RETURN FROM L298"
         RETURN
       END IF
       GO TO 8
@@ -332,7 +339,7 @@ C
       DOUT=D 
       GOLDOUT=GOLD
       STPK = STP
-C      PRINT*, "RETURN FROM L324"
+C      WRITE(MP,*) "RETURN FROM L324"
       RETURN
   96  IFLAG= -3
       IF(LP.GT.0) WRITE(LP,140)
@@ -343,7 +350,7 @@ C      PRINT*, "RETURN FROM L324"
       DOUT=D 
       GOLDOUT=GOLD
       STPK = STP
-C      PRINT*, "RETURN FROM L334"
+C      WRITE(MP,*) "RETURN FROM L334"
 C
 C     FORMATS
 C     -------
