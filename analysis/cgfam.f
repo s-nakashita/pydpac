@@ -225,6 +225,7 @@ C       RETURN TO FETCH FUNCTION AND GRADIENT
         DOUT=D 
         GOLDOUT=GOLD
         STPK = STP
+        WRITE(MP,'(A,i1,x,A,l)') "OFLAG=", OFLAG, "OFINISH=", OFINISH
 C        WRITE(MP,*) "RETURN FROM L214"
         RETURN
       ENDIF
@@ -247,7 +248,7 @@ C
       ELSE
         DG1=-GG + BETAPR*DGOUT
         IF (DG1.lt. 0.0d0 ) GO TO 75
-        IF (IPRINT(1).GE.0) write(6,*) 'no descent'
+        IF (IPRINT(1).GE.0) write(LP,*) 'no descent'
         IDES= IDES + 1
         IF(IDES.GT.5) GO TO 95
         GO TO 72

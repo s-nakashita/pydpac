@@ -2,6 +2,7 @@ import logging
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
+import copy
 from .chi_test import Chi
 from .minimize import Minimize
 
@@ -96,7 +97,7 @@ class Mlef():
     def callback(self, xk, alpha=None):
         global zetak, alphak
         logger.debug("xk={}".format(xk))
-        zetak.append(xk)
+        zetak.append(copy.copy(xk))
         if alpha is not None:
             alphak.append(alpha)
 
@@ -167,7 +168,9 @@ class Mlef():
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
-    def dof(self, zmat):
+    def dfs(self, zmat):
+        # Zupanski, D. et al., (2007) Applications of information theory in ensemble data assimilation
+        # Eq. (10)
         u, s, vt = la.svd(zmat)
         ds = np.sum(s**2/(1.0+s**2))
         return ds
@@ -417,8 +420,8 @@ class Mlef():
         logger.info("zmat shape={}".format(zmat.shape))
         logger.info("d shape={}".format(d.shape))
         innv, chi2 = chi2_test(zmat, d)
-        ds = self.dof(zmat)
-        logger.info("dof={}".format(ds))
+        ds = self.dfs(zmat)
+        logger.info("dfs={}".format(ds))
         pa = pf @ tmat
         if self.iloc is not None:
             nmem2 = pf.shape[1]

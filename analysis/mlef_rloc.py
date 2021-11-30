@@ -4,6 +4,7 @@ from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
+import copy
 from .chi_test import Chi
 from .minimize import Minimize
 
@@ -77,7 +78,7 @@ class Mlef_rloc():
     def callback(self, xk, alpha=None):
         global zetak, alphak
         logger.debug("xk={}".format(xk))
-        zetak.append(xk)
+        zetak.append(copy.copy(xk))
         if alpha is not None:
             alphak.append(alpha)
 

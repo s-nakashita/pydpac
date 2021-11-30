@@ -1,22 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 from analysis.minimize import Minimize
 plt.rcParams['legend.fontsize'] = 16
 plt.rcParams['xtick.labelsize'] = 16
 plt.rcParams['ytick.labelsize'] = 16
 def callback(xk, alphak):
     global x_list, alpha_list
-    x_list.append(xk)
+    x_list.append(copy.copy(xk))
     alpha_list.append(alphak)
+    #print(x_list)
 def callback2(xk):
     global x_list
-    x_list.append(xk)
+    x_list.append(copy.copy(xk))
 if __name__ == "__main__":
     from scipy.optimize import rosen, rosen_der, rosen_hess
     global x_list, alpha_list
     
     n = 2
-    iprint = np.array([0,0], dtype=np.int32)
+    iprint = np.array([1,3], dtype=np.int32)
 
     args = None
     maxiter = 2000
@@ -43,19 +45,19 @@ if __name__ == "__main__":
     # LBFGS
     x_list = []
     alpha_list = []
-    x_list.append(x0)
+    x_list.append(copy.copy(x0))
     minimize = Minimize(n, rosen, jac=rosen_der, args=args, iprint=iprint,
     method="LBFGS", maxiter=maxiter)
     x, flg = minimize(x0, callback=callback)
-    print(len(x_list))
-    print(len(alpha_list))
+    print(x_list)
+    print(alpha_list)
     optXY = np.array(x_list)
     ax.plot(optXY[:,0], optXY[:,1], "-b", marker="+", label=f"LBFGS({len(x_list)-1})")
     ax.plot(x[0], x[1], '*b')
     # BFGS
     x_list = []
     alpha_list = []
-    x_list.append(x0)
+    x_list.append(copy.copy(x0))
     minimize = Minimize(n, rosen, jac=rosen_der, args=args, iprint=iprint,
     method="BFGS", maxiter=maxiter)
     x, flg = minimize(x0, callback=callback2)
@@ -67,7 +69,7 @@ if __name__ == "__main__":
     # GD
     x_list = []
     alpha_list = []
-    x_list.append(x0)
+    x_list.append(copy.copy(x0))
     minimize = Minimize(n, rosen, jac=rosen_der, args=args, iprint=iprint,
     method="GD", maxiter=maxiter)
     x, flg = minimize(x0, callback=callback)
@@ -82,7 +84,7 @@ if __name__ == "__main__":
     minimize = Minimize(n, rosen, jac=rosen_der, args=args, iprint=iprint,
     method="CGF", maxiter=maxiter, cgtype=1)
     x, flg = minimize(x0, callback=callback)
-    print(len(x_list))
+    print(x_list)
     print(len(alpha_list))
     optXY = np.array(x_list)
     ax.plot(optXY[:,0], optXY[:,1], "-m", marker="+", label=f"CG-FR({len(x_list)-1})")
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     minimize = Minimize(n, rosen, jac=rosen_der, args=args, iprint=iprint,
     method="CGF", maxiter=maxiter, cgtype=2)
     x, flg = minimize(x0, callback=callback)
-    print(len(x_list))
+    print(x_list)
     print(len(alpha_list))
     optXY = np.array(x_list)
     ax.plot(optXY[:,0], optXY[:,1], color="purple", linestyle="dashed", marker="+", label=f"CG-PR({len(x_list)-1})")
@@ -102,7 +104,7 @@ if __name__ == "__main__":
     minimize = Minimize(n, rosen, jac=rosen_der, args=args, iprint=iprint,
     method="CGF", maxiter=maxiter, cgtype=3)
     x, flg = minimize(x0, callback=callback)
-    print(len(x_list))
+    print(x_list)
     print(len(alpha_list))
     optXY = np.array(x_list)
     ax.plot(optXY[:,0], optXY[:,1], color="r", linestyle="dotted", marker="+", label=f"CG-PPR({len(x_list)-1})")
@@ -110,7 +112,7 @@ if __name__ == "__main__":
     # EXN
     x_list = []
     alpha_list = []
-    x_list.append(x0)
+    x_list.append(copy.copy(x0))
     minimize = Minimize(n, rosen, jac=rosen_der, hess=rosen_hess, args=args, iprint=iprint,
     method="EXN", maxiter=maxiter)
     x, flg = minimize(x0, callback=callback)
@@ -122,7 +124,7 @@ if __name__ == "__main__":
     # NCG
     x_list = []
     alpha_list = []
-    x_list.append(x0)
+    x_list.append(copy.copy(x0))
     minimize = Minimize(n, rosen, jac=rosen_der, hess=rosen_hess, args=args, iprint=iprint,
     method="NCG", maxiter=maxiter)
     x, flg = minimize(x0, callback=callback)
@@ -131,6 +133,18 @@ if __name__ == "__main__":
     optXY = np.array(x_list)
     ax.plot(optXY[:,0], optXY[:,1], "-g", marker="+", label=f"Newton({len(x_list)-1})")
     ax.plot(x[0], x[1], '*g')
+    # dogleg
+    x_list = []
+    alpha_list = []
+    x_list.append(copy.copy(x0))
+    minimize = Minimize(n, rosen, jac=rosen_der, hess=rosen_hess, args=args, iprint=iprint,
+    method="dogleg", maxiter=maxiter)
+    x, flg = minimize(x0, callback=callback2)
+    print(len(x_list))
+    print(len(alpha_list))
+    optXY = np.array(x_list)
+    ax.plot(optXY[:,0], optXY[:,1], linestyle="solid", color="lime", marker="+", label=f"dogleg({len(x_list)-1})")
+    ax.plot(x[0], x[1], marker='*', color="lime")
 
     ax.set_aspect('equal')
     ax.legend(ncol=2)

@@ -151,7 +151,7 @@ if __name__ == "__main__":
         e[0] = np.sqrt(np.mean((uf[0, :] - ut[0, :])**2))
     chi = np.zeros(na)
     innov = np.zeros((na,yobs.shape[1]))
-    dof = np.zeros(na)
+    dfs = np.zeros(na)
     dpa = np.zeros(na)
     ndpa = np.zeros(na)
     for i in range(na):
@@ -176,7 +176,7 @@ if __name__ == "__main__":
             dpa[i] = np.sum(np.diag(pa))
             ndpa[i] = np.sum(pa) - dpa[i]
         chi[i] = chi2
-        dof[i] = ds
+        dfs[i] = ds
         innov[i] = innv
         if i < na-1:
             u = func.forecast(u, pa)
@@ -194,17 +194,19 @@ if __name__ == "__main__":
     np.save("{}_uf_{}_{}.npy".format(model, op, pt), uf)
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), ua)
     np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
-    np.savetxt("{}_dpa_{}_{}.txt".format(model, op, pt), dpa)
-    np.savetxt("{}_ndpa_{}_{}.txt".format(model, op, pt), ndpa)
     
     if len(sys.argv) > 7:
         oberr = str(int(obs_s*1e5)).zfill(5)
         np.savetxt("{}_e_{}_{}_oberr{}.txt".format(model, op, pt, oberr), e)
         np.savetxt("{}_chi_{}_{}_oberr{}.txt".format(model, op, pt, oberr), chi)
-        np.savetxt("{}_dof_{}_{}_oberr{}.txt".format(model, op, pt, oberr), dof)
+        np.savetxt("{}_dfs_{}_{}_oberr{}.txt".format(model, op, pt, oberr), dfs)
+        np.savetxt("{}_dpa_{}_{}_oberr{}.txt".format(model, op, pt, oberr), dpa)
+        #np.savetxt("{}_ndpa_{}_{}_oberr{}.txt".format(model, op, pt, oberr), ndpa)
     else:
         np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
         np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
-        np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
+        np.savetxt("{}_dfs_{}_{}.txt".format(model, op, pt), dfs)
+        np.savetxt("{}_dpa_{}_{}.txt".format(model, op, pt), dpa)
+        #np.savetxt("{}_ndpa_{}_{}.txt".format(model, op, pt), ndpa)
     #if ft == "ensemble":
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
