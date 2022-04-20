@@ -1,19 +1,19 @@
 #!/bin/sh
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="quadratic cubic hint"
+operators="linear quadratic cubic"
 #perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
 datype="mlef"
 #perturbations="${datype}be ${datype}bm l${datype} ${datype}"
 #perturbations="l${datype}1 l${datype}2 l${datype}3 letkf"
-perturbations="mlefbm lmlef1 lmlef2 lmlef3"
-na=100 # Number of assimilation cycle
+perturbations="lmlef0 lmlef1 lmlef2 letkf"
+na=1000 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
 lloc="T" # "T":Apply localization "F":Not apply
-#ltlm="T" # "T":Use tangent linear approximation "F":Not use
+ltlm="F" # "T":Use tangent linear approximation "F":Not use
 a_window=3
 #L="-1.0 0.5 1.0 2.0"
-exp="hinttest"
+exp="rloc_ob20"
 #exp="${datype}_loc_hint"
 echo ${exp}
 rm -rf work/${exp}
@@ -46,18 +46,21 @@ for op in ${operators}; do
     elif [ "$loctype" = "bm" ]; then
       lloc="T"
       iloc=2
-    elif [ "$loctype" = "l1" ]; then
-    #elif [ $pert = "etkf" ]; then
-      lloc="T"
-      iloc=0
-    elif [ "$loctype" = "l2" ]; then
+    elif [ "$loctype" = "l0" ]; then
+    # incremental form
     #elif [ $pert = "etkf" ]; then
       lloc="T"
       iloc=-1
-    elif [ "$loctype" = "l3" ]; then
+    elif [ "$loctype" = "l1" ]; then
+    # full nonlinear form
     #elif [ $pert = "etkf" ]; then
       lloc="T"
       iloc=-2
+    elif [ "$loctype" = "l2" ]; then
+    # modelate nonlinear form
+    #elif [ $pert = "etkf" ]; then
+      lloc="T"
+      iloc=0
     elif [ $pert = letkf ]; then
       lloc="T"
       iloc=0
@@ -65,11 +68,12 @@ for op in ${operators}; do
       lloc="F"
       iloc=
     fi
-    for ltlm in F T; do
-    if [ "$ltlm" = "T" ]; then
-      pert=${pert}_t
-    fi
+    #for ltlm in F T; do
+    #if [ "$ltlm" = "T" ]; then
+    #  pert=${pert}_t
+    #fi
     echo $pert
+    mkdir -p $pert
     #for lb in $L; do
     echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc}
     #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb}
@@ -86,7 +90,14 @@ for op in ${operators}; do
     #if [ "${pert:4:1}" = "b" ]; then
     #mv l96_rho_${op}_${pt}.npy l96_rho_${op}_${pert}.npy
     #fi
-    #for icycle in $(seq 0 4); do
+    for icycle in $(seq 0 $((${na} - 1))); do
+      if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
+        mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
+      fi
+      if test -e l96_ua_${op}_${pt}_cycle${icycle}.npy; then
+        mv l96_ua_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_${op}_${pert}_cycle${icycle}.npy
+      fi
+    #  mv Wmat_${op}_${pt}_cycle${icycle}.npy ${pert}/Wmat_${op}_cycle${icycle}.npy
     #  mv l96_K_${op}_${pt}_cycle$icycle.npy l96_K_${op}_${pert}_cycle$icycle.npy
     #  mv l96_dxaorig_${op}_${pt}_cycle$icycle.npy l96_dxaorig_${op}_${pert}_cycle$icycle.npy
     #  mv l96_dxa_${op}_${pt}_cycle$icycle.npy l96_dxa_${op}_${pert}_cycle$icycle.npy
@@ -97,12 +108,12 @@ for op in ${operators}; do
     #  mv l96_lpf_${op}_${pt}_cycle$icycle.npy l96_lpf_${op}_${pert}_cycle$icycle.npy
     #  mv l96_lspf_${op}_${pt}_cycle$icycle.npy l96_lspf_${op}_${pert}_cycle$icycle.npy
     #  fi
-    #done
+    done
     #python ../../plot/plotk.py ${op} l96 ${na} ${pert}
     #python ../../plot/plotdxa.py ${op} l96 ${na} ${pert}
     #python ../../plot/plotpf.py ${op} l96 ${na} ${pert}
     #python ../../plot/plotlpf.py ${op} l96 ${na} ${pert} 
-    done
+    #done
   done
   python ../../plot/plote.py ${op} l96 ${na} ${datype}
   #python ../../plot/plotchi.py ${op} l96 ${na}
@@ -113,4 +124,4 @@ for op in ${operators}; do
   #rm obs*.npy
 done
 rm l96*.txt 
-rm l96*.npy 
+rm l96*.npy wa*.npy Wmat*.npy 

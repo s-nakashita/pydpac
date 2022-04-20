@@ -1,5 +1,4 @@
-import sys
-import logging
+from logging import getLogger
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
@@ -10,8 +9,8 @@ from .minimize import Minimize
 
 zetak = []
 alphak = []
-logging.config.fileConfig("./logging_config.ini")
-logger = logging.getLogger('anl')
+fileConfig("./logging_config.ini")
+logger = getLogger('anl')
         
 class Lmlef():
 
@@ -241,7 +240,7 @@ class Lmlef():
     def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
         method="CGF", cgtype=1,
         gtol=1e-6, maxiter=10, restart=False, maxrest=5, update_ensemble=False,
-        disp=False, save_hist=False, save_dh=False, icycle=0):
+        disp=False, save_hist=False, save_dh=False, save_w=False, icycle=0):
         global zetak, alphak
         zetak = []
         alphak = []
@@ -422,7 +421,11 @@ class Lmlef():
                 logger.info("{} : final function value = {:.4f}".format(i,fval))
                 logger.info("{} : final gradient norm = {:.4e}".format(i,gnorm))
         # POSTPROCESS : update analysis and ensemble
+        wlist = []
+        Wlist = []
         for i in range(xc.size):
+            wk = tmatlist[i] @ zetalist[i]
+            wlist.append(wk)
             xa[i] = xc[i] + pf[i,:] @ tmatlist[i] @ zetalist[i]
         for i in range(xc.size):
             yiloc = yloclist[i]
@@ -436,6 +439,12 @@ class Lmlef():
             logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
             pa[i,:] = pf[i,:] @ tmat 
+            Wlist.append(tmat)
+        if save_w:
+            logger.debug(f"wlist={np.array(wlist).shape}")
+            logger.debug(f"Wlist={np.array(Wlist).shape}")
+            np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(wlist))
+            np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(Wlist))
         # statistical evaluation
         if self.ltlm:
             dh = self.obs.dh_operator(yloc,xa) @ pf
@@ -460,7 +469,8 @@ class Lmlef():
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa
         fpa = pa @ pa.T
-        if save_dh:
+        #if save_dh:
+        if save_w:
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
         return u, fpa, pa, innv, chi2, ds

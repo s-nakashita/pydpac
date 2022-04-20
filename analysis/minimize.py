@@ -414,9 +414,9 @@ class Minimize():
         else:
             fval = self.func(x0)
             gval = self.jac(x0)
-        logger.info("initial function value = {:10.3e}".format(fval))
+        logger.info("initial function value = {:13.6e}".format(fval))
 #        print("initial function value = {}".format(fval))
-        logger.info("initial gradient norm = {:10.3e}".format(np.sqrt(np.dot(gval, gval))))
+        logger.info("initial gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #        print("initial gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
 
         #x = x0
@@ -448,7 +448,7 @@ class Minimize():
             if iflag == 3: # line-search terminated successfully but not converged
                 icall += 1
                 if callback != None:
-                    logger.info(f"icall={icall} xk={xk} alphak={alphak:10.3e}")
+                    logger.info(f"icall={icall} xk={xk} alphak={alphak:13.6e}")
                     callback(xk, alphak)
                 if self.irest == 1:
                     # mutual orthogonality check
@@ -475,11 +475,11 @@ class Minimize():
                     callback(xk, alphak)
                 logger.info("minimization success")
                 logger.info("iteration = {}".format(icall))
-                logger.info("final step-length = {:10.3e}".format(alphak))
+                logger.info("final step-length = {:13.6e}".format(alphak))
 #                print("iteration = {}".format(icall))
-                logger.info("final function value = {:10.3e}".format(fval))
+                logger.info("final function value = {:13.6e}".format(fval))
 #                print("final function value = {}".format(fval))
-                logger.info("final gradient norm = {:10.3e}".format(np.sqrt(np.dot(gval, gval))))
+                logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
                 break
             elif iflag < 0:
@@ -487,20 +487,20 @@ class Minimize():
                     callback(xk, alphak)
                 logger.info("minimization failed, FLAG = {}".format(iflag))
                 logger.info("iteration = {}".format(icall))
-                logger.info("final step-length = {:10.3e}".format(alphak))
+                logger.info("final step-length = {:13.6e}".format(alphak))
 #                print("iteration = {}".format(icall))
-                logger.info("final function value = {:10.3e}".format(fval))
+                logger.info("final function value = {:13.6e}".format(fval))
 #                print("final function value = {}".format(fval))
-                logger.info("final gradient norm = {:10.3e}".format(np.sqrt(np.dot(gval, gval))))
+                logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
                 break
         if iflag > 0:
             logger.info("minimization not converged")
 #            print("minimization not converged")
-            logger.info("current step-length = {:10.3e}".format(alphak))
-            logger.info("current function value = {:10.3e}".format(fval))
+            logger.info("current step-length = {:13.6e}".format(alphak))
+            logger.info("current function value = {:13.6e}".format(fval))
 #            print("current function value = {}".format(fval))
-            logger.info("current gradient norm = {:10.3e}".format(np.sqrt(np.dot(gval, gval))))
+            logger.info("current gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #            print("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
         file_utility.file_close(lb3.mp)
         file_utility.file_close(lb3.lp)
@@ -523,9 +523,9 @@ class Minimize():
         else:
             fval = self.func(x0)
             gval = self.jac(x0)
-        logger.info("initial function value = {:10.3e}".format(fval))
+        logger.info("initial function value = {:13.6e}".format(fval))
 #        print("initial function value = {}".format(fval))
-        logger.info("initial gradient norm = {:10.3e}".format(np.sqrt(np.dot(gval, gval))))
+        logger.info("initial gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #        print("initial gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
 
         x = x0.copy()
@@ -599,10 +599,10 @@ class Minimize():
             logger.info("minimization success")
             logger.info("iteration = {}".format(icall))
 #                print("iteration = {}".format(icall))
-            logger.info("final step-length = {:10.3e}".format(alphak))
-            logger.info("final function value = {:10.3e}".format(fval))
+            logger.info("final step-length = {:13.6e}".format(alphak))
+            logger.info("final function value = {:13.6e}".format(fval))
 #                print("final function value = {}".format(fval))
-            logger.info("final gradient norm = {:10.3e}".format(np.sqrt(np.dot(gval, gval))))
+            logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
             
         if iflag < 0:
@@ -611,19 +611,19 @@ class Minimize():
             logger.info("minimization failed, FLAG = {}".format(iflag))
             logger.info("iteration = {}".format(icall))
 #                print("iteration = {}".format(icall))
-            logger.info("final step-length = {:10.3e}".format(alphak))
-            logger.info("final function value = {:10.3e}".format(fval))
+            logger.info("final step-length = {:13.6e}".format(alphak))
+            logger.info("final function value = {:13.6e}".format(fval))
 #                print("final function value = {}".format(fval))
-            logger.info("final gradient norm = {:10.3e}".format(np.sqrt(np.dot(gval, gval))))
+            logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
             
         if iflag > 0:
             logger.info("minimization not converged")
 #            print("minimization not converged")
-            logger.info("current step-length = {:10.3e}".format(alphak))
-            logger.info("current function value = {:10.3e}".format(fval))
+            logger.info("current step-length = {:13.6e}".format(alphak))
+            logger.info("current function value = {:13.6e}".format(fval))
 #            print("current function value = {}".format(fval))
-            logger.info("current gradient norm = {:10.3e}".format(np.sqrt(np.dot(gval, gval))))
+            logger.info("current gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #            print("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
         file_utility.file_close(cgdd.mp)
         file_utility.file_close(cgdd.lp)

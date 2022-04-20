@@ -27,7 +27,7 @@ x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =    8 # ensemble size (include control run)
+nmem =   21 # ensemble size (include control run)
 t0off =  24 # initial offset between adjacent members
 t0c =   500 # t0 for control
 # t0 for ensemble members
@@ -47,11 +47,11 @@ nobs = 40 # observation number (nobs<=nx)
 lb = -1.0 # (For var & 4dvar) correlation length for background error covariance
 
 # observation error standard deviation
-sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
+sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.2,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
+infl_l = {"mlef":1.05,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
           "4dmlef":1.3,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
 infl_c = {"mlef":1.3,"mlefw":1.3,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
@@ -63,10 +63,10 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":2.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
+sig_l = {"mlef":3.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
-sig_q = {"mlef":2.0,"mlefw":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
-sig_c = {"mlef":2.0,"mlefw":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
+sig_q = {"mlef":3.0,"mlefw":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":3.0,"kf":None,"var":None,"4dvar":None}
+sig_c = {"mlef":3.0,"mlefw":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":3.0,"kf":None,"var":None,"4dvar":None}
 sig_qd = {"mlef":6.0,"mlefw":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
 sig_cd = {"mlef":6.0,"mlefw":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"4dvar":None}
 sig_t = {"mlef":8.0,"mlefw":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0,"kf":None,"var":None,"4dvar":None}
@@ -170,7 +170,7 @@ if pt == "mlef":
         from analysis.mlef import Mlef
         analysis = Mlef(pt, state_size, nmem, obs, \
             linf=linf, infl_parm=infl_parm, \
-            iloc=iloc, lsig=lsig, ss=False, gain=False, \
+            iloc=iloc, lsig=lsig, ss=True, gain=False, \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=ltlm, model=model)
 elif pt == "mlefw":
@@ -189,10 +189,10 @@ elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
         calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
+    analysis = Kf(pt, obs, step, nt, linf=linf, infl_parm=infl_parm, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, lb, model=model)
+    analysis = Var(pt, obs, lb=lb, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
-    u, xa, xf, pa, sqrtpa = func.initialize(opt=0)
+    u, xa, xf, pa, sqrtpa = func.initialize(opt=1)
     logger.debug(u.shape)
     #func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
     pf = analysis.calc_pf(u, pa, 0)
@@ -263,7 +263,8 @@ if __name__ == "__main__":
             if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
             else:
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)#,\
+                #    save_w=True)
                 chi[i] = chi2
                 innov[i] = innv
         ## additive inflation

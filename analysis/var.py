@@ -13,7 +13,7 @@ zetak = []
 alphak = []
 
 class Var():
-    def __init__(self, pt, obs, lb, model="model"):
+    def __init__(self, pt, obs, lb=-1.0, model="model"):
         self.pt = pt # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type

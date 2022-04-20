@@ -1,5 +1,4 @@
-import sys
-import logging
+from logging import getLogger
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
@@ -10,8 +9,8 @@ from .minimize import Minimize
 
 zetak = []
 alphak = []
-logging.config.fileConfig("./logging_config.ini")
-logger = logging.getLogger('anl')
+fileConfig("./logging_config.ini")
+logger = getLogger('anl')
         
 class Mlef_rloc():
 
@@ -178,6 +177,7 @@ class Mlef_rloc():
         #    dist[k] = min(abs(obsloc[k] - xloc), nx-abs(obsloc[k] - xloc))
         for k in range(nobs):
             dist[k] = self.calc_dist1(xloc, obsloc[k])
+            logger.debug(f"{xloc} {obsloc[k]} {dist[k]}")
         far = far[dist>dist0]
         logger.debug(far)
         Rwf_loc = np.exp(-0.5*(dist/loc_scale)**2)
@@ -186,7 +186,7 @@ class Mlef_rloc():
     def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
         method="CGF", cgtype=1,
         gtol=1e-6, maxiter=None, restart=False, maxrest=20, update_ensemble=False,
-        disp=False, save_hist=False, save_dh=False, icycle=0):
+        disp=False, save_hist=False, save_dh=False, save_w=False, icycle=0):
         global zetak, alphak
         zetak = []
         alphak = []
@@ -279,96 +279,30 @@ class Mlef_rloc():
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
                             maxiter=maxiter, restart=restart)
-            if restart:
-                if save_hist:
-                    jh = []
-                    gh = []
-                while irest < maxrest:
-                    zetak = []
-                    xold = x 
-                    if save_hist:
-                        x, flg = minimize(x0, callback=self.callback)
-                        for i in range(len(zetak)):
-                            jh.append(self.calc_j(np.array(zetak[i]), *args_j))
-                            g = self.calc_grad_j(np.array(zetak[i]), *args_j)
-                            gh.append(np.sqrt(g.transpose() @ g))
-                    else:
-                        x, flg = minimize(x0)
-                    irest += 1
-                    if flg == 0:
-                        logger.info("Converged at {}th restart".format(irest))
-                        break
-                    xup = x - xold
-                    if np.sqrt(np.dot(xup,xup)) < 1e-5:
-                        logger.info("Stagnation at {}th restart : solution not updated"
-                        .format(irest))
-                        break
-                    xc[i] = xc[i] + gmat[i,:] @ x
-                    if self.ltlm:
-                        dhi = self.obs.dh_operator(yiloc,xc) @ pf
-                    else:
-                        dhi = self.obs.h_operator(yiloc,xc[:, None]+pf) - self.obs.h_operator(yiloc,xc)[:, None]
-                    zmat = Rmat @ dhi
-                    logger.debug("cond(zmat)={}".format(la.cond(zmat)))
-                    tmat, heinv = self.precondition(zmat)
-                    logger.debug("zmat.shape={}".format(zmat.shape))
-                    logger.debug("tmat.shape={}".format(tmat.shape))
-                    logger.debug("heinv.shape={}".format(heinv.shape))
-                    #gvec = pf[i,:] @ tmat
-                    gmat = pf @ tmat
-                    if update_ensemble:
-                        pf[i,:] = pf[i,:] @ tmat
-                    # update arguments
-                    if not self.incremental:
-                        args_j = (xc, i, pf, yi, yiloc, tmat, gmat, heinv, Rinv)
-                    else:
-                        di = Rmat @ (yi - self.obs.h_operator(yiloc, xc))
-                        args_j = (di, tmat, zmat, heinv)
-                    x0 = np.zeros(pf.shape[1])
-                    # reload minimize class
-                    minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter, restart=restart)
-                if save_hist:
-                    np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
-                    np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
-                    np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
-                    if self.model=="z08":
-                        xmax = max(np.abs(np.min(x)),np.max(x))
-                        logger.debug("resx max={}".format(xmax))
-                        if xmax < 1000:
-                            self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
-                        else:
-                            xmax = int(np.ceil(xmax*0.001)*1000)
-                            logger.info("resx max={}".format(xmax))
-                            self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
-                    elif self.model=="l96":
-                        self.cost_j(200, xf.shape[1], x, icycle, *args_j)
+            if save_hist:
+                x, flg = minimize(x0, callback=self.callback)
+                jh = np.zeros(len(zetak))
+                gh = np.zeros(len(zetak))
+                for j in range(len(zetak)):
+                    jh[j] = self.calc_j(np.array(zetak[j]), *args_j)
+                    g = self.calc_grad_j(np.array(zetak[j]), *args_j)
+                    gh[j] = np.sqrt(g.transpose() @ g)
+                np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
+                np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
+                np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
+                #if self.model=="z08":
+                #    xmax = max(np.abs(np.min(x)),np.max(x))
+                #    logger.debug("resx max={}".format(xmax))
+                #    if xmax < 1000:
+                #        self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
+                #    else:
+                #        xmax = int(np.ceil(xmax*0.001)*1000)
+                #        logger.info("resx max={}".format(xmax))
+                #        self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
+                #elif self.model=="l96":
+                #    self.cost_j(200, xf.shape[1], x, icycle, *args_j)
             else:
-                if save_hist:
-                    x, flg = minimize(x0, callback=self.callback)
-                    jh = np.zeros(len(zetak))
-                    gh = np.zeros(len(zetak))
-                    for j in range(len(zetak)):
-                        jh[j] = self.calc_j(np.array(zetak[j]), *args_j)
-                        g = self.calc_grad_j(np.array(zetak[j]), *args_j)
-                        gh[j] = np.sqrt(g.transpose() @ g)
-                    np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
-                    np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
-                    np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
-                    if self.model=="z08":
-                        xmax = max(np.abs(np.min(x)),np.max(x))
-                        logger.debug("resx max={}".format(xmax))
-                        if xmax < 1000:
-                            self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
-                        else:
-                            xmax = int(np.ceil(xmax*0.001)*1000)
-                            logger.info("resx max={}".format(xmax))
-                            self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
-                    elif self.model=="l96":
-                        self.cost_j(200, xf.shape[1], x, icycle, *args_j)
-                else:
-                    x, flg = minimize(x0)
+                x, flg = minimize(x0)
             wk = tmat @ x
             logger.debug(f"wk={wk.shape}")
             wlist.append(wk)
@@ -398,10 +332,11 @@ class Mlef_rloc():
             #tmat, heinv = self.precondition(zmat)
             pa[i,:] = pf[i,:] @ tmat 
             Wlist.append(tmat)
-        logger.debug(f"wlist={np.array(wlist).shape}")
-        logger.debug(f"Wlist={np.array(Wlist).shape}")
-        np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(wlist))
-        np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(Wlist))
+        if save_w:
+            logger.debug(f"wlist={np.array(wlist).shape}")
+            logger.debug(f"Wlist={np.array(Wlist).shape}")
+            np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(wlist))
+            np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(Wlist))
         # statistical evaluation
         if self.ltlm:
             dh = self.obs.dh_operator(yloc,xa) @ pf
@@ -426,7 +361,8 @@ class Mlef_rloc():
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa
         fpa = pa @ pa.T
-        if save_dh:
+        #if save_dh:
+        if save_w:
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
         return u, fpa, pa, innv, chi2, ds

@@ -160,8 +160,8 @@ if __name__ == "__main__":
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis".format(i))
-        #if i in range(4):
-        if i < 0:
+        if i in range(na):
+        #if i < 0:
             u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
                 save_hist=True, save_dh=True, icycle=i)
         else:

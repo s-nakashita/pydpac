@@ -325,25 +325,32 @@ if __name__ == "__main__":
         initial_ctrl_obserr = np.sqrt(((hxf - hxt)**2).mean())
         logger.info(f"initial error in obs space (control) ={initial_ctrl_obserr}")
 #
-        params = {'mlef':('mlef',None,False,False),'mlef-b':('mlef',2,False,True),'mlef-r':('mlef',0,False,False),'lmlef':('mlef',0,False,False)}
-        #names2 = ['mlef','mlef-b']#,'mlef-r']
-        names2 = ['lmlef']
+        params = {'mlef':('mlef',None,False,False),'mlef-b':('mlef',2,False,True),\
+            'lmlef0':('mlef',0,False,False),'lmlef1':('mlef',0,False,False),'lmlef2':('mlef',0,False,False)}
+        names2 = ['mlef','mlef-b','lmlef0','lmlef1','lmlef2']
+        # lmlef0 : incremental form
+        # lmlef1 : full nonlinear form
+        # lmlef2 : modelate nonlinear form
+        #names2 = ['lmlef']
         for ptype in names2:
             pt, iloc, ss, gain = params[ptype]
-            if ptype == 'mlef-r':
+            if ptype == 'lmlef0':
                 analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
                        ,incremental=True)
-            elif ptype == 'lmlef':
+            elif ptype == 'lmlef1':
+                analysis = Lmlef(pt, N, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
+                       ,incremental=False, ltlm=False)
+            elif ptype == 'lmlef2':
                 analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
-                       ,incremental=False, ltlm=True)
+                       ,incremental=False, ltlm=False)
                 #analysis = Lmlef(pt, N, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
-                #       ,incremental=False, ltlm=False)
+                #       ,incremental=False, ltlm=True)
             else:
-                analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1#)
-                       ,ltlm=True)
+                analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
+                #       ,ltlm=True)
             xb = xf
             pb = Pe
-            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='LBFGS', maxiter=10)#, restart=True)
+            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='CGF', cgtype=1, maxiter=10)#, restart=True)
             xa_list.append(xa[:,0])
         ## plot
         #fig, ax = plt.subplots(1,2,figsize=(12,4))

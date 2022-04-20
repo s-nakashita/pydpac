@@ -1,12 +1,13 @@
 import logging
+from logging import getLogger
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 from scipy.linalg import cho_solve, cho_factor
 from .chi_test import Chi
 
-logging.config.fileConfig("logging_config.ini")
-logger = logging.getLogger('anl')
+fileConfig("./logging_config.ini")
+logger = getLogger('anl')
 
 class EnKF():
 
@@ -29,7 +30,7 @@ class EnKF():
         self.infl_parm = infl_parm # inflation parameter
         # localization
         self.iloc = iloc # iloc = None->No localization
-                         #      = 0   ->R-localization
+                         #      = 0   ->K-localization(R-localization for LETKF)
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
         self.lsig = lsig # localization parameter
@@ -72,8 +73,17 @@ class EnKF():
         pf = dxf @ dxf.transpose() / (self.nmem-1)
         return pf
         
+    def cost_j(self, w, *args):
+        xf, dxf, y, yloc, rinv = args
+        x = xf + dxf @ w 
+        ob = y - self.obs.h_operator(yloc, x)
+        jb = 0.5 * w.transpose() @ w * (self.nmem - 1)
+        jo = 0.5 * ob.transpose() @ rinv @ ob
+        logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
+        j = jb + jo 
+        return j
     def __call__(self, xf, pf, y, yloc, R=None, rmat=None, rinv=None,
-        save_hist=False, save_dh=False, icycle=0):
+        save_hist=False, save_dh=False, save_w=False, icycle=0):
         #xf = xb[:]
         xf_ = np.mean(xf, axis=1)
         logger.debug(f"obsloc={yloc}")
@@ -95,6 +105,10 @@ class EnKF():
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), pf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxf)
+            wk = np.zeros(self.nmem)
+            args = (xf_, dxf, y, yloc, rinv)
+            jlist = []
+            jlist.append(self.cost_j(wk, *args))
         if (self.iloc == 1 or self.iloc == 2) and self.da != "letkf":
             logger.info("==B-localization==, lsig={}".format(self.lsig))
             dxf_orig = dxf.copy()
@@ -154,6 +168,10 @@ class EnKF():
             if save_dh:
                 np.save("{}_K_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
                 np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K@d)
+                wk = TT @ dy.T @ rinv @ d
+                jlist.append(self.cost_j(wk, *args))
+                logger.debug(len(jlist))
+                np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.da, icycle), jlist)
             if self.iloc == 0: # K-localization
                 logger.info("==K-localization==, lsig={}".format(self.lsig))
                 l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
@@ -364,13 +382,15 @@ class EnKF():
                 Wlist.append(sqrtPa)
                 dxa[i] = dxf[i] @ sqrtPa
                 xa[i] = np.full(nmem,xa_[i]) + dxa[i]
-            logger.debug(f"wlist={np.array(wlist).shape}")
-            logger.debug(f"Wlist={np.array(Wlist).shape}")
-            np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.da, icycle), np.array(wlist))
-            np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.da, icycle), np.array(Wlist))
+            if save_w:
+                logger.debug(f"wlist={np.array(wlist).shape}")
+                logger.debug(f"Wlist={np.array(Wlist).shape}")
+                np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.da, icycle), np.array(wlist))
+                np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.da, icycle), np.array(Wlist))
         pa = dxa@dxa.T/(nmem-1)
         spa = dxa / np.sqrt(nmem-1)
-        if save_dh:
+        #if save_dh:
+        if save_w:
             ua = np.zeros((xa_.size,nmem+1))
             ua[:,0] = xa_
             ua[:,1:] = xa

@@ -93,8 +93,9 @@ class L96_func():
                 yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
             else:
                 logger.info("random observation")
+                obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
                 for k in range(self.na):
-                    obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
+                    #obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
                     #obsloc = xloc[:self.nobs]
                     #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs)
                     yobs[k,:,0] = obsloc[:]

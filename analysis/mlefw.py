@@ -322,17 +322,17 @@ class Mlefw():
             np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
             np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
             np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
-            if self.model=="z08":
-                xmax = max(np.abs(np.min(x)),np.max(x))
-                logger.debug("resx max={}".format(xmax))
-                if xmax < 1000:
-                    self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
-                else:
-                    xmax = int(np.ceil(xmax*0.001)*1000)
-                    logger.info("resx max={}".format(xmax))
-                    self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
-            elif self.model=="l96":
-                self.cost_j(200, xf.shape[1], x, icycle, *args_j)
+            #if self.model=="z08":
+            #    xmax = max(np.abs(np.min(x)),np.max(x))
+            #    logger.debug("resx max={}".format(xmax))
+            #    if xmax < 1000:
+            #        self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
+            #    else:
+            #        xmax = int(np.ceil(xmax*0.001)*1000)
+            #        logger.info("resx max={}".format(xmax))
+            #        self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
+            #elif self.model=="l96":
+            #    self.cost_j(200, xf.shape[1], x, icycle, *args_j)
         else:
             w, flg = minimize(w0)
         xa = xc + pf @ w
