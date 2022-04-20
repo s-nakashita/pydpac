@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-if model == "z08" or model == "z05":
+if model == "z08":
     #perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf", "var"]
     perts = ["mlef-fh", "mlef-jh", "etkf-fh", "etkf-jh", "var"]
     linecolor = {"mlef-fh":'tab:blue',"mlef-jh":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
@@ -23,6 +23,13 @@ if model == "z08" or model == "z05":
     #"quadratic-nodiff": 8.0e-2, "cubic-nodiff": 7.0e-4, "quartic-nodiff": 7.0e-4}
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
+elif model == "z05":
+    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var"]
+    linecolor = {"mlef":'tab:blue',"etkf":'tab:orange', "po":'tab:green',\
+        "srf":"tab:red", "letkf":"tab:pink", "kf":"tab:purple", "var":"tab:cyan",\
+        "var4d":"tab:brown"}
+    x = np.arange(na)+1
+    sigma = {"linear": 0.05, "quadratic": 0.05}
 elif model == "l96" or model == "tc87":
     perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
@@ -41,8 +48,8 @@ elif model == "l96" or model == "tc87":
     "test":1.0, "abs":1.0, "hint":1.0}
     x = np.arange(na) + 1
 y = np.ones(x.size) * sigma[op]
-fig, ax = plt.subplots()
-fig2, ax2 = plt.subplots()
+fig, ax = plt.subplots(figsize=(10,5))
+fig2, ax2 = plt.subplots(figsize=(10,5))
 #ax2 = ax.twinx()
 i = 0
 for pt in perts:
@@ -64,26 +71,21 @@ for pt in perts:
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
-    trpa = np.zeros(na)
-    if pt[:4] == "mlef":
-        spa = np.load(f)
-        for i in range(na):
-            pa = spa[i] @ spa[i].T
-            trpa[i] = np.mean(np.diag(pa))
-    else:
-        pa = np.load(f)
-        for i in range(na):
-            trpa[i] = np.mean(np.diag(pa[i]))
+    stda = np.zeros(na)
+    pa = np.load(f)
+    for i in range(na):
+        stda[i] = np.sqrt(np.trace(pa[i]))
     if e.size > na:
         if pt[:2] != "4d":
-            ax2.plot(x[1:], trpa/e[1:], linestyle="solid", color=linecolor[pt], label=pt)
+            ax2.plot(x[1:], stda/e[1:], linestyle="solid", color=linecolor[pt], label=pt)
         else:
-            ax2.plot(x[1:], trpa/e[1:], linestyle="dashed", color=linecolor[pt], label=pt)
+            ax2.plot(x[1:], stda/e[1:], linestyle="dashed", color=linecolor[pt], label=pt)
     else:
+        ax.plot(x, stda, linestyle="dashed", color=linecolor[pt], label=pt+" stdv.")
         if pt[:2] != "4d":
-            ax2.plot(x, trpa/e, linestyle="solid", color=linecolor[pt], label=pt)
+            ax2.plot(x, stda/e, linestyle="solid", color=linecolor[pt], label=pt)
         else:
-            ax2.plot(x, trpa/e, linestyle="dashed", color=linecolor[pt], label=pt)
+            ax2.plot(x, stda/e, linestyle="dashed", color=linecolor[pt], label=pt)
     #f = "{}_e_{}-nodiff_{}.txt".format(model, op, pt)
     #if not os.path.isfile(f):
     #    print("not exist {}".format(f))

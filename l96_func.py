@@ -160,10 +160,10 @@ class L96_func():
                 xf[0] = np.mean(u, axis=1)
         pa  = np.zeros((self.nx, self.nx))
         #if self.pt == "mlef" or self.pt == "grad":
-        #    sqrtpa = np.zeros((self.na, self.nx, len(self.t0f)-1))
+        #    savepa = np.zeros((self.na, self.nx, len(self.t0f)-1))
         #else:
-        sqrtpa = np.zeros((self.na, self.nx, self.nx))
-        return u, xa, xf, pa, sqrtpa
+        savepa = np.zeros((self.na, self.nx, self.nx))
+        return u, xa, xf, pa, savepa
 
     # forecast
     def forecast(self, u):

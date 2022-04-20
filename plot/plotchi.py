@@ -18,9 +18,13 @@ elif model == "z08":
     linestyle = {"mlef":"solid", "grad":"dashed",
      "etkf-fh":"solid", "etkf-jh":"dashed"}
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red'}
+elif model == "z05":
+    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var"]
+    linecolor = {"mlef":'blue',"grad":'orange',"etkf":'green', "po":'red',\
+        "srf":"pink", "letkf":"purple", "kf":"cyan", "var":"olive"}
 x = np.arange(na) + 1
 y = np.ones(x.shape)
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(10,5))
 for pt in perts:
     f = "{}_chi_{}_{}.txt".format(model, op, pt)
     if not os.path.isfile(f):
@@ -28,13 +32,13 @@ for pt in perts:
         continue
     chi = np.loadtxt(f)
     chim = np.zeros_like(chi)
-    #ax.plot(x, chi, linestyle="dashed", color="tab:"+linecolor[pt])
+    ax.scatter(x, chi, color="tab:"+linecolor[pt])
     for k in range(chi.size):
         chim[k] = np.mean(chi[k:k+10])
     ax.plot(x, chim, linestyle="solid", color=linecolor[pt], label=pt)
 ax.plot(x, y, linestyle="dotted", color='black')
 ax.set_yscale("log")
-ax.set_ylim(1e-1, 1e2)
+ax.set_ylim(1e-1, 10)
 #if np.max(chi) > 1000.0:
 #    ax.set_ylim(0.1, 1000.0)
 #    ax.set_yticks([1,10,100,1000])

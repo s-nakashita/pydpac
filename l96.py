@@ -211,7 +211,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
-    u, xa, xf, pa, sqrtpa = func.initialize(opt=0)
+    u, xa, xf, pa, savepa = func.initialize(opt=0)
     logger.debug(u.shape)
     #func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
     pf = analysis.calc_pf(u, pa, 0)
@@ -261,7 +261,7 @@ if __name__ == "__main__":
                 xa[i] = np.mean(u, axis=1)
         else:
             xa[i] = u
-        sqrtpa[i] = pa
+        savepa[i] = pa
         dof[i] = ds
         if i < na-1:
             if a_window > 1:
@@ -275,7 +275,7 @@ if __name__ == "__main__":
                         xf[i+1:i+1+a_window] = uf
                     ii = 0
                     for k in range(i+1,i+1+a_window):
-                        sqrtpa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
+                        savepa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
                         ii += 1
                 else:
                     if ft=="ensemble":
@@ -286,7 +286,7 @@ if __name__ == "__main__":
                         xf[i+1:na] = uf[:na-i-1]
                     ii = 0
                     for k in range(i+1,na):
-                        sqrtpa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
+                        savepa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
                         ii += 1
                 u = uf[-1]
                 pf = analysis.calc_pf(u, pa, i+1)
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     np.save("{}_ut.npy".format(model), xt)
     np.save("{}_uf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), xa)
-    np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
+    np.save("{}_pa_{}_{}.npy".format(model, op, pt), savepa)
     
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
