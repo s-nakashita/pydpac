@@ -211,7 +211,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
-    u, xa, xf, pa, savepa = func.initialize(opt=0)
+    u, xa, xf, pa = func.initialize(opt=0)
     logger.debug(u.shape)
     #func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
     pf = analysis.calc_pf(u, pa, 0)
@@ -219,6 +219,7 @@ if __name__ == "__main__":
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
+    stda = np.zeros(na)
     innov = np.zeros((na,yobs.shape[1]))
     chi = np.zeros(na)
     dof = np.zeros(na)
@@ -261,7 +262,6 @@ if __name__ == "__main__":
                 xa[i] = np.mean(u, axis=1)
         else:
             xa[i] = u
-        savepa[i] = pa
         dof[i] = ds
         if i < na-1:
             if a_window > 1:
@@ -275,7 +275,8 @@ if __name__ == "__main__":
                         xf[i+1:i+1+a_window] = uf
                     ii = 0
                     for k in range(i+1,i+1+a_window):
-                        savepa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
+                        patmp = analysis.calc_pf(uf[ii], pa, k)
+                        stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 else:
                     if ft=="ensemble":
@@ -286,7 +287,8 @@ if __name__ == "__main__":
                         xf[i+1:na] = uf[:na-i-1]
                     ii = 0
                     for k in range(i+1,na):
-                        savepa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
+                        patmp = analysis.calc_pf(uf[ii], pa, k)
+                        stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 u = uf[-1]
                 pf = analysis.calc_pf(u, pa, i+1)
@@ -306,13 +308,13 @@ if __name__ == "__main__":
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
         else:
             e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
-            
-    np.save("{}_ut.npy".format(model), xt)
-    np.save("{}_uf_{}_{}.npy".format(model, op, pt), xf)
-    np.save("{}_ua_{}_{}.npy".format(model, op, pt), xa)
-    np.save("{}_pa_{}_{}.npy".format(model, op, pt), savepa)
+            stda[i] = np.sqrt(np.trace(pa)/nx)
+
+    np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
+    np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
+    np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
-    np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
+    np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)

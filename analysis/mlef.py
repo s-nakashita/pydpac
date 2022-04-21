@@ -262,6 +262,7 @@ class Mlef():
         #    pf *= self.infl_parm
         fpf = pf @ pf.T
         if save_dh:
+            np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
         if self.iloc is not None:

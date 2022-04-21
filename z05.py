@@ -68,13 +68,22 @@ op = htype["operator"]
 pt = htype["perturbation"]
 ft = ftype[pt]
 
-# switch of using/not using tangent linear operator
+# observation number
 if len(sys.argv) > 4:
-    if sys.argv[4] == "F":
+    nobs = int(sys.argv[4])
+    if nobs < nx:
+        obsnet = 'fixed'
+# observation network
+if len(sys.argv) > 5 and nobs != nx:
+    obsnet = sys.argv[5]
+
+# switch of using/not using tangent linear operator
+if len(sys.argv) > 6:
+    if sys.argv[6] == "F":
         ltlm = False
 # number of ensemble member
-if len(sys.argv) > 5:
-    nmem = int(sys.argv[5])
+if len(sys.argv) > 7:
+    nmem = int(sys.argv[7])
 
 # observation operator
 obs = Obs(op, obs_s)
@@ -98,7 +107,8 @@ elif pt == "4dmlef":
 
 # load functions
 params = {
-    "step":step, "obs":obs, "analysis":analysis, "nobs":nobs \
+    "step":step, "obs":obs, "analysis":analysis\
+    ,"nobs":nobs, "obsnet":obsnet\
     ,"t0c":t0c, "t0f":t0f, "nt":nt, "na":na\
     ,"a_window":a_window, "op":op, "pt":pt, "ft":ft\
     ,"ltlm":ltlm\
@@ -112,15 +122,16 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt = func.gen_true()
-    yobs = func.gen_obs(xt,obsnet=obsnet)
-    u, xa, xf, pa, savepa = func.initialize()
+    yobs = func.gen_obs(xt)
+    u, xa, xf, pa = func.initialize()
     logger.debug(u.shape)
-    func.plot_initial(u[:,0],u[:,1:],xt[0],yobs[0])
+    #func.plot_initial(u[:,0],u[:,1:],xt[0],yobs[0])
     pf = analysis.calc_pf(u, pa, 0)
 
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
+    stda = np.zeros(na)
     innov = np.zeros((na,yobs.shape[1]))
     chi = np.zeros(na)
     dof = np.zeros(na)
@@ -130,12 +141,14 @@ if __name__ == "__main__":
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis".format(i))
-        if i == 0:
+        #if i in range(0,10,3):
+        if i < 0:
             if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
+                    maxiter=1,\
                     save_hist=True, save_dh=True, icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
@@ -143,7 +156,9 @@ if __name__ == "__main__":
             if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
             else:
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0],\
+                    maxiter=1,\
+                    icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
         ## additive inflation
@@ -160,7 +175,7 @@ if __name__ == "__main__":
                 xa[i] = np.mean(u, axis=1)
         else:
             xa[i] = u
-        savepa[i] = pa
+        #savepa[i] = pa
         dof[i] = ds
         if i < na-1:
             if a_window > 1:
@@ -174,7 +189,8 @@ if __name__ == "__main__":
                         xf[i+1:i+1+a_window] = uf
                     ii = 0
                     for k in range(i+1,i+1+a_window):
-                        savepa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
+                        patmp = analysis.calc_pf(uf[ii], pa, k)
+                        stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 else:
                     if ft=="ensemble":
@@ -185,7 +201,8 @@ if __name__ == "__main__":
                         xf[i+1:na] = uf[:na-i-1]
                     ii = 0
                     for k in range(i+1,na):
-                        savepa[k, :, :] = analysis.calc_pf(uf[ii], pa, k)
+                        patmp = analysis.calc_pf(uf[ii], pa, k)
+                        stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 u = uf[-1]
                 pf = analysis.calc_pf(u, pa, i+1)
@@ -205,13 +222,14 @@ if __name__ == "__main__":
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
         else:
             e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
+            stda[i] = np.sqrt(np.trace(pa)/nx)
             
-    np.save("{}_ut.npy".format(model), xt)
-    np.save("{}_uf_{}_{}.npy".format(model, op, pt), xf)
-    np.save("{}_ua_{}_{}.npy".format(model, op, pt), xa)
-    np.save("{}_pa_{}_{}.npy".format(model, op, pt), savepa)
+    np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
+    np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
+    #np.save("{}_pa_{}_{}.npy".format(model, op, pt), savepa)
+    np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
-    np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
+    np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)

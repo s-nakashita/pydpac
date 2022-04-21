@@ -162,8 +162,8 @@ class L96_func():
         #if self.pt == "mlef" or self.pt == "grad":
         #    savepa = np.zeros((self.na, self.nx, len(self.t0f)-1))
         #else:
-        savepa = np.zeros((self.na, self.nx, self.nx))
-        return u, xa, xf, pa, savepa
+        #savepa = np.zeros((self.na, self.nx, self.nx))
+        return u, xa, xf, pa#, savepa
 
     # forecast
     def forecast(self, u):

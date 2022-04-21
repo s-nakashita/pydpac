@@ -16,6 +16,7 @@ class Z05_func():
         self.obs = params["obs"]
         self.analysis = params["analysis"]
         self.nobs = params["nobs"]
+        self.obsnet = params["obsnet"]
         self.t0c = params["t0c"]
         self.t0f = params["t0f"]
         self.nt = params["nt"]
@@ -66,42 +67,44 @@ class Z05_func():
         return xt
 
     # prepare observation
-    def gen_obs(self, xt, obsnet="all"):
+    def gen_obs(self, xt):
         obs_s = self.obs.get_sig()
-        obsfile = f"obs{obsnet}_{self.op}_{int(obs_s*1e4)}.npy"
+        obsfile = f"obs{self.obsnet}_{self.op}_{int(obs_s*1e4)}.npy"
         if not os.path.isfile(obsfile):
             logger.info("create obs")
-            yobs = self.create_obs(xt,obsnet)
+            yobs = self.create_obs(xt)
             np.save(obsfile,yobs)
         else:
             logger.info("read obs")
             yobs = np.load(obsfile)
             if yobs.shape[0] < self.na:
                 logger.warning("observations are insufficient, recreate")
-                yobs = self.create_obs(xt,obsnet)
+                yobs = self.create_obs(xt)
                 np.save(obsfile,yobs)
         return yobs
     # create observations from truth
-    def create_obs(self,xt,obsnet):
+    def create_obs(self,xt):
         xloc = np.arange(self.nx)
         yobs = np.zeros((self.na, self.nobs, 2))
-        logger.info(f"observation network={obsnet}")
-        if obsnet == "all":
+        logger.info(f"observation network={self.obsnet}")
+        if self.obsnet == "all":
             for k in range(self.na):
                 yobs[k,:,0] = xloc[:]
-        elif obsnet == "fixed":
+        elif self.obsnet == "fixed":
             ## random choice
             #obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
             # search local max
-            ux = np.abs(np.roll(xt[0],-1) - np.roll(xt[0],1))
-            obsloc = np.sort(ux.argsort()[-self.nobs:])
+            #ux = np.abs(np.roll(xt[0],-1) - np.roll(xt[0],1))
+            #obsloc = np.sort(ux.argsort()[-self.nobs:])
+            obsloc = np.sort(np.argsort(np.abs(xt[0]))[-self.nobs:])
             for k in range(self.na):
                 yobs[k,:,0] = obsloc[:]
-        elif obsnet == "targeted":
+        elif self.obsnet == "targeted":
             # search local max
             for k in range(self.na):
-                ux = np.abs(np.roll(xt[k],-1) - np.roll(xt[k],1))
-                obsloc = np.sort(ux.argsort()[-self.nobs:])
+                #ux = np.abs(np.roll(xt[k],-1) - np.roll(xt[k],1))
+                #obsloc = np.sort(ux.argsort()[-self.nobs:])
+                obsloc = np.sort(np.argsort(np.abs(xt[k]))[-self.nobs:])
                 yobs[k,:,0] = obsloc[:]
         for k in range(self.na):
             yobs[k,:,1] = self.obs.h_operator(yobs[k,:,0],xt[k])
@@ -133,6 +136,8 @@ class Z05_func():
             xc = self.step(xc)
             spf = self.step(spf)
         spf = spf - xc[:, None]
+        ## scale
+        #spf /= np.sqrt(spf.shape[1]-1)
         x0[:,0] = x0c
         x0[:,1:] = spf + x0c[:,None]
         return x0
@@ -151,8 +156,8 @@ class Z05_func():
             else:
                 xf[0] = np.mean(u, axis=1)
         pa  = np.zeros((self.nx, self.nx))
-        savepa = np.zeros((self.na, self.nx, self.nx))
-        return u, xa, xf, pa, savepa
+        #savepa = np.zeros((self.na, self.nx, self.nx))
+        return u, xa, xf, pa#, savepa
 
     # forecast
     def forecast(self,u):
@@ -177,10 +182,10 @@ class Z05_func():
         x = self.step.get_x()
         ax.plot(x,ut,label='true')
         ax.plot(x,uc,label='control')
-        ax.plot(x,u-uc[:,None],color='gray')
+        ax.plot(x,u,color='gray')
         xobs = np.zeros(obs.shape[0])
         for i in range(obs.shape[0]):
             xobs[i] = x[int(obs[i,0])]
         ax.scatter(xobs, obs[:,1], label='obs')
         ax.legend()
-        fig.savefig(f"{model}_initial.png", bbox_inches='tight', dpi=300)
+        fig.savefig(f"{model}_initial_{self.op}.png", bbox_inches='tight', dpi=300)

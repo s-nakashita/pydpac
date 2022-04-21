@@ -5,17 +5,19 @@ import numpy.linalg as la
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
-
+plt.rcParams["font.size"] = 12
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
 pt = sys.argv[4]
-if model == "z08" or model == "z05":
+if model == "z08":
     nx = 81
+elif model == "z05":
+    nx = 101
 elif model == "l96":
     nx = 40
 x = np.arange(nx)
-for icycle in range(5):
+for icycle in range(0,10,3):
     cmap = "coolwarm"
     pf = None
     f = "{}_pf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)

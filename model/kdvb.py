@@ -100,9 +100,9 @@ class KdVB():
         uf = ua + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0
         if self.nu != 0.0:
             if self.fd:
-                uf += self.diffuse_fd(ua)
+                uf += self.diffuse_fd(ua) * self.dt
             else:
-                uf += self.diffuse(ua)
+                uf += self.diffuse(ua) * self.dt
         return uf
 
 if __name__ == "__main__":

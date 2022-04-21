@@ -67,21 +67,18 @@ for pt in perts:
         ax.plot(x, e, linestyle="solid", color=linecolor[pt], label=pt)
     else:
         ax.plot(x, e, linestyle="dashed", color=linecolor[pt], label=pt)
-    f = "{}_pa_{}_{}.npy".format(model, op, pt)
+    f = "{}_stda_{}_{}.txt".format(model, op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
-    stda = np.zeros(na)
-    pa = np.load(f)
-    for i in range(na):
-        stda[i] = np.sqrt(np.trace(pa[i]))
+    stda = np.loadtxt(f)
+    ax.plot(x, stda, linestyle="dashed", color=linecolor[pt], label=pt+" stdv.")
     if e.size > na:
         if pt[:2] != "4d":
             ax2.plot(x[1:], stda/e[1:], linestyle="solid", color=linecolor[pt], label=pt)
         else:
             ax2.plot(x[1:], stda/e[1:], linestyle="dashed", color=linecolor[pt], label=pt)
     else:
-        ax.plot(x, stda, linestyle="dashed", color=linecolor[pt], label=pt+" stdv.")
         if pt[:2] != "4d":
             ax2.plot(x, stda/e, linestyle="solid", color=linecolor[pt], label=pt)
         else:
@@ -122,5 +119,5 @@ ax2.set_yscale("log")
 ax.legend()
 ax2.legend()
 fig.savefig("{}_e_{}.png".format(model, op))
-fig2.savefig("{}_e+pa_{}.png".format(model, op))
+fig2.savefig("{}_e+stda_{}.png".format(model, op))
 #fig.savefig("{}_e_{}+nodiff.pdf".format(model, op))
