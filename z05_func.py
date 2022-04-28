@@ -19,6 +19,7 @@ class Z05_func():
         self.obsnet = params["obsnet"]
         self.t0c = params["t0c"]
         self.t0f = params["t0f"]
+        self.t0e = params["t0e"]
         self.nt = params["nt"]
         self.na = params["na"]
         self.a_window = params["a_window"]
@@ -112,18 +113,18 @@ class Z05_func():
         return yobs
     
     # initialize control
-    def init_ctl(self):
+    def init_ctl(self,t):
         x0c = np.zeros(self.nx)
         b1 = 0.4
         b2 = 0.9
-        x0c = self.step.soliton2(self.t0c, np.sqrt(0.5*b1), np.sqrt(0.5*b2))
+        x0c = self.step.soliton2(t, np.sqrt(0.5*b1), np.sqrt(0.5*b2))
         return x0c
     
     # initialize ensemble
     def init_ens(self):
         x0 = np.zeros((self.nx,len(self.t0f)+1))
-        x0c = self.init_ctl()
-        xc = x0c.copy()
+        x0c = self.init_ctl(self.t0c)
+        xb  = self.init_ctl(self.t0e)
         spf = np.zeros((self.nx,len(self.t0f)))
         b1 = 0.4
         b2 = 0.9
@@ -133,9 +134,9 @@ class Z05_func():
             spf[:,m] = self.step.soliton2(self.t0f[m], np.sqrt(0.5*b1e[m]), np.sqrt(0.5*b2e[m]))
         # spinup
         for i in range(400):
-            xc = self.step(xc)
+            xb = self.step(xb)
             spf = self.step(spf)
-        spf = spf - xc[:, None]
+        spf = spf - xb[:, None]
         ## scale
         #spf /= np.sqrt(spf.shape[1]-1)
         x0[:,0] = x0c
@@ -147,7 +148,7 @@ class Z05_func():
         xa = np.zeros((self.na,self.nx))
         xf = np.zeros_like(xa)
         if self.ft == "deterministic":
-            u = self.init_ctl()
+            u = self.init_ctl(self.t0c)
             xf[0] = u
         else:
             u = self.init_ens()
@@ -161,7 +162,7 @@ class Z05_func():
 
     # forecast
     def forecast(self,u):
-        if self.ft == "ensemble":
+        if u.ndim > 1:
             uf = np.zeros((self.a_window, u.shape[0], u.shape[1]))
         else:
             uf = np.zeros((self.a_window, u.size))

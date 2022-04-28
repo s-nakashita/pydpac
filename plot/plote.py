@@ -52,6 +52,16 @@ fig, ax = plt.subplots(figsize=(10,5))
 fig2, ax2 = plt.subplots(figsize=(10,5))
 #ax2 = ax.twinx()
 i = 0
+f = "{}_enda_{}.txt".format(model, op)
+try:
+    e = np.loadtxt(f)
+    if np.isnan(e).any():
+        print("divergence in NoDA")
+    else:
+        print("NoDA, mean RMSE = {}".format(np.mean(e[int(na/3):])))
+        ax.plot(x, e, linestyle='dotted', color='gray', label='NoDA')
+except FileNotFoundError:
+    print("not exist {}".format(f))
 for pt in perts:
     f = "{}_e_{}_{}.txt".format(model, op, pt)
     if not os.path.isfile(f):
@@ -115,7 +125,7 @@ else:
     ax.set_xticks(x, minor=True)
     ax2.set_xticks(x[::5])
     ax2.set_xticks(x, minor=True)
-ax2.set_yscale("log")
+#ax2.set_yscale("log")
 ax.legend()
 ax2.legend()
 fig.savefig("{}_e_{}.png".format(model, op))

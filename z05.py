@@ -24,8 +24,9 @@ step = KdVB(nx, dt, dx, nu, fd=True)
 nt   = 200 # number of steps per assimilation
 nmem = 10 # ensemble size (not include control run)
 t0c  = -6.0 # t0 for control
+t0e  = -7.0 # t0 for initial ensemble
 et0  = 2.0 # standard deviation of perturbations for ensemble t0
-t0f  = (np.random.randn(nmem)*et0 + t0c).tolist() # t0 for ensemble
+t0f  = (np.random.randn(nmem)*et0 + t0e).tolist() # t0 for ensemble
 na   = 100 # number of analysis cycle
 a_window = 1 # (for 4D) assimilation window length
 # observation setup
@@ -109,7 +110,8 @@ elif pt == "4dmlef":
 params = {
     "step":step, "obs":obs, "analysis":analysis\
     ,"nobs":nobs, "obsnet":obsnet\
-    ,"t0c":t0c, "t0f":t0f, "nt":nt, "na":na\
+    ,"t0c":t0c, "t0f":t0f, "t0e":t0e\
+    ,"nt":nt, "na":na\
     ,"a_window":a_window, "op":op, "pt":pt, "ft":ft\
     ,"ltlm":ltlm\
     #,"linf":linf, "lloc":lloc\
@@ -125,12 +127,24 @@ if __name__ == "__main__":
     yobs = func.gen_obs(xt)
     u, xa, xf, pa = func.initialize()
     logger.debug(u.shape)
-    #func.plot_initial(u[:,0],u[:,1:],xt[0],yobs[0])
+    func.plot_initial(u[:,0],u[:,1:],xt[0],yobs[0])
     pf = analysis.calc_pf(u, pa, 0)
+
+    x_nda = np.zeros_like(xf)      # No DA
+    u_nda = np.zeros_like(u[:, 0]) # No DA
+    if ft=="ensemble":
+        if pt == "mlef" or pt == "4dmlef":
+            u_nda[:] = u[:, 0]
+        else:
+            u_nda[:] = np.mean(u, axis=1)
+    else:
+        u_nda[:] = u 
+    x_nda[0] = u_nda
 
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
+    e_nda = np.zeros(na) # No DA
     stda = np.zeros(na)
     innov = np.zeros((na,yobs.shape[1]))
     chi = np.zeros(na)
@@ -141,14 +155,14 @@ if __name__ == "__main__":
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis".format(i))
-        #if i in range(0,10,3):
-        if i < 0:
+        if i in range(0,10,3):
+        #if i < 0:
             if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
-                    maxiter=1,\
+                    #maxiter=1,\
                     save_hist=True, save_dh=True, icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
@@ -157,7 +171,7 @@ if __name__ == "__main__":
                 u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0],\
-                    maxiter=1,\
+                    #maxiter=1,\
                     icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
@@ -217,19 +231,24 @@ if __name__ == "__main__":
                     xf[i+1] = np.mean(u, axis=1)
             else:
                 xf[i+1] = u
+            u_nda = func.forecast(u_nda)
+            x_nda[i+1] = u_nda
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
         else:
             e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
             stda[i] = np.sqrt(np.trace(pa)/nx)
+        e_nda[i] = np.sqrt(np.mean((x_nda[i, :] - xt[i, :])**2))
             
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
+    np.save("{}_xnda_{}_{}.npy".format(model, op, pt), x_nda)
     #np.save("{}_pa_{}_{}.npy".format(model, op, pt), savepa)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
+    np.savetxt("{}_enda_{}.txt".format(model, op), e_nda)
     np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
