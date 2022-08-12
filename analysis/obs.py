@@ -11,11 +11,15 @@ logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
 
 class Obs():
-    def __init__(self, operator, sigma):
+    def __init__(self, operator, sigma, ndims=1, ni=0, nj=0):
         self.operator = operator
         self.sigma = sigma
         self.gamma = 3
-        logger.info(f"operator={self.operator}, sigma={self.sigma}, gamma={self.gamma}")
+        logger.info(f"operator={self.operator}, sigma={self.sigma}")#, gamma={self.gamma}")
+        self.ndims = ndims
+        if self.ndims == 2:
+            self.ni, self.nj = ni,nj
+            logger.info(f"ni={self.ni} nj={self.nj}")
 
     def get_op(self):
         return self.operator
@@ -24,7 +28,10 @@ class Obs():
         return self.sigma
 
     def set_r(self, obsloc):
-        p = obsloc.size
+        if self.ndims==1:
+            p = obsloc.size
+        else:
+            p = obsloc.shape[0]
         r = np.diag(np.ones(p)*self.sigma*self.sigma)
         rmat = np.diag(np.ones(p) / self.sigma)
         rinv = rmat.transpose() @ rmat
@@ -34,18 +41,27 @@ class Obs():
         #logger.debug(f"x={x}")
         hxf = self.hx(x)
         #logger.debug(f"hx={hxf}")
-        nobs = obsloc.size
+        if self.ndims==1:
+            nobs = obsloc.size
+        else:
+            nobs = obsloc.shape[0]
         logger.debug(f"nobs={nobs}")
         if hxf.ndim == 1:
             obs = np.zeros(nobs)
             for k in range(nobs):
-                obs[k] = self.itpl1d(obsloc[k], hxf)
+                if self.ndims==1:
+                    obs[k] = self.itpl1d(obsloc[k], hxf)
+                elif self.ndims==2:
+                    obs[k] = self.itpl2d(obsloc[k,0],obsloc[k,1], hxf)
         else:
             nens = hxf.shape[1]
             obs = np.zeros((nobs, nens))
             for k in range(nobs):
                 for j in range(nens):
-                    obs[k,j] = self.itpl1d(obsloc[k], hxf[:,j])
+                    if self.ndims==1:
+                        obs[k,j] = self.itpl1d(obsloc[k], hxf[:,j])
+                    elif self.ndims==2:
+                        obs[k,j] = self.itpl2d(obsloc[k,0],obsloc[k,1], hxf[:,j])
         return obs
 
     def hx(self, x):
@@ -75,25 +91,41 @@ class Obs():
             return x_int
 
     def dh_operator(self, obsloc, x):
-        nobs = obsloc.size
+        if self.ndims==1:
+            nobs = obsloc.size
+        else:
+            nobs = obsloc.shape[0]
         nx = x.size
         jach = np.zeros((nobs, nx))
         itpl_mat = np.zeros((nobs, nx))
         dhdxf = self.dhdx(x)
-        for k in range(nobs):
-            ri = obsloc[k]
-            i = math.floor(ri)
-            ai = ri - float(i)
-            if i < nx-1:
-                #jach[k,i] = (1.0 - ai)*dhdxf[i]
-                itpl_mat[k,i] = (1.0 - ai)
-                #jach[k,i+1] = ai*dhdxf[i+1]
-                itpl_mat[k,i+1] = ai
-            else:
-                #jach[k,i] = (1.0 - ai)*dhdxf[i]
-                itpl_mat[k,i] = (1.0 - ai)
-                #jach[k,0] = ai*dhdxf[0]
-                itpl_mat[k,0] = ai
+        if self.ndims==1:
+            for k in range(nobs):
+                ri = obsloc[k]
+                i = math.floor(ri)
+                ai = ri - float(i)
+                if i < nx-1:
+                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
+                    itpl_mat[k,i] = (1.0 - ai)
+                    #jach[k,i+1] = ai*dhdxf[i+1]
+                    itpl_mat[k,i+1] = ai
+                else:
+                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
+                    itpl_mat[k,i] = (1.0 - ai)
+                    #jach[k,0] = ai*dhdxf[0]
+                    itpl_mat[k,0] = ai
+        elif self.ndims==2:
+            for k in range(nobs):
+                ri, rj = obsloc[k,:]
+                i = math.floor(ri)
+                j = math.floor(rj)
+                ai = ri - float(i)
+                aj = rj - float(j)
+                ij = self.ny*i + j
+                itpl_mat[k,ij] = (1.0-ai)*(1.0-aj)
+                itpl_mat[k,ij+1] = ai*(1.0-aj)
+                itpl_mat[k,ij+self.nx] = (1.0-ai)*aj
+                itpl_mat[k,ij+self.nx+1] = ai*aj
         jach = itpl_mat @ dhdxf
         return jach
 
@@ -152,3 +184,15 @@ class Obs():
             return (1.0 - ai)*x[i] + ai*x[i+1]
         else:
             return (1.0 - ai)*x[i] + ai*x[0]
+
+    def itpl2d(self, ri, rj, x):
+        x2d = x.reshape(self.ni,self.nj)
+        i = math.floor(ri)
+        j = math.floor(ri)
+        ai = ri - float(i)
+        aj = rj - float(j)
+        y =  (1.0-ai)*(1.0-aj)*x2d[i,j] \
+            +     ai *(1.0-aj)*x2d[i+1,j] \
+            +(1.0-ai)*     aj *x2d[i,j+1] \
+            +     ai *     aj *x2d[i+1,j+1]
+        return y

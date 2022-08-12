@@ -11,8 +11,8 @@ x = np.linspace(0, 1, n)
 y = np.linspace(0, 1, n)
 plt.rcParams["font.size"] = 18
 fig, axs = plt.subplots(1, 2, figsize=[14, 6])
-z = [q, psi]
-zmax = [1.5e5, 1.0e1]
+z = [psi,q]
+zmax = [1.0e1,1.5e5]
 title = [r"stream function $\psi$", r"potential vorticity $q$"]
 for i in range(len(axs)):
     ax = axs[i]
