@@ -11,11 +11,13 @@ logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
 
 class Obs():
-    def __init__(self, operator, sigma, ndims=1, ni=0, nj=0):
+    def __init__(self, operator, sigma, nvars=1, ndims=1, ni=0, nj=0):
         self.operator = operator
         self.sigma = sigma
         self.gamma = 3
         logger.info(f"operator={self.operator}, sigma={self.sigma}")#, gamma={self.gamma}")
+        self.nvars = nvars
+        logger.info(f"nvars={self.nvars}")
         self.ndims = ndims
         if self.ndims == 2:
             self.ni, self.nj = ni,nj
@@ -47,21 +49,37 @@ class Obs():
             nobs = obsloc.shape[0]
         logger.debug(f"nobs={nobs}")
         if hxf.ndim == 1:
+            nx = int(hxf.size / self.nvars)
             obs = np.zeros(nobs)
             for k in range(nobs):
-                if self.ndims==1:
-                    obs[k] = self.itpl1d(obsloc[k], hxf)
-                elif self.ndims==2:
-                    obs[k] = self.itpl2d(obsloc[k,0],obsloc[k,1], hxf)
+                if self.nvars==1:
+                    if self.ndims==1:
+                        obs[k] = self.itpl1d(obsloc[k], hxf)
+                    elif self.ndims==2:
+                        obs[k] = self.itpl2d(obsloc[k,0],obsloc[k,1],hxf)
+                else:
+                    ivar = int(obsloc[k,0])
+                    if self.ndims==1:
+                        obs[k] = self.itpl1d(obsloc[k,1], hxf[ivar*nx:(ivar+1)*nx])
+                    elif self.ndims==2:
+                        obs[k] = self.itpl2d(obsloc[k,1],obsloc[k,2],hxf[ivar*nx:(ivar+1)*nx])
         else:
+            nx = int(hxf.shape[0] / self.nvars)
             nens = hxf.shape[1]
             obs = np.zeros((nobs, nens))
             for k in range(nobs):
                 for j in range(nens):
-                    if self.ndims==1:
-                        obs[k,j] = self.itpl1d(obsloc[k], hxf[:,j])
-                    elif self.ndims==2:
-                        obs[k,j] = self.itpl2d(obsloc[k,0],obsloc[k,1], hxf[:,j])
+                    if self.nvars == 1:
+                        if self.ndims==1:
+                            obs[k,j] = self.itpl1d(obsloc[k], hxf[:,j])
+                        elif self.ndims==2:
+                            obs[k,j] = self.itpl2d(obsloc[k,0],obsloc[k,1], hxf[:,j])
+                    else:
+                        ivar = int(obsloc[k,0])
+                        if self.ndims==1:
+                            obs[k,j] = self.itpl1d(obsloc[k,1], hxf[ivar*nx:(ivar+1)*nx,j])
+                        elif self.ndims==2:
+                            obs[k,j] = self.itpl2d(obsloc[k,1],obsloc[k,2], hxf[ivar*nx:(ivar+1)*nx,j])
         return obs
 
     def hx(self, x):
@@ -95,37 +113,50 @@ class Obs():
             nobs = obsloc.size
         else:
             nobs = obsloc.shape[0]
-        nx = x.size
-        jach = np.zeros((nobs, nx))
-        itpl_mat = np.zeros((nobs, nx))
+        if self.ndims == 1:
+            nx = x.size
+        else:
+            nx = int(x.size/self.nvars)
+        jach = np.zeros((nobs, nx*self.nvars))
+        itpl_mat = np.zeros((nobs, nx*self.nvars))
         dhdxf = self.dhdx(x)
         if self.ndims==1:
             for k in range(nobs):
-                ri = obsloc[k]
+                if self.nvars==1:
+                    ivar=0
+                    ri = obsloc[k]
+                else:
+                    ivar = int(obsloc[k,0])
+                    ri = obsloc[k,1]
                 i = math.floor(ri)
                 ai = ri - float(i)
                 if i < nx-1:
                     #jach[k,i] = (1.0 - ai)*dhdxf[i]
-                    itpl_mat[k,i] = (1.0 - ai)
+                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
                     #jach[k,i+1] = ai*dhdxf[i+1]
-                    itpl_mat[k,i+1] = ai
+                    itpl_mat[k,ivar*nx+i+1] = ai
                 else:
                     #jach[k,i] = (1.0 - ai)*dhdxf[i]
-                    itpl_mat[k,i] = (1.0 - ai)
+                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
                     #jach[k,0] = ai*dhdxf[0]
-                    itpl_mat[k,0] = ai
+                    itpl_mat[k,ivar*nx] = ai
         elif self.ndims==2:
             for k in range(nobs):
-                ri, rj = obsloc[k,:]
+                if self.nvars==1:
+                    ivar=0
+                    ri, rj = obsloc[k,:]
+                else:
+                    ivar = int(obsloc[k,0])
+                    ri, rj = obsloc[k,1:]
                 i = math.floor(ri)
                 j = math.floor(rj)
                 ai = ri - float(i)
                 aj = rj - float(j)
-                ij = self.ny*i + j
-                itpl_mat[k,ij] = (1.0-ai)*(1.0-aj)
-                itpl_mat[k,ij+1] = ai*(1.0-aj)
-                itpl_mat[k,ij+self.nx] = (1.0-ai)*aj
-                itpl_mat[k,ij+self.nx+1] = ai*aj
+                ij = self.nj*i + j
+                itpl_mat[k,ivar*nx+ij] = (1.0-ai)*(1.0-aj)
+                itpl_mat[k,ivar*nx+ij+1] = ai*(1.0-aj)
+                itpl_mat[k,ivar*nx+ij+self.ni] = (1.0-ai)*aj
+                itpl_mat[k,ivar*nx+ij+self.ni+1] = ai*aj
         jach = itpl_mat @ dhdxf
         return jach
 

@@ -41,11 +41,12 @@ class QG():
         qa[1:-1, 1:-1] += rk4(self.step,qa,self.dt,psia)[1:-1, 1:-1]
         return qa
 
-    def calc_dist(self, ij):
+    def calc_dist(self, rij):
         dist = np.zeros(self.ni*self.nj)
+        ij = int(rij)
         jloc = ij // self.ni
         iloc = ij - jloc*self.ni
-        print(f"ij={ij} i={iloc} j={jloc}")
+        #print(f"ij={ij} i={iloc} j={jloc}")
         k=0
         for i in range(self.ni):
             for j in range(self.nj):
@@ -54,14 +55,13 @@ class QG():
         dist*=self.d
         return dist
 
-    def calc_dist1(self, ij1, ij2):
+    def calc_dist1(self, rij1, rloc):
+        ij1 = int(rij1)
         jloc1 = ij1 // self.ni
         iloc1 = ij1 - jloc1*self.ni
-        print(f"ij1={ij1} i={iloc1} j={jloc1}")
-        jloc2 = ij2 // self.ni
-        iloc2 = ij2 - jloc2*self.ni
-        print(f"ij2={ij2} i={iloc2} j={jloc2}")
-        dist = np.sqrt(abs(iloc1-iloc2)**2+abs(jloc1-jloc2)**2)*self.d
+        #print(f"ij1={ij1} i={iloc1} j={jloc1}")
+        #print(f"rloc={rloc}")
+        dist = np.sqrt(abs(iloc1-rloc[1])**2+abs(jloc1-rloc[2])**2)*self.d
         return dist
 
 if __name__ == "__main__":

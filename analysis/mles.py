@@ -16,6 +16,7 @@ class Mles():
 # 4-dimensional MLEF
 # Reference(En4DVar) Liu et al. 2008: "An ensemble-based four-dimensional variational data assimilation scheme. Part I: Technical formulation and preliminary test," Mon. Wea. Rev., 136, 3363-3373.
     def __init__(self, pt, state_size, nmem, obs, step, nt, window_l, 
+                nvars=1,ndims=1,
                 linf=False, infl_parm=1.0,
                 iloc=None, lsig=-1.0, calc_dist=None, calc_dist1=None,
                 ltlm=False, model="model"):
@@ -30,6 +31,10 @@ class Mles():
         self.nt = nt     # assimilation interval
         self.window_l = window_l # assimilation window length
         # optional parameters
+        # for 2 or more variables
+        self.nvars = nvars
+        # for 2 or more dimensional data
+        self.ndims = ndims
         # inflation
         self.linf = linf # True->Apply inflation False->Not apply
         self.infl_parm = infl_parm # inflation parameter

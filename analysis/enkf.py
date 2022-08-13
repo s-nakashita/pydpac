@@ -11,6 +11,7 @@ logger = logging.getLogger('anl')
 class EnKF():
 
     def __init__(self, da, state_size, nmem, obs, 
+        nvars=1,ndims=1,
         linf=False, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None, 
@@ -24,6 +25,10 @@ class EnKF():
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         # optional parameters
+        # for 2 or more variables
+        self.nvars = nvars
+        # for 2 or more dimensional data
+        self.ndims = ndims
         # inflation
         self.linf = linf # True->Apply inflation False->Not apply
         self.infl_parm = infl_parm # inflation parameter
@@ -55,11 +60,11 @@ class EnKF():
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.da} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
-        if self.iloc is not None:
-        #if self.iloc == 1 or self.iloc == 2:
+        #if self.iloc is not None:
+        if self.iloc == 1 or self.iloc == 2:
             if l_mat is None or l_sqrt is None:
                 self.l_mat, self.l_sqrt, self.nmode, self.enswts\
-                = self.b_loc(self.lsig, self.ndim, self.ndim)
+                = self.b_loc(self.lsig, self.ndim)
             else:
                 self.l_mat = l_mat
                 self.l_sqrt = l_sqrt
@@ -326,7 +331,6 @@ class EnKF():
         elif self.da=="letkf":
             #sigma = 7.5
             sigma = self.lsig
-            nx = xf_.size
             xa = np.zeros_like(xf)
             xa_ = np.zeros_like(xf_)
             dxa = np.zeros_like(dxf)
@@ -334,13 +338,13 @@ class EnKF():
             if self.linf:
                 logger.info("==inflation==, alpha={}".format(self.infl_parm))
                 E /= self.infl_parm
-            for i in range(nx):
+            for i in range(self.ndim):
                 far, Rwf_loc = self.r_loc(sigma, yloc, float(i))
-                logger.info("number of assimilated obs.={}".format(y.size - len(far)))
+                logger.debug("number of assimilated obs.={}".format(y.size - len(far)))
                 di = np.delete(d,far)
                 dyi = np.delete(dy,far,axis=0)
                 if self.iloc==0:
-                    logger.info("==R-localization==, lsig={}".format(self.lsig))
+                    logger.debug("==R-localization==, lsig={}".format(self.lsig))
                     diagR = np.diag(R)
                     Ri = np.diag(diagR/Rwf_loc)
                 else:
@@ -353,11 +357,12 @@ class EnKF():
                 lam,v = la.eigh(A)
                 D_inv = np.diag(1.0/lam)
                 pa_ = v @ D_inv @ v.T
-            
-                xa_[i] = xf_[i] + dxf[i] @ pa_ @ dyi.T @ R_inv @ di
                 sqrtPa = v @ np.sqrt(D_inv) @ v.T * np.sqrt(nmem-1)
-                dxa[i] = dxf[i] @ sqrtPa
-                xa[i] = np.full(nmem,xa_[i]) + dxa[i]
+            
+                for ivar in range(self.nvars):
+                    xa_[self.ndim*ivar+i] = xf_[self.ndim*ivar+i] + dxf[self.ndim*ivar+i] @ pa_ @ dyi.T @ R_inv @ di
+                    dxa[self.ndim*ivar+i] = dxf[self.ndim*ivar+i] @ sqrtPa
+                    xa[self.ndim*ivar+i] = np.full(nmem,xa_[self.ndim*ivar+i]) + dxa[self.ndim*ivar+i]
         pa = dxa@dxa.T/(nmem-1)
         spa = dxa / np.sqrt(nmem-1)
         if save_dh:
@@ -382,24 +387,26 @@ class EnKF():
         #u = xa[:,:]
         return xa, pa, spa, innv, chi2, ds
 
-    def b_loc(self, sigma, nx, ny):
+    def b_loc(self, sigma, nx):
         if sigma < 0.0:
             loc_scale = 1.0
         else:
             loc_scale = sigma
-        dist = np.zeros((nx,ny))
-        l_mat = np.zeros_like(dist)
+        dist = np.zeros((nx,nx))
+        l_mat = np.ones((self.nvars*nx,self.nvars*nx))
         # distance threshold
         dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
         logger.debug(dist0)
         #for j in range(nx):
         #    for i in range(ny):
         #        dist[j,i] = min(abs(j-i),nx-abs(j-i))
-        for i in range(ny):
+        for i in range(nx):
             dist[:, i] = self.calc_dist(float(i))
-        l_mat = np.exp(-0.5*(dist/loc_scale)**2)
-        logger.debug(dist[dist>dist0])
-        l_mat[dist>dist0] = 0
+        for ivar in range(self.nvars):
+            l_tmp = np.exp(-0.5*(dist/loc_scale)**2)
+            logger.debug(dist[dist>dist0])
+            l_tmp[dist>dist0] = 0
+            l_mat[ivar*nx:(ivar+1)*nx,ivar*nx:(ivar+1)*nx] = l_tmp[:,:]
 
         lam, v = la.eigh(l_mat)
         lam = lam[::-1]
@@ -407,12 +414,12 @@ class EnKF():
         lamsum = np.sum(lam)
         v = v[:,::-1]
         nmode = 1
-        thres = 0.99
+        thres = 0.85
         frac = 0.0
         while frac < thres:
             frac = np.sum(lam[:nmode]) / lamsum
             nmode += 1
-        nmode = min(nmode, nx, ny)
+        nmode = min(nmode, nx)
         logger.info("contribution rate = {}".format(np.sum(lam[:nmode])/np.sum(lam)))
         l_sqrt = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode]/frac))
         return l_mat, l_sqrt, nmode, np.sqrt(lam[:nmode])
@@ -423,7 +430,10 @@ class EnKF():
         else:
             loc_scale = sigma
         nx = xloc.size
-        nobs = obsloc.size
+        if obsloc.ndim == 1:
+            nobs = obsloc.size
+        else:
+            nobs = obsloc.shape[0]
         dist = np.zeros((nx, nobs))
         # distance threshold
         dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
@@ -443,7 +453,10 @@ class EnKF():
             loc_scale = 1.0e5
         else:
             loc_scale = sigma
-        nobs = obsloc.size
+        if obsloc.ndim == 1:
+            nobs = obsloc.size
+        else:
+            nobs = obsloc.shape[0]
         far = np.arange(nobs)
         Rwf_loc = np.ones(nobs)
 

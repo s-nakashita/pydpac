@@ -13,6 +13,7 @@ logger = logging.getLogger('anl')
 class Mlef():
 
     def __init__(self, pt, state_size, nmem, obs, 
+        nvars=1,ndims=1,
         linf=False, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, gain=False,
         l_mat=None, l_sqrt=None,
@@ -26,6 +27,10 @@ class Mlef():
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         # optional parameters
+        # for 2 or more variables
+        self.nvars = nvars
+        # for 2 or more dimensional data
+        self.ndims = ndims
         # inflation
         self.linf = linf # True->Apply inflation False->Not apply
         self.infl_parm = infl_parm # inflation parameter

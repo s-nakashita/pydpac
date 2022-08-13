@@ -15,6 +15,7 @@ logger = logging.getLogger('anl')
 class Mlef_rloc():
 
     def __init__(self, pt, nmem, obs, 
+        nvars=1,ndims=1,
         linf=False, infl_parm=1.0, 
         lsig=-1.0, calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
@@ -25,6 +26,10 @@ class Mlef_rloc():
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         # optional parameters
+        # for 2 or more variables
+        self.nvars = nvars
+        # for 2 or more dimensional data
+        self.ndims = ndims
         # inflation
         self.linf = linf # True->Apply inflation False->Not apply
         self.infl_parm = infl_parm # inflation parameter

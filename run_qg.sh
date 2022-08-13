@@ -3,11 +3,11 @@
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
 #perturbations="mlef 4dmlef" # etkf po srf letkf" # kf var"
-perturbations="etkf"
+perturbations="letkf"
 #perturbations="var"
-na=10 # Number of assimilation cycle
+na=5 # Number of assimilation cycle
 linf="T" # "T":Apply inflation "F":Not apply
-lloc="F" # "T":Apply localization "F":Not apply
+lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use
 a_window=1
 #L="-1.0 0.5 1.0 2.0"

@@ -14,6 +14,7 @@ class EnKS():
 # Hunt et al. 2004: "Four-dimensional ensemble Kalman filtering," Tellus, 56A, 273-277
 # Fertig et al. 2007: "A comparative study of 4D-VAR and a 4D ensemble Kalman filter: perfect model simulations with Lorenz-96," Tellus, 59A, 96-100
     def __init__(self, da, state_size, nmem, obs, step, nt, window_l, 
+                nvars=1,ndims=1,
                 linf=False, infl_parm=1.0, 
                 iloc=None, lsig=-1.0, calc_dist=None, calc_dist1=None,
                 ltlm=False, model="model"):
@@ -28,6 +29,10 @@ class EnKS():
         self.nt = nt     # assimilation interval
         self.window_l = window_l # assimilation window length
         # optional parameters
+        # for 2 or more variables
+        self.nvars = nvars
+        # for 2 or more dimensional data
+        self.ndims = ndims
         # inflation
         self.linf = linf # True->Apply inflation False->Not apply
         self.infl_parm = infl_parm # inflation parameter
