@@ -15,7 +15,7 @@ class Obs():
         self.operator = operator
         self.sigma = sigma
         self.gamma = 3
-        logger.info(f"operator={self.operator}, sigma={self.sigma}")#, gamma={self.gamma}")
+        logger.info(f"operator={self.operator}, obserr={self.sigma}")#, gamma={self.gamma}")
         self.nvars = nvars
         logger.info(f"nvars={self.nvars}")
         self.ndims = ndims
@@ -41,14 +41,17 @@ class Obs():
 
     def h_operator(self, obsloc, x):
         #logger.debug(f"x={x}")
-        hxf = self.hx(x)
-        #logger.debug(f"hx={hxf}")
         if self.ndims==1:
             nobs = obsloc.size
         else:
             nobs = obsloc.shape[0]
         logger.debug(f"nobs={nobs}")
-        if hxf.ndim == 1:
+        if x.ndim == 1:
+            if self.nvars==1:
+                hxf = self.hx(x)
+            else:
+                hxf = self.hx(x.reshape(self.nvars,-1))
+            #logger.debug(f"hx={hxf}")
             nx = int(hxf.size / self.nvars)
             obs = np.zeros(nobs)
             for k in range(nobs):
@@ -60,12 +63,17 @@ class Obs():
                 else:
                     ivar = int(obsloc[k,0])
                     if self.ndims==1:
-                        obs[k] = self.itpl1d(obsloc[k,1], hxf[ivar*nx:(ivar+1)*nx])
+                        obs[k] = self.itpl1d(obsloc[k,1], hxf[ivar,:])
                     elif self.ndims==2:
-                        obs[k] = self.itpl2d(obsloc[k,1],obsloc[k,2],hxf[ivar*nx:(ivar+1)*nx])
+                        obs[k] = self.itpl2d(obsloc[k,1],obsloc[k,2],hxf[ivar,:])
         else:
+            nens = x.shape[1]
+            if self.nvars==1:
+                hxf = self.hx(x)
+            else:
+                hxf = self.hx(x.reshape(self.nvars,-1,nens))
+            #logger.debug(f"hx={hxf}")
             nx = int(hxf.shape[0] / self.nvars)
-            nens = hxf.shape[1]
             obs = np.zeros((nobs, nens))
             for k in range(nobs):
                 for j in range(nens):
@@ -77,9 +85,9 @@ class Obs():
                     else:
                         ivar = int(obsloc[k,0])
                         if self.ndims==1:
-                            obs[k,j] = self.itpl1d(obsloc[k,1], hxf[ivar*nx:(ivar+1)*nx,j])
+                            obs[k,j] = self.itpl1d(obsloc[k,1], hxf[ivar,:,j])
                         elif self.ndims==2:
-                            obs[k,j] = self.itpl2d(obsloc[k,1],obsloc[k,2], hxf[ivar*nx:(ivar+1)*nx,j])
+                            obs[k,j] = self.itpl2d(obsloc[k,1],obsloc[k,2], hxf[ivar,:,j])
         return obs
 
     def hx(self, x):
@@ -219,11 +227,20 @@ class Obs():
     def itpl2d(self, ri, rj, x):
         x2d = x.reshape(self.ni,self.nj)
         i = math.floor(ri)
-        j = math.floor(ri)
+        j = math.floor(rj)
         ai = ri - float(i)
         aj = rj - float(j)
-        y =  (1.0-ai)*(1.0-aj)*x2d[i,j] \
-            +     ai *(1.0-aj)*x2d[i+1,j] \
-            +(1.0-ai)*     aj *x2d[i,j+1] \
-            +     ai *     aj *x2d[i+1,j+1]
+        logger.debug(f"ri={ri} i={i} ai={ai}")
+        logger.debug(f"rj={rj} j={j} aj={aj}")
+        if i+1>=self.ni and j+i>=self.nj:
+            y = x2d[i,j]
+        elif i+1>=self.ni:
+            y = (1.0-aj)*x2d[i,j]+aj*x2d[i,j+1]
+        elif j+1>=self.nj:
+            y = (1.0-ai)*x2d[i,j]+ai*x2d[i+1,j]
+        else:
+            y =  (1.0-ai)*(1.0-aj)*x2d[i,j] \
+                +     ai *(1.0-aj)*x2d[i+1,j] \
+                +(1.0-ai)*     aj *x2d[i,j+1] \
+                +     ai *     aj *x2d[i+1,j+1]
         return y

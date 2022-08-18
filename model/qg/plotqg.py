@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 
 
 t = 1000
-t = 1000
-q = np.load(f"test/q{t:06d}.npy").T
-psi = np.load(f"test/p{t:06d}.npy").T
+t = 3500
+q = np.load(f"../../data/qg/q{t:06d}.npy").T
+psi = np.load(f"../../data/qg/p{t:06d}.npy").T
 n = q.shape[0]
 x = np.linspace(0, 1, n)
 y = np.linspace(0, 1, n)

@@ -24,7 +24,7 @@ class QG():
         self.tol = tol
 
     def get_params(self):
-        return self.ni,self.nj,self.dt,self.y,self.beta,self.f,self.eps,\
+        return self.ni,self.nj,self.dt,self.d,self.beta,self.f,self.eps,\
             self.a,self.tau0,self.itermax,self.tol
 
     def step(self, q, psi):
@@ -44,8 +44,8 @@ class QG():
     def calc_dist(self, rij):
         dist = np.zeros(self.ni*self.nj)
         ij = int(rij)
-        jloc = ij // self.ni
-        iloc = ij - jloc*self.ni
+        iloc1 = ij1 // self.nj
+        jloc1 = ij1 - iloc1*self.nj
         #print(f"ij={ij} i={iloc} j={jloc}")
         k=0
         for i in range(self.ni):
@@ -57,8 +57,8 @@ class QG():
 
     def calc_dist1(self, rij1, rloc):
         ij1 = int(rij1)
-        jloc1 = ij1 // self.ni
-        iloc1 = ij1 - jloc1*self.ni
+        iloc1 = ij1 // self.nj
+        jloc1 = ij1 - iloc1*self.nj
         #print(f"ij1={ij1} i={iloc1} j={jloc1}")
         #print(f"rloc={rloc}")
         dist = np.sqrt(abs(iloc1-rloc[1])**2+abs(jloc1-rloc[2])**2)*self.d

@@ -13,7 +13,7 @@ class EnKF():
     def __init__(self, da, state_size, nmem, obs, 
         nvars=1,ndims=1,
         linf=False, infl_parm=1.0, 
-        iloc=None, lsig=-1.0, ss=False, getkf=False,
+        iloc=None, lsig=-1.0, ss=False, getkf=False, bthres=0.99,
         l_mat=None, l_sqrt=None, 
         calc_dist=None, calc_dist1=None, 
         ltlm=False, model="model"):
@@ -38,8 +38,10 @@ class EnKF():
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
         self.lsig = lsig # localization parameter
+        # B-localization parameter
         self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
         self.getkf = getkf # ensemble reduction method : True->Gain ETKF (Bishop et al. 2017)
+        self.bthres = bthres # variance threshold for modulation and EVD
         if calc_dist is None:
             def calc_dist(i):
                 dist = np.zeros(self.ndim)
@@ -58,7 +60,7 @@ class EnKF():
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         self.model = model
         logger.info(f"model : {self.model}")
-        logger.info(f"pt={self.da} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
+        logger.info(f"pt={self.da} op={self.op} obserr={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
         #if self.iloc is not None:
         if self.iloc == 1 or self.iloc == 2:
@@ -96,7 +98,7 @@ class EnKF():
         xloc = np.arange(xf_.size)
 
         pf = dxf @ dxf.T / (nmem-1)
-        logger.info("pf max={} min={}".format(np.max(pf),np.min(pf)))
+        logger.info("pf max={:.3e} min={:.3e}".format(np.max(pf),np.min(pf)))
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), pf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxf)
@@ -414,9 +416,9 @@ class EnKF():
         lamsum = np.sum(lam)
         v = v[:,::-1]
         nmode = 1
-        thres = 0.85
+        #thres = 0.85
         frac = 0.0
-        while frac < thres:
+        while frac < self.bthres:
             frac = np.sum(lam[:nmode]) / lamsum
             nmode += 1
         nmode = min(nmode, nx)
@@ -494,9 +496,9 @@ class EnKF():
             np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), lam)
         logger.info("pf eigen value = {}".format(lam))
         nmode = 1
-        thres = 0.99
+        #thres = 0.99
         frac = 0.0
-        while frac < thres:
+        while frac < self.bthres:
             frac = np.sum(lam[:nmode]) / lamsum
             nmode += 1
         nmode = min(nmode, self.ndim)

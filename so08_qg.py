@@ -19,14 +19,19 @@ dt = 1.25
 x = np.linspace(0.0,1.0,nx)
 y = np.linspace(0.0,1.0,ny)
 itermax = 1, 1, 100
-beta, f, eps, a, tau0 = 1.0, 1600.0, 1.0e-5, 2.0e-12, -tau
+beta, f, eps, a, tau0 = 1.0, 1600.0, 1.0e-5, 2.0e-11, -tau
 tol = 1.0e-4
-params = beta, f, eps, a, tau0, itermax, tol
+# true model forward operator
+dt_t = 1.5
+a_t = 2.0e-12
+params = beta, f, eps, a_t, tau0, itermax, tol
+step_t = QG(nx,ny,dt_t,y,*params)
 # forecast model forward operator
+params = beta, f, eps, a, tau0, itermax, tol
 step = QG(nx,ny,dt,y,*params)
 
 nmem = 25 #ensemble size (include control run)
-t0off = 100 # initial offset between adacent members
+t0off = 100 # initial offset between adjacent members
 t0c = 5000 # t0 for control
 t0true = 3500 # t0 for truth
 # t0 for ensemble members
@@ -36,9 +41,10 @@ if nmem%2 == 0: # even
 else: # odd
     t0m = [t0c + t0off * i for i in range(1, (nmem-1)//2+1)]
     t0f = [t0c] + t0m + [t0c + t0off * i for i in range(-(nmem-1)//2, 0)]
-na =   1 # number of analysis
+na =   100 # number of analysis
 namax = 300 # max number of analysis 
-nt =  4    # number of step per cycle
+nt =  4    # number of timestep per cycle
+t_intobs = nt*dt_t # obs interval
 
 a_window = 1 # assimilation window length
 
@@ -47,12 +53,12 @@ nobs = 300 # observation number
 # observation error standard deviation
 sigma = {"linear": 4.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
-          "4dmlef":1.3,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
+infl_l = {"letkf":1.05,"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,
+          "4dmlef":1.3,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2}
 dict_infl = {"linear": infl_l}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":0.2,"etkf":0.2,"po":0.2,"srf":0.2,"letkf":0.2,"kf":None,"var":None,
-        "4dmlef":0.2,"4detkf":0.2,"4dpo":0.2,"4dsrf":0.2,"4dletkf":0.2,"4dvar":None}
+sig_l = {"letkf":10,"mlef":0.2,"etkf":0.2,"po":0.2,"srf":0.2,
+        "4dmlef":0.2,"4detkf":0.2,"4dpo":0.2,"4dsrf":0.2,"4dletkf":0.2}
 dict_sig = {"linear": sig_l}
 # forecast type (ensemble or deterministic)
 ftype = {"mlef":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
@@ -104,7 +110,7 @@ if len(sys.argv) > 5:
     if sys.argv[5] == "T":
         lloc = True
         dict_s = dict_sig[op]
-        lsig = dict_s[pt]
+        lsig = step.d * dict_s[pt]
         ## only for mlef
         if len(sys.argv) > 8:
             iloc = int(sys.argv[8])
@@ -180,30 +186,33 @@ elif pt == "4dmlef":
             ltlm=ltlm, model=model)
 
 # functions load
-params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
-    "t0c":t0c, "t0f":t0f, "t0true":t0true, "nt":nt, "na":na,\
+params = {"step":step, "step_t":step_t, "obs":obs, "analysis":analysis, "nobs":nobs, \
+    "t0c":t0c, "t0f":t0f, "t0true":t0true, "t_intobs":t_intobs, "nt":nt, "na":na,\
     "namax":namax, "a_window":a_window, "op":op, "pt":pt, "ft":ft,\
     "linf":linf, "lloc":lloc, "ltlm":ltlm,\
     "infl_parm":infl_parm, "lsig":lsig}
 func = SO08_qg_func(params)
 
-iplot = 1
+iplot = 10
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     qt, psit, yobs = func.get_true_and_obs()
     u, qa,psia, qf,psif, pa = func.initialize()
     logger.debug(u.shape)
+    func.plot_truth(iplot,qt,psit,yobs)
     func.plot_state(-1,u[:state_size,:],u[state_size:,:], qt[nt,], psit[nt,], yobs[0,])
     pf = analysis.calc_pf(u, pa, 0)
     
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
-    e = np.zeros(na)
-    stda = np.zeros(na)
+    e = np.zeros((na,2))
+    stda = np.zeros((na,2))
     innov = np.zeros((na,yobs.shape[1]))
     chi = np.zeros(na)
     dof = np.zeros(na)
+    f_rmse = open("{}_e_{}_{}.txt".format(model, op, pt), 'a')
+    f_sprd = open("{}_stda_{}_{}.txt".format(model, op, pt), 'a')
     for i in a_time:
         yloc = yobs[i:i+a_window,:,:3]
         y = yobs[i:i+a_window,:,3]
@@ -211,7 +220,8 @@ if __name__ == "__main__":
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis".format(i))
         #if i in [1, 50, 100, 150, 200, 250]:
-        if i < 0:
+        #if i < 0:
+        if i==0 or i % iplot == 0:
             #if a_window > 1:
             if pt[:2] == "4d":
                 u, pa, ds = analysis(u, pf, y, yloc, \
@@ -220,7 +230,9 @@ if __name__ == "__main__":
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
                 chi[i] = chi2
+                dof[i] = ds
                 innov[i] = innv
+            func.plot_state(i,u[:state_size,:],u[state_size:,:], qt[(i+1)*nt,], psit[(i+1)*nt,], yobs[i,])
         else:
             #if a_window > 1:
             if pt[:2] == "4d":
@@ -228,9 +240,8 @@ if __name__ == "__main__":
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
+                dof[i] = ds
                 innov[i] = innv
-        if i % iplot == 0:
-            func.plot_state(i,u[:state_size,:],u[state_size:,:], qt[(i+1)*nt,], psit[(i+1)*nt,], yobs[i,])
         ## additive inflation
         #if linf:
         #    logger.info("==additive inflation==")
@@ -282,7 +293,8 @@ if __name__ == "__main__":
                     ii = 0
                     for k in range(i+1,na):
                         patmp = analysis.calc_pf(uf[ii], pa, k)
-                        stda[k] = np.sqrt(np.trace(patmp)/nx)
+                        stda[k,0] = np.sqrt(np.trace(patmp[:state_size,:state_size])/state_size)
+                        stda[k,1] = np.sqrt(np.trace(patmp[state_size:,state_size:])/state_size)
                         ii += 1
                 u = uf[-1]
                 pf = analysis.calc_pf(u, pa, i+1)
@@ -302,18 +314,25 @@ if __name__ == "__main__":
                 psif[i+1] = u[state_size:]
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
-                e[k] = np.sqrt(np.mean((qa[k, :] - qt[(k+1)*nt, :])**2))
+                e[k,0] = np.sqrt(np.mean((qa[k, :] - qt[(i+1)*nt, :])**2))
+                e[k,1] = np.sqrt(np.mean((psia[k, :] - psit[(i+1)*nt, :])**2))
+                np.savetxt(f_rmse, e[k,])
+                np.savetxt(f_sprd, stda[k,])
         else:
-            e[i] = np.sqrt(np.mean((qa[i, :] - qt[(i+1)*nt, :])**2))
-            stda[i] = np.sqrt(np.trace(pa)/nx)
-
+            e[i,0] = np.sqrt(np.mean((qa[i, :] - qt[(i+1)*nt, :])**2))
+            e[i,1] = np.sqrt(np.mean((psia[i, :] - psit[(i+1)*nt, :])**2))
+            stda[i,0] = np.sqrt(np.trace(pa[:state_size,:state_size])/state_size)
+            stda[i,1] = np.sqrt(np.trace(pa[state_size:,state_size:])/state_size)
+            np.savetxt(f_rmse, e[i,])
+            np.savetxt(f_sprd, stda[i,])
     np.save("{}_qf_{}_{}.npy".format(model, op, pt), qf)
     np.save("{}_psif_{}_{}.npy".format(model, op, pt), psif)
     np.save("{}_qa_{}_{}.npy".format(model, op, pt), qa)
     np.save("{}_psia_{}_{}.npy".format(model, op, pt), psia)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
-    
-    np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
-    np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)
+    f_rmse.close()
+    f_sprd.close()
+#    np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
+#    np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
