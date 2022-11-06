@@ -150,14 +150,16 @@ elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     analysis = EnKF(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
+    analysis = Kf(obs, 
+    infl=infl_parm, linf=linf, 
+    step=step, nt=nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, model=model)
+    analysis = Var(obs, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
-    analysis = Var4d(pt, obs, step, nt, a_window, model=model)
+    analysis = Var4d(obs, step, nt, a_window, model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enks import EnKS
     #a_window = 5

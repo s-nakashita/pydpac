@@ -12,7 +12,7 @@ logger = logging.getLogger('anl')
         
 class Mlef():
 
-    def __init__(self, pt, state_size, nmem, obs, 
+    def __init__(self, state_size, nmem, obs, 
         nvars=1,ndims=1,
         linf=False, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, gain=False,
@@ -20,7 +20,7 @@ class Mlef():
         calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=False, model="model"):
         # necessary parameters
-        self.pt = pt # DA type (MLEF or GRAD)
+        self.pt = "mlef" # DA type 
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
@@ -248,7 +248,7 @@ class Mlef():
     def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
         method="CGF", cgtype=1,
         gtol=1e-6, maxiter=None, restart=False, maxrest=20, update_ensemble=False,
-        disp=False, save_hist=False, save_dh=False, icycle=0):
+        disp=False, save_hist=False, save_dh=False, icycle=0, evalout=False):
         global zetak, alphak
         zetak = []
         alphak = []
@@ -470,4 +470,10 @@ class Mlef():
         if save_dh:
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
-        return u, fpa, pa, innv, chi2, ds
+        if evalout:
+            infl_mat = np.dot(zmat,zmat.T)
+            evalb, _ = la.eigh(infl_mat)
+            eval = evalb[::-1] / (1.0 + evalb[::-1])
+            return u, fpa, pa, innv, chi2, ds, eval
+        else:
+            return u, fpa, pa, innv, chi2, ds

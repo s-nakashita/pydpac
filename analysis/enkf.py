@@ -18,7 +18,7 @@ class EnKF():
         calc_dist=None, calc_dist1=None, 
         ltlm=False, model="model"):
         # necessary parameters
-        self.da = da # DA type (ETKF, PO, SRF, or LETKF)
+        self.da = da.lower() # DA type (ETKF, PO, SRF, or LETKF)
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
@@ -80,7 +80,7 @@ class EnKF():
         return pf
         
     def __call__(self, xf, pf, y, yloc, R=None, rmat=None, rinv=None,
-        save_hist=False, save_dh=False, icycle=0):
+        save_hist=False, save_dh=False, icycle=0, evalout=False):
         #xf = xb[:]
         xf_ = np.mean(xf, axis=1)
         logger.debug(f"obsloc={yloc}")
@@ -382,12 +382,18 @@ class EnKF():
         zmat = rmat @ dh
         d = y - np.mean(self.obs.h_operator(yloc, xa))
         innv, chi2 = chi2_test(zmat, d)
-        ds = self.dof(dy,nmem)
-        logger.info("dof={}".format(ds))
+        ds = self.dof(dy,nmem2)
+        logger.info("dfs={}".format(ds))
         
         #u = np.zeros_like(xb)
         #u = xa[:,:]
-        return xa, pa, spa, innv, chi2, ds
+        if evalout:
+            infl_mat = np.dot(zmat,zmat.T)
+            evalb, _ = la.eigh(infl_mat)
+            eval = evalb[::-1] / (1.0 + evalb[::-1])
+            return xa, pa, spa, innv, chi2, ds, eval
+        else:
+            return xa, pa, spa, innv, chi2, ds
 
     def b_loc(self, sigma, nx):
         if sigma < 0.0:
@@ -528,7 +534,7 @@ class EnKF():
         return dxf
 
     def dof(self, dy, nmem):
-        zmat = dy / self.sig
+        zmat = dy / self.sig / np.sqrt(nmem-1)
         u, s, vt = la.svd(zmat)
-        ds = np.sum(s**2/(1.0+s**2))/(nmem-1)
+        ds = np.sum(s**2/(1.0+s**2))
         return ds

@@ -13,8 +13,8 @@ zetak = []
 alphak = []
 
 class Var():
-    def __init__(self, pt, obs, lb, model="model"):
-        self.pt = pt # DA type 
+    def __init__(self, obs, lb=-1.0, model="model"):
+        self.pt = "var" # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
@@ -68,44 +68,56 @@ class Var():
         if alpha is not None:
             alphak.append(alpha)
 
-    def calc_j(self, x, *args):
-        binv, JH, rinv, ob = args
-        jb = 0.5 * x.T @ binv @ x
+    def prec(self,w,bmat,first=False):
+        global bsqrt
+        if first:
+            eval, evec = la.eigh(bmat)
+            eval[eval<1.0e-16] = 0.0
+            bsqrt = np.dot(evec,np.diag(np.sqrt(eval)))
+        return np.dot(bsqrt,w), bsqrt
+
+    def calc_j(self, w, *args):
+        bmat, JH, rinv, ob = args
+        jb = 0.5 * np.dot(w,w)
+        x, _ = self.prec(w,bmat)
         d = JH @ x - ob
         jo = 0.5 * d.T @ rinv @ d
         return jb + jo
 
-    def calc_grad_j(self, x, *args):
-        binv, JH, rinv, ob = args
+    def calc_grad_j(self, w, *args):
+        bmat, JH, rinv, ob = args
+        x, bsqrt = self.prec(w,bmat)
         d = JH @ x - ob
-        return binv @ x + JH.T @ rinv @ d
+        return w + bsqrt.T @ JH.T @ rinv @ d
 
-    def calc_hess(self, x, *args):
-        binv, JH, rinv, ob = args
-        return binv + JH.T @ rinv @ JH
+    def calc_hess(self, w, *args):
+        bmat, JH, rinv, ob = args
+        _, bsqrt = self.prec(w,bmat)
+        return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt
 
     def __call__(self, xf, pf, y, yloc, method="CGF", cgtype=1,
         gtol=1e-6, maxiter=None,\
-        disp=False, save_hist=False, save_dh=False, icycle=0):
-        global zetak, alphak
+        disp=False, save_hist=False, save_dh=False, icycle=0,
+        evalout=False):
+        global zetak, alphak, bsqrt
         zetak = []
         alphak = []
-        _, _, rinv = self.obs.set_r(yloc)
+        _, rsqrtinv, rinv = self.obs.set_r(yloc)
         JH = self.obs.dh_operator(yloc, xf)
         ob = y - self.obs.h_operator(yloc,xf)
         nobs = ob.size
 
-        x0 = np.zeros_like(xf)
-        binv = la.inv(pf)
-        args_j = (binv, JH, rinv, ob)
+        w0 = np.zeros_like(xf)
+        x0, bsqrt = self.prec(w0,pf,first=True)
+        args_j = (pf, JH, rinv, ob)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
-        minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
+        minimize = Minimize(w0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
                             maxiter=maxiter)
         logger.info(f"save_hist={save_hist} cycle={icycle}")
         if save_hist:
-            x, flg = minimize(x0, callback=self.callback)
+            w, flg = minimize(w0, callback=self.callback)
             jh = np.zeros(len(zetak))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
@@ -116,16 +128,26 @@ class Var():
             np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
             np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
         else:
-            x, flg = minimize(x0)
+            w, flg = minimize(w0)
         
+        x, _ = self.prec(w,pf)
         xa = xf + x
         innv = np.zeros_like(ob)
-        fun = self.calc_j(x, *args_j)
+        fun = self.calc_j(w, *args_j)
         chi2 = fun / nobs
 
-        pai = self.calc_hess(x, *args_j)
+        pai = self.calc_hess(w, *args_j)
         lam, v = la.eigh(pai)
-        spa = v @ np.diag(1.0/np.sqrt(lam)) @ v.transpose()
+        dfs = xf.size - np.sum(1.0/lam)
+        spa = bsqrt @ v @ np.diag(1.0/np.sqrt(lam)) @ v.transpose()
+        pa = np.dot(spa,spa.T)
         #spf = la.cholesky(pf)
 
-        return xa, pf, spa, innv, chi2, 0.0
+        if evalout:
+            tmp = np.dot(np.dot(rsqrtinv,JH),spa)
+            infl_mat = np.dot(tmp,tmp.T)
+            eval, _ = la.eigh(infl_mat)
+            logger.debug("eval={}".format(eval))
+            return xa, pa, spa, innv, chi2, dfs, eval[::-1]
+        else:
+            return xa, pa, spa, innv, chi2, dfs

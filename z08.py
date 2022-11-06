@@ -102,10 +102,12 @@ elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
+    analysis = Kf(obs, 
+    infl=infl_parm, linf=linf, 
+    step=step, nt=nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, model=model)
+    analysis = Var(obs, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, \

@@ -1,6 +1,3 @@
-from .lbfgs import lbfgs, lb3
-from .cgf import cgfam, cvsmod, cgdd
-from .file_utility import file_utility
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
@@ -333,6 +330,8 @@ class Minimize():
         return wk, warnflag
 
     def minimize_lbfgs(self, x0, callback=None):
+        from .lbfgs import lbfgs, lb3
+        from .file_utility import file_utility
         lb3.mp = 10
         lb3.lp = 11
         file_utility.file_open(lb3.mp, "minimize_monitor.log")
@@ -437,6 +436,8 @@ class Minimize():
         return x, iflag
 
     def minimize_cgf(self, x0, callback=None):
+        from .cgf import cgfam, cvsmod, cgdd
+        from .file_utility import file_utility
         cgdd.mp = 10
         cgdd.lp = 11
         file_utility.file_open(cgdd.mp, "minimize_monitor.log")

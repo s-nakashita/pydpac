@@ -12,8 +12,8 @@ zetak = []
 alphak = []
 
 class Var4d():
-    def __init__(self, pt, obs, step, nt, window_l, model="model"):
-        self.pt = pt # DA type (MLEF or GRAD)
+    def __init__(self, obs, step, nt, window_l, model="model"):
+        self.pt = "4dvar" # DA type (MLEF or GRAD)
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
