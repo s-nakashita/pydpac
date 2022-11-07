@@ -107,7 +107,9 @@ elif pt == "kf":
     step=step, nt=nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(obs, model=model)
+    sigb=np.sqrt(0.1)
+    lb=-1.0
+    analysis = Var(obs, sigb=sigb, lb=lb, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, \

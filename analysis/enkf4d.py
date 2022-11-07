@@ -10,16 +10,16 @@ from .chi_test import Chi
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('anl')
 
-class EnKS():
+class EnKF4d():
 # Hunt et al. 2004: "Four-dimensional ensemble Kalman filtering," Tellus, 56A, 273-277
 # Fertig et al. 2007: "A comparative study of 4D-VAR and a 4D ensemble Kalman filter: perfect model simulations with Lorenz-96," Tellus, 59A, 96-100
-    def __init__(self, da, state_size, nmem, obs, step, nt, window_l, 
+    def __init__(self, da, state_size, nmem, obs, step, nt, a_window, 
                 nvars=1,ndims=1,
                 linf=False, infl_parm=1.0, 
                 iloc=None, lsig=-1.0, calc_dist=None, calc_dist1=None,
                 ltlm=False, model="model"):
         # necessary parameters
-        self.da = da[2:] # DA type (prefix 4d + ETKF, PO, SRF, or LETKF)
+        self.da = da[2:].lower() # DA type (prefix 4d + ETKF, PO, SRF, or LETKF)
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
@@ -27,7 +27,7 @@ class EnKS():
         self.sig = obs.get_sig() # observation error standard deviation
         self.step = step # forward model
         self.nt = nt     # assimilation interval
-        self.window_l = window_l # assimilation window length
+        self.a_window = a_window # assimilation window length
         # optional parameters
         # for 2 or more variables
         self.nvars = nvars
@@ -65,7 +65,7 @@ class EnKS():
             self.l_mat, self.l_sqrt, self.nmode, self.enswts\
                 = self.b_loc(self.lsig, self.ndim, self.ndim)
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), self.l_mat)
-        logger.info(f"nt={self.nt} window_l={self.window_l}")
+        logger.info(f"nt={self.nt} a_window={self.a_window}")
 
     def calc_pf(self, xf, pa, cycle):
         dxf = xf - np.mean(xf,axis=1)[:, None]
@@ -79,7 +79,9 @@ class EnKS():
         logger.debug(f"obssize={y.shape}")
         R, rmat, rinv = self.obs.set_r(yloc[0])
         nmem = xf.shape[1]
-        chi2_test = Chi(y.size, nmem, rmat)
+        rmatall = np.diag(np.concatenate([np.diag(rmat) for i in range(self.a_window)]))
+        logger.debug(f"rmatall={rmatall.shape}")
+        chi2_test = Chi(y.size, nmem, rmatall)
         dxf = xf - xf_[:,None]
         logger.debug(xf.shape)
         xloc = np.arange(xf_.size)
@@ -121,7 +123,7 @@ class EnKS():
         if (self.iloc == 1 or self.iloc == 2):
             dy_orig = [] # observation perturvations (no modulation)
         d  = [] # innovation vectors
-        for l in range(min(self.window_l, y.shape[0])):
+        for l in range(min(self.a_window, y.shape[0])):
             bg.append(xb_)
             #if (self.iloc == 1 or self.iloc == 2):
             #    bge.append(xb_orig)
@@ -350,20 +352,27 @@ class EnKS():
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), ua)
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), pa)
 
-#        if self.ltlm:
-#            dh = self.obs.dh_operator(yloc, xa_) @ dxf / np.sqrt(nmem-1)
-#        else:
-#            x1 = xa_[:, None] + dxf / np.sqrt(nmem-1)
-#            dh = self.obs.h_operator(yloc, x1) - np.mean(self.obs.h_operator(yloc, x1), axis=1)[:, None]
-#        zmat = rmat @ dh
-#        d = y - np.mean(self.obs.h_operator(yloc, xa))
-#        innv, chi2 = chi2_test(zmat, d)
+        zmat = []
+        d = []
+        for l in range(min(self.a_window, y.shape[0])):
+            if self.ltlm:
+                dh = self.obs.dh_operator(yloc[l], xa_) @ dxf / np.sqrt(nmem2-1)
+            else:
+                x1 = xa_[:, None] + dxf / np.sqrt(nmem2-1)
+                dh = self.obs.h_operator(yloc[l], x1) - np.mean(self.obs.h_operator(yloc[l], x1), axis=1)[:, None]
+            zmat.append(rmat @ dh)
+            d.append(y[l] - np.mean(self.obs.h_operator(yloc[l], xa)))
+        zmat = np.concatenate(zmat,axis=0)
+        d = np.concatenate(d)
+        logger.info("zmat shape={}".format(zmat.shape))
+        logger.info("d shape={}".format(d.shape))
+        innv, chi2 = chi2_test(zmat, d)
         ds = self.dof(dy,nmem)
         logger.info("dof={}".format(ds))
         
         #u = np.zeros_like(xb)
         #u = xa[:,:]
-        return xa, pa, ds
+        return xa, pa, spa, innv, chi2, ds
 
     def b_loc(self, sigma, nx, ny):
         if sigma < 0.0:
@@ -485,8 +494,8 @@ class EnKS():
         return dxf
 
     def dof(self, dy, nmem):
-        zmat = np.sum(np.array(dy), axis=0) / self.sig
+        zmat = np.concatenate(dy, axis=0) / self.sig / np.sqrt(nmem-1)
         logger.debug(f"zmat max={np.max(zmat)} min={np.min(zmat)}")
         u, s, vt = la.svd(zmat)
-        ds = np.sum(s**2/(1.0+s**2))/(nmem-1)
+        ds = np.sum(s**2/(1.0+s**2))
         return ds

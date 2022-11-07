@@ -92,18 +92,18 @@ obs = Obs(op, obs_s)
 # assimilation method
 if pt == "mlef":
     from analysis.mlef import Mlef
-    analysis = Mlef(pt, nx, nmem, obs, ltlm=ltlm, model=model)
+    analysis = Mlef(nx, nmem, obs, ltlm=ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis = EnKF(pt, nx, nmem, obs,ltlm=ltlm, model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
-    from analysis.enks import EnKS
+    from analysis.enkf4d import EnKF4d
     #a_window = 5
-    analysis = EnKS(pt, nx, nmem, obs, step, nt, a_window, \
+    analysis = EnKF4d(pt, nx, nmem, obs, step, nt, a_window, \
         ltlm=ltlm, model=model)
 elif pt == "4dmlef":
-    from analysis.mles import Mles
-    analysis = Mles(pt, nx, nmem, obs, step, nt, a_window, \
+    from analysis.mlef4d import Mlef4d
+    analysis = Mlef4d(nx, nmem, obs, step, nt, a_window, \
         ltlm=ltlm, model=model)
 
 # load functions

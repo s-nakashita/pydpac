@@ -34,13 +34,17 @@ elif model == "l96" or model == "tc87":
     perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
-        "4dmlef":'tab:blue',"4detkf":'tab:green', "4dpo":'tab:red',\
-        "4dsrf":"tab:pink", "4dletkf":"tab:purple","4dvar":"tab:olive"}
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
+    marker = {"3d":"o","4d":"x"}
     if len(sys.argv) > 4:
         pt = sys.argv[4]
-        perts = [pt, pt+"be", pt+"bm", "l"+pt]
-        linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'}
+        if pt == "mlef":
+            perts = [pt, pt+"be", pt+"bm", "l"+pt+"cw","l"+pt+"y"]
+            linecolor = {pt:'tab:blue',pt+"be":'tab:red',pt+"bm":'tab:pink',\
+                "l"+pt+"cw":'tab:green',"l"+pt+"y":'tab:orange'}
+        else:
+            perts = [pt, pt+"be", pt+"bm", "l"+pt]
+            linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'}
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
@@ -99,44 +103,49 @@ for pt in perts:
                 ax[i].plot(x, e[:,i], linestyle="dashed", color=linecolor[pt], label=pt)
     else:
         if pt[:2] != "4d":
-            ax.plot(x, e, linestyle="solid", color=linecolor[pt], label=pt)
+            ax.plot(x, e, marker=marker["3d"], color=linecolor[pt], label=pt)
         else:
-            ax.plot(x, e, linestyle="dashed", color=linecolor[pt], label=pt)
+            ax.plot(x, e, marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
     f = "{}_stda_{}_{}.txt".format(model, op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     stda = np.loadtxt(f)
+    """
     if model == "qg":
         stda = stda.reshape(-1,2)
         for i in range(2):
             ax[i].plot(x, stda[:,i], linestyle="dashed", color=linecolor[pt], label=pt+" stdv.")
     else:
-        ax.plot(x, stda, linestyle="dashed", color=linecolor[pt], label=pt+" stdv.")
+        if pt[:2] != "4d":
+            ax.plot(x, stda, linestyle="dashed", marker=marker["3d"], color=linecolor[pt], label=pt+" stdv.")
+        else:
+            ax.plot(x, stda, linestyle="dashed", marker=marker["4d"], color=linecolor[pt[2:]], label=pt+" stdv.")
+    """
     if model == "qg":
         if e.shape[1] > na:
             for i in range(2):
                 if pt[:2] != "4d":
-                    ax2[i].plot(x[1:], stda[:,i]/e[1:,i], linestyle="solid", color=linecolor[pt], label=pt)
+                    ax2[i].plot(x[1:], stda[:,i]/e[1:,i], marker=marker["3d"], color=linecolor[pt], label=pt)
                 else:
-                    ax2[i].plot(x[1:], stda[:,i]/e[1:,i], linestyle="dashed", color=linecolor[pt], label=pt)
+                    ax2[i].plot(x[1:], stda[:,i]/e[1:,i], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
         else:
             for i in range(2):
                 if pt[:2] != "4d":
-                    ax2[i].plot(x, stda[:,i]/e[:,i], linestyle="solid", color=linecolor[pt], label=pt)
+                    ax2[i].plot(x, stda[:,i]/e[:,i], marker=marker["3d"], color=linecolor[pt], label=pt)
                 else:
-                    ax2[i].plot(x, stda[:,i]/e[:,i], linestyle="dashed", color=linecolor[pt], label=pt)
+                    ax2[i].plot(x, stda[:,i]/e[:,i], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
     else:
         if e.size > na:
             if pt[:2] != "4d":
-                ax2.plot(x[1:], stda/e[1:], linestyle="solid", color=linecolor[pt], label=pt)
+                ax2.plot(x[1:], stda/e[1:], marker=marker["3d"], color=linecolor[pt], label=pt)
             else:
-                ax2.plot(x[1:], stda/e[1:], linestyle="dashed", color=linecolor[pt], label=pt)
+                ax2.plot(x[1:], stda/e[1:], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
         else:
             if pt[:2] != "4d":
-                ax2.plot(x, stda/e, linestyle="solid", color=linecolor[pt], label=pt)
+                ax2.plot(x, stda/e, marker=marker["3d"], color=linecolor[pt], label=pt)
             else:
-                ax2.plot(x, stda/e, linestyle="dashed", color=linecolor[pt], label=pt)
+                ax2.plot(x, stda/e, marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
     #f = "{}_e_{}-nodiff_{}.txt".format(model, op, pt)
     #if not os.path.isfile(f):
     #    print("not exist {}".format(f))

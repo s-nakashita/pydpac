@@ -6,7 +6,6 @@ fileConfig('logging_config.ini')
 logger = logging.getLogger('anl')
 from analysis.enkf import EnKF
 from analysis.mlef import Mlef
-from analysis.mlef_rloc import Mlef_rloc
 
 ## True forecast covariance
 N = 100
@@ -251,10 +250,7 @@ if __name__ == "__main__":
         names2 = ['mlef','mlef-ss','mlef-rg','mlef-rloc']
         for ptype in names2:
             pt, iloc, ss, gain = params[ptype]
-            if ptype != 'mlef-rloc':
-                analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
-            else:
-                analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1)
+            analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
             xb = xf
             pb = Pe
             xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)

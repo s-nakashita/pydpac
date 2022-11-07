@@ -36,7 +36,7 @@ class Mlef():
         self.infl_parm = infl_parm # inflation parameter
         # localization
         self.iloc = iloc # iloc = None->No localization
-                         #      = 0   ->R-localization (mlef_rloc.py)
+                         #      <=0   ->R-localization (in lmlef.py)
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
         self.lsig = lsig # localization parameter
@@ -67,6 +67,14 @@ class Mlef():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         if self.iloc is not None:
+          if self.iloc <= 0:
+            from .lmlef import Lmlef
+            self.lmlef = Lmlef(self.nmem,self.obs,
+            nvars=self.nvars,ndims=self.ndims,
+            linf=self.linf,infl_parm=self.infl_parm,
+            iloc=self.iloc,lsig=self.lsig,calc_dist1=self.calc_dist1,
+            ltlm=self.ltlm,incremental=self.incremental,model=self.model)
+          else:
             if l_mat is None or l_sqrt is None:
                 self.l_mat, self.l_sqrt, self.nmode, self.enswts \
                 = self.loc_mat(self.lsig, self.ndim, self.ndim)
@@ -86,9 +94,13 @@ class Mlef():
         #u, s, vt = la.svd(zmat)
         #v = vt.transpose()
         #is2r = 1 / (1 + s**2)
+        rho = 1.0
+        if self.linf:
+            logger.info("==inflation==, alpha={}".format(self.infl_parm))
+            rho = 1.0 / self.infl_parm
         c = zmat.transpose() @ zmat
         lam, v = la.eigh(c)
-        D = np.diag(1.0/(np.sqrt(lam + np.ones(lam.size))))
+        D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho))))
         vt = v.transpose()
         tmat = v @ D @ vt
         heinv = tmat @ tmat.T
@@ -246,234 +258,239 @@ class Mlef():
         return l_mat, l_sqrt, nmode, np.sqrt(lam[:nmode])
 
     def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
-        method="CGF", cgtype=1,
+        method="CG", cgtype=1,
         gtol=1e-6, maxiter=None, restart=False, maxrest=20, update_ensemble=False,
         disp=False, save_hist=False, save_dh=False, icycle=0, evalout=False):
-        global zetak, alphak
-        zetak = []
-        alphak = []
-        if (r is None) or (rmat is None) or (rinv is None):
-            logger.info("set R")
-            r, rmat, rinv = self.obs.set_r(yloc)
+        if self.iloc is not None and self.iloc <= 0:
+            return self.lmlef(xb,pb,y,yloc,r=r,rmat=rmat,rinv=rinv,
+            method=method,cgtype=cgtype,gtol=gtol,maxiter=maxiter,restart=restart,maxrest=maxrest,update_ensemble=update_ensemble,
+            disp=disp,save_hist=save_hist,save_dh=save_dh,icycle=icycle)
         else:
-            logger.info("use input R")
-        xf = xb[:, 1:]
-        xc = xb[:, 0]
-        nmem = xf.shape[1]
-        chi2_test = Chi(y.size, nmem, rmat)
-        pf = xf - xc[:, None]
-        #if self.linf:
-        #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
-        #    pf *= self.infl_parm
-        fpf = pf @ pf.T
-        if save_dh:
-            np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
-            np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
-            np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-        if self.iloc is not None:
-            logger.info("==localization==, lsig={}".format(self.lsig))
-            pf_orig = pf.copy()
-            if self.iloc == 1:
-                pf, wts = self.pfloc(pf_orig, save_dh, icycle)
-            elif self.iloc == 2:
-                pf = self.pfmod(pf_orig, save_dh, icycle)
-            logger.info("pf.shape={}".format(pf.shape))
-            xf = xc[:, None] + pf
-        #logger.debug("norm(pf)={}".format(la.norm(pf)))
-        #logger.debug("r={}".format(np.diag(r)))
-        if self.ltlm:
-            logger.debug("dhdx={}".format(self.obs.dhdx(xc)))
-            dh = self.obs.dh_operator(yloc,xc) @ pf
-        else:
-            dh = self.obs.h_operator(yloc,xc[:, None]+pf) - self.obs.h_operator(yloc,xc)[:, None]
-        ob = y - self.obs.h_operator(yloc,xc)
-        if save_dh:
-            np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
-            np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
-        logger.info("save_dh={}".format(save_dh))
-        zmat = rmat @ dh
-        d = rmat @ ob
-        #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
-        tmat, heinv = self.precondition(zmat)
-        logger.debug("pf.shape={}".format(pf.shape))
-        logger.debug("tmat.shape={}".format(tmat.shape))
-        logger.debug("heinv.shape={}".format(heinv.shape))
-        gmat = pf @ tmat
-        logger.debug("gmat.shape={}".format(gmat.shape))
-        x0 = np.zeros(pf.shape[1])
-        x = x0.copy()
-        if not self.incremental:
-            args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
-        else:
-            args_j = (d, tmat, zmat, heinv)
-        iprint = np.zeros(2, dtype=np.int32)
-        irest = 0 # restart counter
-        flg = -1  # optimilation result flag
-        options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
-        minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
+            global zetak, alphak
+            zetak = []
+            alphak = []
+            if (r is None) or (rmat is None) or (rinv is None):
+                logger.info("set R")
+                r, rmat, rinv = self.obs.set_r(yloc)
+            else:
+                logger.info("use input R")
+            xf = xb[:, 1:]
+            xc = xb[:, 0]
+            nmem = xf.shape[1]
+            chi2_test = Chi(y.size, nmem, rmat)
+            pf = xf - xc[:, None]
+            #if self.linf:
+            #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
+            #    pf *= self.infl_parm
+            fpf = pf @ pf.T
+            if save_dh:
+                np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
+                np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
+                np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+            if self.iloc is not None:
+                logger.info("==localization==, lsig={}".format(self.lsig))
+                pf_orig = pf.copy()
+                if self.iloc == 1:
+                    pf, wts = self.pfloc(pf_orig, save_dh, icycle)
+                elif self.iloc == 2:
+                    pf = self.pfmod(pf_orig, save_dh, icycle)
+                logger.info("pf.shape={}".format(pf.shape))
+                xf = xc[:, None] + pf
+            #logger.debug("norm(pf)={}".format(la.norm(pf)))
+            #logger.debug("r={}".format(np.diag(r)))
+            if self.ltlm:
+                logger.debug("dhdx={}".format(self.obs.dhdx(xc)))
+                dh = self.obs.dh_operator(yloc,xc) @ pf
+            else:
+                dh = self.obs.h_operator(yloc,xc[:, None]+pf) - self.obs.h_operator(yloc,xc)[:, None]
+            ob = y - self.obs.h_operator(yloc,xc)
+            if save_dh:
+                np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
+                np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
+            logger.info("save_dh={}".format(save_dh))
+            zmat = rmat @ dh
+            d = rmat @ ob
+            #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+            tmat, heinv = self.precondition(zmat)
+            logger.debug("pf.shape={}".format(pf.shape))
+            logger.debug("tmat.shape={}".format(tmat.shape))
+            logger.debug("heinv.shape={}".format(heinv.shape))
+            gmat = pf @ tmat
+            logger.debug("gmat.shape={}".format(gmat.shape))
+            x0 = np.zeros(pf.shape[1])
+            x = x0.copy()
+            if not self.incremental:
+                args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+            else:
+                args_j = (d, tmat, zmat, heinv)
+            iprint = np.zeros(2, dtype=np.int32)
+            irest = 0 # restart counter
+            flg = -1  # optimilation result flag
+            options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+            minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
                             maxiter=maxiter, restart=restart)
-        logger.info("save_hist={}".format(save_hist))
-        if restart:
-            if save_hist:
-                jh = []
-                gh = []
-            while irest < maxrest:
-                zetak = []
-                xold = x 
+            logger.info("save_hist={}".format(save_hist))
+            if restart:
+                if save_hist:
+                    jh = []
+                    gh = []
+                while irest < maxrest:
+                    zetak = []
+                    xold = x 
+                    if save_hist:
+                        x, flg = minimize(x0, callback=self.callback)
+                        for i in range(len(zetak)):
+                            jh.append(self.calc_j(np.array(zetak[i]), *args_j))
+                            g = self.calc_grad_j(np.array(zetak[i]), *args_j)
+                            gh.append(np.sqrt(g.transpose() @ g))
+                    else:
+                        x, flg = minimize(x0)
+                    irest += 1
+                    if flg == 0:
+                        logger.info("Converged at {}th restart".format(irest))
+                        break
+                    xup = x - xold
+                    if np.sqrt(np.dot(xup,xup)) < 1e-10:
+                        logger.info("Stagnation at {}th restart : solution not updated"
+                        .format(irest))
+                        break
+                    xa = xc + gmat @ x
+                    xc = xa
+                    if self.ltlm:
+                        dh = self.obs.dh_operator(yloc, xc) @ pf
+                    else:
+                        dh = self.obs.h_operator(yloc, xc[:, None]+pf) - self.obs.h_operator(yloc, xc)[:, None]
+                    zmat = rmat @ dh
+                    tmat, heinv = self.precondition(zmat)
+                    gmat = pf @ tmat
+                    if update_ensemble:
+                        pf = pf @ tmat
+                    # update arguments
+                    if not self.incremental:
+                        args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+                    else:
+                        d = rmat @ (y - self.obs.h_operator(yloc,xc))
+                        args_j = (d, tmat, zmat, heinv)
+                    x0 = np.zeros(pf.shape[1])
+                    # reload minimize class
+                    minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
+                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
+                            maxiter=maxiter, restart=restart)
+                if save_hist:
+                    logger.debug("zetak={} alpha={}".format(len(zetak), len(alphak)))
+                    np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
+                    np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
+                    np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
+                    if self.model=="z08":
+                        xmax = max(np.abs(np.min(x)),np.max(x))
+                        logger.debug("resx max={}".format(xmax))
+                        if xmax < 1000:
+                            self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
+                        else:
+                            xmax = int(np.ceil(xmax*0.001)*1000)
+                            logger.info("resx max={}".format(xmax))
+                            self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
+                    elif self.model=="l96":
+                        self.cost_j(200, xf.shape[1], x, icycle, *args_j)
+            else:
                 if save_hist:
                     x, flg = minimize(x0, callback=self.callback)
+                    jh = np.zeros(len(zetak))
+                    gh = np.zeros(len(zetak))
                     for i in range(len(zetak)):
-                        jh.append(self.calc_j(np.array(zetak[i]), *args_j))
+                        jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
                         g = self.calc_grad_j(np.array(zetak[i]), *args_j)
-                        gh.append(np.sqrt(g.transpose() @ g))
+                        gh[i] = np.sqrt(g.transpose() @ g)
+                    np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
+                    np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
+                    np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
+                    if self.model=="z08":
+                        xmax = max(np.abs(np.min(x)),np.max(x))
+                        logger.debug("resx max={}".format(xmax))
+                        if xmax < 1000:
+                            self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
+                        else:
+                            xmax = int(np.ceil(xmax*0.001)*1000)
+                            logger.info("resx max={}".format(xmax))
+                            self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
+                    elif self.model=="l96":
+                        self.cost_j(200, xf.shape[1], x, icycle, *args_j)
                 else:
                     x, flg = minimize(x0)
-                irest += 1
-                if flg == 0:
-                    logger.info("Converged at {}th restart".format(irest))
-                    break
-                xup = x - xold
-                if np.sqrt(np.dot(xup,xup)) < 1e-10:
-                    logger.info("Stagnation at {}th restart : solution not updated"
-                    .format(irest))
-                    break
-                xa = xc + gmat @ x
-                xc = xa
-                if self.ltlm:
-                    dh = self.obs.dh_operator(yloc, xc) @ pf
-                else:
-                    dh = self.obs.h_operator(yloc, xc[:, None]+pf) - self.obs.h_operator(yloc, xc)[:, None]
-                zmat = rmat @ dh
-                tmat, heinv = self.precondition(zmat)
-                gmat = pf @ tmat
-                if update_ensemble:
-                    pf = pf @ tmat
-                # update arguments
-                if not self.incremental:
-                    args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
-                else:
-                    d = rmat @ (y - self.obs.h_operator(yloc,xc))
-                    args_j = (d, tmat, zmat, heinv)
-                x0 = np.zeros(pf.shape[1])
-                # reload minimize class
-                minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter, restart=restart)
-            if save_hist:
-                logger.debug("zetak={} alpha={}".format(len(zetak), len(alphak)))
-                np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
-                np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
-                np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
-                if self.model=="z08":
-                    xmax = max(np.abs(np.min(x)),np.max(x))
-                    logger.debug("resx max={}".format(xmax))
-                    if xmax < 1000:
-                        self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
-                    else:
-                        xmax = int(np.ceil(xmax*0.001)*1000)
-                        logger.info("resx max={}".format(xmax))
-                        self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
-                elif self.model=="l96":
-                    self.cost_j(200, xf.shape[1], x, icycle, *args_j)
-        else:
-            if save_hist:
-                x, flg = minimize(x0, callback=self.callback)
-                jh = np.zeros(len(zetak))
-                gh = np.zeros(len(zetak))
-                for i in range(len(zetak)):
-                    jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
-                    g = self.calc_grad_j(np.array(zetak[i]), *args_j)
-                    gh[i] = np.sqrt(g.transpose() @ g)
-                np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
-                np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
-                np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
-                if self.model=="z08":
-                    xmax = max(np.abs(np.min(x)),np.max(x))
-                    logger.debug("resx max={}".format(xmax))
-                    if xmax < 1000:
-                        self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
-                    else:
-                        xmax = int(np.ceil(xmax*0.001)*1000)
-                        logger.info("resx max={}".format(xmax))
-                        self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
-                elif self.model=="l96":
-                    self.cost_j(200, xf.shape[1], x, icycle, *args_j)
+            xa = xc + gmat @ x
+            if save_dh:
+                np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
+            if self.ltlm:
+                dh = self.obs.dh_operator(yloc,xa) @ pf
             else:
-                x, flg = minimize(x0)
-        xa = xc + gmat @ x
-        if save_dh:
-            np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
-        if self.ltlm:
-            dh = self.obs.dh_operator(yloc,xa) @ pf
-        else:
-            dh = self.obs.h_operator(yloc, xa[:, None] + pf) - self.obs.h_operator(yloc, xa)[:, None]
-        zmat = rmat @ dh
-        logger.debug("cond(zmat)={}".format(la.cond(zmat)))
-        tmat, heinv = self.precondition(zmat)
-        d = y - self.obs.h_operator(yloc, xa)
-        logger.info("zmat shape={}".format(zmat.shape))
-        logger.info("d shape={}".format(d.shape))
-        innv, chi2 = chi2_test(zmat, d)
-        ds = self.dof(zmat)
-        logger.info("dof={}".format(ds))
-        pa = pf @ tmat
-        if self.iloc is not None:
-            nmem2 = pf.shape[1]
-            ptrace = np.sum(np.diag(pa @ pa.T))
-            if self.ss:
-                # random sampling
-                rvec = self.rs.standard_normal(size=(nmem2, nmem))
-                #for l in range(len(wts)):
-                #    rvec[l*nmem:(l+1)*nmem,:] = rvec[l*nmem:(l+1)*nmem,:] * wts[l] / np.sum(wts)
-                rvec_mean = np.mean(rvec, axis=0)
-                rvec = rvec - rvec_mean[None,:]
-                rvec_stdv = np.sqrt((rvec**2).sum(axis=0) / (nmem2-1))
-                rvec = rvec / rvec_stdv[None,:]
-                logger.debug("rvec={}".format(rvec[:,0]))
-                pa = pf @ tmat @ rvec / np.sqrt(nmem-1)
-            elif self.gain:
-                if self.ltlm:
-                    dh = self.obs.dh_operator(yloc,xa) @ pf_orig
-                else:
-                    dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
-                zmat_orig = rmat @ dh
-                u, s, vt = la.svd(zmat, full_matrices=False)
-                logger.debug(f"s.shape={s.shape}")
-                logger.debug(f"u.shape={u.shape}")
-                logger.debug(f"vt.shape={vt.shape}")
-                sp = s**2 + 1.0
-                D = (1.0 - np.sqrt(1.0/sp))/s
-                nsig = D.size
-                reducedgain = pf @ vt.transpose() @ np.diag(D) @ u.transpose()
-                pa = pf_orig - reducedgain @ zmat_orig
-            else: # tmat computed from original forecast ensemble
-                if self.ltlm:
-                    dh = self.obs.dh_operator(yloc,xa) @ pf_orig
-                else:
-                    dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
-                zmat_orig = rmat @ dh
-                tmat, heinv = self.precondition(zmat_orig)
-                pa = pf_orig @ tmat
-            trace = np.sum(np.diag(pa @ pa.T))
-            logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-            if np.sqrt(ptrace / trace) > 1.05:
-                pa *= np.sqrt(ptrace / trace)
-        if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
-            pa *= self.infl_parm
+                dh = self.obs.h_operator(yloc, xa[:, None] + pf) - self.obs.h_operator(yloc, xa)[:, None]
+            zmat = rmat @ dh
+            logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+            tmat, heinv = self.precondition(zmat)
+            d = y - self.obs.h_operator(yloc, xa)
+            logger.info("zmat shape={}".format(zmat.shape))
+            logger.info("d shape={}".format(d.shape))
+            innv, chi2 = chi2_test(zmat, d)
+            ds = self.dof(zmat)
+            logger.info("dof={}".format(ds))
+            pa = pf @ tmat
+            if self.iloc is not None:
+                nmem2 = pf.shape[1]
+                ptrace = np.sum(np.diag(pa @ pa.T))
+                if self.ss:
+                    # random sampling
+                    rvec = self.rs.standard_normal(size=(nmem2, nmem))
+                    #for l in range(len(wts)):
+                    #    rvec[l*nmem:(l+1)*nmem,:] = rvec[l*nmem:(l+1)*nmem,:] * wts[l] / np.sum(wts)
+                    rvec_mean = np.mean(rvec, axis=0)
+                    rvec = rvec - rvec_mean[None,:]
+                    rvec_stdv = np.sqrt((rvec**2).sum(axis=0) / (nmem2-1))
+                    rvec = rvec / rvec_stdv[None,:]
+                    logger.debug("rvec={}".format(rvec[:,0]))
+                    pa = pf @ tmat @ rvec / np.sqrt(nmem-1)
+                elif self.gain:
+                    if self.ltlm:
+                        dh = self.obs.dh_operator(yloc,xa) @ pf_orig
+                    else:
+                        dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
+                    zmat_orig = rmat @ dh
+                    u, s, vt = la.svd(zmat, full_matrices=False)
+                    logger.debug(f"s.shape={s.shape}")
+                    logger.debug(f"u.shape={u.shape}")
+                    logger.debug(f"vt.shape={vt.shape}")
+                    sp = s**2 + 1.0
+                    D = (1.0 - np.sqrt(1.0/sp))/s
+                    nsig = D.size
+                    reducedgain = pf @ vt.transpose() @ np.diag(D) @ u.transpose()
+                    pa = pf_orig - reducedgain @ zmat_orig
+                else: # tmat computed from original forecast ensemble
+                    if self.ltlm:
+                        dh = self.obs.dh_operator(yloc,xa) @ pf_orig
+                    else:
+                        dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
+                    zmat_orig = rmat @ dh
+                    tmat, heinv = self.precondition(zmat_orig)
+                    pa = pf_orig @ tmat
+                trace = np.sum(np.diag(pa @ pa.T))
+                logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
+                if np.sqrt(ptrace / trace) > 1.05:
+                    pa *= np.sqrt(ptrace / trace)
+            #if self.linf:
+            #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
+            #    pa *= self.infl_parm
 
-        u = np.zeros_like(xb)
-        u[:, 0] = xa
-        u[:, 1:] = xa[:, None] + pa
-        fpa = pa @ pa.T
-        if save_dh:
-            np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
-            np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
-        if evalout:
-            infl_mat = np.dot(zmat,zmat.T)
-            evalb, _ = la.eigh(infl_mat)
-            eval = evalb[::-1] / (1.0 + evalb[::-1])
-            return u, fpa, pa, innv, chi2, ds, eval
-        else:
-            return u, fpa, pa, innv, chi2, ds
+            u = np.zeros_like(xb)
+            u[:, 0] = xa
+            u[:, 1:] = xa[:, None] + pa
+            fpa = pa @ pa.T
+            if save_dh:
+                np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
+                np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
+            if evalout:
+                infl_mat = np.dot(zmat,zmat.T)
+                evalb, _ = la.eigh(infl_mat)
+                eval = evalb[::-1] / (1.0 + evalb[::-1])
+                return u, fpa, pa, innv, chi2, ds, eval
+            else:
+                return u, fpa, pa, innv, chi2, ds

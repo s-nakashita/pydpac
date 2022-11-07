@@ -18,10 +18,11 @@ if model == "z08" or model == "z05":
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 elif model == "l96":
-    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var"]
+    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
+    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
-        "var4d":"tab:brown"    }
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
+    marker = {"3d":"o","4d":"x"}
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
@@ -35,7 +36,7 @@ elif ptype == "nobs":
     var = [40, 35, 30, 25, 20, 15, 10]
 elif ptype == "nmem":
     var = [40, 35, 30, 25, 20, 15, 10, 5]
-elif ptype == "nt":
+elif ptype == "nt" or ptype == "a_window":
     var = [1, 2, 3, 4, 5, 6, 7, 8]
 #y = np.ones(len(var)) * sigma[op]
 fig, ax = plt.subplots()
@@ -60,7 +61,10 @@ for pt in perts:
         i += 1
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if i > 0:
-        ax.plot(var, el, linestyle="solid", color=linecolor[pt], label=pt)
+        if pt[:2] == "4d":
+            ax.plot(var, el, marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
+        else:
+            ax.plot(var, el, marker=marker["3d"], color=linecolor[pt], label=pt)
 ax.set(xlabel="{} parameter".format(ptype), ylabel="RMSE",
             title=op)
 ax.set_xticks(var)

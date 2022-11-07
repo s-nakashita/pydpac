@@ -27,7 +27,7 @@ x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =    8 # ensemble size (include control run)
+nmem =   20 # ensemble size (include control run)
 t0off =  24 # initial offset between adjacent members
 t0c =   500 # t0 for control
 # t0 for ensemble members
@@ -44,6 +44,7 @@ a_window = 1 # assimilation window length
 
 nobs = 40 # observation number (nobs<=nx)
 
+sigb = 0.6 # (For var & 4dvar) background error standard deviation
 lb = -1.0 # (For var & 4dvar) correlation length for background error covariance
 
 # observation error standard deviation
@@ -52,7 +53,7 @@ sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
 infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
-          "4dmlef":1.3,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
+          "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
 infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
 infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
@@ -140,6 +141,7 @@ if len(sys.argv) > 7:
     #nmem = int(sys.argv[7])
     #nt = int(sys.argv[7]) * 6
     a_window = int(sys.argv[7])
+    #sigb = float(sys.argv[7])
     #lb = float(sys.argv[7])
 
 # observation operator
@@ -147,16 +149,10 @@ obs = Obs(op, sigma[op])
 
 # assimilation method
 state_size = nx
+a_window=1
 if pt == "mlef":
-    if iloc == 0:
-        from analysis.mlef_rloc import Mlef_rloc
-        analysis = Mlef_rloc(pt, nmem, obs, \
-            linf=linf, infl_parm=infl_parm, \
-            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-            ltlm=ltlm, model=model)
-    else:
-        from analysis.mlef import Mlef
-        analysis = Mlef(pt, state_size, nmem, obs, \
+    from analysis.mlef import Mlef
+    analysis = Mlef(state_size, nmem, obs, \
             linf=linf, infl_parm=infl_parm, \
             iloc=iloc, lsig=lsig, ss=False, gain=False, \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
@@ -176,28 +172,24 @@ elif pt == "kf":
 elif pt == "var":
     from analysis.var import Var
     analysis = Var(obs, 
-    lb=lb, model=model)
+    sigb=sigb, lb=lb, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
-    #a_window = 5
-    analysis = Var4d(obs, step, nt, a_window, model=model)
+    a_window = 5
+    sigb = sigb * np.sqrt(float(a_window))
+    analysis = Var4d(obs, step, nt, a_window,
+    sigb=sigb, lb=lb, model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
-    from analysis.enks import EnKS
-    #a_window = 5
-    analysis = EnKS(pt, state_size, nmem, obs, step, nt, a_window, \
+    from analysis.enkf4d import EnKF4d
+    a_window = 5
+    analysis = EnKF4d(pt, state_size, nmem, obs, step, nt, a_window, \
         linf=linf, infl_parm=infl_parm, 
         iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
         ltlm=ltlm, model=model)
 elif pt == "4dmlef":
-    if iloc == 0:
-        from analysis.mles_rloc import Mles_rloc
-        analysis = Mles_rloc(pt, nmem, obs, step, nt, a_window, \
-            linf=linf, infl_parm=infl_parm, \
-            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
-            ltlm=ltlm, model=model)
-    else:
-        from analysis.mles import Mles
-        analysis = Mles(pt, state_size, nmem, obs, step, nt, a_window, \
+    a_window = 5
+    from analysis.mlef4d import Mlef4d
+    analysis = Mlef4d(state_size, nmem, obs, step, nt, a_window, \
             linf=linf, infl_parm=infl_parm, \
             iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
             ltlm=ltlm, model=model)
@@ -223,7 +215,7 @@ if __name__ == "__main__":
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
     stda = np.zeros(na)
-    innov = np.zeros((na,yobs.shape[1]))
+    innov = np.zeros((na,yobs.shape[1]*a_window))
     chi = np.zeros(na)
     dof = np.zeros(na)
     for i in a_time:
@@ -234,23 +226,33 @@ if __name__ == "__main__":
         logger.info("cycle{} analysis".format(i))
         #if i in [1, 50, 100, 150, 200, 250]:
         if i < 0:
-            #if a_window > 1:
+            ##if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, ds = analysis(u, pf, y, yloc, \
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
+                for j in range(a_window):
+                    chi[i+j] = chi2
+                    innov[i+j,] = innv
+                    dof[i+j] = ds
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
+                dof[i] = ds
         else:
-            #if a_window > 1:
+            ##if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
+                for j in range(a_window):
+                    chi[i+j] = chi2
+                    innov[i+j,] = innv
+                    dof[i+j] = ds
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
+                dof[i] = ds
         ## additive inflation
         #if linf:
         #    logger.info("==additive inflation==")
@@ -265,7 +267,6 @@ if __name__ == "__main__":
                 xa[i] = np.mean(u, axis=1)
         else:
             xa[i] = u
-        dof[i] = ds
         if i < na-1:
             if a_window > 1:
                 uf = func.forecast(u)
@@ -278,8 +279,11 @@ if __name__ == "__main__":
                         xf[i+1:i+1+a_window] = uf
                     ii = 0
                     for k in range(i+1,i+1+a_window):
-                        patmp = analysis.calc_pf(uf[ii], pa, k)
-                        stda[k] = np.sqrt(np.trace(patmp)/nx)
+                        if pt=="4dvar":
+                            stda[k] = np.sqrt(np.trace(pa)/nx)
+                        else:
+                            patmp = analysis.calc_pf(uf[ii], pa, k)
+                            stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 else:
                     if ft=="ensemble":
@@ -290,8 +294,11 @@ if __name__ == "__main__":
                         xf[i+1:na] = uf[:na-i-1]
                     ii = 0
                     for k in range(i+1,na):
-                        patmp = analysis.calc_pf(uf[ii], pa, k)
-                        stda[k] = np.sqrt(np.trace(patmp)/nx)
+                        if pt=="4dvar":
+                            stda[k] = np.sqrt(np.trace(pa)/nx)
+                        else:
+                            patmp = analysis.calc_pf(uf[ii], pa, k)
+                            stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 u = uf[-1]
                 pf = analysis.calc_pf(u, pa, i+1)
@@ -311,7 +318,7 @@ if __name__ == "__main__":
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
         else:
             e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
-            stda[i] = np.sqrt(np.trace(pa)/nx)
+        stda[i] = np.sqrt(np.trace(pa)/nx)
 
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)

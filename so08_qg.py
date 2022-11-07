@@ -128,16 +128,8 @@ obs = Obs(op, sigma[op],nvars=2,ndims=2,ni=nx,nj=ny)
 # assimilation method
 state_size = nx*ny
 if pt == "mlef":
-    if iloc == 0:
-        from analysis.mlef_rloc import Mlef_rloc
-        analysis = Mlef_rloc(pt, nmem, obs, \
-            nvars=2,ndims=2,\
-            linf=linf, infl_parm=infl_parm, \
-            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-            ltlm=ltlm, model=model)
-    else:
-        from analysis.mlef import Mlef
-        analysis = Mlef(pt, state_size, nmem, obs, \
+    from analysis.mlef import Mlef
+    analysis = Mlef(state_size, nmem, obs, \
             nvars=2,ndims=2,\
             linf=linf, infl_parm=infl_parm, \
             iloc=iloc, lsig=lsig, ss=False, gain=False, \
@@ -151,35 +143,17 @@ elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
         iloc=iloc, lsig=lsig, ss=True, getkf=False, \
         ltlm=ltlm, \
         calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
-#elif pt == "kf":
-#    from analysis.kf import Kf
-#    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
-#elif pt == "var":
-#    from analysis.var import Var
-#    analysis = Var(pt, obs, -1, model=model)
-#elif pt == "4dvar":
-#    from analysis.var4d import Var4d
-#    #a_window = 5
-#    analysis = Var4d(pt, obs, step, nt, a_window, model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
-    from analysis.enks import EnKS
+    from analysis.enkf4d import EnKF4d
     #a_window = 5
-    analysis = EnKS(pt, state_size, nmem, obs, step, nt, a_window, \
+    analysis = EnKF4d(pt, state_size, nmem, obs, step, nt, a_window, \
         nvars=2,ndims=2,\
         linf=linf, infl_parm=infl_parm, 
         iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
         ltlm=ltlm, model=model)
 elif pt == "4dmlef":
-    if iloc == 0:
-        from analysis.mles_rloc import Mles_rloc
-        analysis = Mles_rloc(pt, nmem, obs, step, nt, a_window, \
-            nvars=2,ndims=2,\
-            linf=linf, infl_parm=infl_parm, \
-            lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
-            ltlm=ltlm, model=model)
-    else:
-        from analysis.mles import Mles
-        analysis = Mles(pt, state_size, nmem, obs, step, nt, a_window, \
+    from analysis.mlef4d import Mlef4d
+    analysis = Mlef4d(state_size, nmem, obs, step, nt, a_window, \
             nvars=2,ndims=2,\
             linf=linf, infl_parm=infl_parm, \
             iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
@@ -224,7 +198,7 @@ if __name__ == "__main__":
         if i==0 or i % iplot == 0:
             #if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, ds = analysis(u, pf, y, yloc, \
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
@@ -236,7 +210,7 @@ if __name__ == "__main__":
         else:
             #if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2

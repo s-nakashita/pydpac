@@ -139,15 +139,19 @@ obs = Obs(op, sigma[op])
 # assimilation method
 state_size = nx
 if pt == "mlef":
-    if iloc == 0:
-        from analysis.mlef_rloc import Mlef_rloc
-        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
-    else:
-        from analysis.mlef import Mlef
-        analysis = Mlef(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    from analysis.mlef import Mlef
+    analysis = Mlef(state_size, nmem, obs, \
+            linf=linf, infl_parm=infl_parm, \
+            iloc=iloc, lsig=lsig, ss=False, gain=False, \
+            calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
+            ltlm=ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    analysis = EnKF(pt, state_size, nmem, obs, \
+        linf=linf, infl_parm=infl_parm, \
+        iloc=iloc, lsig=lsig, ss=True, getkf=False, \
+        ltlm=ltlm, \
+        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(obs, 
@@ -155,22 +159,30 @@ elif pt == "kf":
     step=step, nt=nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(obs, model=model)
+    sigb = 1.0
+    lb = -1.0
+    analysis = Var(obs, 
+    sigb=sigb, lb=lb, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
-    analysis = Var4d(obs, step, nt, a_window, model=model)
+    sigb = 1.0
+    lb = -1.0
+    analysis = Var4d(obs, step, nt, a_window,
+    sigb=sigb, lb=lb, model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
-    from analysis.enks import EnKS
+    from analysis.enkf4d import EnKF4d
     #a_window = 5
-    analysis = EnKS(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
+    analysis = EnKF4d(pt, state_size, nmem, obs, step, nt, a_window, \
+        linf=linf, infl_parm=infl_parm, 
+        iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+        ltlm=ltlm, model=model)
 elif pt == "4dmlef":
-    if iloc == 0:
-        from analysis.mles_rloc import Mles_rloc
-        analysis = Mles_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
-    else:
-        from analysis.mles import Mles
-        analysis = Mles(pt, state_size, nmem, obs, infl_parm, lsig, linf, iloc, ltlm, step.calc_dist, step.calc_dist1, step, nt, a_window, model=model)
+    from analysis.mlef4d import Mlef4d
+    analysis = Mlef4d(state_size, nmem, obs, step, nt, a_window, \
+            linf=linf, infl_parm=infl_parm, \
+            iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+            ltlm=ltlm, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
@@ -214,21 +226,31 @@ if __name__ == "__main__":
             logger.info("cycle{} analysis".format(i))
             #if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, ds = analysis(u, pf, y, yloc, \
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
+                for j in range(a_window):
+                    chi[i+j] = chi2
+                    innov[i+j,] = innv
+                    dof[i+j] = ds
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
+                dof[i] = ds
         else:
             #if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
+                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
+                for j in range(a_window):
+                    chi[i+j] = chi2
+                    innov[i+j,] = innv
+                    dof[i+j] = ds
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
+                dof[i] = ds
             
         if ft=="ensemble":
             if pt == "mlef" or pt == "4dmlef":
@@ -238,7 +260,6 @@ if __name__ == "__main__":
         else:
             xa[i] = u
         sqrtpa[i] = pa
-        dof[i] = ds
         if i < na-1:
             if a_window > 1:
                 uf = func.forecast(u)
