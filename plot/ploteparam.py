@@ -36,14 +36,25 @@ elif ptype == "nobs":
     var = [40, 35, 30, 25, 20, 15, 10]
 elif ptype == "nmem":
     var = [40, 35, 30, 25, 20, 15, 10, 5]
-elif ptype == "nt" or ptype == "a_window":
+elif ptype == "nt":
+    var = [1, 2, 3, 4, 5, 6, 7, 8]
+elif ptype == "a_window":
+    perts = ["4dvar","4dletkf","4dmlefbe","4dmlefbm","4dmlefcw","4dmlefy"]
+    linecolor = {"var":"tab:olive",
+    "letkf":"tab:blue",
+    "mlefbe":"tab:red","mlefbm":"tab:pink",
+    "mlefcw":"tab:green","mlefy":"tab:orange"}
     var = [1, 2, 3, 4, 5, 6, 7, 8]
 #y = np.ones(len(var)) * sigma[op]
 fig, ax = plt.subplots()
+methods = []
+mean = []
+std = []
 for pt in perts:
     #fig, ax = plt.subplots()
     i = 0
     el = np.zeros(len(var))
+    es = np.zeros(len(var))
     for ivar in var:
     #f = "{}_e_{}_{}_{}.txt".format(model, op, pt, int(ivar))
         f = "{}_e_{}_{}_{}.txt".format(model, op, pt, ivar)
@@ -57,18 +68,31 @@ for pt in perts:
             el[i] = np.nan
             i += 1
             continue
-        el[i] = np.mean(e[int(na/3):])
+        el[i] = np.mean(e[0,int(na/3):])
+        es[i] = np.mean(e[1,int(na/3):])
         i += 1
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if i > 0:
-        if pt[:2] == "4d":
-            ax.plot(var, el, marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
-        else:
-            ax.plot(var, el, marker=marker["3d"], color=linecolor[pt], label=pt)
+        methods.append(pt)
+        mean.append(el)
+        std.append(es)
+xaxis = np.arange(len(var)) - len(methods)*0.025
+i=0
+for pt in methods:
+    el = mean[i]
+    es = std[i]
+    if pt[:2] == "4d":
+        mark=marker["4d"]; color=linecolor[pt[2:]]
+    else:
+        mark=marker["3d"]; color=linecolor[pt]
+    ax.errorbar(xaxis, el, yerr=es, marker=mark, color=color, label=pt)
+    xaxis += 0.05
+    i+=1
 ax.set(xlabel="{} parameter".format(ptype), ylabel="RMSE",
             title=op)
-ax.set_xticks(var)
-ax.legend()
+ax.set_xticks(np.arange(len(var)))
+ax.set_xticklabels(var)
+ax.legend(loc='upper left')
         #fig.savefig("{}_e{}_{}_{}.png".format(model, ptype, op, pt))
 fig.savefig("{}_e{}_{}.png".format(model, ptype, op))
 #fig.savefig("{}_e_{}+nodiff.pdf".format(model, op))

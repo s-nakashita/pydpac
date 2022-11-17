@@ -66,6 +66,7 @@ else:
         emean = np.zeros(na+1)
     else:
         emean = np.zeros(na)
+    estd = np.zeros_like(emean)
     i = 0
     for count in range(1,nmax+1):
         f = "{}_{}_{}_{}.txt".format(vname, op, pt, count)
@@ -74,8 +75,12 @@ else:
             continue
         e = np.loadtxt(f)
         emean += e
+        estd += e**2
         i += 1
     emean /= i
+    estd /= i
+    estd = np.sqrt(estd - emean**2)
+    data = np.vstack((emean,estd))
     if i>0:
-        np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), emean)
+        np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), data)
 #np.savetxt("{}_{}_{}_{}_mean.txt".format(model, vname, op, pt), emean)

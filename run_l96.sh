@@ -1,19 +1,18 @@
 #!/bin/sh
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic cubic"
-perturbations="var 4dvar letkf 4dletkf lmlefcw 4dlmlefcw"
-#datype="mlef"
-#perturbations="${datype}be ${datype}bm l${datype} ${datype}"
+operators="linear" # quadratic" # cubic"
+perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
+#datype="4dmlef"
+#perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
-#perturbations="mlef 4dmlef"
+#perturbations="mlef 4dmlef mlefbe"
 na=100 # Number of assimilation cycle
-linf="T" # "T":Apply inflation "F":Not apply
-lloc="T" # "T":Apply localization "F":Not apply
-ltlm="F" # "T":Use tangent linear approximation "F":Not use
-a_window=3
+linf=True  # True:Apply inflation False:Not apply
+lloc=False # True:Apply localization False:Not apply
+ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="comp4d_loc"
+exp="test_config"
 #exp="${datype}_loc_hint"
 echo ${exp}
 rm -rf work/${exp}
@@ -27,64 +26,80 @@ touch timer
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
-    pt=$pert
-    #pt=${datype}
-    if [ "${pert:0:2}" = "4d" ]; then
-      a_window=5
+    cp ../../analysis/config/config_${pert}_sample.py config.py
+    if [ $linf = True ];then
+    sed -i -e '/linf/s/False/True/' config.py
     else
-      a_window=1
+    sed -i -e '/linf/s/True/False/' config.py
     fi
+    if [ $ltlm = True ];then
+    sed -i -e '/ltlm/s/False/True/' config.py
+    else
+    sed -i -e '/ltlm/s/True/False/' config.py
+    fi
+    cat config.py
+    ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
+    pt=${ptline#\"*}
+    pt=${pt%\"*}
+    echo $pt
+#    if [ $pert = 4dvar ] || [ $pert = 4dletkf ];then
+#    pt=$pert
+#    else
+#    pt=${datype}
+#    fi
+#    if [ "${pt:0:2}" = "4d" ]; then
+#      a_window=8
+#    else
+#      a_window=1
+#    fi
 #    loctype=$(echo "${pert}" | sed s/"${datype}"//g)
-#    loctype=$(echo "${loctype}" | sed s/4d//g)
 #    echo $loctype
 #    if [ "$loctype" = "be" ]; then
-#      lloc="T"
+#      lloc=True
 #      iloc=1
 #    elif [ "$loctype" = "bm" ]; then
-#      lloc="T"
+#      lloc=True
 #      iloc=2
-#    elif [ "$loctype" = "lcw" ]; then
-#      lloc="T"
+#    elif [ "$loctype" = "cw" ]; then
+#      lloc=True
 #      iloc=-1
-#    elif [ "$loctype" = "ly" ]; then
-#      lloc="T"
+#    elif [ "$loctype" = "y" ]; then
+#      lloc=True
 #      iloc=0
 #    else
-#      lloc="F"
+#      lloc=False
 #      iloc=
 #    fi
-    if [ $pert = lmlefcw ];then
-      pt=mlef
-      pert=mlef
-      lloc=T
-      iloc=-1
-    elif [ $pert = 4dlmlefcw ];then
-      pt=4dmlef
-      pert=4dmlef
-      lloc=T
-      iloc=-1
-    elif [ $pert = letkf ] || [ $pert = 4dletkf ]; then
-      lloc=T 
-      iloc=0
-    else
-      lloc=F
-      iloc=
-    fi
+#    if [ $pert = lmlefcw ];then
+#      pt=mlef
+#      pert=mlef
+#      lloc=T
+#      iloc=-1
+#    elif [ $pert = 4dlmlefcw ];then
+#      pt=4dmlef
+#      pert=4dmlef
+#      lloc=T
+#      iloc=-1
+#    elif [ $pert = letkf ] || [ $pert = 4dletkf ]; then
+#      lloc=T 
+#      iloc=0
+#    else
+#      lloc=F
+#      iloc=
+#    fi
     #for lb in $L; do
-    echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc}
+    #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc}
     #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb}
     start_time=$(gdate +"%s.%5N")
-    python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pert}.log 2>&1
+    python ../../l96.py > l96_${op}_${pert}.log 2>&1
+    #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pert}.log 2>&1
     #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb} > l96_${op}_${pt}_${lb}.log 2>&1
     wait
     end_time=$(gdate +"%s.%5N")
-    echo ${pert} >> timer
+    echo "${op} ${pert}" >> timer
     echo "scale=1; ${end_time}-${start_time}" | bc >> timer
-    #mv l96_e_${op}_${pt}.txt e_${op}_${pt}_${lb}.txt
-    if [ $pt != $pert ]; then
-    mv l96_e_${op}_${pt}.txt l96_e_${op}_${pert}.txt
-    mv l96_stda_${op}_${pt}.txt l96_stda_${op}_${pert}.txt
-    fi
+    mv l96_e_${op}_${pt}.txt e_${op}_${pert}.txt
+    mv l96_stda_${op}_${pt}.txt stda_${op}_${pert}.txt
     #if [ "${pert:4:1}" = "b" ]; then
     #mv l96_rho_${op}_${pt}.npy l96_rho_${op}_${pert}.npy
     #fi
@@ -106,7 +121,7 @@ for op in ${operators}; do
     #python ../../plot/plotlpf.py ${op} l96 ${na} ${pert} 
     #done
   done
-  python ../../plot/plote.py ${op} l96 ${na} #${datype}
+  python ../../plot/plote.py ${op} l96 ${na} mlef
   #python ../../plot/plotchi.py ${op} l96 ${na}
   #python ../../plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
   #python ../../plot/plotxa.py ${op} l96 ${na}

@@ -96,9 +96,10 @@ class Var4d():
         alphak = []
         #JH = self.obs.dh_operator(yloc, xf)
         _, _, rinv = self.obs.set_r(yloc[0])
+        a_window = min(len(y),self.window_l)
         xb = xf
         bg = [xb] # background state
-        for k in range(self.window_l-1):
+        for k in range(a_window-1):
             for l in range(self.nt):
                 xb = self.step(xb)
             bg.append(xb)
@@ -106,7 +107,7 @@ class Var4d():
         AM = [np.eye(xb.size)] # adjoint model
         JH = [self.obs.dh_operator(yloc[0], xf)] # tangent linear observation operator
         E = np.eye(xb.size)
-        for k in range(self.window_l-1):
+        for k in range(a_window-1):
             xk = bg[k]
             M = np.eye(xk.size)
             MT = np.eye(xk.size)

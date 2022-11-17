@@ -21,7 +21,7 @@ class Lmlef4d():
         iloc=0, lsig=-1.0, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
         # necessary parameters
-        self.pt = "4dlmlef" # DA type
+        self.pt = "4dmlef" # DA type
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
@@ -51,9 +51,13 @@ class Lmlef4d():
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         # incremental form
-        self.incremental = True #incremental
+        self.incremental = incremental
         self.model = model
+        from .lmlef import Lmlef
+        self.lmlef = Lmlef(self.nmem, self.obs, \
+            iloc=self.iloc,calc_dist1=self.calc_dist1)
         logger.info(f"R-localization type : {self.pt}")
+        logger.info(f"nt={self.nt} a_window={self.a_window}")
 
     def calc_pf(self, xf, pa, cycle):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
@@ -93,19 +97,24 @@ class Lmlef4d():
     def calc_j(self, v, *args):
         if self.iloc == -1: #CW
             # control variable v=zeta
-            #if not self.incremental:
-            #    xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-            #    x = xc + gmat @ v
-            #    ob = y - self.obs.h_operator(yloc, x)
-            #    j = 0.5 * (v.transpose() @ heinv @ v + ob.transpose() @ rinv @ ob)
-            #else:
+            if not self.incremental:
+                xc, y, yloc, tmat, gmat, zmat, rmat = args
+            else:
             # incremental form
-            d, tmat, zmat, heinv = args
+                d, tmat, zmat = args
             nmem = v.size
             w = tmat @ v
-            j = 0.5 * v.transpose() @ heinv @ v
-            for l in range(len(d)):
-                ob = zmat[l]@w - d[l]
+            j = 0.5 * w.transpose() @ w
+            if not self.incremental:
+                x = xc + gmat @ v
+            for l in range(len(zmat)):
+                if not self.incremental:
+                    ob = y[l] - self.obs.h_operator(yloc[l], x)
+                    ob = rmat[l] @ ob
+                    for k in range(self.nt):
+                        x = self.step(x)
+                else:
+                    ob = zmat[l]@w - d[l]
                 j += 0.5 * np.dot(ob,ob)
         else: #Y
             # control variable v=w
@@ -118,25 +127,33 @@ class Lmlef4d():
     def calc_grad_j(self, v, *args):
         if self.iloc == -1: #CW
             # control variable v=zeta
-            #if not self.incremental:
-            #    xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-            #    x = xc + gmat @ v
-            #    hx = self.obs.h_operator(yloc, x)
-            #    ob = y - hx
-            #    if self.ltlm:
-            #        dh = self.obs.dh_operator(yloc, x) @ pf
-            #    else:
-            #        dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-            #    grad = heinv @ v - tmat @ dh.transpose() @ rinv @ ob
-            #else:
+            if not self.incremental:
+                xc, y, yloc, tmat, gmat, zmat, rmat = args
+            else:
             # incremental form
-            d, tmat, zmat, heinv = args
+                d, tmat, zmat = args
             nmem = v.size
             w = tmat @ v
-            grad = heinv @ v
-            for l in range(len(d)):
-                ob = zmat[l] @ w - d[l]
-                grad = grad + tmat @ zmat[l].transpose() @ ob
+            grad = tmat @ w
+            if not self.incremental:
+                x = xc + gmat @ v
+            for l in range(len(zmat)):
+                if not self.incremental:
+                    hx = self.obs.h_operator(yloc[l], x)
+                    ob = hx - y[l]
+                    ob = rmat[l] @ ob
+                #    if self.ltlm:
+                #        dh = self.obs.dh_operator(yloc, x) @ pf
+                #    else:
+                #        dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
+                #    ob = dh.transpose() @ rmat[l].transpose() @ ob
+                    ob = zmat[l].transpose() @ ob
+                    for k in range(self.nt):
+                        x = self.step(x)
+                else:
+                    ob = zmat[l] @ w - d[l]
+                    ob = zmat[l].transpose() @ ob
+                grad = grad + tmat @ ob
         else: #Y
             # control variable v=w
             d_, zmat = args
@@ -148,19 +165,13 @@ class Lmlef4d():
     def calc_hess(self, v, *args):
         if self.iloc == -1: #CW
             # control variable v=zeta
-            #if not self.incremental:
-            #    xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-            #    x = xc + gmat @ v
-            #    if self.ltlm:
-            #        dh = self.obs.dh_operator(yloc, x) @ pf
-            #    else:
-            #        dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
-            #    hess = tmat @ (np.eye(v.size) + dh.transpose() @ rinv @ dh) @ tmat
-            #else:
+            if not self.incremental:
+                xc, y, yloc, tmat, gmat, zmat, rmat = args
+            else:
             # incremental form
-            d, tmat, zmat, heinv = args
+                d, tmat, zmat = args
             hess = np.eye(v.size)
-            for l in range(len(d)):
+            for l in range(len(zmat)):
                 hess += zmat[l].transpose() @ zmat[l]
             hess = tmat @ hess @ tmat
         else: #Y
@@ -185,30 +196,10 @@ class Lmlef4d():
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
     def dof(self, zmat):
-        u, s, vt = la.svd(zmat)
-        ds = np.sum(s**2/(1.0+s**2))
-        return ds
+        return self.lmlef.dof(zmat)
 
     def r_loc(self, sigma, obsloc, xloc):
-        if sigma < 0.0:
-            loc_scale = 1.0e5
-        else:
-            loc_scale = sigma
-        nobs = obsloc.size
-        far = np.arange(nobs)
-        Rwf_loc = np.ones(nobs)
-
-        # distance threshold
-        dist0 = loc_scale * np.sqrt(10.0/3.0) * 2.0
-        logger.debug(dist0)
-
-        dist = np.zeros(nobs)
-        for k in range(nobs):
-            dist[k] = self.calc_dist1(xloc, obsloc[k])
-        far = far[dist>dist0]
-        logger.debug(far)
-        Rwf_loc = np.exp(-0.5*(dist/loc_scale)**2)
-        return far, Rwf_loc
+        return self.lmlef.r_loc(sigma, obsloc, xloc)
 
     def __call__(self, xb, pb, y, yloc,
         method="CG", cgtype=1, gtol=1e-6, maxiter=None, restart=False, maxrest=20, update_ensemble=False,
@@ -219,7 +210,7 @@ class Lmlef4d():
         logger.debug(f"obsloc={yloc.shape}")
         logger.debug(f"obssize={y.shape}")
         r, rmat, rinv = self.obs.set_r(yloc[0])
-        rmatall = np.diag(np.concatenate([np.diag(rmat) for i in range(self.a_window)]))
+        rmatall = np.diag(np.concatenate([np.diag(rmat) for i in range(len(y))]))
         logger.debug(f"rmatall={rmatall.shape}")
         xf = xb[:, 1:]
         xc = xb[:, 0]
@@ -271,6 +262,9 @@ class Lmlef4d():
             for i in range(xc.size):
                 zmat = []
                 di = []
+                yi = []
+                yiloc = []
+                ri = []
                 for l in range(len(dhlist)):
                     far, Rwf_loc = self.r_loc(self.lsig, yloc[l], float(i))
                     logger.debug(f"Number of assimilated obs.={(y[l].size - len(far))*self.a_window}")
@@ -281,12 +275,10 @@ class Lmlef4d():
                     ob = dlist[l]
                     dhi = np.delete(dh, far, axis=0)
                     zmat.append(Rmat @ dhi)
-                    #if not self.incremental:
-                    #    yi = np.delete(y, far)
-                    #    yiloc = np.delete(yloc, far)
-                    #    Rinv = np.diag(np.diag(rinv) * Rwf_loc)
-                    #    Rinv = np.delete(Rinv, far, axis=0)
-                    #    Rinv = np.delete(Rinv, far, axis=1)
+                    if not self.incremental:
+                        yi.append(np.delete(y[l], far))
+                        yiloc.append(np.delete(yloc[l], far))
+                        ri.append(Rmat)
                     obi = np.delete(ob, far)
                     di.append(Rmat @ obi)
                 logger.debug("cond(zmat)={}".format(la.cond(zmat)))
@@ -297,10 +289,10 @@ class Lmlef4d():
                 gmat = pf @ tmat
                 logger.debug("gmat.shape={}".format(gmat.shape))
                 x0 = np.zeros(pf.shape[1])
-                #if not self.incremental:
-                #    args_j = (xc, pf, yi, yiloc, tmat, gmat, heinv, Rinv)
-                #else:
-                args_j = (di, tmat, zmat, heinv)
+                if not self.incremental:
+                    args_j = (xc, yi, yiloc, tmat, gmat, zmat, ri)
+                else:
+                    args_j = (di, tmat, zmat)
                 minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
                             maxiter=maxiter, restart=restart)

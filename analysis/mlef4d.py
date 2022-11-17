@@ -19,7 +19,7 @@ class Mlef4d():
                 nvars=1,ndims=1,
                 linf=False, infl_parm=1.0,
                 iloc=None, lsig=-1.0, calc_dist=None, calc_dist1=None,
-                ltlm=False, model="model"):
+                incremental=True,ltlm=False, model="model"):
         # necessary parameters
         self.pt = "4dmlef" # DA type (prefix 4d + MLEF)
         self.ndim = state_size # state size
@@ -59,10 +59,21 @@ class Mlef4d():
             self.calc_dist1 = calc_dist1 # distance calculation routine
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
+        # incremental form
+        self.incremental = incremental
+        # forecast model name
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
+        from .mlef import Mlef
+        self.mlef = Mlef(self.ndim,self.nmem,self.obs,
+                #nvars=self.nvars,ndims=self.ndims,
+                #linf=self.linf,infl_parm=self.infl_parm,
+                #iloc=self.iloc,lsig=self.lsig,
+                calc_dist=self.calc_dist,calc_dist1=self.calc_dist1,
+                #ltlm=self.ltlm,incremental=self.incremental,model=self.model
+                )
         if self.iloc is not None:
             if self.iloc <= 0:
                 from .lmlef4d import Lmlef4d
@@ -70,10 +81,10 @@ class Mlef4d():
                 nvars=self.nvars,ndims=self.ndims,
                 linf=self.linf,infl_parm=self.infl_parm,
                 iloc=self.iloc,lsig=self.lsig,calc_dist1=self.calc_dist1,
-                ltlm=self.ltlm,model=self.model)
+                ltlm=self.ltlm,incremental=self.incremental,model=self.model)
             else:
                 self.l_mat, self.l_sqrt, self.nmode, self.enswts \
-                = self.loc_mat(self.lsig, self.ndim, self.ndim)
+                = self.mlef.loc_mat(self.lsig, self.ndim, self.ndim)
                 np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
         logger.info(f"nt={self.nt} a_window={self.a_window}")
 
@@ -112,53 +123,66 @@ class Mlef4d():
             alphak.append(alpha)
 
     def calc_j(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        d, tmat, zmat, heinv = args
+        if not self.incremental:
+            xc, y, yloc, tmat, gmat, zmat, rmat = args
+        else:
+            d, tmat, zmat = args
         nmem = zeta.size
-        #x = xc + gmat @ zeta
+        if not self.incremental:
+            x = xc + gmat @ zeta
         w = tmat @ zeta
-        #j = 0.5 * (zeta.transpose() @ heinv @ zeta)
         j = 0.5 * (w.transpose() @ w)
-        for l in range(len(d)):
-            #ob = y[l] - self.obs.h_operator(yloc[l], x)
-            #j += 0.5 * (ob.transpose() @ rinv @ ob)
-            ob = zmat[l] @ w - d[l]
+        for l in range(len(zmat)):
+            if not self.incremental:
+                ob = y[l] - self.obs.h_operator(yloc[l], x)
+                ob = rmat @ ob
+                for k in range(self.nt):
+                    x = self.step(x)
+            else:
+                ob = zmat[l] @ w - d[l]
             j += 0.5 * (ob.transpose() @ ob)
-            #for k in range(self.nt):
-            #    x = self.step(x)
         return j
     
 
     def calc_grad_j(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        d, tmat, zmat, heinv = args
+        if not self.incremental:
+            xc, y, yloc, tmat, gmat, zmat, rmat = args
+        else:
+            d, tmat, zmat = args
         nmem = zeta.size
-        #x = xc + gmat @ zeta
+        if not self.incremental:
+            x = xc + gmat @ zeta
         w = tmat @ zeta
         #xl = x[:, None] + pf
-        g = heinv @ zeta
-        for l in range(len(d)): 
-            #hx = self.obs.h_operator(yloc[l], x)
-            #ob = y[l] - hx
-            #if self.ltlm:
-            #    dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
-            #else:
-            #    dh = self.obs.h_operator(yloc[l], xl) - hx[:, None]
-            #g = g - tmat @ dh.transpose() @ rinv @ ob
-            ob = zmat[l] @ w - d[l]
-            g = g + tmat @ zmat[l].transpose() @ ob
-            #for k in range(self.nt):
-            #    x = self.step(x)
-            #    xl = self.step(xl) 
+        g = tmat @ w
+        for l in range(len(zmat)): 
+            if not self.incremental:
+                ob = self.obs.h_operator(yloc[l], x) - y[l]
+                ob = rmat @ ob
+                #if self.ltlm:
+                #    dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
+                #else:
+                #    dh = self.obs.h_operator(yloc[l], x[:,None]+pf) - hx[:, None]
+                #ob = dh.transpose() @ rmat.transpose() @ ob
+                ob = zmat[l].transpose() @ ob
+                for k in range(self.nt):
+                    x = self.step(x)
+                #    xl = self.step(xl) 
+            else:
+                ob = zmat[l] @ w - d[l]
+                ob = zmat[l].transpose() @ ob
+            g = g + tmat @ ob
         return g
 
     def calc_hess(self, zeta, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
-        d, tmat, zmat, heinv = args
+        if not self.incremental:
+            xc, y, yloc, tmat, gmat, zmat, rmat = args
+        else:
+            d, tmat, zmat = args
         #x = xc + gmat @ zeta
         #xl = x[:, None] + pf
         hess = np.eye(zeta.size)
-        for l in range(len(d)):
+        for l in range(len(zmat)):
             #if self.ltlm:
             #    dh = self.obs.dh_operator(yloc[l], x) @ (xl - x[:, None])
             #else:
@@ -172,8 +196,6 @@ class Mlef4d():
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
-        #xc, pf, y, yloc, tmat, gmat, heinv, rinv= args
-        d, tmat, zmat, heinv = args
         delta = np.linspace(-nx,nx,4*nx)
         jvalb = np.zeros((len(delta)+1,nmem))
         jvalb[0,:] = xopt
@@ -186,75 +208,17 @@ class Mlef4d():
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
     def dof(self, zmat):
-        #z = np.sum(np.array(zmat), axis=0)
-        u, s, vt = la.svd(zmat)
-        ds = np.sum(s**2/(1.0+s**2))
-        return ds
+        return self.mlef.dof(zmat)
 
-    def pfloc(self, sqrtpf, save_dh, icycle):
-        nmode = min(100, self.ndim)
-        logger.info(f"== Pf localization, nmode={nmode} ==")
-        pf = sqrtpf @ sqrtpf.T
-        pf = pf * self.l_mat
-        #if save_dh:
-        #    np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-        lam, v = la.eigh(pf)
-        lam = lam[::-1]
-        lam[lam < 0.0] = 0.0
-        v = v[:,::-1]
-        if save_dh:
-            np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), lam)
-        logger.info("pf eigen value = {}".format(lam))
-        pf = v[:,:nmode] @ np.diag(lam[:nmode]) @ v[:,:nmode].T
-        spf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) 
-        logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
-        if save_dh:
-            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-            np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
-        return spf, np.sqrt(lam[:nmode])
+    def pfloc(self, sqrtpf, l_mat, save_dh, icycle,\
+        op="linear",pt="4dmlefbe",model="model"):
+        return self.mlef.pfloc(sqrtpf,l_mat,save_dh,icycle,\
+            op=op,pt=pt,model=model)
     
-    def pfmod(self, sqrtpf, save_dh, icycle):
-        nmem = sqrtpf.shape[1]
-        logger.info(f"== modulated ensemble, nmode={self.nmode} ==")
-        
-        spf = np.empty((self.ndim, nmem*self.nmode), sqrtpf.dtype)
-        for l in range(self.nmode):
-            for k in range(nmem):
-                m = l*nmem + k
-                spf[:, m] = self.l_sqrt[:, l]*sqrtpf[:, k]
-        if save_dh:
-            np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
-            fullpf = spf @ spf.T
-            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fullpf)
-        return spf
-
-    def loc_mat(self, sigma, nx, ny):
-        dist = np.zeros((nx,ny))
-        l_mat = np.zeros_like(dist)
-        #for j in range(nx):
-        #    for i in range(ny):
-        #        dist[j,i] = min(abs(j-i),nx-abs(j-i))
-        for i in range(ny):
-            dist[:, i] = self.calc_dist(float(i))
-        d0 = 2.0 * np.sqrt(10.0/3.0) * sigma
-        l_mat = np.exp(-dist**2/(2.0*sigma**2))
-        l_mat[dist>d0] = 0
-
-        lam, v = la.eigh(l_mat)
-        lam = lam[::-1]
-        lam[lam < 1.e-10] = 1.e-10
-        lamsum = np.sum(lam)
-        v = v[:,::-1]
-        nmode = 1
-        thres = 0.99
-        frac = 0.0
-        while frac < thres:
-            frac = np.sum(lam[:nmode]) / lamsum
-            nmode += 1
-        nmode = min(nmode, nx, ny)
-        logger.info("contribution rate = {}".format(np.sum(lam[:nmode])/np.sum(lam)))
-        l_sqrt = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode]/frac))
-        return l_mat, l_sqrt, nmode, np.sqrt(lam[:nmode])
+    def pfmod(self, sqrtpf, l_sqrt, save_dh, icycle,\
+        op="linear",pt="4dmlefbm",model="model"):
+        return self.mlef.pfmod(sqrtpf,l_sqrt,save_dh,icycle,\
+            op=op,pt=pt,model=model)
 
     def __call__(self, xb, pb, y, yloc, method="CG", cgtype=None,
         gtol=1e-6, maxiter=None,
@@ -270,7 +234,7 @@ class Mlef4d():
             logger.debug(f"obsloc={yloc.shape}")
             logger.debug(f"obssize={y.shape}")
             r, rmat, rinv = self.obs.set_r(yloc[0])
-            rmatall = np.diag(np.concatenate([np.diag(rmat) for i in range(self.a_window)]))
+            rmatall = np.diag(np.concatenate([np.diag(rmat) for i in range(len(y))]))
             logger.debug(f"rmatall={rmatall.shape}")
             xf = xb[:, 1:]
             xc = xb[:, 0]
@@ -288,9 +252,11 @@ class Mlef4d():
                 logger.info("==localization==, lsig={}".format(self.lsig))
                 pf_orig = pf.copy()
                 if self.iloc == 1:
-                    pf, wts = self.pfloc(pf_orig, save_dh, icycle)
+                    pf, wts = self.pfloc(pf_orig, self.l_mat, save_dh, icycle,\
+                        op=self.op,pt=self.pt,model=self.model)
                 elif self.iloc == 2:
-                    pf = self.pfmod(pf_orig, save_dh, icycle)
+                    pf = self.pfmod(pf_orig, self.l_sqrt, save_dh, icycle, \
+                        op=self.op,pt=self.pt,model=self.model)
                 logger.info("pf.shape={}".format(pf.shape))
                 xf = xc[:, None] + pf
             logger.debug("norm(pf)={}".format(la.norm(pf)))
@@ -328,8 +294,10 @@ class Mlef4d():
             gmat = pf @ tmat
             logger.debug("gmat.shape={}".format(gmat.shape))
             x0 = np.zeros(xf.shape[1])
-            #args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
-            args_j = (d, tmat, zmat, heinv)
+            if not self.incremental:
+                args_j = (xc, y, yloc, tmat, gmat, zmat, rmat)
+            else:
+                args_j = (d, tmat, zmat)
             iprint = np.zeros(2, dtype=np.int32)
             options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,

@@ -21,7 +21,7 @@ class Lmlef():
         iloc=0, lsig=-1.0, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
         # necessary parameters
-        self.pt = "lmlef" # DA type (MLEF or GRAD)
+        self.pt = "mlef"
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type

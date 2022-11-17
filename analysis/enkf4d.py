@@ -79,7 +79,7 @@ class EnKF4d():
         logger.debug(f"obssize={y.shape}")
         R, rmat, rinv = self.obs.set_r(yloc[0])
         nmem = xf.shape[1]
-        rmatall = np.diag(np.concatenate([np.diag(rmat) for i in range(self.a_window)]))
+        rmatall = np.diag(np.concatenate([np.diag(rmat) for i in range(len(y))]))
         logger.debug(f"rmatall={rmatall.shape}")
         chi2_test = Chi(y.size, nmem, rmatall)
         dxf = xf - xf_[:,None]

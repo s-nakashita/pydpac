@@ -39,12 +39,14 @@ elif model == "l96" or model == "tc87":
     if len(sys.argv) > 4:
         pt = sys.argv[4]
         if pt == "mlef":
-            perts = [pt, pt+"be", pt+"bm", "l"+pt+"cw","l"+pt+"y"]
-            linecolor = {pt:'tab:blue',pt+"be":'tab:red',pt+"bm":'tab:pink',\
-                "l"+pt+"cw":'tab:green',"l"+pt+"y":'tab:orange'}
+            perts = perts + [pt+"be", pt+"bm", pt+"cw",pt+"y",
+            "4d"+pt, "4d"+pt+"be", "4d"+pt+"bm", "4d"+pt+"cw", "4d"+pt+"y"]
+            linecolor.update({pt:'tab:blue',pt+"be":'tab:red',pt+"bm":'tab:pink',\
+                pt+"cw":'tab:green',pt+"y":'tab:orange'})
         else:
-            perts = [pt, pt+"be", pt+"bm", "l"+pt]
-            linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'}
+            perts = perts + [pt, pt+"be", pt+"bm", "l"+pt]
+            linecolor.update({pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'})
+        perts = list(set(perts))
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
@@ -69,7 +71,7 @@ else:
     fig2, ax2 = plt.subplots(figsize=(10,5))
 #ax2 = ax.twinx()
 i = 0
-f = "{}_enda_{}.txt".format(model, op)
+f = "enda_{}.txt".format(op)
 try:
     e = np.loadtxt(f)
     if np.isnan(e).any():
@@ -80,7 +82,7 @@ try:
 except FileNotFoundError:
     print("not exist {}".format(f))
 for pt in perts:
-    f = "{}_e_{}_{}.txt".format(model, op, pt)
+    f = "e_{}_{}.txt".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
@@ -106,7 +108,7 @@ for pt in perts:
             ax.plot(x, e, marker=marker["3d"], color=linecolor[pt], label=pt)
         else:
             ax.plot(x, e, marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
-    f = "{}_stda_{}_{}.txt".format(model, op, pt)
+    f = "stda_{}_{}.txt".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue

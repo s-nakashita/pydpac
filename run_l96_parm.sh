@@ -2,10 +2,11 @@
 # This is a run script for parameter sensitivity experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
-perturbations="4dvar"
+perturbations="4dvar 4dletkf 4dmlefbm 4dmlefcw 4dmlefy"
+datype="4dmlef"
 na=100 # Number of assimilation cycle
-linf="F" # "T":Apply inflation "F":Not apply
-lloc="F" # "T":Apply localization "F":Not apply
+linf="T" # "T":Apply inflation "F":Not apply
+lloc="T" # "T":Apply localization "F":Not apply
 ltlm="F" # "T":Use tangent linear approximation "F":Not use
 a_window=1
 exp="var4d_window"
@@ -22,7 +23,37 @@ sigb_list="0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8"
 lb_list="-1.0 1.0 2.0 3.0 4.0 5.0"
 cp ../../logging_config.ini .
 for op in ${operators}; do
-  for pt in ${perturbations}; do
+  for pert in ${perturbations}; do
+    loctype=$(echo "${pert}" | sed s/"${datype}"//g)
+    echo $loctype
+    if [ "$loctype" = "be" ]; then
+      lloc="T"
+      iloc=1
+      pt=$datype
+    elif [ "$loctype" = "bm" ]; then
+      lloc="T"
+      iloc=2
+      pt=$datype
+    elif [ "$loctype" = "cw" ]; then
+      lloc="T"
+      iloc=-1
+      pt=$datype
+    elif [ "$loctype" = "y" ]; then
+      lloc="T"
+      iloc=0
+      pt=$datype
+    elif [ "$pert" = "4dletkf" ]; then
+      lloc="T"
+      iloc=0
+      pt=$pert
+    elif [ "$pert" = "4dvar" ]; then
+      lloc="F"
+      iloc=
+      pt=$pert
+    else
+      lloc="F"
+      iloc=
+    fi
     #for lsig in ${sig}; do
     #for infl_parm in ${inf}; do
     #for nobs in ${Nobs}; do
@@ -34,14 +65,14 @@ for op in ${operators}; do
       #echo ${op} ${pt} ${na} ${infl_parm} ${lloc} ${ltlm} ${a_window}
       #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nobs}
       #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nmem}
-      echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window}
+      echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc}
       #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${sigb} ${lb}
       for count in $(seq 1 10); do
         #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lsig} ${ltlm} ${a_window} > l96_${op}_${pt}.log 2>&1
         #python ../../l96.py ${op} ${pt} ${na} ${infl_parm} ${lloc} ${ltlm} ${a_window} > l96_${op}_${pt}.log 2>&1
         #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nobs} > l96_${op}_${pt}.log 2>&1
         #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nmem} > l96_${op}_${pt}.log 2>&1
-        python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} > l96_${op}_${pt}.log 2>&1
+        python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pt}.log 2>&1
         #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${sigb} ${lb} > l96_${op}_${pt}.log 2>&1
         wait
         echo ${count}
@@ -54,7 +85,7 @@ for op in ${operators}; do
       #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${infl_parm}.txt
       #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${nobs}.txt
       #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${nmem}.txt
-      cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${a_window}.txt
+      cp l96_e_${op}_${pt}.txt l96_e_${op}_${pert}_${a_window}.txt
       #cp l96_e_${op}_${pt}.txt b${sigb}l${lb}_l96_e_${op}_${pt}.txt
     #done
     done

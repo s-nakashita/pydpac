@@ -15,10 +15,10 @@ class Mlef():
     def __init__(self, state_size, nmem, obs, 
         nvars=1,ndims=1,
         linf=False, infl_parm=1.0, 
-        iloc=None, lsig=-1.0, ss=False, gain=False,
+        iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
-        ltlm=False, incremental=False, model="model"):
+        ltlm=False, incremental=True, model="model"):
         # necessary parameters
         self.pt = "mlef" # DA type 
         self.ndim = state_size # state size
@@ -41,7 +41,7 @@ class Mlef():
                          #      = 2   ->Modulated ensemble
         self.lsig = lsig # localization parameter
         self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
-        self.gain = gain # ensemble reduction method : True->Use reduced gain (Bishop et al. 2017)
+        self.getkf = getkf # ensemble reduction method : True->Use reduced gain (Bishop et al. 2017)
         if calc_dist is None:
             def calc_dist(self, i):
                 dist = np.zeros(self.ndim)
@@ -183,20 +183,22 @@ class Mlef():
         ds = np.sum(s**2/(1.0+s**2))
         return ds
 
-    def pfloc(self, sqrtpf, save_dh, icycle):
+    def pfloc(self, sqrtpf, l_mat, save_dh, icycle,\
+        op="linear",pt="mlefbe",model="model"):
         #nmode = min(100, self.ndim)
         #logger.info(f"== Pf localization, nmode={nmode} ==")
+        ndim,nmem = sqrtpf.shape
         pf = sqrtpf @ sqrtpf.T
-        pf = pf * self.l_mat
+        pf = pf * l_mat
         #if save_dh:
-        #    np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+        #    np.save("{}_lpf_{}_{}_cycle{}.npy".format(model, op, pt, icycle), pf)
         lam, v = la.eigh(pf)
         lam = lam[::-1]
         lam[lam < 0.0] = 0.0
         lamsum = lam.sum()
         v = v[:,::-1]
         if save_dh:
-            np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), lam)
+            np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(model, op, pt, icycle), lam)
         logger.info("pf eigen value = {}".format(lam))
         nmode = 1
         thres = 0.99
@@ -204,29 +206,31 @@ class Mlef():
         while frac < thres:
             frac = np.sum(lam[:nmode]) / lamsum
             nmode += 1
-        nmode = min(nmode, self.ndim)
+        nmode = min(nmode, ndim)
         logger.info(f"== eigen value decomposition of Pf, nmode={nmode} ==")
         pf = v[:,:nmode] @ np.diag(lam[:nmode]) @ v[:,:nmode].T
         spf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) 
         logger.info("pf - spf@spf.T={}".format(np.mean(pf - spf@spf.T)))
         if save_dh:
-            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
-            np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
+            np.save("{}_lpf_{}_{}_cycle{}.npy".format(model, op, pt, icycle), pf)
+            np.save("{}_lspf_{}_{}_cycle{}.npy".format(model, op, pt, icycle), spf)
         return spf, np.sqrt(lam[:nmode])
     
-    def pfmod(self, sqrtpf, save_dh, icycle):
-        nmem = sqrtpf.shape[1]
-        logger.info(f"== modulated ensemble, nmode={self.nmode} ==")
+    def pfmod(self, sqrtpf, l_sqrt, save_dh, icycle,\
+        op="linear",pt="mlefbm",model="model"):
+        ndim,nmem = sqrtpf.shape
+        nmode= l_sqrt.shape[1]
+        logger.info(f"== modulated ensemble, nmode={nmode} ==")
         
-        spf = np.empty((self.ndim, nmem*self.nmode), sqrtpf.dtype)
-        for l in range(self.nmode):
+        spf = np.empty((ndim, nmem*nmode), sqrtpf.dtype)
+        for l in range(nmode):
             for k in range(nmem):
                 m = l*nmem + k
-                spf[:, m] = self.l_sqrt[:, l]*sqrtpf[:, k]
+                spf[:, m] = l_sqrt[:, l]*sqrtpf[:, k]
         if save_dh:
-            np.save("{}_lspf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), spf)
+            np.save("{}_lspf_{}_{}_cycle{}.npy".format(model, op, pt, icycle), spf)
             fullpf = spf @ spf.T
-            np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fullpf)
+            np.save("{}_lpf_{}_{}_cycle{}.npy".format(model, op, pt, icycle), fullpf)
         return spf
 
     def loc_mat(self, sigma, nx, ny):
@@ -253,8 +257,9 @@ class Mlef():
             frac = np.sum(lam[:nmode]) / lamsum
             nmode += 1
         nmode = min(nmode, nx, ny)
-        logger.info("contribution rate = {}".format(np.sum(lam[:nmode])/np.sum(lam)))
-        l_sqrt = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode]/frac))
+        logger.info("# mode {} : contribution rate = {}".format(\
+        nmode,np.sum(lam[:nmode])/np.sum(lam)))
+        l_sqrt = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode]))
         return l_mat, l_sqrt, nmode, np.sqrt(lam[:nmode])
 
     def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
@@ -291,9 +296,11 @@ class Mlef():
                 logger.info("==localization==, lsig={}".format(self.lsig))
                 pf_orig = pf.copy()
                 if self.iloc == 1:
-                    pf, wts = self.pfloc(pf_orig, save_dh, icycle)
+                    pf, wts = self.pfloc(pf_orig, self.l_mat, save_dh, icycle,\
+                        op=self.op,pt=self.pt,model=self.model)
                 elif self.iloc == 2:
-                    pf = self.pfmod(pf_orig, save_dh, icycle)
+                    pf = self.pfmod(pf_orig, self.l_sqrt, save_dh, icycle,\
+                        op=self.op,pt=self.pt,model=self.model)
                 logger.info("pf.shape={}".format(pf.shape))
                 xf = xc[:, None] + pf
             #logger.debug("norm(pf)={}".format(la.norm(pf)))
@@ -449,7 +456,7 @@ class Mlef():
                     rvec = rvec / rvec_stdv[None,:]
                     logger.debug("rvec={}".format(rvec[:,0]))
                     pa = pf @ tmat @ rvec / np.sqrt(nmem-1)
-                elif self.gain:
+                elif self.getkf:
                     if self.ltlm:
                         dh = self.obs.dh_operator(yloc,xa) @ pf_orig
                     else:

@@ -17,7 +17,6 @@ model = "l96"
 # model parameter
 nx = 40     # number of points
 F  = 8.0    # forcing
-nt =   6    # number of step per forecast (=6 hour)
 dt = 0.05 / 6  # time step (=1 hour)
 
 # forecast model forward operator
@@ -27,26 +26,6 @@ x = np.linspace(-2.0, 2.0, nx)
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   20 # ensemble size (include control run)
-t0off =  24 # initial offset between adjacent members
-t0c =   500 # t0 for control
-# t0 for ensemble members
-if nmem%2 == 0: # even
-    t0m = [t0c + t0off//2 + t0off * i for i in range(nmem//2)]
-    t0f = t0m + [t0c + t0off//2 + t0off * i for i in range(-nmem//2, 0)]
-else: # odd
-    t0m = [t0c + t0off//2 + t0off * i for i in range(-(nmem-1)//2, (nmem-1)//2)]
-    t0f = [t0c] + t0m
-na =   100 # number of analysis
-namax = 1460 # max number of analysis (1 year)
-
-a_window = 1 # assimilation window length
-
-nobs = 40 # observation number (nobs<=nx)
-
-sigb = 0.6 # (For var & 4dvar) background error standard deviation
-lb = -1.0 # (For var & 4dvar) correlation length for background error covariance
-
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
@@ -54,7 +33,8 @@ sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
 # inflation parameter (dictionary for each observation type)
 infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
-infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
+infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,
+          "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
 infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
 infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
@@ -66,7 +46,8 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
 # localization parameter (dictionary for each observation type)
 sig_l = {"mlef":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
-sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
+sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,
+        "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}
 sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
 sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
 sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"4dvar":None}
@@ -81,126 +62,148 @@ ftype = {"mlef":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","l
     "4dvar":"deterministic"}
 
 ## default parameter
+params = dict()
+### experiment settings
 htype = {"operator": "linear", "perturbation": "mlef"}
-linf = False
-infl_parm = -1.0
-lloc = False
-lsig = -1.0
-ltlm = True
-iloc = None
-ss = False
-getkf = False
+params["t0off"]      =  24      # initial offset between adjacent members
+params["t0c"]        =  500     # t0 for control
+params["nobs"]       =  40      # observation number (nobs<=nx)
+params["op"]         = "linear" # observation operator type
+params["na"]         =  100     # number of analysis cycle
+params["nt"]         =   6      # number of step per forecast (=6 hour)
+params["namax"]      =  1460    # maximum number of analysis cycle (1 year)
+### assimilation method settings
+params["pt"]         = "mlef"   # assimilation method
+params["nmem"]       =  20      # ensemble size (include control run)
+params["a_window"]   =  0       # assimilation window length
+params["sigb"]       =  0.6     # (For var & 4dvar) background error standard deviation
+params["lb"]         = -1.0     # (For var & 4dvar) correlation length for background error covariance
+params["linf"]       =  False   # inflation flag
+params["infl_parm"]  = -1.0     # multiplicative inflation coefficient
+params["lloc"]       =  False   # localization flag
+params["lsig"]       = -1.0     # localization radius
+params["iloc"]       =  None    # localization type
+params["ss"]         =  False   # (For model space localization) statistical resampling flag
+params["getkf"]      =  False   # (For model space localization) gain form resampling flag
+params["ltlm"]       =  True    # flag for tangent linear observation operator
+params["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 
-## read from command options
-# observation type
-if len(sys.argv) > 1:
-    htype["operator"] = sys.argv[1]
-# assimilation scheme
-if len(sys.argv) > 2:
-    htype["perturbation"] = sys.argv[2]
-# number of assimilation cycle
-if len(sys.argv) > 3:
-    na = int(sys.argv[3])
-
+## update from configure file
+sys.path.append('./')
+from config import params as params_new
+params.update(params_new)
 global op, pt, ft
-op = htype["operator"]
-pt = htype["perturbation"]
+op = params["op"]
+pt = params["pt"]
 ft = ftype[pt]
-
-# switch of with/without inflation
-if len(sys.argv) > 4:
-    #infl_parm = float(sys.argv[4])
-    #if infl_parm > 0.0:
-    #    linf = True
-    if sys.argv[4] == "T":
-        linf = True
-        dict_i = dict_infl[op]
-        infl_parm = dict_i[pt]
-# switch of with/without localization
-if len(sys.argv) > 5:
-    #lsig = float(sys.argv[5])
-    #if lsig> 0.0:
-    #    lloc = True
-    if sys.argv[5] == "T":
-        lloc = True
-        dict_s = dict_sig[op]
-        lsig = dict_s[pt]
-        ## only for mlef
-        if len(sys.argv) > 8:
-            iloc = int(sys.argv[8])
-        else:
-            # default is R-localization
-            iloc = 0
-# switch of using/not using tangent linear operator
-if len(sys.argv) > 6:
-    if sys.argv[6] == "F":
-        ltlm = False
-# number of ensemble member (or observation size)
-if len(sys.argv) > 7:
-    #nobs = int(sys.argv[7])
-    #nmem = int(sys.argv[7])
-    #nt = int(sys.argv[7]) * 6
-    a_window = int(sys.argv[7])
-    #sigb = float(sys.argv[7])
-    #lb = float(sys.argv[7])
+global na, a_window
+na = params["na"]
+a_window = params["a_window"]
+params["ft"] = ft
+if params["linf"]: params["infl_parm"] = dict_infl[params["op"]][params["pt"]]
+if params["lloc"]: params["lsig"] = dict_sig[params["op"]][params["pt"]]
+### read from command options
+## observation type
+#if len(sys.argv) > 1:
+#    htype["operator"] = sys.argv[1]
+## assimilation scheme
+#if len(sys.argv) > 2:
+#    htype["perturbation"] = sys.argv[2]
+## number of assimilation cycle
+#if len(sys.argv) > 3:
+#    na = int(sys.argv[3])
+#
+## switch of with/without inflation
+#if len(sys.argv) > 4:
+#    #infl_parm = float(sys.argv[4])
+#    #if infl_parm > 0.0:
+#    #    linf = True
+#    if sys.argv[4] == "T":
+#        linf = True
+#        dict_i = dict_infl[op]
+#        infl_parm = dict_i[pt]
+## switch of with/without localization
+#if len(sys.argv) > 5:
+#    #lsig = float(sys.argv[5])
+#    #if lsig> 0.0:
+#    #    lloc = True
+#    iloc = int(sys.argv[5])
+#    if iloc > -2:
+#        lloc = True
+#        dict_s = dict_sig[op]
+#        lsig = dict_s[pt]
+#    else:
+#        iloc = None
+## switch of using/not using tangent linear operator
+#if len(sys.argv) > 6:
+#    if sys.argv[6] == "F":
+#        ltlm = False
+## number of ensemble member (or observation size)
+#if len(sys.argv) > 7:
+#    #nobs = int(sys.argv[7])
+#    nmem = int(sys.argv[7])
+#    #nt = int(sys.argv[7]) * 6
+#if len(sys.argv) > 8:
+#    a_window = int(sys.argv[8])
+#    #sigb = float(sys.argv[7])
+#    #lb = float(sys.argv[7])
 
 # observation operator
 obs = Obs(op, sigma[op])
 
-# assimilation method
+# assimilation class
 state_size = nx
-a_window=1
+if a_window < 1:
+    if pt[:2] == "4d":
+        a_window = 5
+    else:
+        a_window = 1
 if pt == "mlef":
     from analysis.mlef import Mlef
-    analysis = Mlef(state_size, nmem, obs, \
-            linf=linf, infl_parm=infl_parm, \
-            iloc=iloc, lsig=lsig, ss=False, gain=False, \
+    analysis = Mlef(state_size, params["nmem"], obs, \
+            linf=params["linf"], infl_parm=params["infl_parm"], \
+            iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-            ltlm=ltlm, model=model)
+            ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, state_size, nmem, obs, \
-        linf=linf, infl_parm=infl_parm, \
-        iloc=iloc, lsig=lsig, ss=True, getkf=False, \
-        ltlm=ltlm, \
+    analysis = EnKF(pt, state_size, params["nmem"], obs, \
+        linf=params["linf"], infl_parm=params["infl_parm"], \
+        iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
+        ltlm=params["ltlm"], \
         calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
     analysis = Kf(obs, 
-    infl=infl_parm, linf=linf, 
-    step=step, nt=nt, model=model)
+    infl=params["infl_parm"], linf=params["linf"], 
+    step=step, nt=params["nt"], model=model)
 elif pt == "var":
     from analysis.var import Var
     analysis = Var(obs, 
-    sigb=sigb, lb=lb, model=model)
+    sigb=params["sigb"], lb=params["lb"], model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
-    a_window = 5
-    sigb = sigb * np.sqrt(float(a_window))
-    analysis = Var4d(obs, step, nt, a_window,
-    sigb=sigb, lb=lb, model=model)
+    #a_window = 5
+    sigb = params["sigb"] * np.sqrt(float(a_window))
+    analysis = Var4d(obs, step, params["nt"], a_window,
+    sigb=sigb, lb=params["lb"], model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enkf4d import EnKF4d
-    a_window = 5
-    analysis = EnKF4d(pt, state_size, nmem, obs, step, nt, a_window, \
-        linf=linf, infl_parm=infl_parm, 
-        iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
-        ltlm=ltlm, model=model)
+    #a_window = 5
+    analysis = EnKF4d(pt, state_size, params["nmem"], obs, step, params["nt"], a_window, \
+        linf=params["linf"], infl_parm=params["infl_parm"], 
+        iloc=params["iloc"], lsig=params["lsig"], calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+        ltlm=params["ltlm"], model=model)
 elif pt == "4dmlef":
-    a_window = 5
+    #a_window = 5
     from analysis.mlef4d import Mlef4d
-    analysis = Mlef4d(state_size, nmem, obs, step, nt, a_window, \
-            linf=linf, infl_parm=infl_parm, \
-            iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
-            ltlm=ltlm, model=model)
+    analysis = Mlef4d(state_size, params["nmem"], obs, step, params["nt"], a_window, \
+            linf=params["linf"], infl_parm=params["infl_parm"], \
+            iloc=params["iloc"], lsig=params["lsig"], calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+            ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 
 # functions load
-params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
-    "t0c":t0c, "t0f":t0f, "nt":nt, "na":na,\
-    "namax":namax, "a_window":a_window, "op":op, "pt":pt, "ft":ft,\
-    "linf":linf, "lloc":lloc, "ltlm":ltlm,\
-    "infl_parm":infl_parm, "lsig":lsig}
-func = L96_func(params)
+func = L96_func(step,obs,analysis,params)
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
@@ -219,20 +222,20 @@ if __name__ == "__main__":
     chi = np.zeros(na)
     dof = np.zeros(na)
     for i in a_time:
-        yloc = yobs[i:i+a_window,:,0]
-        y = yobs[i:i+a_window,:,1]
+        yloc = yobs[i:min(i+a_window,na),:,0]
+        y = yobs[i:min(i+a_window,na),:,1]
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
-        logger.info("cycle{} analysis".format(i))
+        logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
         #if i in [1, 50, 100, 150, 200, 250]:
         if i < 0:
             ##if a_window > 1:
             if pt[:2] == "4d":
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
-                for j in range(a_window):
+                for j in range(y.shape[0]):
                     chi[i+j] = chi2
-                    innov[i+j,] = innv
+                    innov[i+j,:innv.size] = innv
                     dof[i+j] = ds
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
@@ -244,9 +247,9 @@ if __name__ == "__main__":
             ##if a_window > 1:
             if pt[:2] == "4d":
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
-                for j in range(a_window):
+                for j in range(y.shape[0]):
                     chi[i+j] = chi2
-                    innov[i+j,] = innv
+                    innov[i+j,:innv.size] = innv
                     dof[i+j] = ds
             else:
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
