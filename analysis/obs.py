@@ -1,8 +1,8 @@
 import numpy as np
 # numpy 1.17.0 or later
-#from numpy.random import default_rng
-#rng = default_rng()
-from numpy import random
+from numpy.random import default_rng
+rng = default_rng()
+#from numpy import random
 import math
 import logging
 from logging.config import fileConfig
@@ -212,9 +212,9 @@ class Obs():
             return dhdx
     def add_noise(self, x):
 # numpy 1.17.0 or later
-#    return x + rng.normal(0, mu=sigma, size=x.size)
+        return x + rng.normal(0, mu=self.sigma, size=x.size).reshape(x.shape)
         #np.random.seed(514)
-        return x + random.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
+        #return x + random.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
 
     def itpl1d(self, ri, x):
         i = math.floor(ri)

@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a run script for Lorenz96 experiment
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic" # cubic"
+operators="linear quadratic" # cubic"
 perturbations="var 4dvar etkf 4detkf letkf 4dletkf \
 mlef 4dmlef mlefbe 4dmlefbe mlefcw 4dmlefcw mlefy 4dmlefy \
 mlef_incr 4dmlef_incr mlefbe_incr 4dmlefbe_incr \
@@ -21,34 +21,35 @@ ltlm=False # True:Use tangent linear approximation False:Not use
 exp="comp"
 #exp="${datype}_loc_hint"
 echo ${exp}
-rm -rf work/${exp}
+#rm -rf work/${exp}
 mkdir -p work/${exp}
 cd work/${exp}
 cp ../../logging_config.ini .
 rm -rf *.npy
 rm -rf *.log
-rm -rf timer
-touch timer
+#rm -rf timer
+#touch timer
 for op in ${operators}; do
-  for count in $(seq 1 2); do
+  for count in $(seq 1 50); do
     for pert in ${perturbations}; do
       echo $pert
       if [[ $pert =~ ^[0-9]*[a-z]+_incr ]];then
       cp ../../analysis/config/config_${pert%\_*}_sample.py config.py
-      sed -i -e '/incremental/s/False/True/' config.py
+      gsed -i -e '/incremental/s/False/True/' config.py
       else
       cp ../../analysis/config/config_${pert}_sample.py config.py
       fi
       if [ $linf = True ];then
-      sed -i -e '/linf/s/False/True/' config.py
+      gsed -i -e '/linf/s/False/True/' config.py
       else
-      sed -i -e '/linf/s/True/False/' config.py
+      gsed -i -e '/linf/s/True/False/' config.py
       fi
       if [ $ltlm = True ];then
-      sed -i -e '/ltlm/s/False/True/' config.py
+      gsed -i -e '/ltlm/s/False/True/' config.py
       else
-      sed -i -e '/ltlm/s/True/False/' config.py
+      gsed -i -e '/ltlm/s/True/False/' config.py
       fi
+      gsed -i -e "2i \ \"op\":\"${op}\"," config.py
       cat config.py
       ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
       pt=${ptline#\"*}; pt=${pt%\"*}
@@ -61,8 +62,8 @@ for op in ${operators}; do
       echo "${op} ${pert} ${count} ${ctime}" >> timer
       echo $count
       mv l96_e_${op}_${pt}.txt e_${op}_${pert}_${count}.txt
-      rm obs*.npy
     done
+    rm obs*.npy
   done
   for pert in ${perturbations}; do
     python ../../plot/calc_mean.py $op l96 $na $count e $pert

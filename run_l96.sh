@@ -27,69 +27,21 @@ for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
     cp ../../analysis/config/config_${pert}_sample.py config.py
+    gsed -i -e "2i \ \"op\":\"${op}\"," config.py
     if [ $linf = True ];then
-    sed -i -e '/linf/s/False/True/' config.py
+    gsed -i -e '/linf/s/False/True/' config.py
     else
-    sed -i -e '/linf/s/True/False/' config.py
+    gsed -i -e '/linf/s/True/False/' config.py
     fi
     if [ $ltlm = True ];then
-    sed -i -e '/ltlm/s/False/True/' config.py
+    gsed -i -e '/ltlm/s/False/True/' config.py
     else
-    sed -i -e '/ltlm/s/True/False/' config.py
+    gsed -i -e '/ltlm/s/True/False/' config.py
     fi
     cat config.py
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
-    pt=${ptline#\"*}
-    pt=${pt%\"*}
+    pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
-#    if [ $pert = 4dvar ] || [ $pert = 4dletkf ];then
-#    pt=$pert
-#    else
-#    pt=${datype}
-#    fi
-#    if [ "${pt:0:2}" = "4d" ]; then
-#      a_window=8
-#    else
-#      a_window=1
-#    fi
-#    loctype=$(echo "${pert}" | sed s/"${datype}"//g)
-#    echo $loctype
-#    if [ "$loctype" = "be" ]; then
-#      lloc=True
-#      iloc=1
-#    elif [ "$loctype" = "bm" ]; then
-#      lloc=True
-#      iloc=2
-#    elif [ "$loctype" = "cw" ]; then
-#      lloc=True
-#      iloc=-1
-#    elif [ "$loctype" = "y" ]; then
-#      lloc=True
-#      iloc=0
-#    else
-#      lloc=False
-#      iloc=
-#    fi
-#    if [ $pert = lmlefcw ];then
-#      pt=mlef
-#      pert=mlef
-#      lloc=T
-#      iloc=-1
-#    elif [ $pert = 4dlmlefcw ];then
-#      pt=4dmlef
-#      pert=4dmlef
-#      lloc=T
-#      iloc=-1
-#    elif [ $pert = letkf ] || [ $pert = 4dletkf ]; then
-#      lloc=T 
-#      iloc=0
-#    else
-#      lloc=F
-#      iloc=
-#    fi
-    #for lb in $L; do
-    #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc}
-    #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb}
     start_time=$(gdate +"%s.%5N")
     python ../../l96.py > l96_${op}_${pert}.log 2>&1
     #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pert}.log 2>&1
