@@ -18,17 +18,17 @@ linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="comp"
+exp="comp4d"
 #exp="${datype}_loc_hint"
 echo ${exp}
-#rm -rf work/${exp}
+rm -rf work/${exp}
 mkdir -p work/${exp}
 cd work/${exp}
 cp ../../logging_config.ini .
 rm -rf *.npy
 rm -rf *.log
-#rm -rf timer
-#touch timer
+rm -rf timer
+touch timer
 for op in ${operators}; do
   for count in $(seq 1 50); do
     for pert in ${perturbations}; do

@@ -410,11 +410,12 @@ class EnKF():
         #        dist[j,i] = min(abs(j-i),nx-abs(j-i))
         for i in range(nx):
             dist[:, i] = self.calc_dist(float(i))
+        l_tmp = np.exp(-0.5*(dist/loc_scale)**2)
+        logger.debug(dist[dist>dist0])
+        l_tmp[dist>dist0] = 0
         for ivar in range(self.nvars):
-            l_tmp = np.exp(-0.5*(dist/loc_scale)**2)
-            logger.debug(dist[dist>dist0])
-            l_tmp[dist>dist0] = 0
             l_mat[ivar*nx:(ivar+1)*nx,ivar*nx:(ivar+1)*nx] = l_tmp[:,:]
+            l_mat[ivar*nx:(ivar+1)*nx,(ivar-1)*nx:ivar*nx] = l_tmp[:,:]
 
         lam, v = la.eigh(l_mat)
         lam = lam[::-1]
