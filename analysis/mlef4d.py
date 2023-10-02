@@ -57,6 +57,7 @@ class Mlef4d():
                 return min(abs(j-i),self.ndim-abs(j-i))
         else:
             self.calc_dist1 = calc_dist1 # distance calculation routine
+        self.rs = np.random.default_rng() # random generator
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         # incremental form
@@ -365,7 +366,7 @@ class Mlef4d():
             if self.iloc is not None:
                 # random sampling
                 ptrace = np.sum(np.diag(pa @ pa.T))
-                rvec = np.random.randn(pf.shape[1], nmem)
+                rvec = self.rs.standard_normal(size=(pf.shape[1], nmem))
                 #for l in range(len(wts)):
                 #    rvec[l*nmem:(l+1)*nmem,:] = rvec[l*nmem:(l+1)*nmem,:] * wts[l] / np.sum(wts)
                 rvec_mean = np.mean(rvec, axis=0)

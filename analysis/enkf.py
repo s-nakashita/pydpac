@@ -55,7 +55,7 @@ class EnKF():
                 return min(abs(j-i),self.ndim-abs(j-i))
         #else:
         self.calc_dist1 = calc_dist1 # distance calculation routine
-        self.rs = np.random.RandomState() # random generator
+        self.rs = np.random.default_rng() # random generator
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         self.model = model

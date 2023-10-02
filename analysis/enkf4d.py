@@ -55,6 +55,7 @@ class EnKF4d():
                 return min(abs(j-i),self.ndim-abs(j-i))
         else:
             self.calc_dist1 = calc_dist1 # distance calculation routine
+        self.rs = np.random.default_rng() # random generator
         # tangent linear
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         self.model = model
@@ -193,7 +194,7 @@ class EnKF4d():
             if self.iloc == 1 or self.iloc == 2:
                 # random sampling
                 ptrace = np.sum(np.diag(dxa @ dxa.T / (nmem2-1)))
-                rvec = np.random.randn(nmem2, nmem)
+                rvec = self.rs.standard_normal(size=(nmem2, nmem))
                 rvec_mean = np.mean(rvec, axis=0)
                 rvec = rvec - rvec_mean[None, :]
                 rvec_stdv = np.sqrt((rvec**2).sum(axis=0)/(nmem2-1))
@@ -214,8 +215,7 @@ class EnKF4d():
             for l, obsloc, obs, dl, dyl \
                 in zip(np.arange(len(dy)), yloc, y, d, dy):
                 #Y = np.zeros((y[l].size,nmem))
-                rs = np.random.RandomState()
-                err = rs.standard_normal(size=(obs.size,nmem))
+                err = self.rs.standard_normal(size=(obs.size,nmem))
                 err_var = np.sum((err - np.mean(err, axis=1)[:, None])**2, axis=1)/(nmem-1)
                 err = self.sig * err / np.sqrt(err_var).reshape(-1,1)
                 #mu = np.zeros(y[l].size)
