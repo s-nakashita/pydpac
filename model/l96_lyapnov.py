@@ -6,10 +6,10 @@ from lorenz import L96
 
 def fit_func(x, a, b):
     return a*x + b
-nx = 40
-dt = 0.05 / 6
-F = 2.0
-print(f"F={F}")
+nx = 120
+dt = 0.05 / 6 / 3
+F = 8.0
+print(f"nx={nx} F={F}")
 
 l96 = L96(nx, dt, F)
     
@@ -17,7 +17,7 @@ x0 = random.normal(0, scale=1.0, size=nx)
 for j in range(500): # spin up
     x0 = l96(x0)
 
-nt = 500 * 6
+nt = 500 * 6 * (nx // 40)
 emean = np.zeros(nt+1)
 x1 = np.zeros_like(x0)
 x2 = np.zeros_like(x0)
@@ -59,5 +59,5 @@ ax[1].set_ylabel("RMSE(log10 scale)")
 ax[1].set_title("Leading Lyapnov exponent = {}".format(popt[0]))
 
 fig.tight_layout()
-fig.savefig(f"l96_lyapnov_F={int(F)}.png")
+fig.savefig(f"l96_lyapnov_n{nx}F={int(F)}.png")
 print("doubling time = {}".format(np.log(2)/popt[0]))
