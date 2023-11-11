@@ -5,6 +5,7 @@ class L96():
         self.nx = nx
         self.dt = dt
         self.F = F
+        print(f"nx={self.nx} F={self.F} dt={self.dt}")
 
     def get_params(self):
         return self.nx, self.dt, self.F
@@ -92,6 +93,8 @@ class L96():
         return dist
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    plt.rcParams['font.size'] = 16
     n = 40
     F = 8.0
     h = 0.05
@@ -105,7 +108,22 @@ if __name__ == "__main__":
 
     for k in range(nt):
         x0 = l96(x0)
-    print(x0)
+    fig, ax = plt.subplots(figsize=[6,12],constrained_layout=True)
+    cmap = plt.get_cmap('tab10')
+    xaxis = np.arange(n)
+    ydiff = 100.0
+    nt5d = 5 * 4
+    icol=0
+    for k in range(nt5d):
+        x0 = l96(x0)
+        if k%2==0:
+            ax.plot(xaxis,x0+ydiff,lw=2.0,c=cmap(icol))
+            ydiff-=10.0
+            icol += 1
+    ax.set_xlim(0.0,n-1)
+    ax.set_title(f"Lorenz I, N={n}, F={F}")
+    fig.savefig(f"l96_n{n}F{int(F)}.png",dpi=300)
+    plt.show()
 
     a = 1e-5
     x0 = np.ones(n)
