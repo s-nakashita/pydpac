@@ -45,6 +45,7 @@ if model=='l05III':
 x1 = np.zeros_like(x0)
 x2 = np.zeros_like(x0)
 for j in range(50):
+    print(f"trial {j}")
     x1[:] = x0
     x2[:] = x0 + random.normal(0, scale=1e-4, size=nx)
 
