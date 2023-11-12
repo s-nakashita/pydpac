@@ -7,12 +7,13 @@ perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
+perturbations="etkfbm"
 na=100 # Number of assimilation cycle
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="test_config"
+exp="test_ss2"
 #exp="${datype}_loc_hint"
 echo ${exp}
 rm -rf work/${exp}
@@ -38,6 +39,8 @@ for op in ${operators}; do
     else
     gsed -i -e '/ltlm/s/True/False/' config.py
     fi
+    sed -i -e '/ss/s/False/True/' config.py
+    sed -i -e '/getkf/s/True/False/' config.py
     cat config.py
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
     pt=${ptline#\"*}; pt=${pt%\"*}
@@ -73,7 +76,7 @@ for op in ${operators}; do
     #python ../../plot/plotlpf.py ${op} l96 ${na} ${pert} 
     #done
   done
-  python ../../plot/plote.py ${op} l96 ${na} mlef
+  python ../../plot/plote.py ${op} l96 ${na} etkf #mlef
   #python ../../plot/plotchi.py ${op} l96 ${na}
   #python ../../plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
   #python ../../plot/plotxa.py ${op} l96 ${na}
