@@ -12,6 +12,9 @@ class L05III():
         i4 = i3*self.ni
         self.al = (3.0*i2+3.0)/(2.0*i3+4.0*self.ni)
         self.be = (2.0*i2+1.0)/(i4+2.0*i2)
+        #self.al = 1.0 / self.ni
+        #self.be = 1.0 / i2
+        print(f"ni={self.ni} alpha={self.al:.3f} beta={self.be:.3f}")
         #filtering matrix
         self.filmat = np.zeros((self.nx,self.nx))
         for i in range(self.nx):
@@ -32,21 +35,24 @@ class L05III():
                 self.filmat[i,j] = tmp
         ## debug
         print(self.filmat.max(),self.filmat.min())
-        import matplotlib.pyplot as plt
-        plt.plot(self.filmat[self.nx//2,:])
-        #plt.matshow(self.filmat)
-        #plt.colorbar()
-        plt.show()
+        #import matplotlib.pyplot as plt
+        #plt.plot(self.filmat[self.nx//2,:])
+        ##plt.matshow(self.filmat)
+        ##plt.colorbar()
+        #plt.show()
+        #plt.close()
+        #ztmp = 0.1*(np.arange(self.nx)-self.nx//2)**2 + 1.0
+        #plt.plot(ztmp)
+        #plt.plot(np.dot(self.filmat,ztmp))
+        #plt.show()
+        #plt.close()
         ## debug
         self.b = b 
         self.c = c
         self.dt = dt
         self.F = F
         self.l2 = L05II(self.nx,self.nk,self.dt,self.F)
-        print(f"nx={self.nx} nk={self.nk}")
-        print(f"ni={self.ni} alpha={self.al:.3f} beta={self.be:.3f}")
         print(f"b={self.b} c={self.c}")
-        print(f"F={self.F} dt={self.dt}")
 
     def get_params(self):
         return self.nx, self.nk, self.ni, self.b, self.c, self.dt, self.F
@@ -60,8 +66,10 @@ class L05III():
     def tend(self,z):
         x, y = self.decomp(z)
         adv1 = self.l2.adv(self.nk, x)
-        adv2 = self.l2.adv(1, y)
-        adv3 = self.l2.adv(1, y, x)
+        #adv2 = self.l2.adv(1, y)
+        adv2 = (np.roll(y,-1,axis=0) - np.roll(y,2,axis=0))*np.roll(y,1,axis=0)
+        #adv3 = self.l2.adv(1, y, y=x)
+        adv3 = np.roll(y,-1,axis=0)*np.roll(x,1,axis=0) - np.roll(y,1,axis=0)*np.roll(x,2,axis=0)
         l = adv1 + self.b*self.b*adv2 + self.c*adv3 - x - self.b*y + self.F
         return l
 
@@ -95,49 +103,44 @@ if __name__ == "__main__":
     F = 15.0
     b = 10.0
     c = 2.5
-    h = 0.05
+    h = 0.05 / b
+    #for ni in [20,40,80]:
     l3 = L05III(nx,nk,ni,b,c,h,F)
+    #exit()
 
-    z0 = np.sin(np.arange(nx)*2.0*np.pi/60.0)
-    x0, y0 = l3.decomp(z0)
-    plt.plot(z0)
-    plt.plot(x0)
-    plt.plot(y0)
-    plt.show()
-    exit()
-
+    #z0 = np.sin(np.arange(nx)*2.0*np.pi/30.0)
     tmax = 5.0
     nt = int(tmax/h) + 1
-    z0 = np.zeros(nx)
-    z0[nx//2-1] += 0.001*F
+    z0 = np.random.rand(nx)
     for k in range(nt):
         z0 = l3(z0)
-        print(z0.max(),z0.min())
     x0, y0 = l3.decomp(z0)
     plt.plot(z0)
     plt.plot(x0)
     plt.plot(y0)
     plt.show()
-    exit()
-    
-    fig, axs = plt.subplots(ncols=3,figsize=[8,12],constrained_layout=True)
+    #exit()
+
+    fig, axs = plt.subplots(ncols=2,figsize=[12,12],sharey=True,constrained_layout=True)
+    cmap = plt.get_cmap('tab10')
     xaxis = np.arange(nx)
     ydiff = 100.0
     
-    nt = 5 * 4
+    nt = 5 * 4 * int(b)
+    icol=0
     for k in range(nt):
         z0 = l3(z0)
-        if k%4==0:
+        if k%(2*b)==0:
             x0, y0 = l3.decomp(z0)
-            axs[0].plot(xaxis,z0+ydiff)
-            axs[1].plot(xaxis,x0+ydiff)
-            axs[2].plot(xaxis,y0+ydiff)
-            ydiff-=20.0
+            axs[0].plot(xaxis,z0+ydiff,lw=2.0,c=cmap(icol))
+            axs[1].plot(xaxis,x0+ydiff,lw=2.0,c=cmap(icol))
+            axs[1].plot(xaxis,y0*10.0+ydiff,c=cmap(icol))
+            ydiff-=10.0
+            icol += 1
     for ax in axs:
         ax.set_xlim(0.0,nx-1)
     axs[0].set_title("Z")
-    axs[1].set_title("X")
-    axs[2].set_title("Y")
+    axs[1].set_title(r"X+Y($\times$10)")
     fig.suptitle(f"Lorenz III, N={nx}, K={nk}, I={ni}, F={F}")
     fig.savefig(f"l05III_n{nx}k{nk}i{ni}F{int(F)}.png",dpi=300)
     plt.show()

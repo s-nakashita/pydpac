@@ -3,9 +3,9 @@
 
 python module lbfgs ! in 
     interface  ! in :lbfgs
-        subroutine lbfgs(n,m,x,f,g,diagco,diag,iprint,eps,xtol,w,iflag,irest,xk,dk,stpk,wk,oflag) ! in :lbfgs:lbfgs.f
-            integer, optional,intent(in),check(len(x)>=n),depend(x) :: n=len(x)
-            integer intent(in) :: m
+        subroutine lbfgs(n,m,x,f,g,diagco,diag,iprint,eps,xtol,w,iflag,irest,xk,dk,stpk,oflag) ! in :lbfgs:lbfgs.f
+            integer, optional,intent(in),check(shape(x, 0) == n),depend(x) :: n=shape(x, 0)
+            integer, required,intent(in) :: m
             double precision dimension(n),intent(inout) :: x
             double precision intent(in) :: f
             double precision dimension(n),intent(inout),depend(n) :: g
@@ -14,13 +14,12 @@ python module lbfgs ! in
             integer dimension(2),intent(in) :: iprint
             double precision intent(in) :: eps
             double precision intent(in) :: xtol
-            double precision dimension(n*(2*m+1)+2*m),intent(inout),depend(n,m) :: w
+            double precision dimension(2 * m + n + 2 * m * n),intent(inout),check(shape(w, 0) == 2 * m + n + 2 * m * n),depend(n,m) :: w
             integer intent(in) :: iflag
             integer intent(in) :: irest
             double precision dimension(n),intent(out),depend(n) :: xk
             double precision dimension(n),intent(out),depend(n) :: dk
             double precision intent(out) :: stpk
-            double precision dimension(n*(2*m+1)+2*m),intent(out),depend(n,m) :: wk
             integer intent(out) :: oflag
             integer :: mp
             integer :: lp
@@ -34,7 +33,7 @@ python module lbfgs ! in
             integer :: iter
             integer :: nfun
             double precision :: gnorm
-            integer, optional,check(len(x)>=n),depend(x) :: n=len(x)
+            integer, optional,check(shape(x, 0) == n),depend(x) :: n=shape(x, 0)
             integer :: m
             double precision dimension(n) :: x
             double precision :: f
@@ -73,7 +72,7 @@ python module lbfgs ! in
             double precision :: ddot
         end function ddot
         subroutine mcsrch(n,x,f,g,s,stp,ftol,xtol,maxfev,info,nfev,wa) ! in :lbfgs:lbfgs.f
-            integer, optional,check(len(x)>=n),depend(x) :: n=len(x)
+            integer, optional,check(shape(x, 0) == n),depend(x) :: n=shape(x, 0)
             double precision dimension(n) :: x
             double precision :: f
             double precision dimension(n),depend(n) :: g
@@ -110,5 +109,6 @@ python module lbfgs ! in
     end interface 
 end python module lbfgs
 
-! This file was auto-generated with f2py (version:1.21.4).
-! See http://cens.ioc.ee/projects/f2py2e/
+! This file was auto-generated with f2py (version:1.24.1).
+! See:
+! https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e

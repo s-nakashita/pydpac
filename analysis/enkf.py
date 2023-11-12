@@ -320,8 +320,8 @@ class EnKF():
                     logger.debug(f"dxa.mean={dxa.mean(axis=1)}")
                     trace = np.sum(np.diag(dxa @ dxa.T / (nmem-1)))
                     logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
-                    if np.sqrt(ptrace / trace) > 1.0:
-                        dxa *= np.sqrt(ptrace / trace)
+                    #if np.sqrt(ptrace / trace) > 1.0:
+                    #    dxa *= np.sqrt(ptrace / trace)
                     xa = xa_ + dxa
                     logger.debug(f"xa_ - xa.mean={np.squeeze(xa_) - xa.mean(axis=1)}")
             else:
@@ -415,8 +415,7 @@ class EnKF():
         l_tmp[dist>dist0] = 0
         for ivar in range(self.nvars):
             l_mat[ivar*nx:(ivar+1)*nx,ivar*nx:(ivar+1)*nx] = l_tmp[:,:]
-            l_mat[ivar*nx:(ivar+1)*nx,(ivar-1)*nx:ivar*nx] = l_tmp[:,:]
-
+        
         lam, v = la.eigh(l_mat)
         lam = lam[::-1]
         lam[lam < 1.e-10] = 1.e-10

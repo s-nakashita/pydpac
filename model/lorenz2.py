@@ -76,14 +76,35 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.rcParams['font.size'] = 16
     nx = 240
+    nk = 8
     F = 10.0
     h = 0.05
     tmax = 200.0
     nt = int(tmax/h) + 1
     xaxis = np.arange(nx)
 
-    fig, ax = plt.subplots(figsize=[8,8],constrained_layout=True)
+    l2 = L05II(nx, nk, h, F)
+    x0 = np.ones(nx)*F
+    x0[nx//2-1] += 0.001*F
+    for k in range(nt):
+        x0 = l2(x0)
+    fig, ax = plt.subplots(figsize=[6,12],constrained_layout=True)
+    cmap = plt.get_cmap('tab10')
+    xaxis = np.arange(nx)
+    ydiff = 100.0
+    nt5d = 5 * 4
+    icol=0
+    for k in range(nt5d):
+        x0 = l2(x0)
+        if k%2==0:
+            ax.plot(xaxis,x0+ydiff,lw=2.0,c=cmap(icol))
+            ydiff-=10.0
+            icol += 1
+    ax.set_xlim(0.0,nx-1)
+    ax.set_title(f"Lorenz II, N={nx}, K={nk}, F={F}")
+    fig.savefig(f"l05II_n{nx}k{nk}F{int(F)}.png",dpi=300)
 
+    fig, ax = plt.subplots(figsize=[8,8],constrained_layout=True)
     ydiff = 100.0
     for nk in [2,4,8,16,32,64]:
         l2 = L05II(nx, nk, h, F)
