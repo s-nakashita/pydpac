@@ -77,7 +77,7 @@ if __name__ == "__main__":
     plt.rcParams['font.size'] = 16
     nx = 240
     nk = 8
-    F = 10.0
+    F = 15.0
     h = 0.05
     tmax = 200.0
     nt = int(tmax/h) + 1

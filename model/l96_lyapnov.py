@@ -10,7 +10,7 @@ plt.rcParams['font.size'] = 16
 def fit_func(x, a, b):
     return a*x + b
 
-model = "l05III"
+model = "l05II"
 
 F = 15.0
 if model=="l96":
