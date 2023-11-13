@@ -17,12 +17,14 @@ if model=="l96":
     nx = 40
     dt = 0.05 / 6
     nt = 500 * 6
+    isave = 1
     step = L96(nx, dt, F)
 elif model=="l05II":
     nx = 240
     nk = 8
     dt = 0.05 / 6
     nt = 500 * 6
+    isave = 1
     step = L05II(nx, nk, dt, F)
 elif model=="l05III":
     nx = 960
@@ -32,44 +34,53 @@ elif model=="l05III":
     c = 2.5
     dt = 0.05 / 6 / b
     nt = 500 * 6 * int(b)
+    isave = int(b)
     step = L05III(nx,nk,ni,b,c,dt,F)
 print(f"model={model}, F={F}")
-    
+nsave = nt//isave+1
+
 x0 = random.normal(0, scale=1.0, size=nx)
 for j in range(500): # spin up
     x0 = step(x0)
 
-emean = np.zeros(nt+1)
+emean = np.zeros(nsave)
 if model=='l05III':
-    emean2 = np.zeros((2,nt+1))
+    emean2 = np.zeros((2,nsave))
 x1 = np.zeros_like(x0)
 x2 = np.zeros_like(x0)
 for j in range(50):
-    print(f"trial {j}")
+    print(f"trial {j+1}")
     x1[:] = x0
     x2[:] = x0 + random.normal(0, scale=1e-4, size=nx)
 
     time = []
-    e = np.zeros(nt+1)
-    if model=='l05III':
-        e2 = np.zeros((2,nt+1))
     time.append(0.0)
+    e = np.zeros(nsave)
     e[0] = np.sqrt(np.mean((x2 - x1)**2))
+    if model=='l05III':
+        e2 = np.zeros((2,nsave))
+        x1l, x1s = step.decomp(x1)
+        x2l, x2s = step.decomp(x2)
+        e2[0,0] = np.sqrt(np.mean((x2l - x1l)**2))
+        e2[1,0] = np.sqrt(np.mean((x2s - x1s)**2))
+    i = 0
     for k in range(nt):
         x2 = step(x2)
         x1 = step(x1)
-        e[k+1] = np.sqrt(np.mean((x2 - x1)**2))
-        time.append(dt*(k+1))
-        if model=='l05III':
-            x1s, x1l = step.decomp(x1)
-            x2s, x2l = step.decomp(x2)
-            e2[0,k+1] = np.sqrt(np.mean((x2l - x1l)**2))
-            e2[1,k+1] = np.sqrt(np.mean((x2s - x1s)**2))
+        if k%isave==0:
+            i=i+1
+            e[i] = np.sqrt(np.mean((x2 - x1)**2))
+            time.append(dt*(k+1))
+            if model=='l05III':
+                x1l, x1s = step.decomp(x1)
+                x2l, x2s = step.decomp(x2)
+                e2[0,i] = np.sqrt(np.mean((x2l - x1l)**2))
+                e2[1,i] = np.sqrt(np.mean((x2s - x1s)**2))
     emean += e
     if model == 'l05III':
         emean2 += e2
-emean = emean / 50
 
+emean = emean / 50
 fig, ax = plt.subplots(nrows=2,figsize=[12,12],constrained_layout=True)
 ax[0].plot(time, emean)
 ax[0].set_yscale("log")
@@ -79,8 +90,8 @@ ax[0].set_ylabel("RMSE")
 ax[0].set_title("error growth")
 print("final RMSE = {:.4f}".format(emean[-1]))
 
-y = np.log(emean[:600])
-t = np.array(time[:600])
+y = np.log(emean[:nsave//5])
+t = np.array(time[:nsave//5])
 popt, pcov = opt.curve_fit(fit_func, t, y)
 
 ly = fit_func(t, popt[0], popt[1])
