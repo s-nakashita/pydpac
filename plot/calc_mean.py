@@ -33,7 +33,7 @@ if vname == "innv" or vname == "ua":
         emean /= nmax
     if i>0:
         np.save("{}_{}_{}_{}.npy".format(model, vname, op, pt), emean)
-#if vname == "e" or vname == "chi" or vname == "dof":
+#if vname == "e" or vname == "chi" or vname == "dfs":
 elif vname == "sv":
     if model == "z08":
         imean = np.zeros(81)

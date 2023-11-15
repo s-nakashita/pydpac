@@ -1,14 +1,16 @@
 import logging
+from logging import getLogger
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
+import copy
 from .chi_test import Chi
 from .minimize import Minimize
 
 zetak = []
 alphak = []
-logging.config.fileConfig("./logging_config.ini")
-logger = logging.getLogger('anl')
+fileConfig("./logging_config.ini")
+logger = getLogger('anl')
         
 class Mlef():
 
@@ -113,7 +115,7 @@ class Mlef():
     def callback(self, xk, alpha=None):
         global zetak, alphak
         logger.debug("xk={}".format(xk))
-        zetak.append(xk)
+        zetak.append(copy.copy(xk))
         if alpha is not None:
             alphak.append(alpha)
 
@@ -122,13 +124,19 @@ class Mlef():
             xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
             ob = y - self.obs.h_operator(yloc, x)
-            j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+            jb = 0.5 * zeta.transpose() @ heinv @ zeta
+            jo = 0.5 * ob.transpose() @ rinv @ ob
+        #    j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
         else:
         ## incremental form
             d, tmat, zmat, heinv = args
             nmem = zeta.size
             w = tmat @ zeta
-            j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+            jb = 0.5 * zeta.transpose() @ heinv @ zeta 
+            jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
+            #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+        logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
+        j = jb + jo
         return j
 
     def calc_grad_j(self, zeta, *args):
@@ -178,7 +186,9 @@ class Mlef():
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
-    def dof(self, zmat):
+    def dfs(self, zmat):
+        # Zupanski, D. et al., (2007) Applications of information theory in ensemble data assimilation
+        # Eq. (10)
         u, s, vt = la.svd(zmat)
         ds = np.sum(s**2/(1.0+s**2))
         return ds
@@ -200,13 +210,13 @@ class Mlef():
         if save_dh:
             np.save("{}_lpfeig_{}_{}_cycle{}.npy".format(model, op, pt, icycle), lam)
         logger.info("pf eigen value = {}".format(lam))
-        nmode = 1
+        nmode = 0
         thres = 0.99
         frac = 0.0
         while frac < thres:
-            frac = np.sum(lam[:nmode]) / lamsum
             nmode += 1
-        nmode = min(nmode, ndim)
+            frac = np.sum(lam[:nmode]) / lamsum
+        nmode = min(nmode, self.ndim)
         logger.info(f"== eigen value decomposition of Pf, nmode={nmode} ==")
         pf = v[:,:nmode] @ np.diag(lam[:nmode]) @ v[:,:nmode].T
         spf = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode])) 
@@ -244,22 +254,33 @@ class Mlef():
         d0 = 2.0 * np.sqrt(10.0/3.0) * sigma
         l_mat = np.exp(-dist**2/(2.0*sigma**2))
         l_mat[dist>d0] = 0
+        if logger.isEnabledFor(logging.DEBUG):
+            for i in range(l_mat.shape[1]):
+                logger.debug(f"{i:02d} lmat {l_mat[:,i]}")
 
         lam, v = la.eigh(l_mat)
         lam = lam[::-1]
-        lam[lam < 1.e-10] = 1.e-10
+        logger.debug(f"lam {lam}")
+        lam[lam < 1.e-10] = 0.0
         lamsum = np.sum(lam)
+        logger.debug(f"lamsum {lamsum}")
         v = v[:,::-1]
-        nmode = 1
+        nmode = 0
         thres = 0.99
         frac = 0.0
         while frac < thres:
-            frac = np.sum(lam[:nmode]) / lamsum
             nmode += 1
+            frac = np.sum(lam[:nmode]) / lamsum
         nmode = min(nmode, nx, ny)
         logger.info("# mode {} : contribution rate = {}".format(\
         nmode,np.sum(lam[:nmode])/np.sum(lam)))
         l_sqrt = v[:,:nmode] @ np.diag(np.sqrt(lam[:nmode]))
+        if logger.isEnabledFor(logging.DEBUG):
+            for i in range(l_sqrt.shape[1]):
+                logger.debug(f"{i:02d} lsq {l_sqrt[:,i]}")
+            l_tmp = l_sqrt @ l_sqrt.transpose()
+            for i in range(l_tmp.shape[1]):
+                logger.debug(f"{i:02d} lmat {l_tmp[:,i]}")
         return l_mat, l_sqrt, nmode, np.sqrt(lam[:nmode])
 
     def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,

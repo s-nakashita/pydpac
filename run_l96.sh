@@ -58,7 +58,14 @@ for op in ${operators}; do
     #if [ "${pert:4:1}" = "b" ]; then
     #mv l96_rho_${op}_${pt}.npy l96_rho_${op}_${pert}.npy
     #fi
-    #for icycle in $(seq 0 4); do
+    for icycle in $(seq 0 $((${na} - 1))); do
+      if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
+        mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
+      fi
+      if test -e l96_ua_${op}_${pt}_cycle${icycle}.npy; then
+        mv l96_ua_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_${op}_${pert}_cycle${icycle}.npy
+      fi
+    #  mv Wmat_${op}_${pt}_cycle${icycle}.npy ${pert}/Wmat_${op}_cycle${icycle}.npy
     #  mv l96_K_${op}_${pt}_cycle$icycle.npy l96_K_${op}_${pert}_cycle$icycle.npy
     #  mv l96_dxaorig_${op}_${pt}_cycle$icycle.npy l96_dxaorig_${op}_${pert}_cycle$icycle.npy
     #  mv l96_dxa_${op}_${pt}_cycle$icycle.npy l96_dxa_${op}_${pert}_cycle$icycle.npy
@@ -69,7 +76,7 @@ for op in ${operators}; do
     #  mv l96_lpf_${op}_${pt}_cycle$icycle.npy l96_lpf_${op}_${pert}_cycle$icycle.npy
     #  mv l96_lspf_${op}_${pt}_cycle$icycle.npy l96_lspf_${op}_${pert}_cycle$icycle.npy
     #  fi
-    #done
+    done
     #python ../../plot/plotk.py ${op} l96 ${na} ${pert}
     #python ../../plot/plotdxa.py ${op} l96 ${na} ${pert}
     #python ../../plot/plotpf.py ${op} l96 ${na} ${pert}

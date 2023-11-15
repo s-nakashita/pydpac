@@ -1,12 +1,13 @@
 import logging
+from logging import getLogger
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 from scipy.linalg import cho_solve, cho_factor
 from .chi_test import Chi
 
-logging.config.fileConfig("logging_config.ini")
-logger = logging.getLogger('anl')
+fileConfig("./logging_config.ini")
+logger = getLogger('anl')
 
 class EnKF():
 
@@ -34,7 +35,7 @@ class EnKF():
         self.infl_parm = infl_parm # inflation parameter
         # localization
         self.iloc = iloc # iloc = None->No localization
-                         #      = 0   ->R-localization
+                         #      = 0   ->K-localization(R-localization for LETKF)
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
         self.lsig = lsig # localization parameter
@@ -79,8 +80,17 @@ class EnKF():
         pf = dxf @ dxf.transpose() / (self.nmem-1)
         return pf
         
+    def cost_j(self, w, *args):
+        xf, dxf, y, yloc, rinv = args
+        x = xf + dxf @ w 
+        ob = y - self.obs.h_operator(yloc, x)
+        jb = 0.5 * w.transpose() @ w * (self.nmem - 1)
+        jo = 0.5 * ob.transpose() @ rinv @ ob
+        logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
+        j = jb + jo 
+        return j
     def __call__(self, xf, pf, y, yloc, R=None, rmat=None, rinv=None,
-        save_hist=False, save_dh=False, icycle=0, evalout=False):
+        save_hist=False, save_dh=False, save_w=False, icycle=0, evalout=False):
         #xf = xb[:]
         xf_ = np.mean(xf, axis=1)
         logger.debug(f"obsloc={yloc}")
@@ -102,6 +112,10 @@ class EnKF():
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), pf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxf)
+            wk = np.zeros(self.nmem)
+            args = (xf_, dxf, y, yloc, rinv)
+            jlist = []
+            jlist.append(self.cost_j(wk, *args))
         if (self.iloc == 1 or self.iloc == 2) and self.da != "letkf":
             logger.info("==B-localization==, lsig={}".format(self.lsig))
             dxf_orig = dxf.copy()
@@ -161,6 +175,10 @@ class EnKF():
             if save_dh:
                 np.save("{}_K_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K)
                 np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), K@d)
+                wk = TT @ dy.T @ rinv @ d
+                jlist.append(self.cost_j(wk, *args))
+                logger.debug(len(jlist))
+                np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.da, icycle), jlist)
             if self.iloc == 0: # K-localization
                 logger.info("==K-localization==, lsig={}".format(self.lsig))
                 l_mat = self.k_loc(sigma=self.lsig, obsloc=yloc, xloc=xloc)
@@ -340,6 +358,8 @@ class EnKF():
             if self.linf:
                 logger.info("==inflation==, alpha={}".format(self.infl_parm))
                 E /= self.infl_parm
+            wlist = []
+            Wlist = []
             for i in range(self.ndim):
                 far, Rwf_loc = self.r_loc(sigma, yloc, float(i))
                 logger.info("number of assimilated obs.={}".format(y.size - len(far)))
@@ -359,15 +379,25 @@ class EnKF():
                 lam,v = la.eigh(A)
                 D_inv = np.diag(1.0/lam)
                 pa_ = v @ D_inv @ v.T
+                wk = pa_ @ dyi.T @ R_inv @ di
+                logger.debug(f"wk={wk.shape}")
+                wlist.append(wk)
+                xa_[i] = xf_[i] + dxf[i] @ wk
                 sqrtPa = v @ np.sqrt(D_inv) @ v.T * np.sqrt(nmem-1)
-            
+                Wlist.append(sqrtPa)
                 for ivar in range(self.nvars):
                     xa_[self.ndim*ivar+i] = xf_[self.ndim*ivar+i] + dxf[self.ndim*ivar+i] @ pa_ @ dyi.T @ R_inv @ di
                     dxa[self.ndim*ivar+i] = dxf[self.ndim*ivar+i] @ sqrtPa
                     xa[self.ndim*ivar+i] = np.full(nmem,xa_[self.ndim*ivar+i]) + dxa[self.ndim*ivar+i]
+            if save_w:
+                logger.debug(f"wlist={np.array(wlist).shape}")
+                logger.debug(f"Wlist={np.array(Wlist).shape}")
+                np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.da, icycle), np.array(wlist))
+                np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.da, icycle), np.array(Wlist))
         pa = dxa@dxa.T/(nmem-1)
         spa = dxa / np.sqrt(nmem-1)
-        if save_dh:
+        #if save_dh:
+        if save_w:
             ua = np.zeros((xa_.size,nmem+1))
             ua[:,0] = xa_
             ua[:,1:] = xa
@@ -534,6 +564,8 @@ class EnKF():
         return dxf
 
     def dof(self, dy, nmem):
+        # Zupanski, D. et al., (2007) Applications of information theory in ensemble data assimilation
+        # Eq. (10)
         zmat = dy / self.sig / np.sqrt(nmem-1)
         u, s, vt = la.svd(zmat)
         ds = np.sum(s**2/(1.0+s**2))

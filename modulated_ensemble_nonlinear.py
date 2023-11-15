@@ -7,6 +7,7 @@ fileConfig('logging_config.ini')
 logger = logging.getLogger('anl')
 from analysis.enkf import EnKF
 from analysis.mlef import Mlef
+from analysis.lmlef import Lmlef
 
 ## True forecast covariance
 N = 100
@@ -105,7 +106,7 @@ class Obs():
     def itpl_operator(self, obsloc, n):
         p = obsloc.size
         H = np.zeros((p,n))
-        logger.debug(f"H1={H.shape}")
+        #logger.debug(f"H1={H.shape}")
         smooth_len = 4.0
         for j in range(p):
             for i in range(n):
@@ -116,9 +117,10 @@ class Obs():
         return H
     # vertical interpolation
     def itpl_operator2(self, obsloc, n):
+        import math
         p = obsloc.size
         H = np.zeros((p,n))
-        logger.debug(f"H2={H.shape}")
+        #logger.debug(f"H2={H.shape}")
         for k in range(p):
             ri = obsloc[k]
             i = math.floor(ri)
@@ -134,15 +136,21 @@ class Obs():
         p = obsloc.size
         n = x.size
         if p <= n:
-            H = self.itpl_operator(obsloc, n) @ np.diag(self.sb*self.nl*(x**(self.nl-1)))
+            if self.nl > 1:
+                H = self.itpl_operator(obsloc, n) @ np.diag(self.sb*self.nl*(x**(self.nl-1)))
+            else:
+                H = self.itpl_operator(obsloc, n) @ np.diag(self.sb*np.ones(n))
         else:
             obsloc1 = obsloc[:n]
             obsloc2 = obsloc[n:]
         #x_itpl = self.itpl_operator(obsloc, n) @ x
-            H1 = self.itpl_operator(obsloc1, n) @ np.diag(self.sb*self.nl*(x**(self.nl-1)))
+            if self.nl > 1:
+                H1 = self.itpl_operator(obsloc1, n) @ np.diag(self.sb*self.nl*(x**(self.nl-1)))
+            else:
+                H1 = self.itpl_operator(obsloc, n) @ np.diag(self.sb*np.ones(n))
             H2 = self.itpl_operator2(obsloc2, n)
             H = np.vstack((H1,H2))
-        logger.debug(f"H={H.shape}")
+        #logger.debug(f"H={H.shape}")
         return H
     
     def h_operator(self,obsloc,x):
@@ -182,6 +190,7 @@ vindex = np.arange(1,p+1)
 oberrvar = obs.get_sig()**2
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
     logger = logging.getLogger(__name__)
 #
 ## Lists for storing results and counter
@@ -202,17 +211,18 @@ if __name__ == "__main__":
         logger.info(f"{ntest}th test")
         ## Random seed
         rs = np.random.RandomState(seeds[ntest]) #variable
+        #rs = np.random.RandomState() #variable
         rstrue = np.random.RandomState(514) #fix
 
         ## True state and observation
         xt = sPt @ rstrue.standard_normal(size=N)
         obsloc1 = np.arange(p) # upward
-        obsloc1 = np.arange(p-1,-1,-1) # downward
-        obsloc1 = rs.choice(p, size=p, replace=False) # random
+        #obsloc1 = np.arange(p-1,-1,-1) # downward
+        #obsloc1 = rs.choice(p, size=p, replace=False) # random
         obsloc = obsloc1
         #obsloc2 = np.arange(0,p-1,10)
         #obsloc = np.hstack((obsloc1, obsloc2))
-        print(obsloc)
+        logger.info(f"obsloc={obsloc}")
         hxt = obs.h_operator(obsloc, xt)
         R, Rsqrtinv, Rinv = obs.set_r(obsloc)
         logger.info(f"oberr={oberrvar}, R={R.shape}, Rsqrtinv={Rsqrtinv.shape}, Rinv={Rinv.shape}")
@@ -220,9 +230,11 @@ if __name__ == "__main__":
         logger.info(f"R - Rsqrt**2 ={norm(R - Rsqrt@Rsqrt)}")
         logger.info(f"Rinv - Rsqrtinv**2 ={norm(Rinv - Rsqrtinv@Rsqrtinv)}")
         y = hxt + Rsqrt @ rs.standard_normal(size=obsloc.size)
+        vmax = (int(np.max(y)/5.0) + 1)*5.0
+        vmin = (int(np.min(y)/5.0) - 1)*5.0
 
         ## Ensemble Pf 
-        K = 50
+        K = 10
         Xf = rs.standard_normal(size=(N,K))
         Xf = sPt @ Xf
         Xf = Xf - Xf.mean(axis=1)[:, None]
@@ -268,14 +280,33 @@ if __name__ == "__main__":
                 }
         names = ['enkf','enkf-b','enkf-k','letkf','serial enkf','serial enkf-b','serial enkf-k']
         #names = ['serial enkf','serial enkf-b','serial enkf-k']
+        names = ['letkf']
         xa_list = []
-#        for ptype in names:
-#            pt, iloc, ss, getkf = params[ptype]
-#            analysis = EnKF(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, getkf=getkf, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
-#            xb = xf
-#            pb = Pe
-#            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
-#            xa_list.append(xa)
+        #for ptype in names:
+        #    pt, iloc, ss, getkf = params[ptype]
+        #    analysis = EnKF(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, getkf=getkf, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
+        #    xb = xf
+        #    pb = Pe
+        #    xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc)
+        #    xa_list.append(xa)
+        ## plot
+        #fig, ax = plt.subplots(1,2,figsize=(12,4))
+        #xaxis = np.arange(1, N+1)
+        #ax[0].plot(xaxis, xt, linewidth=3.0, color='k', label='truth')
+        #ax[1].plot(obsloc, hxt, linewidth=3.0, color='k', label='truth')
+        #j = 0
+        #for x in xa_list:
+        #    xam = x.mean(axis=1)
+        #    hx = obs.h_operator(obsloc, xam)
+        #    ax[0].plot(xaxis, xam, linewidth=1.5, label=names[j])
+        #    ax[1].plot(obsloc, hx, linewidth=1.5, label=names[j])
+        #    j += 1
+        #ax[0].legend()
+        #ax[1].legend()
+        #ax[1].set_ylim(vmin,vmax)
+        #ax[0].set_title('state space')
+        #ax[1].set_title('obs space')
+        #fig.savefig(f'letkf_analysis_K{K}_nonlinear{obs.nl}.png')
 #
         ### MLEF
         # forecast ensemble
@@ -293,17 +324,38 @@ if __name__ == "__main__":
         initial_ctrl_obserr = np.sqrt(((hxf - hxt)**2).mean())
         logger.info(f"initial error in obs space (control) ={initial_ctrl_obserr}")
 #
-        params = {'mlef':('mlef',None,False,False),'mlef-b':('mlef',2,False,True),'mlef-r':('mlef',0,False,False)}
-        #names2 = ['mlef','mlef-b','mlef-r']
-        names2 = ['mlef-r']
+        params = {'mlef':('mlef',None,False,False),'mlef-b':('mlef',2,False,True),\
+            'lmlef0':('mlef',0,False,False),'lmlef1':('mlef',0,False,False),'lmlef2':('mlef',0,False,False)}
+        names2 = ['mlef','mlef-b','lmlef0','lmlef1','lmlef2']
+        # lmlef0 : incremental form
+        # lmlef1 : full nonlinear form
+        # lmlef2 : modelate nonlinear form
+        #names2 = ['lmlef']
         for ptype in names2:
             pt, iloc, ss, gain = params[ptype]
             analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
 #                       ,incremental=True)
             xb = xf
             pb = Pe
-            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='LBFGS') #, restart=True)
+            xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='CGF', cgtype=1, maxiter=10)#, restart=True)
             xa_list.append(xa[:,0])
+        ## plot
+        #fig, ax = plt.subplots(1,2,figsize=(12,4))
+        #xaxis = np.arange(1, N+1)
+        #ax[0].plot(xaxis, xt, linewidth=3.0, color='k', label='truth')
+        #ax[1].plot(obsloc, hxt, linewidth=3.0, color='k', label='truth')
+        #j = 0
+        #for x in xa_list[len(names):]:
+        #    hx = obs.h_operator(obsloc, x)
+        #    ax[0].plot(xaxis, x, linewidth=1.5, label=names2[j])
+        #    ax[1].plot(obsloc, hx, linewidth=1.5, label=names2[j])
+        #    j += 1
+        #ax[0].legend()
+        #ax[1].legend()
+        #ax[1].set_ylim(vmin,vmax)
+        #ax[0].set_title('state space')
+        #ax[1].set_title('obs space')
+        #fig.savefig(f'lmlef_analysis_K{K}_nonlinear{obs.nl}_tlm.png')
 
         #method = names + names2
         method = names2

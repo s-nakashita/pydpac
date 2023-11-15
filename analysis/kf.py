@@ -10,13 +10,14 @@ logger = logging.getLogger('anl')
 class Kf():
 
     def __init__(self, obs, infl=1.0, linf=False, step=None, nt=None, model="model"):
+        self.pt = "kf"
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        self.infl_parm = infl # inflation parameter
-        self.linf = linf
         self.step = step
         self.nt = nt
+        self.linf = linf
+        self.infl_parm = infl_parm # inflation parameter
         self.model = model
         logger.info(f"pt=kf op={self.op} sig={self.sig} infl_parm={self.infl_parm} linf={self.linf}")
 

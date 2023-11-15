@@ -16,9 +16,9 @@ global nx, omega, dt, dx
 model = "tc87"
 # model parameter
 nx = 64     # number of points
-omega = 2.0 * np.pi  # angular velocity for earth rotation
-nt =   1    # number of step per forecast
-dt = 0.1    # time step
+omega = 2.0 * np.pi / 86400. # angular velocity for earth rotation
+dt = 3600.  # time step (1 hour)
+nt = 1      # number of step per forecast
 
 # forecast model forward operator
 step = Bve(nx, dt, omega)
@@ -27,8 +27,8 @@ x = 180.0 / np.pi * step.get_lam()
 dx = x[1] - x[0]
 np.savetxt("x.txt", x)
 
-nmem =   20 # ensemble size (include control run)
-t0off =   1 # initial offset between adjacent members
+nmem =   10 # ensemble size (include control run)
+t0off =   2 # initial offset between adjacent members
 t0c =   100 # t0 for control
 # t0 for ensemble members
 if nmem%2 == 0: # even
@@ -48,7 +48,7 @@ nobs = 64 # observation number (nobs<=nx)
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0, "abs":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
+infl_l = {"mlef":1.3,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.2,"kf":1.2,"var":None,
           "4dmlef":1.3,"4detkf":1.3,"4dpo":1.4,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"4dvar":None}
 infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"4dvar":None}
@@ -58,7 +58,7 @@ infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":No
 dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, "test": infl_t, "abs": infl_l}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
+sig_l = {"mlef":3.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":2.0,"kf":None,"var":None,
         "4dmlef":8.0,"4detkf":8.0,"4dpo":2.0,"4dsrf":8.0,"4dletkf":7.5,"4dvar":None}
 sig_q = {"mlef":3.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"4dvar":None}
 sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"4dvar":None}
@@ -81,7 +81,7 @@ lloc = False
 lsig = -1.0
 ltlm = True
 iloc = None
-
+lb = -1.0
 ## read from command options
 # observation type
 if len(sys.argv) > 1:

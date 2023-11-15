@@ -156,10 +156,10 @@ if __name__ == "__main__":
 
     ## True state and observation
         xt = sPt @ rstrue.standard_normal(size=N)
-        obsloc = np.arange(p) # upward
-        obsloc = np.arange(p-1,-1,-1) # downward
+        #obsloc = np.arange(p) # upward
+        #obsloc = np.arange(p-1,-1,-1) # downward
         obsloc = rs.choice(p, size=p, replace=False) # random
-        print(obsloc)
+        logger.info(f"obsloc={obsloc}")
         R, Rsqrtinv, Rinv = obs.set_r(obsloc)
         logger.info(f"oberr={oberrvar}, R={R.shape}, Rsqrtinv={Rsqrtinv.shape}, Rinv={Rinv.shape}")
         Rsqrt = inv(Rsqrtinv)
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         y = obs.dh_operator(obsloc, xt) @ xt + Rsqrt @ rs.standard_normal(size=p)
 
     ## Forecast ensemble
-        K = 50
+        K = 10
         Xf = rs.standard_normal(size=(N,K))
         Xf = sPt @ Xf
         Xf = Xf - Xf.mean(axis=1)[:, None]

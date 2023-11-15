@@ -7,13 +7,15 @@ op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
 if model == "z08":
-    #perts = ["mlef", "grad", "etkf", "po", "srf", "letkf", "kf", "var"]
-    perts = ["mlef-fh", "mlef-jh", "etkf-fh", "etkf-jh", "var"]
+    #perts = ["mlef", "etkf", "po", "srf"]
+    perts = ["mlef-fh", "mlef-jh", "etkf-fh", "etkf-jh"]#, "var"]
     linecolor = {"mlef-fh":'tab:blue',"mlef-jh":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
      "var":"tab:cyan"}
+    #perts = ["mlef-fh", "mlef-jh", "mlefw-fh", "mlefw-jh"]
+    #linecolor = {"mlef-fh":'tab:blue',"mlef-jh":'tab:orange',"mlefw-fh":'tab:green',"mlefw-jh":'tab:red'}
     #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-    #    "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
-    #    "var4d":"tab:brown"}
+    #   "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+    #   "var4d":"tab:brown"}
     #perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     #linestyle = {"mlef":"solid", "grad":"dashed",
     # "etkf-fh":"solid", "etkf-jh":"dashed"}
@@ -31,9 +33,9 @@ elif model == "z05":
     x = np.arange(na)+1
     sigma = {"linear": 0.05, "quadratic": 0.05}
 elif model == "l96" or model == "tc87":
-    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
+    perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+    linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
     marker = {"3d":"o","4d":"x"}
     if len(sys.argv) > 4:
@@ -47,9 +49,16 @@ elif model == "l96" or model == "tc87":
             perts = perts + [pt, pt+"be", pt+"bm", "l"+pt]
             linecolor.update({pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'})
         perts = list(set(perts))
+        #perts = [pt, pt+"be", pt+"bm", "l"+pt]
+        #linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'}
+        perts = [pt, pt+"be", pt+"bm", "l"+pt+"0", "l"+pt+"1", "l"+pt+"2", 'letkf']
+        linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',
+        "l"+pt+"0":'tab:cyan', "l"+pt+"1":'tab:pink', "l"+pt+"2":'tab:purple', 'letkf':'tab:red'}
+        #perts = ["l"+pt+"1", "l"+pt+"2", "l"+pt+"3", 'letkf']
+        #linecolor = {"l"+pt+"1":'tab:blue', "l"+pt+"2":'tab:orange', "l"+pt+"3":'tab:green', 'letkf':'tab:red'}
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
-    sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
+    sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
     x = np.arange(na) + 1

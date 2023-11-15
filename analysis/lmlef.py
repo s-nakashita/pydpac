@@ -229,6 +229,8 @@ class Lmlef():
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
         logger.info("save_dh={}".format(save_dh))
         logger.info("save_hist={}".format(save_hist))
+        wlist = []
+        Wlist = []
         if self.iloc == -1: #CW
             logger.info("==R-localization, {}==, lsig={}".format(self.loctype[self.iloc],self.lsig))
             iprint = np.zeros(2, dtype=np.int32)
@@ -291,6 +293,7 @@ class Lmlef():
                 else:
                     x, flg = minimize(x0)
                 xa[i] = xc[i] + gmat[i] @ x
+                wlist.append(tmat @ x)
                 if self.ltlm:
                     dh = self.obs.dh_operator(yloc,xa) @ pf
                 else:
@@ -299,6 +302,7 @@ class Lmlef():
                 zmat = Rmat @ dhi
                 tmat, heinv = self.precondition(zmat)
                 pa[i,:] = pf[i,:] @ tmat 
+                Wlist.append(tmat)
         else: #Y
             logger.info("==R-localization, {}==, lsig={}".format(self.loctype[self.iloc],self.lsig))
             if maxiter is None:
@@ -349,6 +353,13 @@ class Lmlef():
                 zmat = Rmat @ dhi
                 tmat, heinv = self.precondition(zmat)
                 pa[i,:] = pf[i,:] @ tmat
+                wlist.append(w[i,])
+                Wlist.append(tmat)
+        if save_w:
+            logger.debug(f"wlist={np.array(wlist).shape}")
+            logger.debug(f"Wlist={np.array(Wlist).shape}")
+            np.save("wa_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(wlist))
+            np.save("Wmat_{}_{}_cycle{}.npy".format(self.op, self.pt, icycle), np.array(Wlist))
         # statistical evaluation
         if self.ltlm:
             dh = self.obs.dh_operator(yloc,xa) @ pf

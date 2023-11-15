@@ -45,7 +45,7 @@ class Obs():
             nobs = obsloc.size
         else:
             nobs = obsloc.shape[0]
-        logger.debug(f"nobs={nobs}")
+        #logger.debug(f"nobs={nobs}")
         if x.ndim == 1:
             if self.nvars==1:
                 hxf = self.hx(x)
@@ -223,7 +223,6 @@ class Obs():
             return (1.0 - ai)*x[i] + ai*x[i+1]
         else:
             return (1.0 - ai)*x[i] + ai*x[0]
-
     def itpl2d(self, ri, rj, x):
         x2d = x.reshape(self.ni,self.nj)
         i = math.floor(ri)
