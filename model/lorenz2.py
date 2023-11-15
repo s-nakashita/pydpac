@@ -8,7 +8,7 @@ class L05II():
         self.dt = dt
         self.F = F
         print(f"nx={self.nx} nk={self.nk}")
-        print(f"F={self.F} dt={self.dt}")
+        print(f"F={self.F} dt={self.dt:.3e}")
 
     def get_params(self):
         return self.nx, self.nk, self.dt, self.F

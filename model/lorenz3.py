@@ -3,7 +3,7 @@ from lorenz2 import L05II
 # Lorenz III model
 # Reference : Lorenz (2005, JAS) Section 4
 class L05III():
-    def __init__(self, nx, nk, ni, b, c, dt, F):
+    def __init__(self, nx, nk, ni, b, c, dt, F, cyclic=True):
         self.nx = nx
         self.nk = nk
         self.ni = ni
@@ -19,9 +19,17 @@ class L05III():
         self.filmat = np.zeros((self.nx,self.nx))
         for i in range(self.nx):
             js = i - self.ni
-            if js<0: js+=self.nx
+            if js<0:
+                if cyclic:
+                    js+=self.nx
+                else:
+                    js = 0
             je = i + self.ni + 1
-            if je>self.nx: je-=self.nx
+            if je>self.nx:
+                if cyclic:
+                    je-=self.nx
+                else:
+                    je=self.nx
             for j in range(self.nx):
                 tmp = 0.0
                 if js<je:
@@ -35,10 +43,10 @@ class L05III():
                 self.filmat[i,j] = tmp
         ## debug
         print(self.filmat.max(),self.filmat.min())
-        #import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
         #plt.plot(self.filmat[self.nx//2,:])
-        ##plt.matshow(self.filmat)
-        ##plt.colorbar()
+        #plt.matshow(self.filmat)
+        #plt.colorbar()
         #plt.show()
         #plt.close()
         #ztmp = 0.1*(np.arange(self.nx)-self.nx//2)**2 + 1.0

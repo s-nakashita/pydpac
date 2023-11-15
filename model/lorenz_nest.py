@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 class L05nest():
     def __init__(self, nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
         ni, b, c, dt, F,\
-        intgm, ist_lam, nsp):
+        intgm, ist_lam, nsp, lamstep=4):
         # Actual grid
         self.nx_true = nx_true
         self.xaxis_true = self.nx_true / np.pi * np.sin(np.pi * np.arange(self.nx_true) / self.nx_true)
@@ -19,13 +19,17 @@ class L05nest():
         self.ni = ni
         self.b = b
         self.c = c
-        self.dt = dt
+        self.lamstep = lamstep
+        self.dt_gm = dt
+        self.dt_lam = self.dt_gm / lamstep
         self.F = F
         self.ix_lam = np.arange(ist_lam,ist_lam+self.nx_lam)
         self.xaxis_lam = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam / self.nx_true)
         self.ix_lam_ext = np.arange(ist_lam-self.nk_lam,ist_lam+self.nx_lam+self.nk_lam) # including xaxiseral boundaries
         self.xaxis_lam_ext = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam_ext / self.nx_true)
-        self.lam = L05III(self.xaxis_lam_ext.size, self.nk_lam, self.ni, self.b, self.c, self.dt, self.F)
+        self.lam = L05III(self.ix_lam_ext.size, self.nk_lam, self.ni, \
+            self.b, self.c, self.dt_lam, self.F,\
+            cyclic=False)
         # Global model (GM)
         print("GM")
         self.intgm = intgm # grid interval of GM rexaxisive to LAM
@@ -33,7 +37,7 @@ class L05nest():
         self.nk_gm = nk_gm
         self.ix_gm = np.arange(0,self.nx_gm*self.intgm,self.intgm)
         self.xaxis_gm = self.nx_true / np.pi * np.sin(np.pi * self.ix_gm / self.nx_true)
-        self.gm = L05II(self.nx_gm, self.nk_gm, self.dt, self.F)
+        self.gm = L05II(self.nx_gm, self.nk_gm, self.dt_gm, self.F)
         # Boundary condition
         self.nsp = nsp # sponge region width
         self.rlx = np.arange(1,self.nsp+1)/(self.nsp+1) # relaxation factor
@@ -61,16 +65,23 @@ class L05nest():
         #GM
         xf_gm = self.gm(x_gm)
         #LAM
-        gm2lam = interp1d(self.ix_gm, x_gm)
+        gm2lam = interp1d(self.ix_gm, x_gm, axis=0)
         x_lam_ext = gm2lam(self.ix_lam_ext)
-        x_lam_ext[self.nk_lam:self.nk_lam+self.nx_lam] = x_lam[:]
-        xf_lam_ext = self.lam(x_lam_ext)
+        #print(x_lam_ext.shape)
+        x_lam_ext[self.nk_lam:self.nk_lam+self.nx_lam] = x_lam
+        for i in range(self.lamstep):
+            xf_lam_ext = self.lam(x_lam_ext)
+            x_lam_ext = xf_lam_ext
         xf_lam = xf_lam_ext[self.nk_lam:self.nk_lam+self.nx_lam]
         # Davies relaxation
-        gm2lam = interp1d(self.ix_gm, xf_gm)
+        gm2lam = interp1d(self.ix_gm, xf_gm, axis=0)
         xf_gm2lam = gm2lam(self.ix_lam)
-        xf_lam[:self.nsp]  = xf_lam[:self.nsp]*(1.0-self.rlx[::-1]) + xf_gm2lam[:self.nsp]*self.rlx[::-1]
-        xf_lam[-self.nsp:] = xf_lam[-self.nsp:]*(1.0-self.rlx[:]) + xf_gm2lam[-self.nsp:]*self.rlx[::-1]
+        if xf_lam.ndim==2:
+            xf_lam[:self.nsp]  = xf_lam[:self.nsp]*(1.0-self.rlx[::-1,None]) + xf_gm2lam[:self.nsp]*self.rlx[::-1,None]
+            xf_lam[-self.nsp:] = xf_lam[-self.nsp:]*(1.0-self.rlx[:,None]) + xf_gm2lam[-self.nsp:]*self.rlx[:,None]
+        else:
+            xf_lam[:self.nsp]  = xf_lam[:self.nsp]*(1.0-self.rlx[::-1]) + xf_gm2lam[:self.nsp]*self.rlx[::-1]
+            xf_lam[-self.nsp:] = xf_lam[-self.nsp:]*(1.0-self.rlx[:]) + xf_gm2lam[-self.nsp:]*self.rlx[:]
         return xf_gm, xf_lam
 
 if __name__ == "__main__":
@@ -101,32 +112,69 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     ax.plot(step.ix_gm,x0_gm,lw=2.0)
     ax.plot(step.ix_lam,x0_lam,lw=1.0)
-    plt.show()
+    gm2lam = interp1d(step.ix_gm, x0_gm)
+    x0_lam_ext = gm2lam(step.ix_lam_ext)
+    x0_lam_ext[step.nk_lam:step.nk_lam+step.nx_lam] = x0_lam[:]
+    plt.plot(step.ix_lam_ext,x0_lam_ext,ls='dashed')
+    plt.show(block=False)
+    plt.close()
+    x0l_lam, x0s_lam = step.lam.decomp(x0_lam_ext)
+    plt.plot(x0l_lam)
+    plt.plot(x0s_lam)
+    plt.show(block=False)
+    plt.close()
+    x0_gm2lam = gm2lam(step.ix_lam)
+    plt.plot(x0_lam)
+    x0_lam[:step.nsp]  = x0_lam[:step.nsp]*(1.0-step.rlx[::-1]) + x0_gm2lam[:step.nsp]*step.rlx[::-1]
+    x0_lam[-step.nsp:] = x0_lam[-step.nsp:]*(1.0-step.rlx[:]) + x0_gm2lam[-step.nsp:]*step.rlx[:]
+    plt.plot(x0_lam,ls='dashed')
+    plt.show(block=False)
     plt.close()
 
     fig = plt.figure(figsize=[12,10],constrained_layout=True)
     gs = GridSpec(1,3,figure=fig)
     axs = []
-    ax = fig.add_subplot(gs[:2])
-    axs.append(ax)
-    ax = fig.add_subplot(gs[2])
-    axs.append(ax)
+    ax0 = fig.add_subplot(gs[:2])
+    axs.append(ax0)
+    ax1 = fig.add_subplot(gs[2],sharey=ax0)
+    plt.setp(ax1.get_yticklabels(), visible=False)
+    axs.append(ax1)
     cmap = plt.get_cmap('tab10')
-    ydiff = 100.0
-    nt5d = int( 5 * 4 * 0.05 / dt )
+    ydiff = 200.0
+    yticks = []
+    nt5d = int( 10 * 4 * 0.05 / dt )
     icol=0
     for k in range(nt5d):
         x0_gm, x0_lam = step(x0_gm,x0_lam)
-        if k%int(2*0.05/dt)==0:
+        if k%int(4*0.05/dt)==0:
             axs[0].plot(step.ix_gm,x0_gm+ydiff,lw=2.0,c=cmap(icol))
             axs[1].plot(step.ix_lam,x0_lam+ydiff,lw=2.0,c=cmap(icol))
-            ydiff-=10.0
+            gm2lam = interp1d(step.ix_gm, x0_gm)
+            x0_lam_ext = gm2lam(step.ix_lam_ext)
+            x0_lam_ext[step.nk_lam:step.nk_lam+step.nx_lam] = x0_lam[:]
+            x0l_lam, x0s_lam = step.lam.decomp(x0_lam_ext)
+            axs[1].plot(step.ix_lam_ext,x0s_lam+ydiff,lw=1.0,c=cmap(icol))
+            yticks.append(ydiff)
+            ydiff-=20.0
             icol += 1
     axs[0].vlines([step.ix_lam[0],step.ix_lam[-1]],0,1,\
         colors='k',linestyle='dashdot',transform=axs[0].get_xaxis_transform())
+    axs[1].fill_between(step.ix_lam, 0, 1, where=step.ix_lam < step.ix_lam[nsp],
+                color='gray', alpha=0.3, transform=axs[1].get_xaxis_transform())
+    axs[1].fill_between(step.ix_lam, 0, 1, where=step.ix_lam > step.ix_lam[-nsp],
+                color='gray', alpha=0.3, transform=axs[1].get_xaxis_transform())
     axs[0].set_xlim(step.ix_gm[0],step.ix_gm[-1])
     axs[1].set_xlim(step.ix_lam[0],step.ix_lam[-1])
+    axs[0].set_yticks(yticks)
+    axs[1].set_yticks(yticks)
+    axs[0].set_yticklabels([])
+    axs[1].set_yticklabels([])
+    axs[0].grid(True)
+    axs[1].grid(True)
+    axs[0].set_title('GM')
+    axs[1].set_title('LAM')
     fig.suptitle(f"Nesting Lorenz, N_gm={nx_gm}, K_gm={nk_gm}"\
-        +f"\n N_lam={nx_lam}, K_lam={nk_lam}, F={F}")
-    fig.savefig(f"l05nest_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}.png",dpi=300)
+        +f"\n N_lam={nx_lam}, K_lam={nk_lam}, F={F}, c={c}")
+    fig.savefig(f"l05nest_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}c{c:.1f}.png",dpi=300)
     plt.show()
+    plt.close()

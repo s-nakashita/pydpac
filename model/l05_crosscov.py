@@ -9,7 +9,7 @@ nx = 960
 nk = 32
 ni = 12
 b = 10.0
-c = 0.6
+c = 2.5
 dt = 0.05 / 6 / b
 F = 15.0
 step = L05III(nx, nk, ni, b, c, dt, F)
@@ -91,6 +91,8 @@ plt.show()
 plt.close()
 
 # covariance
+x_hr = x_hr - x_hr.mean(axis=2)[:,:,None]
+x_lr = x_lr - x_lr.mean(axis=2)[:,:,None]
 B_hr = np.zeros((nx,nx))
 B_lr = np.zeros((nx,nx))
 E_lh = np.zeros((nx,nx))
