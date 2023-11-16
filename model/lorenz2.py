@@ -102,7 +102,7 @@ if __name__ == "__main__":
             icol += 1
     ax.set_xlim(0.0,nx-1)
     ax.set_title(f"Lorenz II, N={nx}, K={nk}, F={F}")
-    fig.savefig(f"l05II_n{nx}k{nk}F{int(F)}.png",dpi=300)
+    fig.savefig(f"lorenz/l05II_n{nx}k{nk}F{int(F)}.png",dpi=300)
 
     fig, ax = plt.subplots(figsize=[8,8],constrained_layout=True)
     ydiff = 100.0
@@ -120,5 +120,5 @@ if __name__ == "__main__":
     ax.set_title(f"Lorenz II, N={nx}, F={F}")
     ax.legend(loc='upper left',bbox_to_anchor=(1.0,0.8))
     #print(x0)
-    fig.savefig(f"l05II_n{nx}F{int(F)}.png",dpi=300)
+    fig.savefig(f"lorenz/l05II_n{nx}F{int(F)}.png",dpi=300)
     plt.show()

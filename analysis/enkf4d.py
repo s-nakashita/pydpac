@@ -367,8 +367,8 @@ class EnKF4d():
         logger.info("zmat shape={}".format(zmat.shape))
         logger.info("d shape={}".format(d.shape))
         innv, chi2 = chi2_test(zmat, d)
-        ds = self.dof(dy,nmem)
-        logger.info("dof={}".format(ds))
+        ds = self.dfs(dy,nmem)
+        logger.info("dfs={}".format(ds))
         
         #u = np.zeros_like(xb)
         #u = xa[:,:]
@@ -493,7 +493,7 @@ class EnKF4d():
             np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), fullpf)
         return dxf
 
-    def dof(self, dy, nmem):
+    def dfs(self, dy, nmem):
         zmat = np.concatenate(dy, axis=0) / self.sig / np.sqrt(nmem-1)
         logger.debug(f"zmat max={np.max(zmat)} min={np.min(zmat)}")
         u, s, vt = la.svd(zmat)

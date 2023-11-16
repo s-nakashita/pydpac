@@ -1,6 +1,10 @@
 import numpy as np 
-from lorenz2 import L05II
-from lorenz3 import L05III
+try:
+    from .lorenz2 import L05II
+    from .lorenz3 import L05III
+except ImportError:
+    from lorenz2 import L05II
+    from lorenz3 import L05III
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 # nesting Lorenz system
@@ -11,6 +15,7 @@ class L05nest():
         intgm, ist_lam, nsp, lamstep=4):
         # Actual grid
         self.nx_true = nx_true
+        self.ix_true = np.arange(self.nx_true,dtype=np.int32)
         self.xaxis_true = self.nx_true / np.pi * np.sin(np.pi * np.arange(self.nx_true) / self.nx_true)
         # Limited-area model (LAM)
         print("LAM")
@@ -23,19 +28,19 @@ class L05nest():
         self.dt_gm = dt
         self.dt_lam = self.dt_gm / lamstep
         self.F = F
-        self.ix_lam = np.arange(ist_lam,ist_lam+self.nx_lam)
+        self.ix_lam = np.arange(ist_lam,ist_lam+self.nx_lam,dtype=np.int32)
         self.xaxis_lam = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam / self.nx_true)
-        self.ix_lam_ext = np.arange(ist_lam-self.nk_lam,ist_lam+self.nx_lam+self.nk_lam) # including xaxiseral boundaries
+        self.ix_lam_ext = np.arange(ist_lam-self.nk_lam,ist_lam+self.nx_lam+self.nk_lam,dtype=np.int32) # including xaxiseral boundaries
         self.xaxis_lam_ext = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam_ext / self.nx_true)
-        self.lam = L05III(self.ix_lam_ext.size, self.nk_lam, self.ni, \
+        self.lam = L05III(self.nx_lam, self.nk_lam, self.ni, \
             self.b, self.c, self.dt_lam, self.F,\
-            cyclic=False)
+            cyclic=False, ghost=self.nk_lam)
         # Global model (GM)
         print("GM")
         self.intgm = intgm # grid interval of GM rexaxisive to LAM
         self.nx_gm = nx_gm
         self.nk_gm = nk_gm
-        self.ix_gm = np.arange(0,self.nx_gm*self.intgm,self.intgm)
+        self.ix_gm = np.arange(0,self.nx_gm*self.intgm,self.intgm,dtype=np.int32)
         self.xaxis_gm = self.nx_true / np.pi * np.sin(np.pi * self.ix_gm / self.nx_true)
         self.gm = L05II(self.nx_gm, self.nk_gm, self.dt_gm, self.F)
         # Boundary condition
@@ -83,6 +88,26 @@ class L05nest():
             xf_lam[:self.nsp]  = xf_lam[:self.nsp]*(1.0-self.rlx[::-1]) + xf_gm2lam[:self.nsp]*self.rlx[::-1]
             xf_lam[-self.nsp:] = xf_lam[-self.nsp:]*(1.0-self.rlx[:]) + xf_gm2lam[-self.nsp:]*self.rlx[:]
         return xf_gm, xf_lam
+
+    def calc_dist_gm(self, iloc):
+        dist = np.zeros(self.nx_gm)
+        for j in range(self.nx_gm):
+            dist[j] = abs(self.nx_gm / np.pi * np.sin(np.pi * (self.ix_gm[int(iloc)] - float(self.ix_gm[j])) / self.nx_gm))
+        return dist
+    
+    def calc_dist1_gm(self, iloc, jloc):
+        dist = abs(self.nx_gm / np.pi * np.sin(np.pi * (self.ix_gm[int(iloc)] - jloc) / self.nx_gm))
+        return dist
+
+    def calc_dist_lam(self, iloc):
+        dist = np.zeros(self.nx_lam)
+        for j in range(self.nx_lam):
+            dist[j] = abs(self.nx_lam / np.pi * np.sin(np.pi * (self.ix_lam[int(iloc)] - float(self.ix_lam[j])) / self.nx_lam))
+        return dist
+    
+    def calc_dist1_lam(self, iloc, jloc):
+        dist = abs(self.nx_lam / np.pi * np.sin(np.pi * (self.ix_lam[int(iloc)] - jloc) / self.nx_lam))
+        return dist
 
 if __name__ == "__main__":
     from matplotlib.gridspec import GridSpec
@@ -175,6 +200,6 @@ if __name__ == "__main__":
     axs[1].set_title('LAM')
     fig.suptitle(f"Nesting Lorenz, N_gm={nx_gm}, K_gm={nk_gm}"\
         +f"\n N_lam={nx_lam}, K_lam={nk_lam}, F={F}, c={c}")
-    fig.savefig(f"l05nest_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}c{c:.1f}.png",dpi=300)
+    fig.savefig(f"lorenz/l05nest_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}c{c:.1f}.png",dpi=300)
     plt.show()
     plt.close()

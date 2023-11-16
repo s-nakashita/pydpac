@@ -11,7 +11,7 @@ logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
 
 class Obs():
-    def __init__(self, operator, sigma, nvars=1, ndims=1, ni=0, nj=0):
+    def __init__(self, operator, sigma, nvars=1, ndims=1, ni=0, nj=0, ix=None, jx=None):
         self.operator = operator
         self.sigma = sigma
         self.gamma = 3
@@ -19,8 +19,10 @@ class Obs():
         self.nvars = nvars
         logger.info(f"nvars={self.nvars}")
         self.ndims = ndims
+        self.ix = ix
         if self.ndims == 2:
             self.ni, self.nj = ni,nj
+            self.jx = jx
             logger.info(f"ni={self.ni} nj={self.nj}")
 
     def get_op(self):
@@ -217,18 +219,34 @@ class Obs():
         #return x + random.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
 
     def itpl1d(self, ri, x):
-        i = math.floor(ri)
-        ai = ri - float(i)
+        if self.ix is None:
+            ix = np.arange(len(x))
+        else:
+            ix = self.ix
+        ii = math.floor(ri)
+        ai = ri - float(ii)
+        i = np.argmin(np.abs(ix - ii))
+        #logger.debug(f"ri={ri} i={i} ai={ai}")
         if i < len(x) - 1:
             return (1.0 - ai)*x[i] + ai*x[i+1]
         else:
             return (1.0 - ai)*x[i] + ai*x[0]
     def itpl2d(self, ri, rj, x):
         x2d = x.reshape(self.ni,self.nj)
-        i = math.floor(ri)
-        j = math.floor(rj)
-        ai = ri - float(i)
-        aj = rj - float(j)
+        if self.ix is None:
+            ix = np.arange(self.ni)
+        else:
+            ix = self.ix
+        if self.jx is None:
+            jx = np.arange(self.nj)
+        else:
+            jx = self.jx
+        ii = math.floor(ri)
+        jj = math.floor(rj)
+        ai = ri - float(ii)
+        aj = rj - float(jj)
+        i = np.argmin(np.abs(ix - ii))
+        j = np.argmin(np.abs(jx - jj))
         logger.debug(f"ri={ri} i={i} ai={ai}")
         logger.debug(f"rj={rj} j={j} aj={aj}")
         if i+1>=self.ni and j+i>=self.nj:

@@ -300,6 +300,8 @@ class Mlef():
                 r, rmat, rinv = self.obs.set_r(yloc)
             else:
                 logger.info("use input R")
+            logger.debug("r={}".format(r))
+            logger.debug("r^[-1/2]={}".format(rmat))
             xf = xb[:, 1:]
             xc = xb[:, 0]
             nmem = xf.shape[1]
@@ -332,6 +334,8 @@ class Mlef():
             else:
                 dh = self.obs.h_operator(yloc,xc[:, None]+pf) - self.obs.h_operator(yloc,xc)[:, None]
             ob = y - self.obs.h_operator(yloc,xc)
+            logger.debug("ob={}".format(ob))
+            logger.debug("dh={}".format(dh))
             if save_dh:
                 np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
                 np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
@@ -460,8 +464,8 @@ class Mlef():
             logger.info("zmat shape={}".format(zmat.shape))
             logger.info("d shape={}".format(d.shape))
             innv, chi2 = chi2_test(zmat, d)
-            ds = self.dof(zmat)
-            logger.info("dof={}".format(ds))
+            ds = self.dfs(zmat)
+            logger.info("dfs={}".format(ds))
             pa = pf @ tmat
             if self.iloc is not None:
                 nmem2 = pf.shape[1]

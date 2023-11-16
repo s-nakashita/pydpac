@@ -63,7 +63,7 @@ class Kf():
         spa = v @ np.diag(np.sqrt(lam)) @ v.transpose()
 
         innv, chi2 = self.chi2(pf, JH, R, ob)
-        ds = self.dof(K, JH)
+        ds = self.dfs(K, JH)
 
         if evalout:
             tmp = np.dot(np.dot(Rsqrtinv,JH),spa)
@@ -85,7 +85,7 @@ class Kf():
         M[:,:] = (self.step(xa[:,None]+E) - xf[:,None])/eps
         return M @ Mb
 
-    def dof(self, K, JH):
+    def dfs(self, K, JH):
         A = K @ JH
         ds = np.sum(np.diag(A))
         logger.info("dfs={}".format(ds))

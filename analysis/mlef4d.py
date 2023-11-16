@@ -209,8 +209,8 @@ class Mlef4d():
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
-    def dof(self, zmat):
-        return self.mlef.dof(zmat)
+    def dfs(self, zmat):
+        return self.mlef.dfs(zmat)
 
     def pfloc(self, sqrtpf, l_mat, save_dh, icycle,\
         op="linear",pt="4dmlefbe",model="model"):
@@ -361,8 +361,8 @@ class Mlef4d():
             logger.info("zmat shape={}".format(zmat.shape))
             logger.info("d shape={}".format(d.shape))
             innv, chi2 = chi2_test(zmat, d)
-            ds = self.dof(zmat)
-            logger.info("dof={}".format(ds))
+            ds = self.dfs(zmat)
+            logger.info("dfs={}".format(ds))
             pa = pf @ tmat 
             if self.iloc is not None:
                 # random sampling

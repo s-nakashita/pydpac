@@ -164,7 +164,7 @@ class Mles_rloc():
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
-    def dof(self, zmat):
+    def dfs(self, zmat):
         z = np.sum(np.array(zmat), axis=0)
         u, s, vt = la.svd(z)
         ds = np.sum(s**2/(1.0+s**2))
@@ -335,8 +335,8 @@ class Mles_rloc():
         logger.info("zmat shape={}".format(np.array(zmat).shape))
         logger.info("d shape={}".format(np.array(d).shape))
         #innv, chi2 = chi2_test(zmat, d)
-        ds = self.dof(zmat)
-        logger.info("dof={}".format(ds))
+        ds = self.dfs(zmat)
+        logger.info("dfs={}".format(ds))
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm

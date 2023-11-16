@@ -412,7 +412,7 @@ class EnKF():
         zmat = rmat @ dh
         d = y - np.mean(self.obs.h_operator(yloc, xa))
         innv, chi2 = chi2_test(zmat, d)
-        ds = self.dof(dy,nmem2)
+        ds = self.dfs(dy,nmem2)
         logger.info("dfs={}".format(ds))
         
         #u = np.zeros_like(xb)
@@ -563,7 +563,7 @@ class EnKF():
             np.save("{}_lpf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), fullpf)
         return dxf
 
-    def dof(self, dy, nmem):
+    def dfs(self, dy, nmem):
         # Zupanski, D. et al., (2007) Applications of information theory in ensemble data assimilation
         # Eq. (10)
         zmat = dy / self.sig / np.sqrt(nmem-1)

@@ -1,10 +1,14 @@
 import numpy as np 
-from lorenz2 import L05II
+try:
+    from lorenz2 import L05II
+except ImportError:
+    from .lorenz2 import L05II
 # Lorenz III model
 # Reference : Lorenz (2005, JAS) Section 4
 class L05III():
-    def __init__(self, nx, nk, ni, b, c, dt, F, cyclic=True):
+    def __init__(self, nx, nk, ni, b, c, dt, F, cyclic=True, ghost=0, debug=False):
         self.nx = nx
+        self.nx_gho = nx + 2*ghost
         self.nk = nk
         self.ni = ni
         i2 = self.ni*self.ni
@@ -16,51 +20,50 @@ class L05III():
         #self.be = 1.0 / i2
         print(f"ni={self.ni} alpha={self.al:.3f} beta={self.be:.3f}")
         #filtering matrix
-        self.filmat = np.zeros((self.nx,self.nx))
-        for i in range(self.nx):
+        self.filmat = np.zeros((self.nx_gho,self.nx_gho))
+        for i in range(self.nx_gho):
             js = i - self.ni
             if js<0:
                 if cyclic:
-                    js+=self.nx
+                    js+=self.nx_gho
                 else:
                     js = 0
             je = i + self.ni + 1
-            if je>self.nx:
+            if je>self.nx_gho:
                 if cyclic:
-                    je-=self.nx
+                    je-=self.nx_gho
                 else:
-                    je=self.nx
-            for j in range(self.nx):
+                    je=self.nx_gho
+            for j in range(self.nx_gho):
                 tmp = 0.0
                 if js<je:
                     if j>=js and j<je:
                         tmp = self.al - self.be*np.abs(j-i)
                 else:
                     if j<je or j>=js:
-                        tmp = self.al - self.be*min(np.abs(j-i),self.nx-np.abs(j-i))
+                        tmp = self.al - self.be*min(np.abs(j-i),self.nx_gho-np.abs(j-i))
                 if j==js or j==(je-1):
                     tmp*=0.5
                 self.filmat[i,j] = tmp
-        ## debug
-        print(self.filmat.max(),self.filmat.min())
-        import matplotlib.pyplot as plt
-        #plt.plot(self.filmat[self.nx//2,:])
-        #plt.matshow(self.filmat)
-        #plt.colorbar()
-        #plt.show()
-        #plt.close()
-        #ztmp = 0.1*(np.arange(self.nx)-self.nx//2)**2 + 1.0
-        #plt.plot(ztmp)
-        #plt.plot(np.dot(self.filmat,ztmp))
-        #plt.show()
-        #plt.close()
-        ## debug
         self.b = b 
         self.c = c
         self.dt = dt
         self.F = F
-        self.l2 = L05II(self.nx,self.nk,self.dt,self.F)
+        self.l2 = L05II(self.nx_gho,self.nk,self.dt,self.F)
         print(f"b={self.b} c={self.c}")
+        if debug:
+            print(self.filmat.max(),self.filmat.min())
+            import matplotlib.pyplot as plt
+            #plt.plot(self.filmat[self.nx_gho//2,:])
+            plt.matshow(self.filmat)
+            plt.colorbar()
+            plt.show()
+            plt.close()
+            #ztmp = 0.1*(np.arange(self.nx)-self.nx//2)**2 + 1.0
+            #plt.plot(ztmp)
+            #plt.plot(np.dot(self.filmat,ztmp))
+            #plt.show()
+            #plt.close()
 
     def get_params(self):
         return self.nx, self.nk, self.ni, self.b, self.c, self.dt, self.F
@@ -150,5 +153,5 @@ if __name__ == "__main__":
     axs[0].set_title("Z")
     axs[1].set_title(r"X+Y($\times$10)")
     fig.suptitle(f"Lorenz III, N={nx}, K={nk}, I={ni}, F={F}")
-    fig.savefig(f"l05III_n{nx}k{nk}i{ni}F{int(F)}.png",dpi=300)
+    fig.savefig(f"lorenz/l05III_n{nx}k{nk}i{ni}F{int(F)}.png",dpi=300)
     plt.show()
