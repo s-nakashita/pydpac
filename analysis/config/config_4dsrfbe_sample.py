@@ -1,6 +1,6 @@
 params = {
  "pt":"4dsrf",
- "nmem":20,
+ "nmem":40,
  "a_window":5,
  "linf":True,
  "lloc":True,

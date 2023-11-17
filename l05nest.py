@@ -20,7 +20,7 @@ nx_true = 960
 ## GM
 intgm = 4                    # grid interval
 nx_gm = nx_true // intgm     # number of points
-nk_gm = 8                    # advection length
+nk_gm = 8                    # advection length scale
 dt_gm = 0.05 / 36            # time step (=1/6 hour)
 ## LAM
 nx_lam = 240                 # number of LAM points

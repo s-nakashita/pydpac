@@ -2,10 +2,20 @@ import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
+linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
+marker = {"3d":"o","4d":"x"}
+sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
+    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
+    "test":1.0, "abs":1.0, "hint":1.0}
+x = np.arange(na) + 1
 if model == "z08":
     #perts = ["mlef", "etkf", "po", "srf"]
     perts = ["mlef-fh", "mlef-jh", "etkf-fh", "etkf-jh"]#, "var"]
@@ -73,11 +83,11 @@ elif model == "qg":
     x = np.arange(na) + 1
 y = np.ones(x.size) * sigma[op]
 if model == "qg":
-    fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,10))
-    fig2, ax2 = plt.subplots(nrows=2,ncols=1,figsize=(12,10))
+    fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
+    fig2, ax2 = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
 else:
-    fig, ax = plt.subplots(figsize=(10,5))
-    fig2, ax2 = plt.subplots(figsize=(10,5))
+    fig, ax = plt.subplots(figsize=(10,5),constrained_layout=True)
+    fig2, ax2 = plt.subplots(figsize=(10,5),constrained_layout=True)
 #ax2 = ax.twinx()
 i = 0
 f = "enda_{}.txt".format(op)

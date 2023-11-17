@@ -9,6 +9,8 @@ perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
 #perturbations="mlef 4dmlef mlefbe"
 perturbations="etkfbm"
 na=100 # Number of assimilation cycle
+nmem=40 # ensemble size
+nobs=40 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
@@ -29,6 +31,9 @@ for op in ${operators}; do
     echo $pert
     cp ../../analysis/config/config_${pert}_sample.py config.py
     gsed -i -e "2i \ \"op\":\"${op}\"," config.py
+    gsed -i -e "2i \ \"na\":${na}," config.py
+    gsed -i -e "2i \ \"nobs\":${nobs}," config.py
+    gsed -i -e "/nmem/s/40/${nmem}/" config.py
     if [ $linf = True ];then
     gsed -i -e '/linf/s/False/True/' config.py
     else

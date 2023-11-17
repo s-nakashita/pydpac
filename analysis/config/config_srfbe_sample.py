@@ -1,6 +1,6 @@
 params = {
  "pt":"srf",
- "nmem":20,
+ "nmem":40,
  "a_window":1,
  "linf":True,
  "lloc":True,

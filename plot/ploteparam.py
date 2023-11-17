@@ -2,11 +2,11 @@ import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-ptype = sys.argv[4]
 if model == "z08" or model == "z05":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
@@ -17,7 +17,7 @@ if model == "z08" or model == "z05":
     #"quadratic-nodiff": 8.0e-2, "cubic-nodiff": 7.0e-4, "quartic-nodiff": 7.0e-4}
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
-elif model == "l96":
+else:
     perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
@@ -28,25 +28,41 @@ elif model == "l96":
     sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
     x = np.arange(na) + 1
-if ptype == "loc":
-    var = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
-elif ptype == "infl":
-    var = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9]
-elif ptype == "nobs":
-    var = [40, 35, 30, 25, 20, 15, 10]
-elif ptype == "nmem":
-    var = [40, 35, 30, 25, 20, 15, 10, 5]
-elif ptype == "nt":
-    var = [1, 2, 3, 4, 5, 6, 7, 8]
-elif ptype == "a_window":
-    perts = ["4dvar","4dletkf","4dmlefbe","4dmlefbm","4dmlefcw","4dmlefy"]
-    linecolor = {"var":"tab:olive",
-    "letkf":"tab:blue",
-    "mlefbe":"tab:red","mlefbm":"tab:pink",
-    "mlefcw":"tab:green","mlefy":"tab:orange"}
-    var = [1, 2, 3, 4, 5, 6, 7, 8]
+if len(sys.argv)>4:
+    ptype = sys.argv[4]
+    if ptype == "loc":
+        var = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
+    elif ptype == "infl":
+        var = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9]
+    elif ptype == "nobs":
+        var = [40, 35, 30, 25, 20, 15, 10]
+    elif ptype == "nmem":
+        var = [40, 35, 30, 25, 20, 15, 10, 5]
+    elif ptype == "nt":
+        var = [1, 2, 3, 4, 5, 6, 7, 8]
+    elif ptype == "a_window":
+        perts = ["4dvar","4dletkf","4dmlefbe","4dmlefbm","4dmlefcw","4dmlefy"]
+        linecolor = {"var":"tab:olive",
+        "letkf":"tab:blue",
+        "mlefbe":"tab:red","mlefbm":"tab:pink",
+        "mlefcw":"tab:green","mlefy":"tab:orange"}
+        var = [1, 2, 3, 4, 5, 6, 7, 8]
+try:
+    with open("params.txt","r") as f:
+        ptype=f.readline()[:-1]
+        var=[]
+        while(True):
+            tmp=f.readline()[:-1]
+            if tmp=='': break
+            if ptype=="loc" or ptype=="infl":
+                var.append(float(tmp))
+            else:
+                var.append(int(tmp))
+except FileNotFoundError:
+    print("not found params.txt")
+    pass
 #y = np.ones(len(var)) * sigma[op]
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(constrained_layout=True)
 methods = []
 mean = []
 std = []

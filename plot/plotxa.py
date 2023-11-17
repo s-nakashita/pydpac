@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
+plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -21,33 +22,41 @@ if not os.path.isfile(f):
     exit
 xt = np.load(f)
 print(xt.shape)
-t = np.arange(na+1)
-xs = np.arange(xt.shape[1]+1)
+nx = xt.shape[1]
+t = np.arange(na)
+xs = np.arange(nx)
+xlim = 15.0
 for pt in perts:
-    fig, ax = plt.subplots()
-    #mappable0 = ax[0].pcolor(xs, t, xt, cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    #ax[0].set_xticks(xs[::10])
-    #ax[0].set_yticks(t[::50])
-    #ax[0].set_xlabel("site")
-    #ax[0].set_ylabel("DA cycle")
-    #ax[0].set_title("truth")
-    #pp = fig.colorbar(mappable0,ax=ax[0],orientation="horizontal")
-    f = "{}_ua_{}_{}.npy".format(model, op, pt)
+    fig, axs = plt.subplots(ncols=3,figsize=[12,6],constrained_layout=True,sharey=True)
+    mp0 = axs[0].pcolormesh(xs, t, xt, shading='auto',\
+        cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
+    axs[0].set_xticks(xs[::(nx//8)])
+    axs[0].set_yticks(t[::(na//8)])
+    axs[0].set_xlabel("site")
+    axs[0].set_ylabel("DA cycle")
+    axs[0].set_title("nature")
+    p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
+    f = "{}_xa_{}_{}.npy".format(model, op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xa = np.load(f)
     print(xa.shape)
     xd = xa - xt
-    #xmax = np.max(xd)*1.01
-    #xmin = np.min(xd)*1.01
-    #xlim = max(np.abs(xmin),xmax)
-    xlim = 15.0
-    mappable0 = ax.pcolor(xs, t, xd, cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    ax.set_xticks(xs[::10])
-    ax.set_yticks(t[::50])
-    ax.set_xlabel("site")
-    ax.set_ylabel("DA cycle")
-    ax.set_title("analysis error "+pt+" "+op)
-    pp = fig.colorbar(mappable0,ax=ax,orientation="vertical")
+    mp1 = axs[1].pcolormesh(xs, t, xa, shading='auto', \
+    cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
+    axs[1].set_xticks(xs[::(nx//8)])
+    axs[1].set_yticks(t[::(na//8)])
+    axs[1].set_xlabel("site")
+    axs[1].set_title("analysis")
+    vlim = np.max(np.abs(xd))
+    p1 = fig.colorbar(mp1,ax=axs[1],orientation="horizontal")
+    mp2 = axs[2].pcolormesh(xs, t, xd, shading='auto', \
+    cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
+    axs[2].set_xticks(xs[::(nx//8)])
+    axs[2].set_yticks(t[::(na//8)])
+    axs[2].set_xlabel("site")
+    axs[2].set_title("error")
+    p2 = fig.colorbar(mp2,ax=axs[2],orientation="horizontal")
+    fig.suptitle("nature, analysis, error "+pt+" "+op)
     fig.savefig("{}_xa_{}_{}.png".format(model,op,pt))
