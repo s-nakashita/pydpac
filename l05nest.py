@@ -36,12 +36,16 @@ F = 15.0                     # forcing
 step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
     ni, b, c, dt_gm, F, intgm, ist_lam, nsp)
 
+np.savetxt("ix_true.txt",step.ix_true)
+np.savetxt("ix_gm.txt",step.ix_gm)
+np.savetxt("ix_lam.txt",step.ix_lam)
+
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.05,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
+infl_l = {"mlef":1.2,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}

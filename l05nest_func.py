@@ -247,7 +247,7 @@ class L05nest_func():
         ax.plot(self.step.ix_true, ut, label="true")
         ax.plot(self.step.ix_gm, uc_gm, label="GM,control")
         ax.plot(self.step.ix_lam, uc_lam, label="LAM,control")
-        for i in range(min(u_gm.shape[1], 5)):
+        for i in range(0,u_gm.shape[1],u_gm.shape[1]//5):
             ax.plot(self.step.ix_gm, u_gm[:,i]+uc_gm, ls="--", c='gray',label="GM,mem{}".format(i+1))
             ax.plot(self.step.ix_lam, u_lam[:,i]+uc_lam, ls="dotted", c='gray',label="LAM,mem{}".format(i+1))
         ax.set(xlabel="points", ylabel="X", title="initial state")

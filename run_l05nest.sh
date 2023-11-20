@@ -3,23 +3,24 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlefcw"
+perturbations="mlef"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
 na=10 # Number of assimilation cycle
-nmem=40 # ensemble size
+nmem=120 # ensemble size
+nobs=60 # observation volume
 linf=True  # True:Apply inflation False:Not apply
-lloc=True # True:Apply localization False:Not apply
+lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 exp="test"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-#rm -rf work/${model}/${exp}
+rm -rf work/${model}/${exp}
 mkdir -p work/${model}/${exp}
 cd work/${model}/${exp}
 cp ${cdir}/logging_config.ini .
@@ -33,6 +34,7 @@ for op in ${operators}; do
     cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
     gsed -i -e "2i \ \"op\":\"${op}\"," config.py
     gsed -i -e "2i \ \"na\":${na}," config.py
+    gsed -i -e "2i \ \"nobs\":${nobs}," config.py
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
     if [ $linf = True ];then
     gsed -i -e '/linf/s/False/True/' config.py
@@ -88,17 +90,17 @@ for op in ${operators}; do
     #  mv ${model}_lspf_${op}_${pt}_cycle$icycle.npy ${model}_lspf_${op}_${pert}_cycle$icycle.npy
     #  fi
     done
-    #python ../../plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python ../../plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #python ../../plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #python ../../plot/plotlpf.py ${op} ${model} ${na} ${pert} 
+    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
   done
-  #python ../../plot/plote.py ${op} ${model} ${na} mlef
-  #python ../../plot/plotchi.py ${op} ${model} ${na}
-  #python ../../plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-  #python ../../plot/plotxa.py ${op} ${model} ${na}
-  #python ../../plot/plotdof.py ${op} ${model} ${na}
+  python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
+  #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
+  python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   
   #rm obs*.npy
 done

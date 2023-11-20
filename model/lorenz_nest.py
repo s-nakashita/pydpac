@@ -21,6 +21,8 @@ class L05nest():
         print("LAM")
         self.nx_lam = nx_lam
         self.nk_lam = nk_lam
+        self.ghost = int(np.ceil(5*self.nk_lam/2))
+        print(f"ghost point={self.ghost}")
         self.ni = ni
         self.b = b
         self.c = c
@@ -30,14 +32,14 @@ class L05nest():
         self.F = F
         self.ix_lam = np.arange(ist_lam,ist_lam+self.nx_lam,dtype=np.int32)
         self.xaxis_lam = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam / self.nx_true)
-        self.ix_lam_ext = np.arange(ist_lam-self.nk_lam,ist_lam+self.nx_lam+self.nk_lam,dtype=np.int32) # including xaxiseral boundaries
+        self.ix_lam_ext = np.arange(ist_lam-self.ghost,ist_lam+self.nx_lam+self.ghost,dtype=np.int32) # including xaxis lateral boundaries
         self.xaxis_lam_ext = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam_ext / self.nx_true)
         self.lam = L05III(self.nx_lam, self.nk_lam, self.ni, \
             self.b, self.c, self.dt_lam, self.F,\
-            cyclic=False, ghost=self.nk_lam)
+            cyclic=False, ghost=self.ghost)
         # Global model (GM)
         print("GM")
-        self.intgm = intgm # grid interval of GM rexaxisive to LAM
+        self.intgm = intgm # grid interval of GM relative to LAM
         self.nx_gm = nx_gm
         self.nk_gm = nk_gm
         self.ix_gm = np.arange(0,self.nx_gm*self.intgm,self.intgm,dtype=np.int32)
@@ -70,23 +72,33 @@ class L05nest():
         #GM
         xf_gm = self.gm(x_gm)
         #LAM
-        gm2lam = interp1d(self.ix_gm, x_gm, axis=0)
-        x_lam_ext = gm2lam(self.ix_lam_ext)
+        ## boundary conditions from previous step
+        gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
+        ## boundary conditions from nest step
+        gm2lam1 = interp1d(self.ix_gm, xf_gm, axis=0)
+        x_lam_ext = gm2lam0(self.ix_lam_ext)
+        x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam
         #print(x_lam_ext.shape)
-        x_lam_ext[self.nk_lam:self.nk_lam+self.nx_lam] = x_lam
         for i in range(self.lamstep):
-            xf_lam_ext = self.lam(x_lam_ext)
-            x_lam_ext = xf_lam_ext
-        xf_lam = xf_lam_ext[self.nk_lam:self.nk_lam+self.nx_lam]
-        # Davies relaxation
-        gm2lam = interp1d(self.ix_gm, xf_gm, axis=0)
-        xf_gm2lam = gm2lam(self.ix_lam)
-        if xf_lam.ndim==2:
-            xf_lam[:self.nsp]  = xf_lam[:self.nsp]*(1.0-self.rlx[::-1,None]) + xf_gm2lam[:self.nsp]*self.rlx[::-1,None]
-            xf_lam[-self.nsp:] = xf_lam[-self.nsp:]*(1.0-self.rlx[:,None]) + xf_gm2lam[-self.nsp:]*self.rlx[:,None]
-        else:
-            xf_lam[:self.nsp]  = xf_lam[:self.nsp]*(1.0-self.rlx[::-1]) + xf_gm2lam[:self.nsp]*self.rlx[::-1]
-            xf_lam[-self.nsp:] = xf_lam[-self.nsp:]*(1.0-self.rlx[:]) + xf_gm2lam[-self.nsp:]*self.rlx[:]
+            x_lam_ext = self.lam(x_lam_ext)
+            # boundary conditions
+            t_wgt = (self.lamstep-i-1)/self.lamstep
+            x0_gm2lamext = gm2lam0(self.ix_lam_ext)
+            x1_gm2lamext = gm2lam1(self.ix_lam_ext)
+            x_lam_ext[:self.ghost] = t_wgt*x0_gm2lamext[:self.ghost] + (1.0-t_wgt)*x1_gm2lamext[:self.ghost]
+            x_lam_ext[-self.ghost:] = t_wgt*x0_gm2lamext[-self.ghost:] + (1.0-t_wgt)*x1_gm2lamext[-self.ghost:]
+            # Davies relaxation
+            #x0_gm2lam = gm2lam0(self.ix_lam)
+            #x1_gm2lam = gm2lam1(self.ix_lam)
+            x0_gm2lam = x0_gm2lamext[self.ghost:self.ghost+self.nx_lam]
+            x1_gm2lam = x1_gm2lamext[self.ghost:self.ghost+self.nx_lam]
+            if x_lam_ext.ndim==2:
+                x_lam_ext[self.ghost:self.ghost+self.nsp]  = x_lam_ext[self.ghost:self.ghost+self.nsp]*(1.0-self.rlx[::-1,None]) + (t_wgt*x0_gm2lam[:self.nsp]+(1.0-t_wgt)*x1_gm2lam[:self.nsp])*self.rlx[::-1,None]
+                x_lam_ext[self.nx_lam+self.ghost-self.nsp:self.nx_lam+self.ghost] = x_lam_ext[self.nx_lam+self.ghost-self.nsp:self.nx_lam+self.ghost]*(1.0-self.rlx[:,None]) + (t_wgt*x0_gm2lam[-self.nsp:]+(1.0-t_wgt)*x1_gm2lam[-self.nsp:])*self.rlx[:,None]
+            else:
+                x_lam_ext[self.ghost:self.ghost+self.nsp]  = x_lam_ext[self.ghost:self.ghost+self.nsp]*(1.0-self.rlx[::-1]) + (t_wgt*x0_gm2lam[:self.nsp]+(1.0-t_wgt)*x1_gm2lam[:self.nsp])*self.rlx[::-1]
+                x_lam_ext[self.nx_lam+self.ghost-self.nsp:self.nx_lam+self.ghost] = x_lam_ext[self.nx_lam+self.ghost-self.nsp:self.nx_lam+self.ghost]*(1.0-self.rlx[:]) + (t_wgt*x0_gm2lam[-self.nsp:]+(1.0-t_wgt)*x1_gm2lam[-self.nsp:])*self.rlx[:]
+        xf_lam = x_lam_ext[self.ghost:self.ghost+self.nx_lam]
         return xf_gm, xf_lam
 
     def calc_dist_gm(self, iloc):
@@ -123,7 +135,7 @@ if __name__ == "__main__":
     c = 0.6
     dt = 0.05 / 36.0
     F = 15.0
-    ist_lam = 60
+    ist_lam = 240
     nsp = 10
     step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F, intgm, ist_lam, nsp)
     

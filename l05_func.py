@@ -216,8 +216,8 @@ class L05_func():
         x = np.arange(ut.size)
         ax.plot(x, ut, label="true")
         ax.plot(x, uc, label="control")
-        for i in range(0,u.shape[1],10):
-            ax.plot(x, u[:,i]+uc, linestyle="--", label="mem{}".format(i+1))
+        for i in range(0,u.shape[1],u.shape[1]//5):
+            ax.plot(x, u[:,i]+uc, linestyle="--",c='gray',label="mem{}".format(i+1))
         ax.set(xlabel="points", ylabel="X", title="initial lag={}".format(lag))
         ax.set_xticks(x[::(self.nx//10)])
         ax.set_xticks(x[::(self.nx//40)], minor=True)

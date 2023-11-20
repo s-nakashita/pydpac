@@ -69,6 +69,7 @@ std = []
 for pt in perts:
     #fig, ax = plt.subplots()
     i = 0
+    j = 0
     el = np.zeros(len(var))
     es = np.zeros(len(var))
     for ivar in var:
@@ -87,8 +88,9 @@ for pt in perts:
         el[i] = np.mean(e[0,int(na/3):])
         es[i] = np.mean(e[1,int(na/3):])
         i += 1
+        j += 1
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
-    if i > 0:
+    if j > 0:
         methods.append(pt)
         mean.append(el)
         std.append(es)
@@ -108,7 +110,8 @@ ax.set(xlabel="{} parameter".format(ptype), ylabel="RMSE",
             title=op)
 ax.set_xticks(np.arange(len(var)))
 ax.set_xticklabels(var)
-ax.legend(loc='upper left')
+if len(methods) > 1:
+    ax.legend(loc='upper left')
         #fig.savefig("{}_e{}_{}_{}.png".format(model, ptype, op, pt))
 fig.savefig("{}_e{}_{}.png".format(model, ptype, op))
 #fig.savefig("{}_e_{}+nodiff.pdf".format(model, op))

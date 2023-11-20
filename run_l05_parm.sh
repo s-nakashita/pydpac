@@ -6,15 +6,16 @@ operators="linear" # quadratic" # cubic"
 perturbations="mlef"
 na=100 # Number of assimilation cycle
 nmem=80 # ensemble size
+nobs=30 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="test_nobs"
+exp="test_nmem"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-#rm -rf work/${model}/${exp}
+rm -rf work/${model}/${exp}
 mkdir -p work/${model}/${exp}
 cd work/${model}/${exp}
 cp ${cdir}/logging_config.ini .
@@ -22,23 +23,23 @@ rm -rf *.npy
 rm -rf *.log
 rm -rf timer
 touch timer
-nmemlist="20 40 60 80 100"
+nmemlist="40 80 120 160 200"
 lsiglist="5 10 15 20"
 nobslist="240 120 60 30 15"
 touch params.txt
 for op in ${operators}; do
-  #echo nmem > params.txt
+  echo nmem > params.txt
   #echo loc > params.txt
-  echo nobs > params.txt
-  #for nmem in ${nmemlist}; do
-  #  echo $nmem >> params.txt
-  #  ptmp=$nmem
+  #echo nobs > params.txt
+  for nmem in ${nmemlist}; do
+    echo $nmem >> params.txt
+    ptmp=$nmem
   #for lsig in ${lsiglist}; do
   #  echo $lsig >> params.txt
   #  ptmp=$lsig
-  for nobs in ${nobslist}; do
-    echo $nobs >> params.txt
-    ptmp=$nobs
+  #for nobs in ${nobslist}; do
+  #  echo $nobs >> params.txt
+  #  ptmp=$nobs
     for pert in ${perturbations}; do
       echo $pert
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
