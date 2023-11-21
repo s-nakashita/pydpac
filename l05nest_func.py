@@ -16,7 +16,7 @@ class L05nest_func():
         self.step = step
         self.nx_true = step.nx_true
         (self.nx_gm, self.nk_gm, self.dt_gm, self.F_gm),\
-        (self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.dt_lam, self.F_lam) \
+        (self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.dt_lam, self.F_lam), self.lamstep \
             = self.step.get_params()
         logger.info("GM: nx={} nk={} F={} dt={:7.3e}".format(\
             self.nx_gm, self.nk_gm, self.F_gm, self.dt_gm))
@@ -57,6 +57,7 @@ class L05nest_func():
         logger.info("inflation={} localization={} TLM={}".format(self.linf_lam,self.lloc_lam,self.ltlm_lam))
         logger.info("infl_parm={} loc_parm={}".format(self.infl_parm_lam, self.lsig_lam))
         logger.info("Assimilation window size = {}".format(self.a_window))
+        self.lamstart = params_lam["lamstart"]
     
     # generate truth
     def gen_true(self):
@@ -72,13 +73,15 @@ class L05nest_func():
         # spin up
         logger.debug(self.namax*self.nt)
         for k in range(self.namax*self.nt):
-            tmp = self.step_true(x)
-            x[:] = tmp[:]
+            for j in range(self.lamstep):
+                tmp = self.step_true(x)
+                x[:] = tmp[:]
         xt[0, :] = x
         for i in range(self.na-1):
             for k in range(self.nt):
-                tmp = self.step_true(x)
-                x[:] = tmp[:]
+                for j in range(self.lamstep):
+                    tmp = self.step_true(x)
+                    x[:] = tmp[:]
             xt[i+1, :] = x
         return xt
 
@@ -198,6 +201,8 @@ class L05nest_func():
         xa_lam = np.zeros((self.na, self.nx_lam))
         xf_gm = np.zeros_like(xa_gm)
         xf_lam = np.zeros_like(xa_lam)
+        xsa_gm = np.zeros_like(xa_gm)
+        xsa_lam = np.zeros_like(xa_lam)
         if self.ft == "deterministic":
             u_gm, u_lam = self.init_ctl()
             xf_gm[0] = u_gm
@@ -220,7 +225,7 @@ class L05nest_func():
         #    savepa = np.zeros((self.na, self.nx, self.nmem-1))
         #else:
         #savepa = np.zeros((self.na, self.nx, self.nx))
-        return u_gm, xa_gm, xf_gm, pa_gm, u_lam, xa_lam, xf_lam, pa_lam #, savepa
+        return u_gm, xa_gm, xf_gm, pa_gm, xsa_gm, u_lam, xa_lam, xf_lam, pa_lam, xsa_lam #, savepa
 
     # forecast
     def forecast(self, u_gm, u_lam):

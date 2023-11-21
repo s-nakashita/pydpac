@@ -66,7 +66,7 @@ class L05nest():
         #plt.close()
 
     def get_params(self):
-        return self.gm.get_params(), self.lam.get_params()
+        return self.gm.get_params(), self.lam.get_params(), self.lamstep
 
     def __call__(self,x_gm,x_lam):
         #GM

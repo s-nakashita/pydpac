@@ -24,7 +24,7 @@ nk_gm = 8                    # advection length scale
 dt_gm = 0.05 / 36            # time step (=1/6 hour)
 ## LAM
 nx_lam = 240                 # number of LAM points
-ist_lam = 60                 # first grid index
+ist_lam = 240                # first grid index
 nsp = 10                     # width of sponge region
 nk_lam = 32                  # advection length
 ni = 12                      # spatial filter width
@@ -102,6 +102,7 @@ params_gm["getkf"]      =  False   # (For model space localization) gain form re
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params_lam = params_gm.copy()
+params_lam["lamstart"] = 0 # first cycle of LAM analysis and forecast
 
 ## update from configure file
 sys.path.append('./')
@@ -225,7 +226,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs, iobs_lam = func.get_true_and_obs(obsloctype="regular")
-    u_gm, xa_gm, xf_gm, pa_gm, u_lam, xa_lam, xf_lam, pa_lam = func.initialize(opt=0)
+    u_gm, xa_gm, xf_gm, pa_gm, xsa_gm, u_lam, xa_lam, xf_lam, pa_lam, xsa_lam = func.initialize(opt=0)
     logger.debug(u_gm.shape)
     logger.debug(u_lam.shape)
     func.plot_initial(u_gm[:,0], u_gm[:,1:], u_lam[:,0], u_lam[:,1:], xt[0], pt)
@@ -250,9 +251,10 @@ if __name__ == "__main__":
         y_lam = y[iobs_lam[i:min(i+a_window,na),:]==1.0]
         logger.info("observation location {}".format(yloc))
         logger.info("obs={}".format(y))
-        logger.info("iobs_lam={}".format(iobs_lam[i,]))
-        logger.info("observation location in LAM {} {}".format(yloc_lam,yloc_lam.shape))
-        logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
+        if i >= params_lam["lamstart"]:
+            logger.info("iobs_lam={}".format(iobs_lam[i,]))
+            logger.info("observation location in LAM {} {}".format  (yloc_lam,yloc_lam.shape))
+            logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
         #if i in [1, 50, 100, 150, 200, 250]:
         if i < 0:
@@ -264,21 +266,31 @@ if __name__ == "__main__":
                     chi_gm[i+j] = chi2
                     innov[i+j,:innv.size] = innv
                     dof_gm[i+j] = ds
-                u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
+                if i >= params_lam["lamstart"]:
+                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
                     save_hist=True, save_dh=True, icycle=i)
-                for j in range(y_lam.shape[0]):
-                    chi_lam[i+j] = chi2
-                    dof_lam[i+j] = ds
+                    for j in range(y_lam.shape[0]):
+                        chi_lam[i+j] = chi2
+                        dof_lam[i+j] = ds
+                else:
+                    gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
+                    u_lam = gm2lam(step.ix_lam)
+                    pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
             else:
                 u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(u_gm, pf_gm, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
                 chi_gm[i] = chi2
                 innov[i] = innv
                 dof_gm[i] = ds
-                u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
+                if i >= params_lam["lamstart"]:
+                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
                     save_hist=True, save_dh=True, icycle=i)
-                chi_lam[i] = chi2
-                dof_lam[i] = ds
+                    chi_lam[i] = chi2
+                    dof_lam[i] = ds
+                else:
+                    gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
+                    u_lam = gm2lam(step.ix_lam)
+                    pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
         else:
             ##if a_window > 1:
             if pt[:2] == "4d":
@@ -287,20 +299,30 @@ if __name__ == "__main__":
                     chi_gm[i+j] = chi2
                     innov[i+j,:innv.size] = innv
                     dof_gm[i+j] = ds
-                u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)
-                for j in range(y_lam.shape[0]):
-                    chi_lam[i+j] = chi2
-                    dof_lam[i+j] = ds
+                if i >= params_lam["lamstart"]:
+                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)
+                    for j in range(y_lam.shape[0]):
+                        chi_lam[i+j] = chi2
+                        dof_lam[i+j] = ds
+                else:
+                    gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
+                    u_lam = gm2lam(step.ix_lam)
+                    pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
             else:
                 u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(u_gm, pf_gm, y[0], yloc[0], icycle=i)#,\
                 #    save_w=True)
                 chi_gm[i] = chi2
                 innov[i] = innv
                 dof_gm[i] = ds
-                u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)#,\
-                #    save_w=True)
-                chi_lam[i] = chi2
-                dof_lam[i] = ds
+                if i >= params_lam["lamstart"]:
+                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)#,\
+                    #    save_w=True)
+                    chi_lam[i] = chi2
+                    dof_lam[i] = ds
+                else:
+                    gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
+                    u_lam = gm2lam(step.ix_lam)
+                    pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
         ## additive inflation
         #if linf:
         #    logger.info("==additive inflation==")
@@ -395,11 +417,15 @@ if __name__ == "__main__":
             e_lam[i] = np.sqrt(np.mean((xa_lam[i, :] - true2gm(step.ix_lam))**2))
         stda_gm[i] = np.sqrt(np.trace(pa_gm)/nx_gm)
         stda_lam[i] = np.sqrt(np.trace(pa_lam)/nx_lam)
+        xsa_gm[i] = np.sqrt(np.diag(pa_gm))
+        xsa_lam[i] = np.sqrt(np.diag(pa_lam))
 
     np.save("{}_xfgm_{}_{}.npy".format(model, op, pt), xf_gm)
     np.save("{}_xagm_{}_{}.npy".format(model, op, pt), xa_gm)
+    np.save("{}_xsagm_{}_{}.npy".format(model, op, pt), xsa_gm)
     np.save("{}_xflam_{}_{}.npy".format(model, op, pt), xf_lam)
     np.save("{}_xalam_{}_{}.npy".format(model, op, pt), xa_lam)
+    np.save("{}_xsalam_{}_{}.npy".format(model, op, pt), xsa_lam)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
     np.savetxt("{}_e_gm_{}_{}.txt".format(model, op, pt), e_gm)

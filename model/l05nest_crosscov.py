@@ -17,7 +17,7 @@ b = 10.0
 c = 0.6
 dt = 0.05 / 36.0
 F = 15.0
-ist_lam = 60
+ist_lam = 240
 nsp = 10
 step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F, intgm, ist_lam, nsp)
 ## ensemble size
@@ -99,7 +99,7 @@ axs[1].set_xlabel("location")
 axs[0].set_ylabel("time(days)")
 axs[0].set_title("GM")
 axs[1].set_title("LAM")
-fig.savefig(f"l05nest_hov_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
+fig.savefig(f"lorenz/l05nest_hov_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
 plt.show()
 plt.close()
 
@@ -117,7 +117,7 @@ axs[1].set_xlabel("location")
 axs[0].set_ylabel("time(days)")
 axs[0].set_title("GM")
 axs[1].set_title("LAM")
-fig.savefig(f"l05nest_hov_sprd_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
+fig.savefig(f"lorenz/l05nest_hov_sprd_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
 plt.show()
 plt.close()
 
@@ -177,5 +177,5 @@ axs[0].set_title(r"$\mathbf{X}^\mathrm{b}_\mathrm{LAM}(\mathbf{X}^\mathrm{b}_\ma
 axs[1].set_title(r"$\mathbf{X}^\mathrm{b}_\mathrm{LAM}(\mathbf{H}_1\mathbf{X}^\mathrm{b}_\mathrm{GM})^\mathrm{T}$")
 axs[2].set_title(r"$\mathbf{H}_1\mathbf{X}^\mathrm{b}_\mathrm{GM}(\mathbf{X}^\mathrm{b}_\mathrm{LAM})^\mathrm{T}$")
 axs[3].set_title(r"$\mathbf{H}_1\mathbf{X}^\mathrm{b}_\mathrm{GM}(\mathbf{H}_1\mathbf{X}^\mathrm{b}_\mathrm{GM})^\mathrm{T}$")
-fig.savefig(f"l05nest_crosscov_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
+fig.savefig(f"lorenz/l05nest_crosscov_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
 plt.show()
