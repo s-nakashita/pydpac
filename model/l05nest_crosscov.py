@@ -5,9 +5,11 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 plt.rcParams['font.size'] = 16
+from pathlib import Path
+import sys
 
 nx_true = 960
-nx_lam  = 240
+nx_lam  = 480
 nx_gm   = 240
 intgm   = 4
 nk_lam  = 32
@@ -19,9 +21,16 @@ dt = 0.05 / 36.0
 F = 15.0
 ist_lam = 240
 nsp = 10
-step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F, intgm, ist_lam, nsp)
+po = 1
+if len(sys.argv)>1:
+    po = int(sys.argv[1])
+step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F,\
+    intgm, ist_lam, nsp, po=po)
 ## ensemble size
-nens = 50
+nens = 720
+outdir=Path(f'lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}')
+if not outdir.exists():
+    outdir.mkdir()
 
 x0c_gm = np.ones(nx_gm)*F
 x0c_gm[nx_gm//2-1] += 0.001*F
@@ -83,6 +92,8 @@ X_gm, T_gm = np.meshgrid(step.ix_gm,time)
 X_lam, T_lam = np.meshgrid(step.ix_lam,time)
 print(X_gm.shape)
 print(X_lam.shape)
+print("GM  mean={:.3f}".format(x_gm[:,:,0].mean()))
+print("LAM mean={:.3f}".format(x_lam[:,:,0].mean()))
 fig, axs = plt.subplots(ncols=2,figsize=[12,8],sharey=True,constrained_layout=True)
 p0 = axs[0].pcolormesh(X_gm,T_gm,x_gm[:,:,0],shading='auto',cmap='coolwarm',\
     vmin=-12.,vmax=12.)
@@ -99,8 +110,8 @@ axs[1].set_xlabel("location")
 axs[0].set_ylabel("time(days)")
 axs[0].set_title("GM")
 axs[1].set_title("LAM")
-fig.savefig(f"lorenz/l05nest_hov_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
-plt.show()
+fig.savefig(outdir/"hov_gm+lam.png",dpi=300)
+plt.show(block=False)
 plt.close()
 
 fig, axs = plt.subplots(ncols=2,figsize=[12,8],sharey=True,constrained_layout=True)
@@ -117,14 +128,15 @@ axs[1].set_xlabel("location")
 axs[0].set_ylabel("time(days)")
 axs[0].set_title("GM")
 axs[1].set_title("LAM")
-fig.savefig(f"lorenz/l05nest_hov_sprd_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
-plt.show()
+fig.savefig(outdir/"hov_sprd_gm+lam.png",dpi=300)
+plt.show(block=False)
 plt.close()
 
 # covariance
 x_gm  = x_gm - x_gm.mean(axis=2)[:,:,None]
 x_lam = x_lam - x_lam.mean(axis=2)[:,:,None]
 B_lam = np.zeros((nx_lam,nx_lam))
+B_gmfull = np.zeros((nx_gm,nx_gm))
 B_gm  = np.zeros((nx_lam,nx_lam))
 E_gl  = np.zeros((nx_lam,nx_lam))
 E_lg  = np.zeros((nx_lam,nx_lam))
@@ -134,6 +146,8 @@ nsample = 0
 for i in range(nts,nte):
     bmat = np.dot(x_lam[i,:,:],x_lam[i,:,:].T)/float(nens-1)
     B_lam = B_lam + bmat
+    bmat = np.dot(x_gm[i,:,:],x_gm[i,:,:].T)/float(nens-1)
+    B_gmfull = B_gmfull + bmat
     gm2lam = interp1d(step.ix_gm,x_gm[i,:,:],axis=0)
     xtmp = gm2lam(step.ix_lam)
     bmat = np.dot(xtmp,xtmp.T)/float(nens-1)
@@ -144,6 +158,7 @@ for i in range(nts,nte):
     E_lg = E_lg + b_lg
     nsample += 1
 B_lam = B_lam / nsample
+B_gmfull = B_gmfull / nsample
 B_gm = B_gm / nsample
 E_gl = E_gl / nsample
 E_lg = E_lg / nsample
@@ -177,5 +192,14 @@ axs[0].set_title(r"$\mathbf{X}^\mathrm{b}_\mathrm{LAM}(\mathbf{X}^\mathrm{b}_\ma
 axs[1].set_title(r"$\mathbf{X}^\mathrm{b}_\mathrm{LAM}(\mathbf{H}_1\mathbf{X}^\mathrm{b}_\mathrm{GM})^\mathrm{T}$")
 axs[2].set_title(r"$\mathbf{H}_1\mathbf{X}^\mathrm{b}_\mathrm{GM}(\mathbf{X}^\mathrm{b}_\mathrm{LAM})^\mathrm{T}$")
 axs[3].set_title(r"$\mathbf{H}_1\mathbf{X}^\mathrm{b}_\mathrm{GM}(\mathbf{H}_1\mathbf{X}^\mathrm{b}_\mathrm{GM})^\mathrm{T}$")
-fig.savefig(f"lorenz/l05nest_crosscov_gm+lam_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
-plt.show()
+fig.savefig(outdir/"crosscov_gm+lam.png",dpi=300)
+plt.show(block=False)
+plt.close()
+np.savetxt(outdir/"ix_true.txt",step.ix_true)
+np.savetxt(outdir/"ix_gm.txt",step.ix_gm)
+np.savetxt(outdir/"ix_lam.txt",step.ix_lam)
+np.save(outdir/"B_lam.npy",B_lam)
+np.save(outdir/"B_gm.npy",B_gm)
+np.save(outdir/"B_gmfull.npy",B_gmfull)
+np.save(outdir/"E_lg.npy",E_lg)
+np.save(outdir/"E_gl.npy",E_gl)

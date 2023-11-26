@@ -1,0 +1,75 @@
+import sys
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+plt.rcParams['font.size'] = 16
+
+op = sys.argv[1]
+model = sys.argv[2]
+na = int(sys.argv[3])
+perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
+linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
+marker = {"3d":"o","4d":"x"}
+sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
+    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
+    "test":1.0, "abs":1.0, "hint":1.0}
+ix_gm = np.loadtxt('ix_gm.txt')
+y_gm = np.ones(ix_gm.size) * sigma[op]
+ix_lam = np.loadtxt('ix_lam.txt')
+y_lam = np.ones(ix_lam.size) * sigma[op]
+fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
+i = 0
+for pt in perts:
+    #GM
+    f = "xdmean_gm_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    xdmean_gm = np.loadtxt(f)
+    if np.isnan(xdmean_gm).any():
+        print("divergence in {}".format(pt))
+        continue
+    print("{}, GM mean RMSE = {}".format(pt,np.mean(xdmean_gm)))
+    f = "xsmean_gm_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    xsmean_gm = np.loadtxt(f)
+    print("{}, GM mean SPREAD = {}".format(pt,np.mean(xsmean_gm)))
+    #LAM
+    f = "xdmean_lam_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    xdmean_lam = np.loadtxt(f)
+    if np.isnan(xdmean_lam).any():
+        print("divergence in {}".format(pt))
+        continue
+    print("{}, LAM mean RMSE = {}".format(pt,np.mean(xdmean_lam)))
+    f = "xsmean_lam_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    xsmean_lam = np.loadtxt(f)
+    print("{}, LAM mean SPREAD = {}".format(pt,np.mean(xsmean_lam)))
+    ax[0].plot(ix_gm, xdmean_gm, linestyle="solid", color=linecolor[pt], label=pt)
+    ax[1].plot(ix_lam, xdmean_lam, linestyle="solid", color=linecolor[pt], label=pt)
+    ax[0].plot(ix_gm, xsmean_gm, linestyle="dashed", color=linecolor[pt])
+    ax[1].plot(ix_lam, xsmean_lam, linestyle="dashed", color=linecolor[pt])
+# observation error (loosely dashed)
+ax[0].plot(ix_gm, y_gm, linestyle=(0, (5, 10)), color='black')
+ax[1].plot(ix_lam, y_lam, linestyle=(0, (5, 10)), color='black')
+ax[0].vlines([ix_lam[0],ix_lam[-1]],0,1,colors='gray',alpha=0.5,transform=ax[0].get_xaxis_transform())
+ax[0].set(xlabel="state", ylabel="RMSE or SPREAD",
+        title=op+" GM")
+ax[1].set(xlabel="state", ylabel="RMSE or SPREAD",
+        title=op+" LAM")
+#ax[0].set_xticks(ix_gm[::(ix_gm.size//8)])
+#ax[1].set_xticks(ix_gm[::(ix_lam.size//8)])
+for i in range(2):
+    ax[i].set_xlim(ix_gm[0],ix_gm[-1])
+    ax[i].set_xticks(ix_gm[::(ix_gm.size//8)])
+    ax[i].legend()
+fig.savefig("{}_xd_{}.png".format(model, op))

@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('param')
+#np.random.seed(514)
 
 class L05nest_func():
 
@@ -16,7 +17,7 @@ class L05nest_func():
         self.step = step
         self.nx_true = step.nx_true
         (self.nx_gm, self.nk_gm, self.dt_gm, self.F_gm),\
-        (self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.dt_lam, self.F_lam), self.lamstep \
+        (self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.dt_lam, self.F_lam), self.lamstep, self.nsp \
             = self.step.get_params()
         logger.info("GM: nx={} nk={} F={} dt={:7.3e}".format(\
             self.nx_gm, self.nk_gm, self.F_gm, self.dt_gm))
@@ -24,6 +25,7 @@ class L05nest_func():
             self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.F_lam, self.dt_lam))
         logger.info("GM region: {} to {} by {}".format(step.ix_gm[0],step.ix_gm[-1],(step.ix_gm[1]-step.ix_gm[0])))
         logger.info("LAM region: {} to {} by {}".format(step.ix_lam[0],step.ix_lam[-1],(step.ix_lam[1]-step.ix_lam[0])))
+        logger.info("LAM step per 1 GM step ={}, LAM sponge width ={}".format(self.lamstep, self.nsp))
         self.obs = obs
         self.nobs = params_gm["nobs"]
         self.nmem = params_gm["nmem"]
@@ -37,6 +39,7 @@ class L05nest_func():
         self.pt = params_gm["pt"]
         self.ft = params_gm["ft"]
         logger.info("nobs={}".format(self.nobs))
+        logger.info("nmem={}".format(self.nmem))
         logger.info("nt={} na={}".format(self.nt, self.na))
         logger.info("operator={} perturbation={} sig_obs={} ftype={}".format\
         (self.op, self.pt, self.obs.get_sig(), self.ft))
@@ -99,6 +102,9 @@ class L05nest_func():
         else:
             logger.info("read truth")
             xt = np.load(truefile)
+        if xt.shape[0] < self.na:
+            xt = self.gen_true()
+            np.save("truth.npy",xt)
         #logger.debug("xt={}".format(xt))
 
         xloc = self.step.ix_true
@@ -114,6 +120,7 @@ class L05nest_func():
                 logger.info("entire observation")
                 obsloc = xloc.copy()
                 obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                #obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                 for k in range(self.na):
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
@@ -123,6 +130,7 @@ class L05nest_func():
                 intobs = self.nx_true // self.nobs
                 obsloc = xloc[::intobs]
                 obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                #obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                 for k in range(self.na):
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
@@ -134,6 +142,7 @@ class L05nest_func():
                     #obsloc = xloc[:self.nobs]
                     #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs)
                     obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                    #obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
                     iobs_lam[k,:] = obs_in_lam
@@ -173,7 +182,6 @@ class L05nest_func():
             X0c_gm, X0c_lam = self.init_ctl()
             logger.debug("X0c_gm={}".format(X0c_gm))
             logger.debug("X0c_lam={}".format(X0c_lam))
-            np.random.seed(514)
             X0_gm = np.zeros((self.nx_gm, len(t0f)))
             X0_gm[:, :] = np.random.normal(0.0,1.0,size=(self.nx_gm,len(t0f))) + X0c_gm[:, None]
             for j in range(self.t0c):

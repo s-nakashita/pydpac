@@ -11,7 +11,7 @@ linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="test_nmem"
+exp="test_nobs"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -19,27 +19,27 @@ rm -rf work/${model}/${exp}
 mkdir -p work/${model}/${exp}
 cd work/${model}/${exp}
 cp ${cdir}/logging_config.ini .
-rm -rf *.npy
+rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
 touch timer
 nmemlist="40 80 120 160 200"
 lsiglist="5 10 15 20"
-nobslist="240 120 60 30 15"
+nobslist="480 240 120 60 30"
 touch params.txt
 for op in ${operators}; do
   echo nmem > params.txt
   #echo loc > params.txt
-  #echo nobs > params.txt
-  for nmem in ${nmemlist}; do
-    echo $nmem >> params.txt
-    ptmp=$nmem
+  echo nobs > params.txt
+  #for nmem in ${nmemlist}; do
+  #  echo $nmem >> params.txt
+  #  ptmp=$nmem
   #for lsig in ${lsiglist}; do
   #  echo $lsig >> params.txt
   #  ptmp=$lsig
-  #for nobs in ${nobslist}; do
-  #  echo $nobs >> params.txt
-  #  ptmp=$nobs
+  for nobs in ${nobslist}; do
+    echo $nobs >> params.txt
+    ptmp=$nobs
     for pert in ${perturbations}; do
       echo $pert
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
@@ -79,22 +79,38 @@ for op in ${operators}; do
         echo "${op} ${pert} ${count} ${cputime}" >> timer
         cp ${model}_e_gm_${op}_${pt}.txt e_gm_${op}_${pt}_${count}.txt
         cp ${model}_stda_gm_${op}_${pt}.txt stda_gm_${op}_${pt}_${count}.txt
+        cp ${model}_xdmean_gm_${op}_${pt}.txt xdmean_gm_${op}_${pt}_${count}.txt
+        cp ${model}_xsmean_gm_${op}_${pt}.txt xsmean_gm_${op}_${pt}_${count}.txt
         cp ${model}_e_lam_${op}_${pt}.txt e_lam_${op}_${pt}_${count}.txt
         cp ${model}_stda_lam_${op}_${pt}.txt stda_lam_${op}_${pt}_${count}.txt
+        cp ${model}_xdmean_lam_${op}_${pt}.txt xdmean_lam_${op}_${pt}_${count}.txt
+        cp ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam_${op}_${pt}_${count}.txt
         rm obs*.npy
       done
       python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_gm ${pt}
       rm e_gm_${op}_${pt}_*.txt
       python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_gm ${pt}
       rm stda_gm_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_gm ${pt}
+      rm xdmean_gm_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_gm ${pt}
+      rm xsmean_gm_${op}_${pt}_*.txt
       python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_lam ${pt}
       rm e_lam_${op}_${pt}_*.txt
       python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_lam ${pt}
       rm stda_lam_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_lam ${pt}
+      rm xdmean_lam_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_lam ${pt}
+      rm xsmean_lam_${op}_${pt}_*.txt
       mv ${model}_e_gm_${op}_${pt}.txt ${model}_e_gm_${op}_${pert}_${ptmp}.txt
       mv ${model}_stda_gm_${op}_${pt}.txt ${model}_stda_gm_${op}_${pert}_${ptmp}.txt
+      mv ${model}_xdmean_gm_${op}_${pt}.txt ${model}_xdmean_gm_${op}_${pert}_${ptmp}.txt
+      mv ${model}_xsmean_gm_${op}_${pt}.txt ${model}_xsmean_gm_${op}_${pert}_${ptmp}.txt
       mv ${model}_e_lam_${op}_${pt}.txt ${model}_e_lam_${op}_${pert}_${ptmp}.txt
       mv ${model}_stda_lam_${op}_${pt}.txt ${model}_stda_lam_${op}_${pert}_${ptmp}.txt
+      mv ${model}_xdmean_lam_${op}_${pt}.txt ${model}_xdmean_lam_${op}_${pert}_${ptmp}.txt
+      mv ${model}_xsmean_lam_${op}_${pt}.txt ${model}_xsmean_lam_${op}_${pert}_${ptmp}.txt
     done #pert
     #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #nmem

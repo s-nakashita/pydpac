@@ -8,7 +8,8 @@ except ImportError:
 class L05III():
     def __init__(self, nx, nk, ni, b, c, dt, F, cyclic=True, ghost=0, debug=False):
         self.nx = nx
-        self.nx_gho = nx + 2*ghost
+        self.ghost = ghost
+        self.nx_gho = self.nx + 2*self.ghost
         self.nk = nk
         self.ni = ni
         i2 = self.ni*self.ni
@@ -20,29 +21,46 @@ class L05III():
         #self.be = 1.0 / i2
         print(f"ni={self.ni} alpha={self.al:.3f} beta={self.be:.3f}")
         #filtering matrix
-        self.filmat = np.zeros((self.nx_gho,self.nx_gho))
-        for i in range(self.nx_gho):
+        self.cyclic = cyclic
+        if self.cyclic:
+            self.filmat = np.zeros((self.nx_gho,self.nx_gho))
+        else:
+            self.filmat = np.zeros((self.nx_gho,self.nx_gho+2*self.ni))
+        nifil = self.filmat.shape[0]
+        njfil = self.filmat.shape[1]
+        for i in range(nifil):
+            lefthalf=True
+            righthalf=True
             js = i - self.ni
-            if js<0:
-                if cyclic:
-                    js+=self.nx_gho
-                else:
-                    js = 0
             je = i + self.ni + 1
-            if je>self.nx_gho:
-                if cyclic:
-                    je-=self.nx_gho
-                else:
-                    je=self.nx_gho
-            for j in range(self.nx_gho):
+            if not self.cyclic:
+                js += self.ni
+                je += self.ni
+            if js<0:
+                #if self.cyclic:
+                    js+=njfil
+                #else:
+                #    js = 0
+                #    lefthalf=False
+            if je>njfil:
+                #if self.cyclic:
+                    je-=njfil
+                #else:
+                #    je=njfil
+                #    righthalf=False
+            for j in range(njfil):
                 tmp = 0.0
+                if self.cyclic:
+                    jj = j
+                else:
+                    jj = j - self.ni
                 if js<je:
                     if j>=js and j<je:
-                        tmp = self.al - self.be*np.abs(j-i)
+                        tmp = self.al - self.be*np.abs(jj-i)
                 else:
                     if j<je or j>=js:
-                        tmp = self.al - self.be*min(np.abs(j-i),self.nx_gho-np.abs(j-i))
-                if j==js or j==(je-1):
+                        tmp = self.al - self.be*min(np.abs(jj-i),njfil-np.abs(jj-i))
+                if (lefthalf and j==js) or (righthalf and j==(je-1)):
                     tmp*=0.5
                 self.filmat[i,j] = tmp
         self.b = b 
@@ -59,6 +77,13 @@ class L05III():
             plt.colorbar()
             plt.show()
             plt.close()
+            #plt.plot(self.filmat[0,:])
+            #plt.plot(self.filmat[self.nx_gho//2,:])
+            #plt.plot(self.filmat[-1,:])
+            #plt.plot([self.filmat[i-1,i] for i in range(1,self.nx_gho)],lw=0.0,marker='o')
+            #plt.plot([self.filmat[i+1,i] for i in range(self.nx_gho-1)],lw=0.0,marker='x')
+            #plt.show()
+            #plt.close()
             #ztmp = 0.1*(np.arange(self.nx)-self.nx//2)**2 + 1.0
             #plt.plot(ztmp)
             #plt.plot(np.dot(self.filmat,ztmp))
@@ -70,7 +95,20 @@ class L05III():
 
     def decomp(self,z):
         # decompose Z to X and Y
-        x = np.dot(self.filmat,z)
+        if not self.cyclic:
+            if z.ndim == 2:
+                nz = z.shape[0]
+                ztmp = np.zeros((nz+2*self.ni,z.shape[1]))
+            else:
+                nz = z.size
+                ztmp = np.zeros(nz+2*self.ni)
+            ztmp[self.ni:self.ni+nz] = z[:]
+            for i in range(1,self.ni+1):
+                ztmp[self.ni-i] = z[i]
+                ztmp[self.ni+nz+i-1] = z[-i]
+        else:
+            ztmp = z
+        x = np.dot(self.filmat,ztmp)
         y = z - x
         return x, y
 
@@ -80,20 +118,21 @@ class L05III():
         #adv2 = self.l2.adv(1, y)
         adv2 = (np.roll(y,-1,axis=0) - np.roll(y,2,axis=0))*np.roll(y,1,axis=0)
         #adv3 = self.l2.adv(1, y, y=x)
-        adv3 = np.roll(y,-1,axis=0)*np.roll(x,1,axis=0) - np.roll(y,1,axis=0)*np.roll(x,2,axis=0)
+        adv3 = - np.roll(y,2,axis=0)*np.roll(x,1,axis=0) + np.roll(y,1,axis=0)*np.roll(x,-1,axis=0)
         l = adv1 + self.b*self.b*adv2 + self.c*adv3 - x - self.b*y + self.F
         return l
 
-    def __call__(self,x):
-        k1 = self.dt * self.tend(x)
+    def __call__(self,z):
+        k1 = self.dt * self.tend(z)
     
-        k2 = self.dt * self.tend(x+k1/2)
+        k2 = self.dt * self.tend(z+k1/2)
     
-        k3 = self.dt * self.tend(x+k2/2)
+        k3 = self.dt * self.tend(z+k2/2)
     
-        k4 = self.dt * self.tend(x+k3)
+        k4 = self.dt * self.tend(z+k3)
     
-        return x + (0.5*k1 + k2 + k3 + 0.5*k4)/3.0
+        zf = z + (0.5*k1 + k2 + k3 + 0.5*k4)/3.0
+        return zf[self.ghost:self.nx_gho-self.ghost]
 
     def calc_dist(self, iloc):
         dist = np.zeros(self.nx)
@@ -113,10 +152,10 @@ if __name__ == "__main__":
     ni = 12
     F = 15.0
     b = 10.0
-    c = 2.5
+    c = 0.6
     h = 0.05 / b
     #for ni in [20,40,80]:
-    l3 = L05III(nx,nk,ni,b,c,h,F)
+    l3 = L05III(nx,nk,ni,b,c,h,F,debug=True)
     #exit()
 
     #z0 = np.sin(np.arange(nx)*2.0*np.pi/30.0)

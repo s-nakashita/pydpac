@@ -223,9 +223,12 @@ class Obs():
             ix = np.arange(len(x))
         else:
             ix = self.ix
+        dx = float(ix[1]) - float(ix[0])
         ii = math.floor(ri)
-        ai = ri - float(ii)
         i = np.argmin(np.abs(ix - ii))
+        if ix[i] > ii:
+            i = i - 1
+        ai = (ri - float(ix[i]))/dx
         #logger.debug(f"ri={ri} i={i} ai={ai}")
         if i < len(x) - 1:
             return (1.0 - ai)*x[i] + ai*x[i+1]

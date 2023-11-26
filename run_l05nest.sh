@@ -9,14 +9,14 @@ perturbations="mlef"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=30 # Number of assimilation cycle
+na=50 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=30 # observation volume
+nobs=120 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="test"
+exp="test_m${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -63,8 +63,12 @@ for op in ${operators}; do
     echo "scale=1; ${end_time}-${start_time}" | bc >> timer
     mv ${model}_e_gm_${op}_${pt}.txt e_gm_${op}_${pert}.txt
     mv ${model}_stda_gm_${op}_${pt}.txt stda_gm_${op}_${pert}.txt
+    mv ${model}_xdmean_gm_${op}_${pt}.txt xdmean_gm_${op}_${pert}.txt
+    mv ${model}_xsmean_gm_${op}_${pt}.txt xsmean_gm_${op}_${pert}.txt
     mv ${model}_e_lam_${op}_${pt}.txt e_lam_${op}_${pert}.txt
     mv ${model}_stda_lam_${op}_${pt}.txt stda_lam_${op}_${pert}.txt
+    mv ${model}_xdmean_lam_${op}_${pt}.txt xdmean_lam_${op}_${pert}.txt
+    mv ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam_${op}_${pert}.txt
     #if [ "${pert:4:1}" = "b" ]; then
     #mv ${model}_rho_${op}_${pt}.npy ${model}_rho_${op}_${pert}.npy
     #fi
@@ -97,6 +101,7 @@ for op in ${operators}; do
     #done
   done
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
+  python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}

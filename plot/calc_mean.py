@@ -61,6 +61,27 @@ elif vname == "sv":
         fmean /= i
         np.save("initialSVA_{}_{}h.npy".format(pt, op), imean)
         np.save("finalSVA_{}_{}h.npy".format(pt, op), fmean)
+elif vname[:6] == "xdmean" or vname[:6] == "xsmean":
+    i = 0
+    for count in range(1,nmax+1):
+        f = "{}_{}_{}_{}.txt".format(vname, op, pt, count)
+        if not os.path.isfile(f):
+            print(f"not exist {f}")
+            continue
+        e = np.loadtxt(f)
+        if i==0:
+            emean = e.copy()
+            estd = e**2
+        else:
+            emean += e
+            estd += e**2
+        i += 1
+    emean /= i
+    estd /= i
+    estd = np.sqrt(estd - emean**2)
+    data = np.vstack((emean,estd))
+    if i>0:
+        np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), data)
 else:
     if model == "z08" and vname == "e":
         emean = np.zeros(na+1)

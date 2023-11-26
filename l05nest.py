@@ -23,7 +23,7 @@ nx_gm = nx_true // intgm     # number of points
 nk_gm = 8                    # advection length scale
 dt_gm = 0.05 / 36            # time step (=1/6 hour)
 ## LAM
-nx_lam = 240                 # number of LAM points
+nx_lam = 480                 # number of LAM points
 ist_lam = 240                # first grid index
 nsp = 10                     # width of sponge region
 nk_lam = 32                  # advection length
@@ -134,7 +134,7 @@ params_lam["nt"] = params_lam["nt"] * step.lamstep
 # observation operator
 obs = Obs(op, sigma[op]) # for make observations
 obs_gm = Obs(op, sigma[op], ix=step.ix_gm) # for analysis_gm
-obs_lam = Obs(op, sigma[op], ix=step.ix_lam) # analysis_lam
+obs_lam = Obs(op, sigma[op], ix=step.ix_lam) #[nsp:-nsp]) # analysis_lam (exclude sponge regions)
 
 # assimilation class
 state_gm = nx_gm
@@ -237,8 +237,12 @@ if __name__ == "__main__":
     logger.info("a_time={}".format([time for time in a_time]))
     e_gm = np.zeros(na)
     stda_gm = np.zeros(na)
+    xdmean_gm = np.zeros(nx_gm)
+    xsmean_gm = np.zeros(nx_gm)
     e_lam = np.zeros(na)
     stda_lam = np.zeros(na)
+    xdmean_lam = np.zeros(nx_lam)
+    xsmean_lam = np.zeros(nx_lam)
     innov = np.zeros((na,yobs.shape[1]*a_window))
     chi_gm = np.zeros(na)
     dof_gm = np.zeros(na)
@@ -267,6 +271,7 @@ if __name__ == "__main__":
                     innov[i+j,:innv.size] = innv
                     dof_gm[i+j] = ds
                 if i >= params_lam["lamstart"]:
+                    #u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
                     u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
                     save_hist=True, save_dh=True, icycle=i)
                     for j in range(y_lam.shape[0]):
@@ -283,6 +288,7 @@ if __name__ == "__main__":
                 innov[i] = innv
                 dof_gm[i] = ds
                 if i >= params_lam["lamstart"]:
+                    #u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
                     u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
                     save_hist=True, save_dh=True, icycle=i)
                     chi_lam[i] = chi2
@@ -300,6 +306,7 @@ if __name__ == "__main__":
                     innov[i+j,:innv.size] = innv
                     dof_gm[i+j] = ds
                 if i >= params_lam["lamstart"]:
+                    #u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, icycle=i)
                     u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)
                     for j in range(y_lam.shape[0]):
                         chi_lam[i+j] = chi2
@@ -315,6 +322,7 @@ if __name__ == "__main__":
                 innov[i] = innv
                 dof_gm[i] = ds
                 if i >= params_lam["lamstart"]:
+                    #u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, icycle=i)#,\
                     u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)#,\
                     #    save_w=True)
                     chi_lam[i] = chi2
@@ -411,14 +419,20 @@ if __name__ == "__main__":
                 true2gm = interp1d(step.ix_true,xt[k])
                 e_gm[k] = np.sqrt(np.mean((xa_gm[k, :] - true2gm(step.ix_gm))**2))
                 e_lam[k] = np.sqrt(np.mean((xa_lam[k, :] - true2gm(step.ix_lam))**2))
+                xdmean_gm += np.abs(xa_gm[k,:]-true2gm(step.ix_gm))
+                xdmean_lam += np.abs(xa_lam[k,:]-true2gm(step.ix_lam))
         else:
             true2gm = interp1d(step.ix_true,xt[i])
             e_gm[i] = np.sqrt(np.mean((xa_gm[i, :] - true2gm(step.ix_gm))**2))
             e_lam[i] = np.sqrt(np.mean((xa_lam[i, :] - true2gm(step.ix_lam))**2))
+            xdmean_gm += np.abs(xa_gm[i,:]-true2gm(step.ix_gm))
+            xdmean_lam += np.abs(xa_lam[i,:]-true2gm(step.ix_lam))
         stda_gm[i] = np.sqrt(np.trace(pa_gm)/nx_gm)
         stda_lam[i] = np.sqrt(np.trace(pa_lam)/nx_lam)
         xsa_gm[i] = np.sqrt(np.diag(pa_gm))
         xsa_lam[i] = np.sqrt(np.diag(pa_lam))
+        xsmean_gm += np.sqrt(np.diag(pa_gm))
+        xsmean_lam += np.sqrt(np.diag(pa_lam))
 
     np.save("{}_xfgm_{}_{}.npy".format(model, op, pt), xf_gm)
     np.save("{}_xagm_{}_{}.npy".format(model, op, pt), xa_gm)
@@ -436,3 +450,13 @@ if __name__ == "__main__":
     np.savetxt("{}_stda_lam_{}_{}.txt".format(model, op, pt), stda_lam)
     np.savetxt("{}_chi_lam_{}_{}.txt".format(model, op, pt), chi_lam)
     np.savetxt("{}_dof_lam_{}_{}.txt".format(model, op, pt), dof_lam)
+
+    xdmean_gm /= float(na)
+    xdmean_lam /= float(na)
+    xsmean_gm /= float(na)
+    xsmean_lam /= float(na)
+    np.savetxt("{}_xdmean_gm_{}_{}.txt".format(model, op, pt), xdmean_gm)
+    np.savetxt("{}_xsmean_gm_{}_{}.txt".format(model, op, pt), xsmean_gm)
+    np.savetxt("{}_xdmean_lam_{}_{}.txt".format(model, op, pt), xdmean_lam)
+    np.savetxt("{}_xsmean_lam_{}_{}.txt".format(model, op, pt), xsmean_lam)
+    
