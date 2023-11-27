@@ -4,6 +4,7 @@ from numpy import random
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 plt.rcParams['font.size'] = 16
+from pathlib import Path
 
 nx = 960
 nk = 32
@@ -15,6 +16,9 @@ F = 15.0
 step = L05III(nx, nk, ni, b, c, dt, F)
 ## ensemble size
 nens = 50
+outdir=Path(f'lorenz/n{nx}k{nk}i{ni}F{int(F)}')
+if not outdir.exists():
+    outdir.mkdir()
 
 x0c = np.ones(nx)
 x0c[nx//2-1] += 0.001
@@ -31,7 +35,7 @@ for m in range(nens):
     plt.plot(np.arange(nx),x0[:,m],c='gray',alpha=0.5)
 plt.plot(np.arange(nx),x0.mean(axis=1),c='blue',lw=3)
 plt.ylim(-15.,15.)
-plt.show()
+plt.show(block=False)
 plt.close()
 
 nt = 100 * 24 * int(b) #[hours]
@@ -72,7 +76,7 @@ axs[1].set_xlabel("location")
 axs[0].set_ylabel("time(days)")
 axs[0].set_title("large-scale")
 axs[1].set_title(r"small-scale ($\times$20)")
-fig.savefig(f"l05III_hov_lr+hr_b{b:.1f}c{c:.1f}.png",dpi=300)
+fig.savefig(outdir/f"hov_lr+hr_b{int(b)}c{c:.1f}.png",dpi=300)
 plt.show()
 plt.close()
 
@@ -86,7 +90,7 @@ axs[1].set_xlabel("location")
 axs[0].set_ylabel("time(days)")
 axs[0].set_title("large-scale")
 axs[1].set_title(r"small-scale ($\times$20)")
-fig.savefig(f"l05III_hov_sprd_lr+hr_b{b:.1f}c{c:.1f}.png",dpi=300)
+fig.savefig(outdir/f"hov_sprd_lr+hr_b{int(b)}c{c:.1f}.png",dpi=300)
 plt.show()
 plt.close()
 
@@ -144,5 +148,11 @@ axs[0].set_title(r"small-scale $\times$ small-scale ($\times 20^2$)")
 axs[1].set_title(r"small-scale $\times$ large-scale ($\times 20$)")
 axs[2].set_title(r"large-scale $\times$ small-scale ($\times 20$)")
 axs[3].set_title(r"large-scale $\times$ large-scale")
-fig.savefig(f"l05III_crosscov_lr+hr_b{b:.1f}c{c:.1f}.png",dpi=300)
+fig.savefig(outdir/f"crosscov_lr+hr_b{int(b)}c{c:.1f}.png",dpi=300)
 plt.show()
+
+np.savetxt(outdir/"ix.txt",xaxis)
+np.save(outdir/f"B_hr_b{int(b)}c{c:.1f}.npy",B_hr)
+np.save(outdir/f"B_lr_b{int(b)}c{c:.1f}.npy",B_lr)
+np.save(outdir/f"E_hl_b{int(b)}c{c:.1f}.npy",E_hl)
+np.save(outdir/f"E_lh_b{int(b)}c{c:.1f}.npy",E_lh)

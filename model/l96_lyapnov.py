@@ -10,7 +10,7 @@ plt.rcParams['font.size'] = 16
 def fit_func(x, a, b):
     return a*x + b
 
-model = "l05II"
+model = "l05III"
 
 F = 15.0
 if model=="l96":
@@ -31,7 +31,7 @@ elif model=="l05III":
     nk = 32
     ni = 12
     b = 10.0
-    c = 2.5
+    c = 0.6
     dt = 0.05 / 6 / b
     nt = 500 * 6 * int(b)
     isave = int(b)
@@ -102,7 +102,10 @@ ax[1].set_xlabel("time")
 ax[1].set_ylabel("RMSE(log10 scale)")
 ax[1].set_title("Leading Lyapnov exponent = {:.2e}".format(popt[0]))
 
-fig.savefig(f"{model}_lyapnov_F={int(F)}.png",dpi=300)
+if model=='l05III':
+    fig.savefig(f"lorenz/{model}_lyapnov_F{int(F)}b{int(b)}c{c:.1f}.png",dpi=300)
+else:
+    fig.savefig(f"lorenz/{model}_lyapnov_F={int(F)}.png",dpi=300)
 print("doubling time = {:.4f}".format(np.log(2)/popt[0]))
 
 if model == 'l05III':
@@ -122,4 +125,4 @@ if model == 'l05III':
     ax[1].set_ylabel("RMSE")
     ax[1].set_title("small-scale error growth")
 
-    fig.savefig(f"{model}_lyapnov_scale_F={int(F)}.png",dpi=300)
+    fig.savefig(f"lorenz/{model}_lyapnov_scale_F{int(F)}b{int(b)}c{c:.1f}.png",dpi=300)

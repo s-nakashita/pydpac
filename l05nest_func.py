@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('param')
@@ -94,17 +95,21 @@ class L05nest_func():
         #    "data/data.csv")
         #truth = pd.read_csv(f)
         #xt = truth.values.reshape(self.namax,self.nx)
-        truefile = "truth.npy"
+        truedir = os.path.join(os.path.abspath(os.path.dirname(__file__)),"data/l05III")
+        truefile = Path(truedir)/"truth.npy"
         if not os.path.isfile(truefile):
             logger.info("create truth")
             xt = self.gen_true()
-            np.save("truth.npy",xt)
+            np.save(truefile,xt)
         else:
             logger.info("read truth")
-            xt = np.load(truefile)
-        if xt.shape[0] < self.na:
-            xt = self.gen_true()
-            np.save("truth.npy",xt)
+            xtfull = np.load(truefile)
+            if xt.shape[0] < self.na:
+                logger.info("recreate truth")
+                xt = self.gen_true()
+                np.save(truefile,xt)
+            else:
+                xt = xtfull[:self.na]
         #logger.debug("xt={}".format(xt))
 
         xloc = self.step.ix_true

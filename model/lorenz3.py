@@ -23,7 +23,7 @@ class L05III():
         #filtering matrix
         self.cyclic = cyclic
         if self.cyclic:
-            self.filmat = np.zeros((self.nx_gho,self.nx_gho))
+            self.filmat = np.zeros((self.nx,self.nx))
         else:
             self.filmat = np.zeros((self.nx_gho,self.nx_gho+2*self.ni))
         nifil = self.filmat.shape[0]
@@ -147,6 +147,7 @@ class L05III():
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.rcParams['font.size'] = 16
+    from pathlib import Path
     nx = 960
     nk = 32
     ni = 12
@@ -184,13 +185,25 @@ if __name__ == "__main__":
             x0, y0 = l3.decomp(z0)
             axs[0].plot(xaxis,z0+ydiff,lw=2.0,c=cmap(icol))
             axs[1].plot(xaxis,x0+ydiff,lw=2.0,c=cmap(icol))
-            axs[1].plot(xaxis,y0*10.0+ydiff,c=cmap(icol))
+            axs[1].plot(xaxis,y0*4.0+ydiff,c=cmap(icol))
             ydiff-=10.0
             icol += 1
     for ax in axs:
         ax.set_xlim(0.0,nx-1)
     axs[0].set_title("Z")
-    axs[1].set_title(r"X+Y($\times$10)")
-    fig.suptitle(f"Lorenz III, N={nx}, K={nk}, I={ni}, F={F}")
-    fig.savefig(f"lorenz/l05III_n{nx}k{nk}i{ni}F{int(F)}.png",dpi=300)
+    axs[1].set_title(r"X+Y($\times$4)")
+    fig.suptitle(f"Lorenz III, N={nx}, K={nk}, I={ni}, F={F}, b={b}, c={c}")
+    fig.savefig(f"lorenz/l05III_n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.png",dpi=300)
     plt.show()
+
+    nt1yr = int(0.05 / h) * 4 * 365 # 1 year
+    ksave = int(0.05 / h) # 6 hours
+    zsave = []
+    for k in range(nt1yr):
+        z0 = l3(z0)
+        if k%ksave==0:
+            zsave.append(z0)
+    datadir = Path('../data/l05III')
+    if not datadir.exists():
+        datadir.mkdir(parents=True)
+    np.save(datadir/'truth.npy',np.array(zsave))
