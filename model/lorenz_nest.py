@@ -52,12 +52,14 @@ class L05nest():
         self.nsp = nsp # sponge region width
         # relaxation factor
         self.po = po
-        self.rlx = np.arange(self.nsp)/self.nsp # linear
         self.rlx = 1.0 - (np.abs(np.arange(self.nsp)-self.nsp)/(self.nsp))**self.po
         print(f"sponge width={self.nsp}")
         ## debug
         if debug:
             plt.plot(np.arange(self.nsp),self.rlx)
+            plt.plot(np.arange(self.nsp),1.0-self.rlx)
+            plt.plot(np.arange(self.nsp),self.rlx[::-1])
+            plt.plot(np.arange(self.nsp),1.0-self.rlx[::-1])
             plt.ylim(0,1)
             plt.xlim(0,self.nsp-1)
             plt.grid()
@@ -86,14 +88,14 @@ class L05nest():
         gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
         ## boundary conditions from nest step
         gm2lam1 = interp1d(self.ix_gm, xf_gm, axis=0)
-        #x_lam_ext = gm2lam0(self.ix_lam_ext)
-        #x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam
+        x_lam_ext = gm2lam0(self.ix_lam_ext)
+        x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam
         #print(x_lam_ext.shape)
         for i in range(self.lamstep):
-            #x_lam = self.lam(x_lam_ext)
-            #t_wgt = float(self.lamstep-i-1)/float(self.lamstep)
-            x_lam_ext = gm2lam0(self.ix_lam_ext)
-            t_wgt = float(i)/float(self.lamstep)
+            x_lam = self.lam(x_lam_ext)
+            t_wgt = float(i+1)/float(self.lamstep)
+            #x_lam_ext = gm2lam0(self.ix_lam_ext)
+            #t_wgt = float(i)/float(self.lamstep)
             x0_gm2lamext = gm2lam0(self.ix_lam_ext)
             x1_gm2lamext = gm2lam1(self.ix_lam_ext)
             x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam
@@ -104,7 +106,7 @@ class L05nest():
                 self.bound_rlx(x_lam_ext,t_wgt,x0_gm2lamext,x1_gm2lamext)
             # boundary conditions
             x_lam_ext[:self.ghost] = (1.0-t_wgt)*x0_gm2lamext[:self.ghost] + t_wgt*x1_gm2lamext[:self.ghost]
-            x_lam_ext[-self.ghost:] = (1.0-t_wgt)*x0_gm2lamext[-self.ghost:] + t_wgt*x1_gm2lamext[-self.ghost:]
+            x_lam_ext[self.ghost+self.nx_lam:] = (1.0-t_wgt)*x0_gm2lamext[self.ghost+self.nx_lam:] + t_wgt*x1_gm2lamext[self.ghost+self.nx_lam:]
             #xl_lam_ext, xs_lam_ext = self.lam.decomp(x_lam_ext)
             #x0l_gm2lamext, x0s_gm2lamext = self.lam.decomp(x0_gm2lamext)
             #x1l_gm2lamext, x1s_gm2lamext = self.lam.decomp(x1_gm2lamext)
@@ -113,15 +115,12 @@ class L05nest():
             #xl_lam_ext[-self.ghost:] = t_wgt*x0l_gm2lamext[-self.ghost:] + (1.0-t_wgt)*x1l_gm2lamext[-self.ghost:]
             #xs_lam_ext[-self.ghost:] = 0.0
             #x_lam_ext = xl_lam_ext + xs_lam_ext
-            x_lam = self.lam(x_lam_ext)
+            #x_lam = self.lam(x_lam_ext)
         xf_lam = x_lam_ext[self.ghost:self.ghost+self.nx_lam]
         return xf_gm, xf_lam
 
     # Davies relaxation
     def bound_rlx(self,x_lam_ext,t_wgt,x0_gm2lamext,x1_gm2lamext):
-        x_lam = x_lam_ext[self.ghost:self.ghost+self.nx_lam]
-        x0_gm2lam = x0_gm2lamext[self.ghost:self.ghost+self.nx_lam]
-        x1_gm2lam = x1_gm2lamext[self.ghost:self.ghost+self.nx_lam]
         #xl_lam_ext, xs_lam_ext = self.lam.decomp(x_lam_ext)
         #xl_lam = xl_lam_ext[self.ghost:self.ghost+self.nx_lam]
         #xs_lam = xs_lam_ext[self.ghost:self.ghost+self.nx_lam]
@@ -130,20 +129,27 @@ class L05nest():
         #x0l_gm2lam = x0l_gm2lamext[self.ghost:self.ghost+self.nx_lam]
         #x1l_gm2lam = x1l_gm2lamext[self.ghost:self.ghost+self.nx_lam]
         if x_lam_ext.ndim==2:
-            x_lam[:self.nsp] = x_lam[:self.nsp]*self.rlx[:,None] + ((1.0-t_wgt)*x0_gm2lam[:self.nsp]+t_wgt*x1_gm2lam[:self.nsp])*(1.0-self.rlx[:,None])
+            x_lam = x_lam_ext[self.ghost:self.ghost+self.nx_lam,:].copy()
+            x0_gm2lam = x0_gm2lamext[self.ghost:self.ghost+self.nx_lam,:].copy()
+            x1_gm2lam = x1_gm2lamext[self.ghost:self.ghost+self.nx_lam,:].copy()
+            x_lam_ext[self.ghost:self.ghost+self.nsp,:] = x_lam[:self.nsp,:]*self.rlx[:,None] + ((1.0-t_wgt)*x0_gm2lam[:self.nsp,:]+t_wgt*x1_gm2lam[:self.nsp,:])*(1.0-self.rlx[:,None])
             #xl_lam[:self.nsp] = xl_lam[:self.nsp]*self.rlx[:,None] + ((1.0-t_wgt)*x0l_gm2lam[:self.nsp]+t_wgt*x1l_gm2lam[:self.nsp])*(1.0-self.rlx[:,None])
             #xs_lam[:self.nsp] = xs_lam[:self.nsp]*self.rlx[:,None]
-            x_lam[-self.nsp:] = x_lam[-self.nsp:]*self.rlx[::-1,None] + ((1.0-t_wgt)*x0_gm2lam[-self.nsp:]+t_wgt*x1_gm2lam[-self.nsp:])*(1.0-self.rlx[::-1,None])
+            x_lam[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam,:] = x_lam[-self.nsp:,:]*self.rlx[::-1,None] + ((1.0-t_wgt)*x0_gm2lam[-self.nsp:,:]+t_wgt*x1_gm2lam[-self.nsp:,:])*(1.0-self.rlx[::-1,None])
             #xl_lam[-self.nsp:] = xl_lam[-self.nsp:]*self.rlx[::-1,None] + ((1.0-t_wgt)*x0l_gm2lam[-self.nsp:]+t_wgt*x1l_gm2lam[-self.nsp:])*(1.0-self.rlx[::-1,None])
             #xs_lam[-self.nsp:] = xs_lam[-self.nsp:]*self.rlx[::-1,None]
+            x_lam_ext[self.ghost:self.ghost+self.nx_lam,:] = x_lam[:,:]
         else:
-            x_lam[:self.nsp] = x_lam[:self.nsp]*self.rlx[:] + ((1.0-t_wgt)*x0_gm2lam[:self.nsp]+t_wgt*x1_gm2lam[:self.nsp])*(1.0-self.rlx[:])
+            x_lam = x_lam_ext[self.ghost:self.ghost+self.nx_lam].copy()
+            x0_gm2lam = x0_gm2lamext[self.ghost:self.ghost+self.nx_lam].copy()
+            x1_gm2lam = x1_gm2lamext[self.ghost:self.ghost+self.nx_lam].copy()
+            x_lam_ext[self.ghost:self.ghost+self.nsp] = x_lam[:self.nsp]*self.rlx[:] + ((1.0-t_wgt)*x0_gm2lam[:self.nsp]+t_wgt*x1_gm2lam[:self.nsp])*(1.0-self.rlx[:])
             #xl_lam[:self.nsp] = xl_lam[:self.nsp]*self.rlx[:] + ((1.0-t_wgt)*x0l_gm2lam[:self.nsp]+t_wgt*x1l_gm2lam[:self.nsp])*(1.0-self.rlx[:])
             #xs_lam[:self.nsp] = xs_lam[:self.nsp]*self.rlx[:]
-            x_lam[-self.nsp:] = x_lam[-self.nsp:]*self.rlx[::-1] + ((1.0-t_wgt)*x0_gm2lam[-self.nsp:]+t_wgt*x1_gm2lam[-self.nsp:])*(1.0-self.rlx[::-1])
+            x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam] = x_lam[-self.nsp:]*self.rlx[::-1] + ((1.0-t_wgt)*x0_gm2lam[-self.nsp:]+t_wgt*x1_gm2lam[-self.nsp:])*(1.0-self.rlx[::-1])
             #xl_lam[-self.nsp:] = xl_lam[-self.nsp:]*self.rlx[::-1] + ((1.0-t_wgt)*x0l_gm2lam[-self.nsp:]+t_wgt*x1l_gm2lam[-self.nsp:])*(1.0-self.rlx[::-1])
             #xs_lam[-self.nsp:] = xs_lam[-self.nsp:]*self.rlx[::-1]
-        x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam[:]
+        #x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam[:]
         #xl_lam_ext[self.ghost:self.ghost+self.nx_lam] = xl_lam[:]
         #xs_lam_ext[self.ghost:self.ghost+self.nx_lam] = xs_lam[:]
         #x_lam_ext = xl_lam_ext + xs_lam_ext
@@ -183,10 +189,21 @@ if __name__ == "__main__":
     dt = 0.05 / 36.0
     F = 15.0
     ist_lam = 240
-    nsp = 10
+    nsp = 100
     po = 1
     step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F, intgm, ist_lam, nsp, po=po, debug=True)
-    
+
+    lamtest = np.arange(step.ix_lam_ext.size)/step.ix_lam_ext.size
+    gmtest = np.ones(step.ix_lam_ext.size)*0.5
+    plt.plot(step.ix_lam_ext,lamtest)
+    plt.plot(step.ix_lam_ext,gmtest)
+    step.bound_rlx(lamtest,0.0,gmtest,gmtest)
+    plt.plot(step.ix_lam_ext,lamtest,ls='dashed')
+    plt.vlines([step.ix_lam[0],step.ix_lam[-1]],0,1,colors='k',ls='dotted')
+    plt.show()
+    plt.close()
+    #exit()
+
     x0_gm = np.ones(nx_gm)*F
     x0_gm[nx_gm//2-1] += 0.001*F
     nt = 36*200
@@ -196,6 +213,38 @@ if __name__ == "__main__":
     x0_lam = gm2lam(step.ix_lam)
     for k in range(36*20):
         x0_gm, x0_lam = step(x0_gm,x0_lam)
+        ## boundary
+        if k%36==0:
+            figb,axsb=plt.subplots(ncols=2,figsize=[12,6],constrained_layout=True)
+            gm2lam = interp1d(step.ix_gm,x0_gm)
+            x0_lam_ext = gm2lam(step.ix_lam_ext)
+            x0_lam_ext[step.ghost:step.ghost+step.nx_lam] = x0_lam[:]
+            x0l_lam_ext, x0s_lam_ext = step.lam.decomp(x0_lam_ext)
+            x0_gm2lamext = gm2lam(step.ix_lam_ext)
+            for ax in axsb:
+                    ax.plot(step.ix_lam_ext,x0_lam_ext,c='magenta',lw=3.0,label='LAM')
+                    ax.plot(step.ix_lam_ext,x0l_lam_ext,c='tab:blue',label='LAM, large')
+                    ax.plot(step.ix_lam_ext,x0s_lam_ext,c='tab:orange',label='LAM, small')
+                    ax.plot(step.ix_lam_ext,x0_gm2lamext,c='k',label='GM')
+                    if nsp>0:
+                        step.bound_rlx(x0_lam_ext,0.0,x0_gm2lamext,x0_gm2lamext)
+                        x0l_lam_ext, x0s_lam_ext = step.lam.decomp(x0_lam_ext)
+                        ax.plot(step.ix_lam_ext,x0l_lam_ext,c='tab:green',ls='dashed',label='LAM, large, relaxed')
+                        ax.plot(step.ix_lam_ext,x0s_lam_ext,c='tab:red',ls='dashed',label='LAM, small, relaxed')
+                    ax.vlines([step.ix_lam[0],step.ix_lam[-1]],0,1,ls='dashdot',colors='k',transform=ax.get_xaxis_transform())
+                    ax.hlines([0],0,1,colors='gray',alpha=0.7,transform=ax.get_yaxis_transform())
+                    ax.set_xticks(step.ix_lam_ext[::10])
+            axsb[0].set_xlim(step.ix_lam_ext[0],step.ix_lam_ext[step.ghost+step.nsp*2])
+            axsb[0].fill_between(step.ix_lam_ext, 0, 1, where=step.ix_lam_ext < step.ix_lam[nsp],
+                            color='gray', alpha=0.3, transform=axsb[0].get_xaxis_transform())
+            axsb[1].set_xlim(step.ix_lam_ext[-step.ghost-step.nsp*2-1],step.ix_lam_ext[-1])
+            axsb[1].fill_between(step.ix_lam_ext, 0, 1, where=step.ix_lam_ext >= step.ix_lam[-nsp],
+                            color='gray', alpha=0.3, transform=axsb[1].get_xaxis_transform())
+            axsb[0].legend()
+            figb.suptitle(f"t={k*dt/0.05*6:.1f}h")
+            #figb.savefig(f"lorenz/l05nest_bounds{k}_ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}i{ni}nsp{nsp}p{step.po}F{int(F)}c{c:.1f}.png",dpi=300)
+            plt.show(block=False)
+            plt.close(fig=figb)
     fig, ax = plt.subplots()
     ax.plot(step.ix_gm,x0_gm,lw=2.0)
     ax.plot(step.ix_lam,x0_lam,lw=1.0)
@@ -203,7 +252,7 @@ if __name__ == "__main__":
     x0_lam_ext = gm2lam(step.ix_lam_ext)
     x0_lam_ext[step.ghost:step.ghost+step.nx_lam] = x0_lam[:]
     plt.plot(step.ix_lam_ext,x0_lam_ext,ls='dashed')
-    plt.show(block=False)
+    plt.show() #block=False)
     plt.close()
     #exit()
 
@@ -222,7 +271,7 @@ if __name__ == "__main__":
     icol=0
     for k in range(nt20d):
         x0_gm, x0_lam = step(x0_gm,x0_lam)
-        if k%int(2*4*0.05/dt)==0:
+        if (k+1)%int(2*4*0.05/dt)==0:
             axs[0].plot(step.ix_gm,x0_gm+ydiff,lw=2.0,c=cmap(icol))
             axs[1].plot(step.ix_lam,x0_lam+ydiff,lw=2.0,alpha=0.6,c=cmap(icol))
             gm2lam = interp1d(step.ix_gm, x0_gm)
@@ -255,8 +304,8 @@ if __name__ == "__main__":
             axsb[0].set_xlim(step.ix_lam_ext[0],step.ix_lam_ext[step.ghost+step.nsp*2])
             axsb[0].fill_between(step.ix_lam_ext, 0, 1, where=step.ix_lam_ext < step.ix_lam[nsp],
                         color='gray', alpha=0.3, transform=axsb[0].get_xaxis_transform())
-            axsb[1].set_xlim(step.ix_lam_ext[-step.ghost-step.nsp*2],step.ix_lam_ext[-1])
-            axsb[1].fill_between(step.ix_lam_ext, 0, 1, where=step.ix_lam_ext > step.ix_lam[-nsp],
+            axsb[1].set_xlim(step.ix_lam_ext[-step.ghost-step.nsp*2-1],step.ix_lam_ext[-1])
+            axsb[1].fill_between(step.ix_lam_ext, 0, 1, where=step.ix_lam_ext >= step.ix_lam[-nsp],
                         color='gray', alpha=0.3, transform=axsb[1].get_xaxis_transform())
             axsb[0].legend()
             figb.suptitle(f"t={k*dt/0.05*6:.1f}h")
@@ -268,7 +317,7 @@ if __name__ == "__main__":
     if nsp>0:
         axs[1].fill_between(step.ix_lam, 0, 1, where=step.ix_lam < step.ix_lam[nsp],
                 color='gray', alpha=0.3, transform=axs[1].get_xaxis_transform())
-        axs[1].fill_between(step.ix_lam, 0, 1, where=step.ix_lam > step.ix_lam[-nsp],
+        axs[1].fill_between(step.ix_lam, 0, 1, where=step.ix_lam >= step.ix_lam[-nsp],
                 color='gray', alpha=0.3, transform=axs[1].get_xaxis_transform())
     axs[0].set_xlim(step.ix_gm[0],step.ix_gm[-1])
     axs[1].set_xlim(step.ix_lam[0],step.ix_lam[-1])
