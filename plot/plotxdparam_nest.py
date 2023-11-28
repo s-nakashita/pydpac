@@ -10,7 +10,11 @@ na = int(sys.argv[3])
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
 perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
+    "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
+linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+        "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 if len(sys.argv)>4:
     ptype = sys.argv[4]
     if ptype == "loc":
@@ -48,15 +52,19 @@ ix_gm = np.loadtxt('ix_gm.txt')
 ix_lam = np.loadtxt('ix_lam.txt')
 #y = np.ones(len(var)) * sigma[op]
 methods = []
+nsuccess_gm = {}
 xdmean_gm = {}
 xsmean_gm = {}
+nsuccess_lam = {}
 xdmean_lam = {}
 xsmean_lam = {}
 for pt in perts:
     i = 0
     j = 0
+    nsuccess_gm[pt] = {}
     xdmean_gm[pt] = {}
     xsmean_gm[pt] = {}
+    nsuccess_lam[pt] = {}
     xdmean_lam[pt] = {}
     xsmean_lam[pt] = {}
     for ivar in var:
@@ -64,34 +72,41 @@ for pt in perts:
         f = "{}_xdmean_gm_{}_{}_{}.txt".format(model, op, pt, ivar)
         if not os.path.isfile(f):
             print("not exist {}".format(f))
-            i = -1
-            continue
-        e = np.loadtxt(f)
-        xdmean_gm[pt][ivar] = e
+            xdmean_gm[pt][ivar] = None
+            nsuccess_gm[pt][ivar] = 0
+        else:
+            data = np.loadtxt(f)
+            e = data[:,1:]
+            nsuccess_gm[pt][ivar] = data[0,0]
+            xdmean_gm[pt][ivar] = e
+            j += 1
         f = "{}_xsmean_gm_{}_{}_{}.txt".format(model, op, pt, ivar)
         if not os.path.isfile(f):
             print("not exist {}".format(f))
-            i = -1
-            continue
-        e = np.loadtxt(f)
-        xsmean_gm[pt][ivar] = e
+            xsmean_gm[pt][ivar] = None
+        else:
+            data = np.loadtxt(f)
+            e = data[:,1:]
+            xsmean_gm[pt][ivar] = e
         ## LAM
         f = "{}_xdmean_lam_{}_{}_{}.txt".format(model, op, pt, ivar)
         if not os.path.isfile(f):
             print("not exist {}".format(f))
-            i = -1
-            continue
-        e = np.loadtxt(f)
-        xdmean_lam[pt][ivar] = e
+            xdmean_lam[pt][ivar] = None
+            nsuccess_lam[pt][ivar] = 0
+        else:
+            data = np.loadtxt(f)
+            e = data[:,1:]
+            nsuccess_lam[pt][ivar] = data[0,0]
+            xdmean_lam[pt][ivar] = e
         f = "{}_xsmean_lam_{}_{}_{}.txt".format(model, op, pt, ivar)
         if not os.path.isfile(f):
             print("not exist {}".format(f))
-            i = -1
-            continue
-        e = np.loadtxt(f)
-        xsmean_lam[pt][ivar] = e
-        i += 1
-        j += 1
+            xsmean_lam[pt][ivar] = None
+        else:
+            data = np.loadtxt(f)
+            e = data[:,1:]
+            xsmean_lam[pt][ivar] = e
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if j > 0:
         methods.append(pt)
@@ -102,11 +117,13 @@ for pt in methods:
     for ivar, ax in zip(var,axs.flatten()):
         xd_gm = xdmean_gm[pt][ivar]
         xs_gm = xsmean_gm[pt][ivar]
-        ax.plot(ix_gm,xd_gm[0,],lw=2.0)
-        ax.plot(ix_gm,xs_gm[0,],ls='dashed')
-        ax.plot(ix_gm,np.ones(ix_gm.size)*sigma[op],c='k',ls='dotted')
-        ax.vlines([ix_lam[0],ix_lam[-1]],0,1,colors='gray',alpha=0.5,transform=ax.get_xaxis_transform())
-        ax.set_title(f"{ptype}={ivar}")
+        ns_gm = nsuccess_gm[pt][ivar]
+        if xd_gm is not None and xs_gm is not None:
+            ax.plot(ix_gm,xd_gm[0,],lw=2.0)
+            ax.plot(ix_gm,xs_gm[0,],ls='dashed')
+            ax.plot(ix_gm,np.ones(ix_gm.size)*sigma[op],c='k',ls='dotted')
+            ax.vlines([ix_lam[0],ix_lam[-1]],0,1,colors='gray',alpha=0.5,transform=ax.get_xaxis_transform())
+        ax.set_title(f"{ptype}={ivar} : #{int(ns_gm):d}")
     axs[0,0].set_ylabel("RMSE or SPREAD")
     axs[1,0].set_ylabel("RMSE or SPREAD")
     axs[2,0].set_ylabel("RMSE or SPREAD")
@@ -119,10 +136,12 @@ for pt in methods:
     for ivar, ax in zip(var,axs.flatten()):
         xd_lam = xdmean_lam[pt][ivar]
         xs_lam = xsmean_lam[pt][ivar]
-        ax.plot(ix_lam,xd_lam[0,],lw=2.0)
-        ax.plot(ix_lam,xs_lam[0,],ls='dashed')
-        ax.plot(ix_lam,np.ones(ix_lam.size)*sigma[op],c='k',ls='dotted')
-        ax.set_title(f"{ptype}={ivar}")
+        ns_lam = nsuccess_lam[pt][ivar]
+        if xd_lam is not None or xs_lam is not None:
+            ax.plot(ix_lam,xd_lam[0,],lw=2.0)
+            ax.plot(ix_lam,xs_lam[0,],ls='dashed')
+            ax.plot(ix_lam,np.ones(ix_lam.size)*sigma[op],c='k',ls='dotted')
+        ax.set_title(f"{ptype}={ivar} : #{int(ns_lam):d}")
     axs[0,0].set_ylabel("RMSE or SPREAD")
     axs[1,0].set_ylabel("RMSE or SPREAD")
     axs[2,0].set_ylabel("RMSE or SPREAD")

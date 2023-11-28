@@ -8,9 +8,11 @@ op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
 perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+    "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+        "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
@@ -21,6 +23,7 @@ ix_lam = np.loadtxt('ix_lam.txt')
 y_lam = np.ones(ix_lam.size) * sigma[op]
 fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
 i = 0
+vmax = 0.0
 for pt in perts:
     #GM
     f = "xdmean_gm_{}_{}.txt".format(op, pt)
@@ -58,6 +61,7 @@ for pt in perts:
     ax[1].plot(ix_lam, xdmean_lam, linestyle="solid", color=linecolor[pt], label=pt)
     ax[0].plot(ix_gm, xsmean_gm, linestyle="dashed", color=linecolor[pt])
     ax[1].plot(ix_lam, xsmean_lam, linestyle="dashed", color=linecolor[pt])
+    vmax = max(np.max(xdmean_gm),np.max(xdmean_lam),np.max(xsmean_gm),np.max(xsmean_lam),vmax)
 # observation error (loosely dashed)
 ax[0].plot(ix_gm, y_gm, linestyle=(0, (5, 10)), color='black')
 ax[1].plot(ix_lam, y_lam, linestyle=(0, (5, 10)), color='black')
@@ -66,10 +70,12 @@ ax[0].set(xlabel="state", ylabel="RMSE or SPREAD",
         title=op+" GM")
 ax[1].set(xlabel="state", ylabel="RMSE or SPREAD",
         title=op+" LAM")
+vmax = max(vmax,np.max(y_gm))
 #ax[0].set_xticks(ix_gm[::(ix_gm.size//8)])
 #ax[1].set_xticks(ix_gm[::(ix_lam.size//8)])
 for i in range(2):
     ax[i].set_xlim(ix_gm[0],ix_gm[-1])
     ax[i].set_xticks(ix_gm[::(ix_gm.size//8)])
     ax[i].legend()
+    ax[i].set_ylim(0.0,vmax)
 fig.savefig("{}_xd_{}.png".format(model, op))

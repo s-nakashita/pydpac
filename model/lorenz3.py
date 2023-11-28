@@ -132,7 +132,7 @@ class L05III():
         k4 = self.dt * self.tend(z+k3)
     
         zf = z + (0.5*k1 + k2 + k3 + 0.5*k4)/3.0
-        return zf[self.ghost:self.nx_gho-self.ghost]
+        return zf
 
     def calc_dist(self, iloc):
         dist = np.zeros(self.nx)

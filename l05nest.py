@@ -25,7 +25,9 @@ dt_gm = 0.05 / 36            # time step (=1/6 hour)
 ## LAM
 nx_lam = 480                 # number of LAM points
 ist_lam = 240                # first grid index
-nsp = 10                     # width of sponge region
+nsp = 30                     # width of sponge region
+intrlx = 6                   # interval of boundary relaxation
+lamstep = 1                  # time steps relative to 1 step of GM
 nk_lam = 32                  # advection length
 ni = 12                      # spatial filter width
 b = 10.0                     # frequency of small-scale perturbation
@@ -34,7 +36,8 @@ F = 15.0                     # forcing
 
 # forecast model forward operator
 step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
-    ni, b, c, dt_gm, F, intgm, ist_lam, nsp)
+    ni, b, c, dt_gm, F, intgm, ist_lam, nsp, \
+    lamstep=lamstep, intrlx=intrlx)
 
 np.savetxt("ix_true.txt",step.ix_true)
 np.savetxt("ix_gm.txt",step.ix_gm)
@@ -58,7 +61,7 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":81.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,
+sig_l = {"mlef":40.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}
@@ -84,7 +87,7 @@ params_gm["t0c"]        =  3000    # t0 for control
 params_gm["nobs"]       =  15      # observation number (nobs<=nx_true)
 params_gm["op"]         = "linear" # observation operator type
 params_gm["na"]         =  100     # number of analysis cycle
-params_gm["nt"]         =  36      # number of step per forecast (=6 hour)
+params_gm["nt"]         =  1       # number of step per forecast (=6 hour)
 params_gm["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 ### assimilation method settings
 params_gm["pt"]         = "mlef"   # assimilation method
@@ -102,7 +105,8 @@ params_gm["getkf"]      =  False   # (For model space localization) gain form re
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params_lam = params_gm.copy()
-params_lam["lamstart"] = 0 # first cycle of LAM analysis and forecast
+params_lam["lamstart"] = 100 # first cycle of LAM analysis and forecast
+params_lam["anlsp"] = True # True: analyzed in the sponge region
 
 ## update from configure file
 sys.path.append('./')
@@ -125,16 +129,23 @@ na = params_gm["na"]
 a_window = params_gm["a_window"]
 params_gm["ft"] = ft
 params_lam["ft"] = ft
-if params_gm["linf"]: params_gm["infl_parm"] = dict_infl[params_gm["op"]][params_gm["pt"]]
-if params_gm["lloc"]: params_gm["lsig"] = dict_sig[params_gm["op"]][params_gm["pt"]]
-if params_lam["linf"]: params_lam["infl_parm"] = dict_infl[params_lam["op"]][params_lam["pt"]]
-if params_lam["lloc"]: params_lam["lsig"] = dict_sig[params_lam["op"]][params_lam["pt"]]
+if params_gm["linf"] and params_gm["infl_parm"]==-1.0:
+    params_gm["infl_parm"] = dict_infl[params_gm["op"]][params_gm["pt"]]
+if params_gm["lloc"] and params_gm["lsig"]==-1.0:
+    params_gm["lsig"] = dict_sig[params_gm["op"]][params_gm["pt"]]
+if params_lam["linf"] and params_lam["infl_parm"]==-1.0:
+    params_lam["infl_parm"] = dict_infl[params_lam["op"]][params_lam["pt"]]
+if params_lam["lloc"] and params_lam["lsig"]==-1.0:
+    params_lam["lsig"] = dict_sig[params_lam["op"]][params_lam["pt"]]
 params_lam["nt"] = params_lam["nt"] * step.lamstep
 
 # observation operator
 obs = Obs(op, sigma[op]) # for make observations
 obs_gm = Obs(op, sigma[op], ix=step.ix_gm) # for analysis_gm
-obs_lam = Obs(op, sigma[op], ix=step.ix_lam) #[nsp:-nsp]) # analysis_lam (exclude sponge regions)
+if params_lam["anlsp"]:
+    obs_lam = Obs(op, sigma[op], ix=step.ix_lam, icyclic=False) # analysis_lam
+else:
+    obs_lam = Obs(op, sigma[op], ix=step.ix_lam[nsp:-nsp], icyclic=False) # analysis_lam (exclude sponge regions)
 
 # assimilation class
 state_gm = nx_gm
@@ -271,9 +282,12 @@ if __name__ == "__main__":
                     innov[i+j,:innv.size] = innv
                     dof_gm[i+j] = ds
                 if i >= params_lam["lamstart"]:
-                    #u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
-                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
-                    save_hist=True, save_dh=True, icycle=i)
+                    if params_lam["anlsp"]:
+                        u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
+                        save_hist=True, save_dh=True, icycle=i)
+                    else:
+                        u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
+                        save_hist=True, save_dh=True, icycle=i)
                     for j in range(y_lam.shape[0]):
                         chi_lam[i+j] = chi2
                         dof_lam[i+j] = ds
@@ -288,9 +302,12 @@ if __name__ == "__main__":
                 innov[i] = innv
                 dof_gm[i] = ds
                 if i >= params_lam["lamstart"]:
-                    #u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
-                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
-                    save_hist=True, save_dh=True, icycle=i)
+                    if params_lam["anlsp"]:
+                        u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
+                        save_hist=True, save_dh=True, icycle=i)
+                    else:
+                        u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
+                        save_hist=True, save_dh=True, icycle=i)
                     chi_lam[i] = chi2
                     dof_lam[i] = ds
                 else:
@@ -306,8 +323,10 @@ if __name__ == "__main__":
                     innov[i+j,:innv.size] = innv
                     dof_gm[i+j] = ds
                 if i >= params_lam["lamstart"]:
-                    #u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, icycle=i)
-                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)
+                    if params_lam["anlsp"]:
+                        u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)
+                    else:
+                        u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, icycle=i)
                     for j in range(y_lam.shape[0]):
                         chi_lam[i+j] = chi2
                         dof_lam[i+j] = ds
@@ -322,9 +341,11 @@ if __name__ == "__main__":
                 innov[i] = innv
                 dof_gm[i] = ds
                 if i >= params_lam["lamstart"]:
-                    #u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, icycle=i)#,\
-                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)#,\
+                    if params_lam["anlsp"]:
+                        u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)#,\
                     #    save_w=True)
+                    else:
+                        u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, icycle=i)#,\
                     chi_lam[i] = chi2
                     dof_lam[i] = ds
                 else:

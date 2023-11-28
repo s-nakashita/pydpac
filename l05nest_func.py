@@ -62,6 +62,7 @@ class L05nest_func():
         logger.info("infl_parm={} loc_parm={}".format(self.infl_parm_lam, self.lsig_lam))
         logger.info("Assimilation window size = {}".format(self.a_window))
         self.lamstart = params_lam["lamstart"]
+        self.anlsp = params_lam["anlsp"]
     
     # generate truth
     def gen_true(self):
@@ -95,8 +96,8 @@ class L05nest_func():
         #    "data/data.csv")
         #truth = pd.read_csv(f)
         #xt = truth.values.reshape(self.namax,self.nx)
-        truedir = os.path.join(os.path.abspath(os.path.dirname(__file__)),"data/l05III")
-        truefile = Path(truedir)/"truth.npy"
+        #truedir = os.path.join(os.path.abspath(os.path.dirname(__file__)),"data/l05III")
+        truefile = "truth.npy"
         if not os.path.isfile(truefile):
             logger.info("create truth")
             xt = self.gen_true()
@@ -104,7 +105,7 @@ class L05nest_func():
         else:
             logger.info("read truth")
             xtfull = np.load(truefile)
-            if xt.shape[0] < self.na:
+            if xtfull.shape[0] < self.na:
                 logger.info("recreate truth")
                 xt = self.gen_true()
                 np.save(truefile,xt)
@@ -124,8 +125,10 @@ class L05nest_func():
             if self.nobs == self.nx_true:
                 logger.info("entire observation")
                 obsloc = xloc.copy()
-                obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
-                #obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
+                if self.anlsp:
+                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                else:
+                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                 for k in range(self.na):
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
@@ -134,8 +137,10 @@ class L05nest_func():
                 logger.info("regular observation: nobs={}".format(self.nobs))
                 intobs = self.nx_true // self.nobs
                 obsloc = xloc[::intobs]
-                obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
-                #obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
+                if self.anlsp:
+                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                else:
+                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                 for k in range(self.na):
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
@@ -146,8 +151,10 @@ class L05nest_func():
                     obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
                     #obsloc = xloc[:self.nobs]
                     #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs)
-                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
-                    #obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
+                    if self.anlsp:
+                        obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                    else:
+                        obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
                     iobs_lam[k,:] = obs_in_lam

@@ -11,7 +11,7 @@ logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
 
 class Obs():
-    def __init__(self, operator, sigma, nvars=1, ndims=1, ni=0, nj=0, ix=None, jx=None):
+    def __init__(self, operator, sigma, nvars=1, ndims=1, ni=0, nj=0, ix=None, jx=None, icyclic=True, jcyclic=True):
         self.operator = operator
         self.sigma = sigma
         self.gamma = 3
@@ -20,9 +20,11 @@ class Obs():
         logger.info(f"nvars={self.nvars}")
         self.ndims = ndims
         self.ix = ix
+        self.icyclic = icyclic
         if self.ndims == 2:
             self.ni, self.nj = ni,nj
             self.jx = jx
+            self.jcyclic = jcyclic
             logger.info(f"ni={self.ni} nj={self.nj}")
 
     def get_op(self):
@@ -212,6 +214,7 @@ class Obs():
                     else:
                         dhdx[i, j] = val
             return dhdx
+
     def add_noise(self, x):
 # numpy 1.17.0 or later
         return x + rng.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
@@ -233,7 +236,11 @@ class Obs():
         if i < len(x) - 1:
             return (1.0 - ai)*x[i] + ai*x[i+1]
         else:
-            return (1.0 - ai)*x[i] + ai*x[0]
+            if self.icyclic:
+                return (1.0 - ai)*x[i] + ai*x[0]
+            else:
+                return (1.0 - ai)*x[i]
+
     def itpl2d(self, ri, rj, x):
         x2d = x.reshape(self.ni,self.nj)
         if self.ix is None:

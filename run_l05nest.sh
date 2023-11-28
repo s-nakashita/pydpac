@@ -3,20 +3,20 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlef"
+perturbations="mlefcw"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=50 # Number of assimilation cycle
-nmem=80 # ensemble size
-nobs=120 # observation volume
-linf=True  # True:Apply inflation False:Not apply
+na=30 # Number of assimilation cycle
+nmem=40 # ensemble size
+nobs=30 # observation volume
+linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="test_m${nmem}obs${nobs}"
+exp="test_lmlef_m${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -24,6 +24,7 @@ rm -rf work/${model}/${exp}
 mkdir -p work/${model}/${exp}
 cd work/${model}/${exp}
 cp ${cdir}/logging_config.ini .
+ln -s ${cdir}/data/l05III/truth.npy .
 rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
@@ -65,10 +66,14 @@ for op in ${operators}; do
     mv ${model}_stda_gm_${op}_${pt}.txt stda_gm_${op}_${pert}.txt
     mv ${model}_xdmean_gm_${op}_${pt}.txt xdmean_gm_${op}_${pert}.txt
     mv ${model}_xsmean_gm_${op}_${pt}.txt xsmean_gm_${op}_${pert}.txt
+    mv ${model}_xagm_${op}_${pt}.npy ${model}_xagm_${op}_${pert}.npy
+    mv ${model}_xsagm_${op}_${pt}.npy ${model}_xsagm_${op}_${pert}.npy
     mv ${model}_e_lam_${op}_${pt}.txt e_lam_${op}_${pert}.txt
     mv ${model}_stda_lam_${op}_${pt}.txt stda_lam_${op}_${pert}.txt
     mv ${model}_xdmean_lam_${op}_${pt}.txt xdmean_lam_${op}_${pert}.txt
     mv ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam_${op}_${pert}.txt
+    mv ${model}_xalam_${op}_${pt}.npy ${model}_xalam_${op}_${pert}.npy
+    mv ${model}_xsalam_${op}_${pt}.npy ${model}_xsalam_${op}_${pert}.npy
     #if [ "${pert:4:1}" = "b" ]; then
     #mv ${model}_rho_${op}_${pt}.npy ${model}_rho_${op}_${pert}.npy
     #fi

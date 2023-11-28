@@ -79,7 +79,7 @@ elif vname[:6] == "xdmean" or vname[:6] == "xsmean":
     emean /= i
     estd /= i
     estd = np.sqrt(estd - emean**2)
-    data = np.vstack((emean,estd))
+    data = np.hstack((np.array([i,i]).reshape(-1,1),np.vstack((emean,estd))))
     if i>0:
         np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), data)
 else:
@@ -101,7 +101,7 @@ else:
     emean /= i
     estd /= i
     estd = np.sqrt(estd - emean**2)
-    data = np.vstack((emean,estd))
+    data = np.hstack((np.array([i,i]).reshape(-1,1),np.vstack((emean,estd))))
     if i>0:
         np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), data)
 #np.savetxt("{}_{}_{}_{}_mean.txt".format(model, vname, op, pt), emean)
