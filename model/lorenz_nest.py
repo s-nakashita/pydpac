@@ -179,21 +179,23 @@ class L05nest():
     def calc_dist_gm(self, iloc):
         dist = np.zeros(self.nx_gm)
         for j in range(self.nx_gm):
-            dist[j] = abs(self.nx_gm / np.pi * np.sin(np.pi * (self.ix_gm[int(iloc)] - float(self.ix_gm[j])) / self.nx_gm))
+            d = abs(self.ix_gm[int(iloc)] - float(self.ix_gm[j]))
+            dist[j] = min(d,self.nx_true-d)
         return dist
     
     def calc_dist1_gm(self, iloc, jloc):
-        dist = abs(self.nx_gm / np.pi * np.sin(np.pi * (self.ix_gm[int(iloc)] - jloc) / self.nx_gm))
+        dist = abs(self.ix_gm[int(iloc)] - jloc)
+        dist = min(dist,self.nx_true-dist)
         return dist
 
     def calc_dist_lam(self, iloc):
         dist = np.zeros(self.nx_lam)
         for j in range(self.nx_lam):
-            dist[j] = abs(self.nx_lam / np.pi * np.sin(np.pi * (self.ix_lam[int(iloc)] - float(self.ix_lam[j])) / self.nx_lam))
+            dist[j] = abs(self.ix_lam[int(iloc)] - float(self.ix_lam[j]))
         return dist
     
     def calc_dist1_lam(self, iloc, jloc):
-        dist = abs(self.nx_lam / np.pi * np.sin(np.pi * (self.ix_lam[int(iloc)] - jloc) / self.nx_lam))
+        dist = abs(self.ix_lam[int(iloc)] - jloc)
         return dist
 
 if __name__ == "__main__":
