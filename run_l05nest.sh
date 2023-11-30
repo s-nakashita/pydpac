@@ -61,7 +61,7 @@ for op in ${operators}; do
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     start_time=$(date +"%s")
-    python3.9 ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+    python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
@@ -94,20 +94,20 @@ for op in ${operators}; do
         mv ${model}_palam_${op}_${pt}_cycle${icycle}.npy ${model}_palam_${op}_${pert}_cycle${icycle}.npy
       fi
       #done
-      python3.9 ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
+      python ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
     fi
-    #python3.9 ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
+    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
   done
-  python3.9 ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
-  python3.9 ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
-  #python3.9 ${cdir}/plot/plotchi.py ${op} ${model} ${na}
-  #python3.9 ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-  python3.9 ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
-  #python3.9 ${cdir}/plot/plotdof.py ${op} ${model} ${na}
+  python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
+  python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
+  #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
+  python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   
   #rm obs*.npy
 done
