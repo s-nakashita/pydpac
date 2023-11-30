@@ -56,7 +56,7 @@ try:
         while(True):
             tmp=f.readline()[:-1]
             if tmp=='': break
-            if ptype=="loc" or ptype=="infl":
+            if ptype=="infl":
                 var.append(float(tmp))
             else:
                 var.append(int(tmp))

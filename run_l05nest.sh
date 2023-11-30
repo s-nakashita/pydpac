@@ -3,7 +3,7 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlefcw"
+perturbations="mlefbe mlefbm"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
@@ -12,11 +12,12 @@ perturbations="mlefcw"
 na=30 # Number of assimilation cycle
 nmem=40 # ensemble size
 nobs=30 # observation volume
-linf=False # True:Apply inflation False:Not apply
+linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
+lsig=50
 #L="-1.0 0.5 1.0 2.0"
-exp="test_lmlef_m${nmem}obs${nobs}"
+exp="test_mlefb_m${nmem}obs${nobs}l${lsig}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -49,6 +50,9 @@ for op in ${operators}; do
     fi
     sed -i -e '/ss/s/False/True/' config.py
     sed -i -e '/getkf/s/True/False/' config.py
+    if [ ! -z $lsig ]; then
+    gsed -i -e "8i \ \"lsig\":${lsig}," config.py
+    fi
     mv config.py config_gm.py
     cp config_gm.py config_lam.py
     cat config_gm.py
@@ -56,12 +60,12 @@ for op in ${operators}; do
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config_gm.py)
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
-    start_time=$(gdate +"%s.%5N")
-    python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+    start_time=$(date +"%s")
+    python3.9 ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
     wait
-    end_time=$(gdate +"%s.%5N")
+    end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
-    echo "scale=1; ${end_time}-${start_time}" | bc >> timer
+    echo "scale=3; (${end_time}-${start_time})/1000" | bc >> timer
     mv ${model}_e_gm_${op}_${pt}.txt e_gm_${op}_${pert}.txt
     mv ${model}_stda_gm_${op}_${pt}.txt stda_gm_${op}_${pert}.txt
     mv ${model}_xdmean_gm_${op}_${pt}.txt xdmean_gm_${op}_${pert}.txt
@@ -74,43 +78,36 @@ for op in ${operators}; do
     mv ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam_${op}_${pert}.txt
     mv ${model}_xalam_${op}_${pt}.npy ${model}_xalam_${op}_${pert}.npy
     mv ${model}_xsalam_${op}_${pt}.npy ${model}_xsalam_${op}_${pert}.npy
-    #if [ "${pert:4:1}" = "b" ]; then
-    #mv ${model}_rho_${op}_${pt}.npy ${model}_rho_${op}_${pert}.npy
-    #fi
-    for icycle in $(seq 0 $((${na} - 1))); do
+    loctype=`echo $pert | cut -c5-5`
+    if [ "${loctype}" = "b" ]; then
+      mv ${model}_rhogm_${op}_${pt}.npy ${model}_rhogm_${op}_${pert}.npy
+      mv ${model}_rholam_${op}_${pt}.npy ${model}_rholam_${op}_${pert}.npy
+      icycle=$((${na} - 1))
+      #for icycle in $(seq 0 $((${na} - 1))); do
       #if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
       #  mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
       #fi
-      if test -e ${model}_ua_gm_${op}_${pt}_cycle${icycle}.npy; then
-        mv ${model}_ua_gm_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_gm_${op}_${pert}_cycle${icycle}.npy
+      if test -e ${model}_pagm_${op}_${pt}_cycle${icycle}.npy; then
+        mv ${model}_pagm_${op}_${pt}_cycle${icycle}.npy ${model}_pagm_${op}_${pert}_cycle${icycle}.npy
       fi
-      if test -e ${model}_ua_lam_${op}_${pt}_cycle${icycle}.npy; then
-        mv ${model}_ua_lam_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_lam_${op}_${pert}_cycle${icycle}.npy
+      if test -e ${model}_palam_${op}_${pt}_cycle${icycle}.npy; then
+        mv ${model}_palam_${op}_${pt}_cycle${icycle}.npy ${model}_palam_${op}_${pert}_cycle${icycle}.npy
       fi
-    #  mv Wmat_${op}_${pt}_cycle${icycle}.npy ${pert}/Wmat_${op}_cycle${icycle}.npy
-    #  mv ${model}_K_${op}_${pt}_cycle$icycle.npy ${model}_K_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_dxaorig_${op}_${pt}_cycle$icycle.npy ${model}_dxaorig_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_dxa_${op}_${pt}_cycle$icycle.npy ${model}_dxa_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_pa_${op}_${pt}_cycle$icycle.npy ${model}_pa_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_pf_${op}_${pt}_cycle$icycle.npy ${model}_pf_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_spf_${op}_${pt}_cycle$icycle.npy ${model}_spf_${op}_${pert}_cycle$icycle.npy
-    #  if [ "${pert:4:1}" = "b" ]; then
-    #  mv ${model}_lpf_${op}_${pt}_cycle$icycle.npy ${model}_lpf_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_lspf_${op}_${pt}_cycle$icycle.npy ${model}_lspf_${op}_${pert}_cycle$icycle.npy
-    #  fi
-    done
-    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
+      #done
+      python3.9 ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
+    fi
+    #python3.9 ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
+    #python3.9 ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
+    #python3.9 ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
+    #python3.9 ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
   done
-  python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
-  python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
-  #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
-  #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-  python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
-  #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
+  python3.9 ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
+  python3.9 ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
+  #python3.9 ${cdir}/plot/plotchi.py ${op} ${model} ${na}
+  #python3.9 ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
+  python3.9 ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
+  #python3.9 ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   
   #rm obs*.npy
 done

@@ -48,7 +48,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.2,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
+infl_l = {"mlef":1.05,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
@@ -61,7 +61,7 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":40.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,
+sig_l = {"mlef":110.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}
@@ -105,7 +105,7 @@ params_gm["getkf"]      =  False   # (For model space localization) gain form re
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params_lam = params_gm.copy()
-params_lam["lamstart"] = 100 # first cycle of LAM analysis and forecast
+params_lam["lamstart"] = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"] = True # True: analyzed in the sponge region
 
 ## update from configure file
@@ -163,12 +163,20 @@ if pt == "mlef":
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model)
+    if params_gm["iloc"]>0:
+        rhofile=f"{model}_rho_{op}_{pt}.npy"
+        rhofile_new=f"{model}_rhogm_{op}_{pt}.npy"
+        os.rename(rhofile,rhofile_new)
     analysis_lam = Mlef(nx_lam, params_lam["nmem"], obs_lam, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model)
+    if params_lam["iloc"]>0:
+        rhofile=f"{model}_rho_{op}_{pt}.npy"
+        rhofile_new=f"{model}_rholam_{op}_{pt}.npy"
+        os.rename(rhofile,rhofile_new)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis_gm = EnKF(pt, nx_gm, params_gm["nmem"], obs_gm, \
@@ -272,11 +280,15 @@ if __name__ == "__main__":
             logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
         #if i in [1, 50, 100, 150, 200, 250]:
+        #if i == a_time[-1]:
         if i < 0:
             ##if a_window > 1:
             if pt[:2] == "4d":
                 u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(u_gm, pf_gm, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
+                pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
+                pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
+                os.rename(pafile,pafile_new)
                 for j in range(y.shape[0]):
                     chi_gm[i+j] = chi2
                     innov[i+j,:innv.size] = innv
@@ -288,6 +300,9 @@ if __name__ == "__main__":
                     else:
                         u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
                         save_hist=True, save_dh=True, icycle=i)
+                    pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
+                    pafile_new=f"{model}_palam_{op}_{pt}_cycle{i}.npy"
+                    os.rename(pafile,pafile_new)
                     for j in range(y_lam.shape[0]):
                         chi_lam[i+j] = chi2
                         dof_lam[i+j] = ds
@@ -298,6 +313,9 @@ if __name__ == "__main__":
             else:
                 u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(u_gm, pf_gm, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
+                pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
+                pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
+                os.rename(pafile,pafile_new)
                 chi_gm[i] = chi2
                 innov[i] = innv
                 dof_gm[i] = ds
@@ -308,6 +326,9 @@ if __name__ == "__main__":
                     else:
                         u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
                         save_hist=True, save_dh=True, icycle=i)
+                    pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
+                    pafile_new=f"{model}_palam_{op}_{pt}_cycle{i}.npy"
+                    os.rename(pafile,pafile_new)
                     chi_lam[i] = chi2
                     dof_lam[i] = ds
                 else:

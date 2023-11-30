@@ -31,7 +31,7 @@ try:
     else:
         print("NoDA, mean RMSE = {}".format(np.mean(e[int(na/3):])))
         ax.plot(x, e, linestyle='dotted', color='gray', label='NoDA')
-except FileNotFoundError:
+except OSError or FileNotFoundError:
     print("not exist {}".format(f))
 for pt in perts:
     #GM

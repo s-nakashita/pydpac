@@ -41,7 +41,7 @@ try:
         while(True):
             tmp=f.readline()[:-1]
             if tmp=='': break
-            if ptype=="loc" or ptype=="infl":
+            if ptype=="infl":
                 var.append(float(tmp))
             else:
                 var.append(int(tmp))
@@ -113,7 +113,12 @@ for pt in perts:
 i=0
 for pt in methods:
     ## GM
-    fig, axs = plt.subplots(figsize=[10,8],nrows=3,ncols=2,sharex=True,constrained_layout=True)
+    nfigs = len(var)
+    ncols = 2
+    nrows = nfigs // ncols + 1
+    figwidth = 10
+    figheight = 3*nrows - 1
+    fig, axs = plt.subplots(figsize=[figwidth,figheight],nrows=nrows,ncols=ncols,sharex=True,constrained_layout=True)
     for ivar, ax in zip(var,axs.flatten()):
         xd_gm = xdmean_gm[pt][ivar]
         xs_gm = xsmean_gm[pt][ivar]
@@ -124,15 +129,14 @@ for pt in methods:
             ax.plot(ix_gm,np.ones(ix_gm.size)*sigma[op],c='k',ls='dotted')
             ax.vlines([ix_lam[0],ix_lam[-1]],0,1,colors='gray',alpha=0.5,transform=ax.get_xaxis_transform())
         ax.set_title(f"{ptype}={ivar} : #{int(ns_gm):d}")
-    axs[0,0].set_ylabel("RMSE or SPREAD")
-    axs[1,0].set_ylabel("RMSE or SPREAD")
-    axs[2,0].set_ylabel("RMSE or SPREAD")
+    for i in range(nrows):
+        axs[i,0].set_ylabel("RMSE or SPREAD")
     if len(axs.flatten())>len(var):
-        axs[2,1].remove()
+        axs[nrows-1,ncols-1].remove()
     fig.suptitle(op+", GM")
     fig.savefig("{}_xdmean_gm_{}_{}.png".format(model, ptype, op))
     ## LAM
-    fig, axs = plt.subplots(figsize=[10,8],nrows=3,ncols=2,sharex=True,constrained_layout=True)
+    fig, axs = plt.subplots(figsize=[figwidth,figheight],nrows=nrows,ncols=ncols,sharex=True,constrained_layout=True)
     for ivar, ax in zip(var,axs.flatten()):
         xd_lam = xdmean_lam[pt][ivar]
         xs_lam = xsmean_lam[pt][ivar]
@@ -142,10 +146,9 @@ for pt in methods:
             ax.plot(ix_lam,xs_lam[0,],ls='dashed')
             ax.plot(ix_lam,np.ones(ix_lam.size)*sigma[op],c='k',ls='dotted')
         ax.set_title(f"{ptype}={ivar} : #{int(ns_lam):d}")
-    axs[0,0].set_ylabel("RMSE or SPREAD")
-    axs[1,0].set_ylabel("RMSE or SPREAD")
-    axs[2,0].set_ylabel("RMSE or SPREAD")
+    for i in range(nrows):
+        axs[i,0].set_ylabel("RMSE or SPREAD")
     if len(axs.flatten())>len(var):
-        axs[2,1].remove()
+        axs[nrows-1,ncols-1].remove()
     fig.suptitle(op+", LAM")
     fig.savefig("{}_xdmean_lam_{}_{}.png".format(model, ptype, op))

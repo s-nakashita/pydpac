@@ -96,5 +96,5 @@ python module cgf ! in
     end interface 
 end python module cgf
 
-! This file was auto-generated with f2py (version:1.21.4).
+! This file was auto-generated with f2py (version:1.21.0).
 ! See http://cens.ioc.ee/projects/f2py2e/

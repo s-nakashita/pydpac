@@ -179,7 +179,7 @@ class L05nest():
     def calc_dist_gm(self, iloc):
         dist = np.zeros(self.nx_gm)
         for j in range(self.nx_gm):
-            d = abs(self.ix_gm[int(iloc)] - float(self.ix_gm[j]))
+            d = abs(float(self.ix_gm[int(iloc)] - self.ix_gm[j]))
             dist[j] = min(d,self.nx_true-d)
         return dist
     
@@ -191,7 +191,7 @@ class L05nest():
     def calc_dist_lam(self, iloc):
         dist = np.zeros(self.nx_lam)
         for j in range(self.nx_lam):
-            dist[j] = abs(self.ix_lam[int(iloc)] - float(self.ix_lam[j]))
+            dist[j] = abs(float(self.ix_lam[int(iloc)] - self.ix_lam[j]))
         return dist
     
     def calc_dist1_lam(self, iloc, jloc):

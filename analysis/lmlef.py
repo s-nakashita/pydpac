@@ -64,7 +64,7 @@ class Lmlef():
         #is2r = 1 / (1 + s**2)
         rho = 1.0
         if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
+            logger.debug("==inflation==, alpha={}".format(self.infl_parm))
             rho = 1.0 / self.infl_parm
         c = zmat.transpose() @ zmat
         lam, v = la.eigh(c)
@@ -237,7 +237,7 @@ class Lmlef():
             options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
             for i in range(xc.size):
                 far, Rwf_loc = self.r_loc(self.lsig, yloc, float(i))
-                logger.info(f"Number of assimilated obs.={y.size - len(far)}")
+                logger.debug(f"Number of assimilated obs.={y.size - len(far)}")
                 dhi = np.delete(dh, far, axis=0)
                 Rmat = np.diag(np.diag(rmat) * np.sqrt(Rwf_loc))
                 Rmat = np.delete(Rmat, far, axis=0)
@@ -286,7 +286,7 @@ class Lmlef():
                             self.cost_j(1000, xf.shape[1], x, icycle, *args_j)
                         else:
                             xmax = int(np.ceil(xmax*0.001)*1000)
-                            logger.info("resx max={}".format(xmax))
+                            logger.debug("resx max={}".format(xmax))
                             self.cost_j(xmax, xf.shape[1], x, icycle, *args_j)
                     elif self.model=="l96":
                         self.cost_j(200, xf.shape[1], x, icycle, *args_j)

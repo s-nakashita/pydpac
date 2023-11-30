@@ -211,14 +211,14 @@ if __name__ == "__main__":
         logger.info(f"{ntest}th test")
         ## Random seed
         rs = np.random.RandomState(seeds[ntest]) #variable
-        #rs = np.random.RandomState() #variable
+        #rs = np.random.RandomState(5854) #variable
         rstrue = np.random.RandomState(514) #fix
 
         ## True state and observation
         xt = sPt @ rstrue.standard_normal(size=N)
         obsloc1 = np.arange(p) # upward
-        #obsloc1 = np.arange(p-1,-1,-1) # downward
-        #obsloc1 = rs.choice(p, size=p, replace=False) # random
+#        obsloc1 = np.arange(p-1,-1,-1) # downward
+#        obsloc1 = rs.choice(p, size=p, replace=False) # random
         obsloc = obsloc1
         #obsloc2 = np.arange(0,p-1,10)
         #obsloc = np.hstack((obsloc1, obsloc2))
@@ -278,7 +278,7 @@ if __name__ == "__main__":
                 #'po':('po',None,False,False),'po-b':('po',2,False,False),'po-k':('po',0,False,False),
                 'serial enkf':('srf',None,False,False),'serial enkf-b':('srf',2,False,True),'serial enkf-k':('srf',0,False,False),
                 }
-        names = ['enkf','enkf-b','enkf-k','letkf','serial enkf','serial enkf-b','serial enkf-k']
+        #names = ['enkf','enkf-b','enkf-k','letkf','serial enkf','serial enkf-b','serial enkf-k']
         #names = ['serial enkf','serial enkf-b','serial enkf-k']
         names = ['letkf']
         xa_list = []
@@ -333,8 +333,20 @@ if __name__ == "__main__":
         #names2 = ['lmlef']
         for ptype in names2:
             pt, iloc, ss, gain = params[ptype]
-            analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
-#                       ,incremental=True)
+            if ptype == 'lmlef0':
+                analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
+                       ,incremental=True)
+            elif ptype == 'lmlef1':
+                analysis = Lmlef(pt, N, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
+                       ,incremental=False, ltlm=False)
+            elif ptype == 'lmlef2':
+                analysis = Mlef_rloc(pt, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
+                       ,incremental=False, ltlm=False)
+                #analysis = Lmlef(pt, N, K, obs, lsig=3.0, calc_dist=calc_dist, calc_dist1=calc_dist1
+                #       ,incremental=False, ltlm=True)
+            else:
+                analysis = Mlef(pt, N, K, obs, iloc=iloc, lsig=3.0, ss=ss, gain=gain, l_mat=F, l_sqrt=W, calc_dist=calc_dist, calc_dist1=calc_dist1)
+                #       ,ltlm=True)
             xb = xf
             pb = Pe
             xa, Pa, sPa, innv, chi2, ds = analysis(xb, pb, y, obsloc, method='CGF', cgtype=1, maxiter=10)#, restart=True)
@@ -367,12 +379,12 @@ if __name__ == "__main__":
             #logger.info(xam)
             if i < 0:
             #if i < len(names):
-                #logger.info(f"method:{method[i]} mean")
+                logger.info(f"method:{method[i]} mean")
                 xrmse.append(np.sqrt(((xa.mean(axis=1) - xt)**2).mean())/initial_mean_err)
                 hxa = obs.h_operator(obsloc, xa.mean(axis=1))
                 hxrmse.append(np.sqrt(((hxa - hxt)**2).mean())/initial_mean_obserr)
             else:
-                #logger.info(f"method:{method[i]} ctrl")
+                logger.info(f"method:{method[i]} ctrl")
                 xrmse.append(np.sqrt(((xa - xt)**2).mean())/initial_ctrl_err)
                 hxa = obs.h_operator(obsloc, xa)
                 hxrmse.append(np.sqrt(((hxa - hxt)**2).mean())/initial_ctrl_obserr)

@@ -3,7 +3,7 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlefcw"
+perturbations="mlefbm"
 na=30 # Number of assimilation cycle
 nmem=40 # ensemble size
 nobs=30 # observation volume
@@ -12,7 +12,7 @@ lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 ptype=loc
-exp="test_gmonly_lmlef_${ptype}_mem${nobs}"
+exp="test_mlefbm_${ptype}_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -26,7 +26,7 @@ rm -rf *.log
 rm -rf timer
 touch timer
 nmemlist="120 160 200 240 280"
-lsiglist="10 20 30 40 50 60"
+lsiglist="10 20 30 40 50 70 90 110 130"
 nobslist="480 240 120 60 30"
 infllist="1.0 1.05 1.1 1.15 1.2 1.25"
 touch params.txt
@@ -63,9 +63,9 @@ for op in ${operators}; do
       fi
       sed -i -e '/ss/s/False/True/' config.py
       sed -i -e '/getkf/s/True/False/' config.py
-      if [ $ptype = loc ]; then
-        gsed -i -e "6i \ \"lsig\":${lsig}," config.py
-      fi
+#      if [ $ptype = loc ]; then
+#        gsed -i -e "6i \ \"lsig\":${lsig}," config.py
+#      fi
       if [ $ptype = infl ]; then
         gsed -i -e "8i \ \"infl_parm\":${infl}," config.py
       fi
@@ -74,16 +74,19 @@ for op in ${operators}; do
       echo $pt
       mv config.py config_gm.py
       cp config_gm.py config_lam.py
+      if [ $ptype = loc ]; then
+        gsed -i -e "6i \ \"lsig\":${lsig}," config_lam.py
+      fi
       cat config_gm.py
       cat config_lam.py
       for count in $(seq 1 10); do
         echo $count
         rm -f ${model}_*_${op}_${pt}.txt
-        start_time=$(gdate +"%s.%5N")
-        python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+        start_time=$(date +"%s")
+        python3.9 ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
         wait
-        end_time=$(gdate +"%s.%5N")
-        cputime=`echo "scale=1; ${end_time}-${start_time}" | bc`
+        end_time=$(date +"%s")
+        cputime=`echo "scale=3; ${end_time}-${start_time}/1000" | bc`
         echo "${op} ${pert} ${count} ${cputime}" >> timer
         mv ${model}_e_gm_${op}_${pt}.txt e_gm${ptmp}_${op}_${pt}_${count}.txt
         mv ${model}_stda_gm_${op}_${pt}.txt stda_gm${ptmp}_${op}_${pt}_${count}.txt
@@ -95,21 +98,21 @@ for op in ${operators}; do
         mv ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam${ptmp}_${op}_${pt}_${count}.txt
         rm obs*.npy
       done
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_gm${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_gm${ptmp} ${pt}
       #rm e_gm_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_gm${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_gm${ptmp} ${pt}
       #rm stda_gm_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_gm${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_gm${ptmp} ${pt}
       #rm xdmean_gm_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_gm${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_gm${ptmp} ${pt}
       #rm xsmean_gm_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_lam${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_lam${ptmp} ${pt}
       #rm e_lam_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_lam${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_lam${ptmp} ${pt}
       #rm stda_lam_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_lam${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_lam${ptmp} ${pt}
       #rm xdmean_lam_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_lam${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_lam${ptmp} ${pt}
       #rm xsmean_lam_${op}_${pt}_*.txt
       mv ${model}_e_gm${ptmp}_${op}_${pt}.txt ${model}_e_gm_${op}_${pert}_${ptmp}.txt
       mv ${model}_stda_gm${ptmp}_${op}_${pt}.txt ${model}_stda_gm_${op}_${pert}_${ptmp}.txt
@@ -120,11 +123,11 @@ for op in ${operators}; do
       mv ${model}_xdmean_lam${ptmp}_${op}_${pt}.txt ${model}_xdmean_lam_${op}_${pert}_${ptmp}.txt
       mv ${model}_xsmean_lam${ptmp}_${op}_${pt}.txt ${model}_xsmean_lam_${op}_${pert}_${ptmp}.txt
     done #pert
-    #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
+    #python3.9 ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #nmem
   cat params.txt
-  python ${cdir}/plot/ploteparam_nest.py ${op} ${model} ${na} $ptmp
-  python ${cdir}/plot/plotxdparam_nest.py ${op} ${model} ${na} $ptmp
+  python3.9 ${cdir}/plot/ploteparam_nest.py ${op} ${model} ${na} $ptype
+  python3.9 ${cdir}/plot/plotxdparam_nest.py ${op} ${model} ${na} $ptype
   #rm obs*.npy
 done #op
 #rm ${model}*.txt 
