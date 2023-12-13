@@ -28,9 +28,9 @@ elif model == "l05III":
     from model.lorenz3 import L05III as L05
     global ni, b, c
     # model parameter
-    nx = 240       # number of points
-    nk = 8        # advection length scale
-    ni = 3        # spatial filter width
+    nx = 960       # number of points
+    nk = 32        # advection length scale
+    ni = 12        # spatial filter width
     F  = 15.0      # forcing
     b  = 10.0      # frequency of small-scale perturbation
     c  = 0.6       # coupling factor
@@ -38,6 +38,8 @@ elif model == "l05III":
     args = nx, nk, ni, b, c, dt, F
 # forecast model forward operator
 step = L05(*args)
+
+np.savetxt("ix.txt",np.arange(step.nx))
 
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -196,6 +198,8 @@ if __name__ == "__main__":
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
     stda = np.zeros(na)
+    xdmean = np.zeros(nx)
+    xsmean = np.zeros(nx)
     innov = np.zeros((na,yobs.shape[1]*a_window))
     chi = np.zeros(na)
     dof = np.zeros(na)
@@ -298,9 +302,12 @@ if __name__ == "__main__":
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
+                xdmean += np.abs(xa[k,:] - xt[k,:])
         else:
             e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
+            xdmean += np.abs(xa[i,:] - xt[i,:])
         stda[i] = np.sqrt(np.trace(pa)/nx)
+        xsmean += np.sqrt(np.diag(pa))
 
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
@@ -310,3 +317,8 @@ if __name__ == "__main__":
     np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
+
+    xdmean /= float(na)
+    xsmean /= float(na)
+    np.savetxt("{}_xdmean_{}_{}.txt".format(model, op, pt), xdmean)
+    np.savetxt("{}_xsmean_{}_{}.txt".format(model, op, pt), xsmean)

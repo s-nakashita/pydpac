@@ -11,12 +11,14 @@ linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-ptype=loc
-exp="lmlef_gmonly_${ptype}_mem${nmem}obs${nobs}"
+ptype=infl
+lgsig=70
+llsig=50
+exp="lmlef_${ptype}_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-#rm -rf work/${model}/${exp}
+rm -rf work/${model}/${exp}
 mkdir -p work/${model}/${exp}
 cd work/${model}/${exp}
 cp ${cdir}/logging_config.ini .
@@ -26,25 +28,24 @@ rm -rf *.log
 rm -rf timer
 touch timer
 nmemlist="120 160 200 240 280"
-lsiglist="20 30 40 50 60 70"
-lsiglist="80 90 100"
+lsiglist="20 30 40 50 60 70 80 90 100"
 nobslist="480 240 120 60 30 15"
 infllist="1.0 1.05 1.1 1.15 1.2 1.25"
 touch params.txt
 for op in ${operators}; do
-  #echo $ptype > params.txt
+  echo $ptype > params.txt
   #for nmem in ${nmemlist}; do
   #  echo $nmem >> params.txt
   #  ptmp=$nmem
-  for lsig in ${lsiglist}; do
-    echo $lsig >> params.txt
-    ptmp=$lsig
+  #for lsig in ${lsiglist}; do
+  #  echo $lsig >> params.txt
+  #  ptmp=$lsig
   #for nobs in ${nobslist}; do
   #  echo $nobs >> params.txt
   #  ptmp=$nobs
-  #for infl in ${infllist}; do
-  #  echo $infl >> params.txt
-  #  ptmp=$infl
+  for infl in ${infllist}; do
+    echo $infl >> params.txt
+    ptmp=$infl
     for pert in ${perturbations}; do
       echo $pert
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
@@ -75,12 +76,16 @@ for op in ${operators}; do
       echo $pt
       mv config.py config_gm.py
       cp config_gm.py config_lam.py
-      #if [ $ptype = loc ]; then
-      #  gsed -i -e "6i \ \"lsig\":${lgsig}," config_gm.py
-      #fi
-      #if [ $ptype = loc ]; then
-      #  gsed -i -e "6i \ \"lsig\":${llsig}," config_lam.py
-      #fi
+      if [ ! -z $lgsig ]; then
+        gsed -i -e "8i \ \"lsig\":${lgsig}," config_gm.py
+      elif [ $ptype = loc ]; then
+        gsed -i -e "8i \ \"lsig\":${lsig}," config_gm.py
+      fi
+      if [ ! -z $llsig ]; then
+        gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
+      elif [ $ptype = loc ]; then
+        gsed -i -e "8i \ \"lsig\":${lsig}," config_lam.py
+      fi
       cat config_gm.py
       cat config_lam.py
       for count in $(seq 1 10); do

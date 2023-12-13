@@ -3,7 +3,7 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlefbe mlefbm"
+perturbations="mlefcw"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
@@ -15,9 +15,10 @@ nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-lsig=50
+lgsig=70
+llsig=50
 #L="-1.0 0.5 1.0 2.0"
-exp="test_mlefb_m${nmem}obs${nobs}l${lsig}"
+exp="lmlef_m${nmem}obs${nobs}lg${lgsig}l${llsig}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -55,6 +56,12 @@ for op in ${operators}; do
     fi
     mv config.py config_gm.py
     cp config_gm.py config_lam.py
+    if [ ! -z $lgsig ]; then
+    gsed -i -e "8i \ \"lsig\":${lgsig}," config_gm.py
+    fi
+    if [ ! -z $llsig ]; then
+    gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
+    fi
     cat config_gm.py
     cat config_lam.py
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config_gm.py)

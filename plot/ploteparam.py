@@ -19,9 +19,11 @@ if model == "z08" or model == "z05":
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 else:
     perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
+    "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+        "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
     marker = {"3d":"o","4d":"x"}
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
@@ -54,7 +56,7 @@ try:
         while(True):
             tmp=f.readline()[:-1]
             if tmp=='': break
-            if ptype=="loc" or ptype=="infl":
+            if ptype=="infl":
                 var.append(float(tmp))
             else:
                 var.append(int(tmp))
@@ -64,12 +66,14 @@ except FileNotFoundError:
 #y = np.ones(len(var)) * sigma[op]
 fig, ax = plt.subplots(constrained_layout=True)
 methods = []
+nsuccess = []
 mean = []
 std = []
 for pt in perts:
     #fig, ax = plt.subplots()
     i = 0
     j = 0
+    success = np.zeros(len(var))
     el = np.zeros(len(var))
     es = np.zeros(len(var))
     for ivar in var:
@@ -77,26 +81,31 @@ for pt in perts:
         f = "{}_e_{}_{}_{}.txt".format(model, op, pt, ivar)
         if not os.path.isfile(f):
             print("not exist {}".format(f))
-            i = -1
-            continue
-        e = np.loadtxt(f)
-        if np.isnan(e).any():
-            print("divergence in {}".format(pt))
             el[i] = np.nan
-            i += 1
-            continue
-        el[i] = np.mean(e[0,int(na/3):])
-        es[i] = np.mean(e[1,int(na/3):])
-        i += 1
-        j += 1
+            es[i] = np.nan
+        else:
+            data = np.loadtxt(f)
+            e = data[:,1:]
+            if np.isnan(e).any():
+                print("divergence in {}".format(pt))
+                el[i] = np.nan
+                es[i] = np.nan
+            else:
+                success[i] = data[0,0]
+                el[i] = np.mean(e[0,int(na/3):])
+                es[i] = np.mean(e[1,int(na/3):])
+                j += 1
+        i+=1
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if j > 0:
         methods.append(pt)
+        nsuccess.append(success)
         mean.append(el)
         std.append(es)
 xaxis = np.arange(len(var)) - len(methods)*0.025
 i=0
 for pt in methods:
+    ns = nsuccess[i]
     el = mean[i]
     es = std[i]
     if pt[:2] == "4d":
@@ -104,6 +113,10 @@ for pt in methods:
     else:
         mark=marker["3d"]; color=linecolor[pt]
     ax.errorbar(xaxis, el, yerr=es, marker=mark, color=color, label=pt)
+    for j in range(ns.size):
+        ax.text(xaxis[j], 0.93, f'{int(ns[j]):d}',\
+        transform=ax.get_xaxis_transform(),\
+        ha='center',fontsize=16,c='r')
     xaxis += 0.05
     i+=1
 ax.set(xlabel="{} parameter".format(ptype), ylabel="RMSE",
