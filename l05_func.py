@@ -82,7 +82,13 @@ class L05_func():
             np.save("truth.npy",xt)
         else:
             logger.info("read truth")
-            xt = np.load(truefile)
+            xtfull = np.load(truefile)
+            if xtfull.shape[0] < self.na:
+                logger.info("recreate truth")
+                xt = self.gen_true()
+                np.save(truefile,xt)
+            else:
+                xt = xtfull[:self.na]
         #logger.debug("xt={}".format(xt))
 
         xloc = np.arange(self.nx)
