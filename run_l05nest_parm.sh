@@ -3,7 +3,7 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlefcw"
+perturbations="mlefbm"
 na=30 # Number of assimilation cycle
 nmem=40 # ensemble size
 nobs=30 # observation volume
@@ -12,9 +12,9 @@ lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 ptype=infl
-lgsig=70
-llsig=50
-exp="lmlef_${ptype}_mem${nmem}obs${nobs}"
+lgsig=110
+llsig=70
+exp="test_mlefbm_${ptype}_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -82,7 +82,7 @@ for op in ${operators}; do
         gsed -i -e "8i \ \"lsig\":${lsig}," config_gm.py
       fi
       if [ ! -z $llsig ]; then
-        gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
+	gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
       elif [ $ptype = loc ]; then
         gsed -i -e "8i \ \"lsig\":${lsig}," config_lam.py
       fi
@@ -92,7 +92,7 @@ for op in ${operators}; do
         echo $count
         rm -f ${model}_*_${op}_${pt}.txt
         start_time=$(date +"%s")
-        python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+        python3.9 ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
         wait
         end_time=$(date +"%s")
         cputime=`echo "scale=3; ${end_time}-${start_time}/1000" | bc`
@@ -107,21 +107,21 @@ for op in ${operators}; do
         mv ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam${ptmp}_${op}_${pt}_${count}.txt
         rm obs*.npy
       done
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_gm${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_gm${ptmp} ${pt}
       #rm e_gm_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_gm${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_gm${ptmp} ${pt}
       #rm stda_gm_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_gm${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_gm${ptmp} ${pt}
       #rm xdmean_gm_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_gm${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_gm${ptmp} ${pt}
       #rm xsmean_gm_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_lam${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e_lam${ptmp} ${pt}
       #rm e_lam_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_lam${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda_lam${ptmp} ${pt}
       #rm stda_lam_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_lam${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean_lam${ptmp} ${pt}
       #rm xdmean_lam_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_lam${ptmp} ${pt}
+      python3.9 ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean_lam${ptmp} ${pt}
       #rm xsmean_lam_${op}_${pt}_*.txt
       mv ${model}_e_gm${ptmp}_${op}_${pt}.txt ${model}_e_gm_${op}_${pert}_${ptmp}.txt
       mv ${model}_stda_gm${ptmp}_${op}_${pt}.txt ${model}_stda_gm_${op}_${pert}_${ptmp}.txt
@@ -132,11 +132,11 @@ for op in ${operators}; do
       mv ${model}_xdmean_lam${ptmp}_${op}_${pt}.txt ${model}_xdmean_lam_${op}_${pert}_${ptmp}.txt
       mv ${model}_xsmean_lam${ptmp}_${op}_${pt}.txt ${model}_xsmean_lam_${op}_${pert}_${ptmp}.txt
     done #pert
-    #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
+    #python3.9 ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #ptmp
   cat params.txt
-  python ${cdir}/plot/ploteparam_nest.py ${op} ${model} ${na} $ptype
-  python ${cdir}/plot/plotxdparam_nest.py ${op} ${model} ${na} $ptype
+  python3.9 ${cdir}/plot/ploteparam_nest.py ${op} ${model} ${na} $ptype
+  python3.9 ${cdir}/plot/plotxdparam_nest.py ${op} ${model} ${na} $ptype
   #rm obs*.npy
 done #op
 #rm ${model}*.txt 
