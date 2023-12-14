@@ -4,14 +4,14 @@ model="l05III"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
 perturbations="mlef"
-na=100 # Number of assimilation cycle
-nmem=100 # ensemble size
-nobs=40 # observation volume
+na=30 # Number of assimilation cycle
+nmem=80 # ensemble size
+nobs=30 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="test_nobs${nobs}"
+exp="mlef_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -23,6 +23,7 @@ rm -rf *.npy
 rm -rf *.log
 rm -rf timer
 touch timer
+ln -fs ${cdir}/data/l05III/truth.npy .
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
@@ -84,6 +85,7 @@ for op in ${operators}; do
     #done
   done
   python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
+  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
   python ${cdir}/plot/plotxa.py ${op} ${model} ${na}

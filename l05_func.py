@@ -182,6 +182,7 @@ class L05_func():
     def initialize(self, opt=0):
         xa = np.zeros((self.na, self.nx))
         xf = np.zeros_like(xa)
+        xsa = np.zeros_like(xa)
         if self.ft == "deterministic":
             u = self.init_ctl()
             xf[0] = u
@@ -198,7 +199,7 @@ class L05_func():
         #    savepa = np.zeros((self.na, self.nx, self.nmem-1))
         #else:
         #savepa = np.zeros((self.na, self.nx, self.nx))
-        return u, xa, xf, pa#, savepa
+        return u, xa, xf, pa, xsa#, savepa
 
     # forecast
     def forecast(self, u):

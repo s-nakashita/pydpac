@@ -87,7 +87,7 @@ i=0
 for pt in methods:
     nfigs = len(var)
     ncols = 2
-    nrows = nfigs // ncols + 1
+    nrows = int(np.ceil(nfigs / ncols))
     figwidth = 10
     figheight = 3*nrows - 1
     fig, axs = plt.subplots(figsize=[figwidth,figheight],nrows=nrows,ncols=ncols,sharex=True,constrained_layout=True)

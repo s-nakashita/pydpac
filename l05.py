@@ -189,7 +189,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs(obsloctype=params["obsloctype"])
-    u, xa, xf, pa = func.initialize(opt=0)
+    u, xa, xf, pa, xsa = func.initialize(opt=0)
     logger.debug(u.shape)
     func.plot_initial(u[:,0], u[:,1:], xt[0])
     pf = analysis.calc_pf(u, pa, 0)
@@ -307,10 +307,12 @@ if __name__ == "__main__":
             e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
             xdmean += np.abs(xa[i,:] - xt[i,:])
         stda[i] = np.sqrt(np.trace(pa)/nx)
+        xsa[i] = np.sqrt(np.diag(pa))
         xsmean += np.sqrt(np.diag(pa))
 
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
+    np.save("{}_xsa_{}_{}.npy".format(model, op, pt), xsa)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
