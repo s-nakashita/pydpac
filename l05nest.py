@@ -110,6 +110,9 @@ params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental fo
 params_lam = params_gm.copy()
 params_lam["lamstart"] = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"] = True # True: analyzed in the sponge region
+params_lam["sigv"]      =  0.6     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["lv"]        = -1.0     # (For var_nest) GM correlation length for background error covariance in LAM space
+params_lam["crosscov"] = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 
 ## update from configure file
 sys.path.append('./')
@@ -219,6 +222,43 @@ elif pt == "var":
         bmat_lam = None
     analysis_lam = Var(obs_lam, 
     sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, model=model)
+elif pt == "var_nest":
+    from analysis.var_nest import Var_nest
+    from analysis.var import Var
+    bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
+    f = os.path.join(parend_dir,bmatdir,"B_gmfull.npy")
+    try:
+        bmat_gm = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat_gm = None
+    analysis_gm = Var(obs_gm, 
+    sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, model=model)
+    f = os.path.join(parend_dir,bmatdir,"B_lam.npy")
+    try:
+        bmat_lam = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat_lam = None
+    f = os.path.join(parend_dir,bmatdir,"B_gm.npy")
+    try:
+        vmat = np.load(f)
+    except FileNotFoundError or OSError:
+        vmat = None
+    if params_lam["crosscov"]:
+        f = os.path.join(parend_dir,bmatdir,"E_hl.npy")
+        try:
+            ebkmat = np.load(f)
+        except FileNotFoundError or OSError:
+            ebkmat = None
+        f = os.path.join(parend_dir,bmatdir,"E_lh.npy")
+        try:
+            ekbmat = np.load(f)
+        except FileNotFoundError or OSError:
+            ekbmat = None
+    analysis_lam = Var_nest(obs_lam, ix_gm, ix_lam, 
+    sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, 
+    sigv=params_lam["sigv"], lv=params_lam["lv"], vmat=vmat, 
+    crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
+    model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -262,7 +302,10 @@ if __name__ == "__main__":
     u_gm, xa_gm, xf_gm, pa_gm, xsa_gm, u_lam, xa_lam, xf_lam, pa_lam, xsa_lam = func.initialize(opt=0)
     logger.debug(u_gm.shape)
     logger.debug(u_lam.shape)
-    func.plot_initial(u_gm[:,0], u_gm[:,1:], u_lam[:,0], u_lam[:,1:], xt[0], pt)
+    if u_gm.ndim == 2:
+        func.plot_initial(u_gm[:,0], u_lam[:,0], xt[0], uens_gm=u_gm[:,1:], uens_lam=u_lam[:,1:], method=pt)
+    else:
+        func.plot_initial(u_gm, u_lam, xt[0], method=pt)
     pf_gm = analysis_gm.calc_pf(u_gm, pa_gm, 0)
     pf_lam = analysis_lam.calc_pf(u_lam, pa_lam, 0)
     
@@ -293,100 +336,74 @@ if __name__ == "__main__":
             logger.info("observation location in LAM {} {}".format  (yloc_lam,yloc_lam.shape))
             logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
+        ##if a_window > 1:
+        if pt[:2] == "4d":
+            args_gm = (u_gm,pf_gm,y,yloc)
+            if params_lam["anlsp"]:
+                if pt == "var_nest":
+                    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm,ix_lam)
+                else:
+                    args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
+            else:
+                if pt == "var_nest":
+                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm,ix_lam[nsp:-nsp])
+                else:
+                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
+        else:
+            args_gm = (u_gm,pf_gm,y[0],yloc[0])
+            if params_lam["anlsp"]:
+                if pt == "var_nest":
+                    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm,ix_lam)
+                else:
+                    args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
+            else:
+                if pt == "var_nest":
+                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm,ix_lam[nsp:-nsp])
+                else:
+                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
         #if i in [1, 50, 100, 150, 200, 250]:
         #if i == a_time[-1]:
         if i < 0:
-            ##if a_window > 1:
-            if pt[:2] == "4d":
-                u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(u_gm, pf_gm, y, yloc, \
+            u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(*args_gm, \
                     save_hist=True, save_dh=True, icycle=i)
-                pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
-                pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
-                os.rename(pafile,pafile_new)
-                for j in range(y.shape[0]):
-                    chi_gm[i+j] = chi2
-                    innov[i+j,:innv.size] = innv
-                    dof_gm[i+j] = ds
-                if i >= params_lam["lamstart"]:
-                    if params_lam["anlsp"]:
-                        u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
+            pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
+            pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
+            os.rename(pafile,pafile_new)
+            chi_gm[i:min(i+a_window,na)] = chi2
+            innov[i:min(i+a_window,na),:innv.size] = innv
+            dof_gm[i:min(i+a_window,na)] = ds
+            if i >= params_lam["lamstart"]:
+                if params_lam["anlsp"]:
+                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(*args_lam, \
                         save_hist=True, save_dh=True, icycle=i)
-                    else:
-                        u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
+                else:
+                    u_lam[nsp:-nsp], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(*args_lam, \
                         save_hist=True, save_dh=True, icycle=i)
                     pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
                     pafile_new=f"{model}_palam_{op}_{pt}_cycle{i}.npy"
                     os.rename(pafile,pafile_new)
-                    for j in range(y_lam.shape[0]):
-                        chi_lam[i+j] = chi2
-                        dof_lam[i+j] = ds
-                else:
-                    gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
-                    u_lam = gm2lam(step.ix_lam)
-                    pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
+                    chi_lam[i:min(i+a_window,na)] = chi2
+                    dof_lam[i:min(i+a_window,na)] = ds
             else:
-                u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(u_gm, pf_gm, y[0], yloc[0], \
-                    save_hist=True, save_dh=True, icycle=i)
-                pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
-                pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
-                os.rename(pafile,pafile_new)
-                chi_gm[i] = chi2
-                innov[i] = innv
-                dof_gm[i] = ds
-                if i >= params_lam["lamstart"]:
-                    if params_lam["anlsp"]:
-                        u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, \
-                        save_hist=True, save_dh=True, icycle=i)
-                    else:
-                        u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, \
-                        save_hist=True, save_dh=True, icycle=i)
-                    pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
-                    pafile_new=f"{model}_palam_{op}_{pt}_cycle{i}.npy"
-                    os.rename(pafile,pafile_new)
-                    chi_lam[i] = chi2
-                    dof_lam[i] = ds
-                else:
-                    gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
-                    u_lam = gm2lam(step.ix_lam)
-                    pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
+                gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
+                u_lam = gm2lam(step.ix_lam)
+                pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
         else:
-            ##if a_window > 1:
-            if pt[:2] == "4d":
-                u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(u_gm, pf_gm, y, yloc, icycle=i)
-                for j in range(y.shape[0]):
-                    chi_gm[i+j] = chi2
-                    innov[i+j,:innv.size] = innv
-                    dof_gm[i+j] = ds
-                if i >= params_lam["lamstart"]:
-                    if params_lam["anlsp"]:
-                        u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)
-                    else:
-                        u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, icycle=i)
-                    for j in range(y_lam.shape[0]):
-                        chi_lam[i+j] = chi2
-                        dof_lam[i+j] = ds
+            u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(*args_gm, icycle=i)
+            chi_gm[i:min(i+a_window,na)] = chi2
+            innov[i:min(i+a_window,na),:innv.size] = innv
+            dof_gm[i:min(i+a_window,na)] = ds
+            if i >= params_lam["lamstart"]:
+                if params_lam["anlsp"]:
+                    u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(*args_lam, icycle=i)
                 else:
-                    gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
-                    u_lam = gm2lam(step.ix_lam)
-                    pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
+                    u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(*args_lam, icycle=i)
+                chi_lam[i:min(i+a_window,na)] = chi2
+                dof_lam[i:min(i+a_window,na)] = ds
             else:
-                u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(u_gm, pf_gm, y[0], yloc[0], icycle=i)#,\
-                #    save_w=True)
-                chi_gm[i] = chi2
-                innov[i] = innv
-                dof_gm[i] = ds
-                if i >= params_lam["lamstart"]:
-                    if params_lam["anlsp"]:
-                        u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(u_lam, pf_lam, y_lam, yloc_lam, icycle=i)#,\
-                    #    save_w=True)
-                    else:
-                        u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(u_lam[nsp:-nsp,:], pf_lam[nsp:-nsp,nsp:-nsp], y_lam, yloc_lam, icycle=i)#,\
-                    chi_lam[i] = chi2
-                    dof_lam[i] = ds
-                else:
-                    gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
-                    u_lam = gm2lam(step.ix_lam)
-                    pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
+                gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
+                u_lam = gm2lam(step.ix_lam)
+                pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
         ## additive inflation
         #if linf:
         #    logger.info("==additive inflation==")

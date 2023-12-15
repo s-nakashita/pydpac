@@ -82,29 +82,35 @@ for pt in perts:
     ax01.set_xticks(ix_gm[::(nx//8)])
     ax01.set_xticklabels([])
     ax01.set_title("error")
-    f = "{}_xsagm_{}_{}.npy".format(model, op, pt)
-    if not os.path.isfile(f):
-        print("not exist {}".format(f))
-        continue
-    xsagm = np.load(f)
-    print(xsagm.shape)
-    gs01 = gs0[1].subgridspec(5, 1)
-    ax10 = fig2.add_subplot(gs01[1:, :])
-    ax11 = fig2.add_subplot(gs01[0, :])
-    mp3 = ax10.pcolormesh(ix_gm, t, xsagm, shading='auto')
-    ax10.set_xticks(ix_gm[::(nx//8)])
-    ax10.set_yticks(t[::max(1,na//8)])
-    ax10.set_xlabel("site")
-    p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
-    ax11.plot(ix_gm,xsagm.mean(axis=0))
-    ax11.set_xlim(ix_gm[0],ix_gm[-1])
-    ax11.set_xticks(ix_gm[::(nx//8)])
-    ax11.set_xticklabels([])
-    ax11.set_title("spread")
-    for ax in [ax00,ax01,ax10,ax11]:
+    for ax in [ax00,ax01]:
         ax.vlines([ix_lam[0],ix_lam[-1]],0,1,\
             colors='black',linestyle='dashdot',transform=ax.get_xaxis_transform())
-    fig2.suptitle("error and spread in GM : "+pt+" "+op)
+    if pt != "kf" and pt != "var" and pt != "4dvar":
+        f = "{}_xsagm_{}_{}.npy".format(model, op, pt)
+        if not os.path.isfile(f):
+            print("not exist {}".format(f))
+            continue
+        xsagm = np.load(f)
+        print(xsagm.shape)
+        gs01 = gs0[1].subgridspec(5, 1)
+        ax10 = fig2.add_subplot(gs01[1:, :])
+        ax11 = fig2.add_subplot(gs01[0, :])
+        mp3 = ax10.pcolormesh(ix_gm, t, xsagm, shading='auto')
+        ax10.set_xticks(ix_gm[::(nx//8)])
+        ax10.set_yticks(t[::max(1,na//8)])
+        ax10.set_xlabel("site")
+        p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
+        ax11.plot(ix_gm,xsagm.mean(axis=0))
+        ax11.set_xlim(ix_gm[0],ix_gm[-1])
+        ax11.set_xticks(ix_gm[::(nx//8)])
+        ax11.set_xticklabels([])
+        ax11.set_title("spread")
+        for ax in [ax10,ax11]:
+            ax.vlines([ix_lam[0],ix_lam[-1]],0,1,\
+            colors='black',linestyle='dashdot',transform=ax.get_xaxis_transform())
+        fig2.suptitle("error and spread in GM : "+pt+" "+op)
+    else:
+        fig2.suptitle("error in GM : "+pt+" "+op)
     fig2.savefig("{}_xdgm_{}_{}.png".format(model,op,pt))
     plt.close()
     #LAM
@@ -158,25 +164,30 @@ for pt in perts:
     ax01.set_xticks(ix_lam[::(nx//8)])
     ax01.set_xticklabels([])
     ax01.set_title("error")
-    f = "{}_xsalam_{}_{}.npy".format(model, op, pt)
-    if not os.path.isfile(f):
-        print("not exist {}".format(f))
-        continue
-    xsalam = np.load(f)
-    print(xsalam.shape)
-    gs01 = gs0[1].subgridspec(5, 1)
-    ax10 = fig2.add_subplot(gs01[1:, :])
-    ax11 = fig2.add_subplot(gs01[0, :])
-    mp3 = ax10.pcolormesh(ix_lam, t, xsalam, shading='auto')
-    ax10.set_xticks(ix_lam[::(nx//8)])
-    ax10.set_yticks(t[::max(1,na//8)])
-    ax10.set_xlabel("site")
-    p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
-    ax11.plot(ix_lam,xsalam.mean(axis=0))
-    ax11.set_xticks(ix_lam[::(nx//8)])
-    ax11.set_xticklabels([])
-    ax11.set_title("spread")
-    for ax in [ax00,ax01,ax10,ax11]:
+    for ax in [ax00,ax01]:
         ax.set_xlim(ix_lam[0],ix_lam[-1])
-    fig2.suptitle("error and spread in LAM : "+pt+" "+op)
+    if pt != "kf" and pt != "var" and pt != "4dvar":
+        f = "{}_xsalam_{}_{}.npy".format(model, op, pt)
+        if not os.path.isfile(f):
+            print("not exist {}".format(f))
+            continue
+        xsalam = np.load(f)
+        print(xsalam.shape)
+        gs01 = gs0[1].subgridspec(5, 1)
+        ax10 = fig2.add_subplot(gs01[1:, :])
+        ax11 = fig2.add_subplot(gs01[0, :])
+        mp3 = ax10.pcolormesh(ix_lam, t, xsalam, shading='auto')
+        ax10.set_xticks(ix_lam[::(nx//8)])
+        ax10.set_yticks(t[::max(1,na//8)])
+        ax10.set_xlabel("site")
+        p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
+        ax11.plot(ix_lam,xsalam.mean(axis=0))
+        ax11.set_xticks(ix_lam[::(nx//8)])
+        ax11.set_xticklabels([])
+        ax11.set_title("spread")
+        for ax in [ax10,ax11]:
+            ax.set_xlim(ix_lam[0],ix_lam[-1])
+        fig2.suptitle("error and spread in LAM : "+pt+" "+op)
+    else:
+        fig2.suptitle("error in LAM : "+pt+" "+op)
     fig2.savefig("{}_xdlam_{}_{}.png".format(model,op,pt))

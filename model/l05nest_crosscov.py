@@ -29,7 +29,7 @@ if len(sys.argv)>1:
 step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F,\
     intgm, ist_lam, nsp, lamstep=lamstep, intrlx=intrlx, po=po)
 ## ensemble size
-nens = 720
+nens = 120
 outdir=Path(f'lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}')
 if not outdir.exists():
     outdir.mkdir()

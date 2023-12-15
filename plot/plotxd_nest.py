@@ -59,9 +59,12 @@ for pt in perts:
     print("{}, LAM mean SPREAD = {}".format(pt,np.mean(xsmean_lam)))
     ax[0].plot(ix_gm, xdmean_gm, linestyle="solid", color=linecolor[pt], label=pt)
     ax[1].plot(ix_lam, xdmean_lam, linestyle="solid", color=linecolor[pt], label=pt)
-    ax[0].plot(ix_gm, xsmean_gm, linestyle="dashed", color=linecolor[pt])
-    ax[1].plot(ix_lam, xsmean_lam, linestyle="dashed", color=linecolor[pt])
-    vmax = max(np.max(xdmean_gm),np.max(xdmean_lam),np.max(xsmean_gm),np.max(xsmean_lam),vmax)
+    if pt != "kf" and pt != "var" and pt != "4dvar":
+        ax[0].plot(ix_gm, xsmean_gm, linestyle="dashed", color=linecolor[pt])
+        ax[1].plot(ix_lam, xsmean_lam, linestyle="dashed", color=linecolor[pt])
+        vmax = max(np.max(xdmean_gm),np.max(xdmean_lam),np.max(xsmean_gm),np.max(xsmean_lam),vmax)
+    else:
+        vmax = max(np.max(xdmean_gm),np.max(xdmean_lam),vmax)
 # observation error (loosely dashed)
 ax[0].plot(ix_gm, y_gm, linestyle=(0, (5, 10)), color='black')
 ax[1].plot(ix_lam, y_lam, linestyle=(0, (5, 10)), color='black')

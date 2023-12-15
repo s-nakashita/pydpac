@@ -267,16 +267,17 @@ class L05nest_func():
             return u_gm, u_lam
 
     # (not used) plot initial state
-    def plot_initial(self, uc_gm, u_gm, uc_lam, u_lam, ut, model):
+    def plot_initial(self, uc_gm, uc_lam, ut, uens_gm=None, uens_lam=None, method=""):
         fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
         ax.plot(self.step.ix_true, ut, label="true")
         ax.plot(self.step.ix_gm, uc_gm, label="GM,control")
         ax.plot(self.step.ix_lam, uc_lam, label="LAM,control")
-        for i in range(0,u_gm.shape[1],u_gm.shape[1]//5):
-            ax.plot(self.step.ix_gm, u_gm[:,i]+uc_gm, ls="--", c='gray',label="GM,mem{}".format(i+1))
-            ax.plot(self.step.ix_lam, u_lam[:,i]+uc_lam, ls="dotted", c='gray',label="LAM,mem{}".format(i+1))
+        if uens_gm is not None and uens_lam is not None:
+            for i in range(0,uens_gm.shape[1],uens_gm.shape[1]//5):
+                ax.plot(self.step.ix_gm, uens_gm[:,i]+uc_gm, ls="--", c='gray',label="GM,mem{}".format(i+1))
+                ax.plot(self.step.ix_lam, uens_lam[:,i]+uc_lam, ls="dotted", c='gray',label="LAM,mem{}".format(i+1))
         ax.set(xlabel="points", ylabel="X", title="initial state")
         ax.set_xticks(self.step.ix_true[::60])
         ax.set_xticks(self.step.ix_true[::20], minor=True)
         ax.legend(loc='upper left',bbox_to_anchor=(1.0,0.9))
-        fig.savefig("{}_initial.png".format(model))
+        fig.savefig("initial_{}.png".format(method))

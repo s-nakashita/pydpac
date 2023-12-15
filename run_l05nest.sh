@@ -3,22 +3,23 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlef"
+perturbations="var mlef"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
 na=30 # Number of assimilation cycle
-nmem=80 # ensemble size
-nobs=240 # observation volume
+nmem=160 # ensemble size
+nobs=60 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
-exp="mlef_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+#exp="mlef_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var+mlef_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `

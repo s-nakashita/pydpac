@@ -1,9 +1,14 @@
+#
+# Nesting variational assimilation 
+# Reference : Guidard and Fischer (2008, QJRMS), Dahlgren and Gustafsson (2012, Tellus A)
+#
 import sys
 import logging
 from logging.config import fileConfig
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
+from scipy.interpolate import interp1d
 from .obs import Obs
 from .minimize import Minimize
 
@@ -12,21 +17,38 @@ logger = logging.getLogger('anl')
 zetak = []
 alphak = []
 
-class Var():
-    def __init__(self, obs, sigb=1.0, lb=-1.0, bmat=None, model="model"):
-        self.pt = "var" # DA type 
+class Var_nest():
+    def __init__(self, obs, ix_gm, \
+        sigb=1.0, lb=-1.0, bmat=None, \
+        sigv=1.0, lv=-1.0, vmat=None, \
+        crosscov=False, ekbmat=None, ebkmat=None, \
+        model="model"):
+        self.pt = "var_nest" # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
-        # climatological background error covariance
+        self.ix_gm = ix_gm # GM grid
+        # LAM background error covariance
         self.sigb = sigb # error variance
         self.lb = lb # error correlation length (< 0.0 : diagonal)
         self.bmat = bmat # prescribed background error covariance
+        # GM background error covariance in LAM space
+        self.sigv = sigv # error variance
+        self.lv = lv # error correlation length (< 0.0 : diagonal)
+        self.vmat = vmat # prescribed background error covariance
+        # correlation between GM and LAM
+        self.crosscov = crosscov # whether correlation is considered or not
+        self.ekbmat = ekbmat
+        self.ebkmat = ebkmat
+        #
         self.model = model
         self.verbose = True
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} lb={self.lb}")
         logger.info(f"bmat in={self.bmat is not None}")
+        logger.info(f"sigv={self.sigv} lv={self.lv}")
+        logger.info(f"vmat in={self.vmat is not None}")
+        logger.info(f"crosscov={self.crosscov}")
 
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
@@ -40,23 +62,43 @@ class Var():
                         for j in range(nx):
                             dist[i,j] = np.abs(nx/np.pi*np.sin(np.pi*(i-j)/nx))
                     self.bmat = self.sigb**2 * np.exp(-0.5*(dist/self.lb)**2)
+            if self.vmat is None:
+                if self.lv < 0:
+                    self.vmat = self.sigv**2*np.eye(nx)
+                else:
+                    dist = np.eye(nx)
+                    for i in range(nx):
+                        for j in range(nx):
+                            dist[i,j] = np.abs(nx/np.pi*np.sin(np.pi*(i-j)/nx))
+                    self.vmat = self.sigv**2 * np.exp(-0.5*(dist/self.lv)**2)
             if self.verbose:
                 import matplotlib.pyplot as plt
-                fig, ax = plt.subplots(ncols=2)
+                fig, ax = plt.subplots(nrows=2,ncols=2)
                 xaxis = np.arange(nx+1)
-                mappable = ax[0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
-                fig.colorbar(mappable, ax=ax[0],shrink=0.6,pad=0.01)
-                ax[0].set_title(r"$\mathbf{B}$")
-                ax[0].invert_yaxis()
-                ax[0].set_aspect("equal")
+                mappable = ax[0,0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
+                fig.colorbar(mappable, ax=ax[0,0],shrink=0.6,pad=0.01)
+                ax[0,0].set_title(r"$\mathbf{B}$")
+                ax[0,0].invert_yaxis()
+                ax[0,0].set_aspect("equal")
                 binv = la.inv(self.bmat)
-                mappable = ax[1].pcolor(xaxis, xaxis, binv, cmap='Blues')
-                fig.colorbar(mappable, ax=ax[1],shrink=0.6,pad=0.01)
-                ax[1].set_title(r"$\mathbf{B}^{-1}$")
-                ax[1].invert_yaxis()
-                ax[1].set_aspect("equal")
+                mappable = ax[0,1].pcolor(xaxis, xaxis, binv, cmap='Blues')
+                fig.colorbar(mappable, ax=ax[0,1],shrink=0.6,pad=0.01)
+                ax[0,1].set_title(r"$\mathbf{B}^{-1}$")
+                ax[0,1].invert_yaxis()
+                ax[0,1].set_aspect("equal")
+                mappable = ax[1,0].pcolor(xaxis, xaxis, self.vmat, cmap='Blues')
+                fig.colorbar(mappable, ax=ax[1,0],shrink=0.6,pad=0.01)
+                ax[1,0].set_title(r"$\mathbf{V}$")
+                ax[1,0].invert_yaxis()
+                ax[1,0].set_aspect("equal")
+                vinv = la.inv(self.vmat)
+                mappable = ax[1,1].pcolor(xaxis, xaxis, vinv, cmap='Blues')
+                fig.colorbar(mappable, ax=ax[1,1],shrink=0.6,pad=0.01)
+                ax[1,1].set_title(r"$\mathbf{V}^{-1}$")
+                ax[1,1].invert_yaxis()
+                ax[1,1].set_aspect("equal")
                 fig.tight_layout()
-                fig.savefig("Bv{:.1f}l{:d}.png".format(self.sigb,int(self.lb)))
+                fig.savefig("Bv{:.1f}l{:d}+Vv{:.1f}l{:d}.png".format(self.sigb,int(self.lb),self.sigv,int(self.lv)))
                 plt.close()
         return self.bmat
 
@@ -68,33 +110,39 @@ class Var():
             alphak.append(alpha)
 
     def prec(self,w,first=False):
-        global bsqrt
+        global bsqrt, vsqrtinv
         if first:
-            eval, evec = la.eigh(self.bmat)
-            eval[eval<1.0e-16] = 0.0
-            bsqrt = np.dot(evec,np.diag(np.sqrt(eval)))
-        return np.dot(bsqrt,w), bsqrt
+            eival, eivec = la.eigh(self.bmat)
+            eival[eival<1.0e-16] = 0.0
+            bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
+            eival, eivec = la.eigh(self.vmat)
+            eival[eival<1.0e-16] = 0.0
+            vsqrtinv = np.dot(eivec,np.diag(1.0/np.sqrt(eival)))
+        return np.dot(bsqrt,w), bsqrt, vsqrtinv
 
     def calc_j(self, w, *args):
-        JH, rinv, ob = args
+        JH, rinv, ob, dk = args
         jb = 0.5 * np.dot(w,w)
-        x, _ = self.prec(w)
+        x, _, vsqrtinv = self.prec(w)
         d = JH @ x - ob
         jo = 0.5 * d.T @ rinv @ d
-        return jb + jo
+        dktmp = vsqrtinv @ (x-dk)
+        jk = 0.5 * np.dot(dktmp,dktmp)
+        return jb + jo + jk
 
     def calc_grad_j(self, w, *args):
-        JH, rinv, ob = args
-        x, bsqrt = self.prec(w)
+        JH, rinv, ob, dk = args
+        x, bsqrt, vsqrtinv = self.prec(w)
         d = JH @ x - ob
-        return w + bsqrt.T @ JH.T @ rinv @ d
+        dktmp = vsqrtinv @ (x-dk)
+        return w + bsqrt.T @ JH.T @ rinv @ d + bsqrt.T @ vsqrtinv.T @ dktmp
 
     def calc_hess(self, w, *args):
-        JH, rinv, ob = args
-        _, bsqrt = self.prec(w)
-        return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt
+        JH, rinv, ob, dk = args
+        _, bsqrt, vsqrtinv = self.prec(w)
+        return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + bsqrt.T @ vsqrtinv.T @ vsqrtinv @ bsqrt
 
-    def __call__(self, xf, pf, y, yloc, method="CG", cgtype=1,
+    def __call__(self, xf, pf, y, yloc, xg, ix_lam, method="CG", cgtype=1,
         gtol=1e-6, maxiter=None,\
         disp=False, save_hist=False, save_dh=False, icycle=0,
         evalout=False):
@@ -105,10 +153,12 @@ class Var():
         JH = self.obs.dh_operator(yloc, xf)
         ob = y - self.obs.h_operator(yloc,xf)
         nobs = ob.size
+        x_gm2lam = interp1d(self.ix_gm,xg)
+        dk = x_gm2lam(ix_lam) - xf
 
         w0 = np.zeros_like(xf)
-        x0, bsqrt = self.prec(w0,first=True)
-        args_j = (JH, rinv, ob)
+        x0, bsqrt, vsqrtinv = self.prec(w0,first=True)
+        args_j = (JH, rinv, ob, dk)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(w0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
@@ -129,7 +179,7 @@ class Var():
         else:
             w, flg = minimize(w0)
         
-        x, _ = self.prec(w)
+        x, _, _ = self.prec(w)
         xa = xf + x
         innv = np.zeros_like(ob)
         fun = self.calc_j(w, *args_j)
