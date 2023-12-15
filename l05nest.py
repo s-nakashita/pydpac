@@ -85,6 +85,7 @@ htype = {"operator": "linear", "perturbation": "mlef"}
 params_gm["t0off"]      =  144     # initial offset between adjacent members
 params_gm["t0c"]        =  3000    # t0 for control
 params_gm["nobs"]       =  15      # observation number (nobs<=nx_true)
+params_gm["obsloctype"] = "regular" # observation location type
 params_gm["op"]         = "linear" # observation operator type
 params_gm["na"]         =  100     # number of analysis cycle
 params_gm["nt"]         =  1       # number of step per forecast (=6 hour)
@@ -163,7 +164,7 @@ if pt == "mlef":
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model)
-    if params_gm["iloc"]>0:
+    if params_gm["iloc"] is not None and params_gm["iloc"]>0:
         rhofile=f"{model}_rho_{op}_{pt}.npy"
         rhofile_new=f"{model}_rhogm_{op}_{pt}.npy"
         os.rename(rhofile,rhofile_new)
@@ -173,7 +174,7 @@ if pt == "mlef":
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model)
-    if params_lam["iloc"]>0:
+    if params_lam["iloc"] is not None and params_lam["iloc"]>0:
         rhofile=f"{model}_rho_{op}_{pt}.npy"
         rhofile_new=f"{model}_rholam_{op}_{pt}.npy"
         os.rename(rhofile,rhofile_new)
@@ -244,7 +245,7 @@ if __name__ == "__main__":
     from scipy.interpolate import interp1d
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
-    xt, yobs, iobs_lam = func.get_true_and_obs(obsloctype="regular")
+    xt, yobs, iobs_lam = func.get_true_and_obs(obsloctype=params_gm["obsloctype"])
     u_gm, xa_gm, xf_gm, pa_gm, xsa_gm, u_lam, xa_lam, xf_lam, pa_lam, xsa_lam = func.initialize(opt=0)
     logger.debug(u_gm.shape)
     logger.debug(u_lam.shape)

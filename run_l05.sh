@@ -6,7 +6,7 @@ operators="linear" # quadratic" # cubic"
 perturbations="mlef"
 na=30 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=30 # observation volume
+nobs=60 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
@@ -56,6 +56,8 @@ for op in ${operators}; do
     echo "scale=1; ${end_time}-${start_time}" | bc >> timer
     mv ${model}_e_${op}_${pt}.txt e_${op}_${pert}.txt
     mv ${model}_stda_${op}_${pt}.txt stda_${op}_${pert}.txt
+    mv ${model}_xdmean_${op}_${pt}.txt xdmean_${op}_${pert}.txt
+    mv ${model}_xsmean_${op}_${pt}.txt xsmean_${op}_${pert}.txt
     #if [ "${pert:4:1}" = "b" ]; then
     #mv ${model}_rho_${op}_${pt}.npy ${model}_rho_${op}_${pert}.npy
     #fi
@@ -90,6 +92,7 @@ for op in ${operators}; do
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
   python ${cdir}/plot/plotxa.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
+  python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na}
   
   #rm obs*.npy
 done

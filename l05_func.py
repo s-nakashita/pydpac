@@ -107,7 +107,7 @@ class L05_func():
                 yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
             elif obsloctype=="regular":
                 logger.info("regular observation: nobs={}".format(self.nobs))
-                intobs = self.nx_true // self.nobs
+                intobs = self.nx // self.nobs
                 obsloc = xloc[::intobs]
                 for k in range(self.na):
                     yobs[k,:,0] = obsloc[:]

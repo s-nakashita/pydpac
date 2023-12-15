@@ -83,7 +83,7 @@ htype = {"operator": "linear", "perturbation": "mlef"}
 params["t0off"]      =  4*int(dt6h/dt)      # initial offset between adjacent members
 params["t0c"]        = 100*int(dt6h/dt)     # t0 for control
 params["nobs"]       =  40      # observation number (nobs<=nx)
-params["obsloctype"] = "random" # observation location type
+params["obsloctype"] = "regular" # observation location type
 params["op"]         = "linear" # observation operator type
 params["na"]         =  100     # number of analysis cycle
 params["nt"]         =  int(dt6h/dt)      # number of step per forecast (=6 hour)

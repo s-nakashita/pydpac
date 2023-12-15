@@ -31,13 +31,13 @@ for pt in perts:
     if np.isnan(xdmean).any():
         print("divergence in {}".format(pt))
         continue
-    print("{}, mean RMSE = {}".format(pt,np.mean(xdmean_gm)))
+    print("{}, mean RMSE = {}".format(pt,np.mean(xdmean)))
     f = "xsmean_{}_{}.txt".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xsmean = np.loadtxt(f)
-    print("{}, mean SPREAD = {}".format(pt,np.mean(xsmean_gm)))
+    print("{}, mean SPREAD = {}".format(pt,np.mean(xsmean)))
     ax.plot(ix, xdmean, linestyle="solid", color=linecolor[pt], label=pt)
     ax.plot(ix, xsmean, linestyle="dashed", color=linecolor[pt])
     vmax = max(np.max(xdmean),np.max(xsmean),vmax)

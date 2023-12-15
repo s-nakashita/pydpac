@@ -3,22 +3,22 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlefbm"
+perturbations="mlef"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
 na=30 # Number of assimilation cycle
-nmem=40 # ensemble size
-nobs=30 # observation volume
+nmem=80 # ensemble size
+nobs=40 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-lgsig=110
-llsig=70
+#lgsig=110
+#llsig=70
 #L="-1.0 0.5 1.0 2.0"
-exp="test_mlefb_m${nmem}obs${nobs}lg${lgsig}l${llsig}"
+exp="mlef_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -68,7 +68,7 @@ for op in ${operators}; do
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     start_time=$(date +"%s")
-    python3.9 ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+    python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
@@ -101,20 +101,21 @@ for op in ${operators}; do
         mv ${model}_palam_${op}_${pt}_cycle${icycle}.npy ${model}_palam_${op}_${pert}_cycle${icycle}.npy
       fi
       #done
-      python3.9 ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
+      python ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
     fi
-    #python3.9 ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
+    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
   done
-  python3.9 ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
-  python3.9 ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
-  #python3.9 ${cdir}/plot/plotchi.py ${op} ${model} ${na}
-  #python3.9 ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-  python3.9 ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
-  #python3.9 ${cdir}/plot/plotdof.py ${op} ${model} ${na}
+  python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
+  python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
+  #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
+  python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
+  python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
   
   #rm obs*.npy
 done

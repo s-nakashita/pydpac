@@ -10,7 +10,9 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var"]
+perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+    "mlefcw","mlefy","mlefbe","mlefbm",\
+    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 if model == "z08":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     linestyle = {"mlef":"solid", "grad":"dashed",
@@ -59,7 +61,7 @@ for pt in perts:
     gs0 = gridspec.GridSpec(1,2,figure=fig2)
     gs00 = gs0[0].subgridspec(5,1)
     ax00 = fig2.add_subplot(gs00[1:,:])
-    ax01 = fig2.add_subplot(gs01[0,:])
+    ax01 = fig2.add_subplot(gs00[0,:])
     xd = xa - xt
     vlim = np.max(np.abs(xd))
     mp2 = ax00.pcolormesh(xs, t, xd, shading='auto', \
