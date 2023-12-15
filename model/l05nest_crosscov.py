@@ -64,17 +64,16 @@ plt.ylim(-15.,15.)
 plt.show(block=False)
 plt.close()
 
-nt = 100 * 24 * int(0.05 / 6 / dt)
+nt = 100 * 4
 x_gm  = []
 x_lam = []
 time = []
 for i in range(nt):
     x0_gm, x0_lam = step(x0_gm,x0_lam)
-    if i%(int(0.05 / 6 / dt))==0:
-        time.append(i / int(0.05 / 6 / dt)) #[hours]
-        x_lam.append(x0_lam)
-        x_gm.append(x0_gm)
-    if i%1440==0:
+    time.append(i * 6) #[hours]
+    x_lam.append(x0_lam)
+    x_gm.append(x0_gm)
+    if i%40==0:
         print(f"t={i/int(0.05 / 6 / dt)/24.0:.1f}d")
         for m in range(nens):
             plt.plot(step.ix_gm,x0_gm[:,m],c='gray',ls='dashed',alpha=0.5)

@@ -11,7 +11,7 @@ perturbations="mlef"
 #perturbations="etkfbm"
 na=30 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=40 # observation volume
+nobs=240 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
@@ -26,7 +26,7 @@ rm -rf work/${model}/${exp}
 mkdir -p work/${model}/${exp}
 cd work/${model}/${exp}
 cp ${cdir}/logging_config.ini .
-ln -s ${cdir}/data/l05III/truth.npy .
+ln -fs ${cdir}/data/l05III/truth.npy .
 rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer

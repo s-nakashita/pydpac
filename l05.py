@@ -10,6 +10,7 @@ from analysis.obs import Obs
 from l05_func import L05_func
 
 logging.config.fileConfig("logging_config.ini")
+parend_dir = os.path.abspath(os.path.dirname(__file__))
 
 model = "l05II"
 global nx, nk, F, dt
@@ -159,8 +160,14 @@ elif pt == "kf":
     step=step, nt=params["nt"], model=model)
 elif pt == "var":
     from analysis.var import Var
+    bmatdir = f"model/lorenz/n{nx}k{nk}i{ni}F{int(F)}b{b:.1f}c{c:.1f}"
+    f = os.path.join(parend_dir,bmatdir,"B.npy")
+    try:
+        bmat = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat = None
     analysis = Var(obs, 
-    sigb=params["sigb"], lb=params["lb"], model=model)
+    sigb=params["sigb"], lb=params["lb"], bmat=bmat, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -191,7 +198,10 @@ if __name__ == "__main__":
     xt, yobs = func.get_true_and_obs(obsloctype=params["obsloctype"])
     u, xa, xf, pa, xsa = func.initialize(opt=0)
     logger.debug(u.shape)
-    func.plot_initial(u[:,0], u[:,1:], xt[0])
+    if u.ndim==2:
+        func.plot_initial(u[:,0], xt[0], uens=u[:,1:])
+    else:
+        func.plot_initial(u, xt[0])
     pf = analysis.calc_pf(u, pa, 0)
     
     a_time = range(0, na, a_window)

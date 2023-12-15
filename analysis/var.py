@@ -30,8 +30,8 @@ class Var():
 
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
+            nx = xf.size
             if self.bmat is None:
-                nx = xf.size
                 if self.lb < 0:
                     self.bmat = self.sigb**2*np.eye(nx)
                 else:
@@ -45,18 +45,19 @@ class Var():
                 fig, ax = plt.subplots(ncols=2)
                 xaxis = np.arange(nx+1)
                 mappable = ax[0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
-                fig.colorbar(mappable, ax=ax[0])
+                fig.colorbar(mappable, ax=ax[0],shrink=0.6,pad=0.01)
                 ax[0].set_title(r"$\mathbf{B}$")
                 ax[0].invert_yaxis()
                 ax[0].set_aspect("equal")
                 binv = la.inv(self.bmat)
                 mappable = ax[1].pcolor(xaxis, xaxis, binv, cmap='Blues')
-                fig.colorbar(mappable, ax=ax[1])
+                fig.colorbar(mappable, ax=ax[1],shrink=0.6,pad=0.01)
                 ax[1].set_title(r"$\mathbf{B}^{-1}$")
                 ax[1].invert_yaxis()
                 ax[1].set_aspect("equal")
                 fig.tight_layout()
                 fig.savefig("Bv{:.1f}l{:d}.png".format(self.sigb,int(self.lb)))
+                plt.close()
         return self.bmat
 
     def callback(self, xk, alpha=None):

@@ -218,13 +218,14 @@ class L05_func():
             return u
 
     # (not used) plot initial state
-    def plot_initial(self, uc, u, ut, lag=None):
+    def plot_initial(self, uc, ut, uens=None, lag=None):
         fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
         x = np.arange(ut.size)
         ax.plot(x, ut, label="true")
         ax.plot(x, uc, label="control")
-        for i in range(0,u.shape[1],u.shape[1]//5):
-            ax.plot(x, u[:,i]+uc, linestyle="--",c='gray',label="mem{}".format(i+1))
+        if uens is not None:
+            for i in range(0,uens.shape[1],uens.shape[1]//5):
+                ax.plot(x, uens[:,i]+uc, linestyle="--",c='gray',label="mem{}".format(i+1))
         ax.set(xlabel="points", ylabel="X", title="initial lag={}".format(lag))
         ax.set_xticks(x[::(self.nx//10)])
         ax.set_xticks(x[::(self.nx//40)], minor=True)

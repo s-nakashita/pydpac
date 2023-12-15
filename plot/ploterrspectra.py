@@ -32,7 +32,6 @@ xs = np.arange(nx)
 dx = 2.0 * np.pi / nx
 xlim = 15.0
 for pt in perts:
-    fig, axs = plt.subplots(nrows=2,figsize=[10,10],constrained_layout=True)
     f = "{}_xa_{}_{}.npy".format(model, op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
@@ -46,19 +45,22 @@ for pt in perts:
     xsa = np.load(f)
     print(xsa.shape)
     xd = xa - xt
+    fig, axs = plt.subplots(nrows=2,figsize=[10,10],constrained_layout=True)
     axs[0].plot(xs,xd.mean(axis=0),label='err')
-    axs[0].plot(xs,xsa.mean(axis=0),label='sprd')
+    if pt != "kf" and pt != "var" and pt != "4dvar":
+        axs[0].plot(xs,xsa.mean(axis=0),label='sprd')
     axs[0].set_xlim(xs[0],xs[-1])
     axs[0].set_title("state space")
     axs[0].legend()
     axs[0].grid()
     esp = fft(xd,axis=1)
-    esps = fft(xsa,axis=1)
     freq = fftfreq(nx,dx)[:nx//2]
     print(esp.shape)
     print(freq)
     axs[1].plot(freq,2.0*np.abs(esp[:,:nx//2]).mean(axis=0)/nx,label='err')
-    axs[1].plot(freq,2.0*np.abs(esps[:,:nx//2]).mean(axis=0)/nx,label='sprd')
+    if pt != "kf" and pt != "var" and pt != "4dvar":
+        esps = fft(xsa,axis=1)
+        axs[1].plot(freq,2.0*np.abs(esps[:,:nx//2]).mean(axis=0)/nx,label='sprd')
     axs[1].set_xlim(freq[0],freq[-1])
     axs[1].set_yscale("log")
     axs[1].set_title("spectral space")
@@ -67,4 +69,4 @@ for pt in perts:
 #    xd2 = ifft(esp,axis=1)
 #    axs[0].plot(xs,xd2[0,],label='reconstructed')
     fig.savefig("{}_errspectra_{}_{}.png".format(model,op,pt))
-    plt.show()
+#    plt.show()

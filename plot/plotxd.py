@@ -39,8 +39,11 @@ for pt in perts:
     xsmean = np.loadtxt(f)
     print("{}, mean SPREAD = {}".format(pt,np.mean(xsmean)))
     ax.plot(ix, xdmean, linestyle="solid", color=linecolor[pt], label=pt)
-    ax.plot(ix, xsmean, linestyle="dashed", color=linecolor[pt])
-    vmax = max(np.max(xdmean),np.max(xsmean),vmax)
+    if pt != "kf" and pt != "var" and pt != "4dvar":
+        ax.plot(ix, xsmean, linestyle="dashed", color=linecolor[pt])
+        vmax = max(np.max(xdmean),np.max(xsmean),vmax)
+    else:
+        vmax = max(np.max(xdmean),vmax)
 # observation error (loosely dashed)
 ax.plot(ix, y, linestyle=(0, (5, 10)), color='black')
 ax.set(xlabel="state", ylabel="RMSE or SPREAD",
