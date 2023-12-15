@@ -10,6 +10,7 @@ from analysis.obs import Obs
 from l05nest_func import L05nest_func
 
 logging.config.fileConfig("logging_config.ini")
+parend_dir = os.path.abspath(os.path.dirname(__file__))
 
 global nx_true, nx_gm, nx_lam, step
 
@@ -26,6 +27,7 @@ dt_gm = 0.05 / 36            # time step (=1/6 hour)
 nx_lam = 480                 # number of LAM points
 ist_lam = 240                # first grid index
 nsp = 30                     # width of sponge region
+po = 1                       # order of relaxation function
 intrlx = 6                   # interval of boundary relaxation
 lamstep = 1                  # time steps relative to 1 step of GM
 nk_lam = 32                  # advection length
@@ -37,7 +39,7 @@ F = 15.0                     # forcing
 # forecast model forward operator
 step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
     ni, b, c, dt_gm, F, intgm, ist_lam, nsp, \
-    lamstep=lamstep, intrlx=intrlx)
+    lamstep=lamstep, intrlx=intrlx, po=po)
 
 np.savetxt("ix_true.txt",step.ix_true)
 np.savetxt("ix_gm.txt",step.ix_gm)
@@ -202,10 +204,21 @@ elif pt == "kf":
     step=step.lam, nt=params_lam["nt"], model=model)
 elif pt == "var":
     from analysis.var import Var
+    bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
+    f = os.path.join(parend_dir,bmatdir,"B_gmfull.npy")
+    try:
+        bmat_gm = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat_gm = None
     analysis_gm = Var(obs_gm, 
-    sigb=params_gm["sigb"], lb=params_gm["lb"], model=model)
+    sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, model=model)
+    f = os.path.join(parend_dir,bmatdir,"B_lam.npy")
+    try:
+        bmat_lam = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat_lam = None
     analysis_lam = Var(obs_lam, 
-    sigb=params_lam["sigb"], lb=params_lam["lb"], model=model)
+    sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5

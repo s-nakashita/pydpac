@@ -140,18 +140,19 @@ class Obs():
                 else:
                     ivar = int(obsloc[k,0])
                     ri = obsloc[k,1]
-                i = math.floor(ri)
-                ai = ri - float(i)
-                if i < nx-1:
-                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
-                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
-                    #jach[k,i+1] = ai*dhdxf[i+1]
-                    itpl_mat[k,ivar*nx+i+1] = ai
-                else:
-                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
-                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
-                    #jach[k,0] = ai*dhdxf[0]
-                    itpl_mat[k,ivar*nx] = ai
+                itpl_mat[k,ivar*nx:(ivar+1)*nx] = self.itpl1drow(ri, x)
+#                i = math.floor(ri)
+#                ai = ri - float(i)
+#                if i < nx-1:
+#                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
+#                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
+#                    #jach[k,i+1] = ai*dhdxf[i+1]
+#                    itpl_mat[k,ivar*nx+i+1] = ai
+#                else:
+#                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
+#                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
+#                    #jach[k,0] = ai*dhdxf[0]
+#                    itpl_mat[k,ivar*nx] = ai
         elif self.ndims==2:
             for k in range(nobs):
                 if self.nvars==1:
@@ -240,6 +241,30 @@ class Obs():
                 return (1.0 - ai)*x[i] + ai*x[0]
             else:
                 return (1.0 - ai)*x[i]
+
+    def itpl1drow(self, ri, x):
+        if self.ix is None:
+            ix = np.arange(len(x))
+        else:
+            ix = self.ix
+        dx = float(ix[1]) - float(ix[0])
+        ii = math.floor(ri)
+        i = np.argmin(np.abs(ix - ii))
+        if ix[i] > ii:
+            i = i - 1
+        ai = (ri - float(ix[i]))/dx
+        #logger.debug(f"ri={ri} i={i} ai={ai}")
+        jhrow = np.zeros(ix.size)
+        if i < len(x) - 1:
+            jhrow[i] = 1.0 - ai
+            jhrow[i+1] = ai
+        else:
+            if self.icyclic:
+                jhrow[i] = 1.0 - ai
+                jhrow[0] = ai
+            else:
+                jhrow[i] = 1.0 - ai
+        return jhrow
 
     def itpl2d(self, ri, rj, x):
         x2d = x.reshape(self.ni,self.nj)

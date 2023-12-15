@@ -20,12 +20,14 @@ c = 0.6
 dt = 0.05 / 36.0
 F = 15.0
 ist_lam = 240
-nsp = 10
+nsp = 30
+intrlx = 6
+lamstep = 1
 po = 1
 if len(sys.argv)>1:
     po = int(sys.argv[1])
 step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F,\
-    intgm, ist_lam, nsp, po=po)
+    intgm, ist_lam, nsp, lamstep=lamstep, intrlx=intrlx, po=po)
 ## ensemble size
 nens = 720
 outdir=Path(f'lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}')
