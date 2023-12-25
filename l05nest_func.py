@@ -63,6 +63,11 @@ class L05nest_func():
         logger.info("Assimilation window size = {}".format(self.a_window))
         self.lamstart = params_lam["lamstart"]
         self.anlsp = params_lam["anlsp"]
+        self.rseed = params_gm["rseed"]
+        if self.rseed is not None:
+            self.rng = np.random.default_rng(seed=self.rseed)
+        else:
+            self.rng = np.random.default_rng()
     
     # generate truth
     def gen_true(self):
@@ -164,15 +169,24 @@ class L05nest_func():
         else:
             logger.info("read obs")
             yobs = np.load(obsfile)
-            iobs_lam = np.load(obslamfile)
-        
+            #iobs_lam = np.load(obslamfile)
+            iobs_lam = np.zeros((self.na,self.nobs)) # whether obs in LAM region (1) or not (0)
+            for k in range(self.na):
+                obsloc = yobs[k,:,0]
+                if self.anlsp:
+                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                else:
+                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
+                iobs_lam[k,:] = obs_in_lam
         return xt, yobs, iobs_lam
 
     # initialize control 
     def init_ctl(self):
         #X0c = np.ones(self.nx)*self.F
         #X0c[self.nx//2 - 1] += 0.001*self.F
-        X0c_gm = np.random.randn(self.nx_gm)
+        X0c = self.rng.normal(0, scale=1.0, size=self.nx_true)
+        xt2gm = interp1d(self.step.ix_true,X0c)
+        X0c_gm = xt2gm(self.step.ix_gm)
         for j in range(self.t0c):
             X0c_gm = self.step.gm(X0c_gm)
         gm2lam = interp1d(self.step.ix_gm,X0c_gm,axis=0)
@@ -198,7 +212,7 @@ class L05nest_func():
             X0_gm[:, :] = np.random.normal(0.0,1.0,size=(self.nx_gm,len(t0f))) + X0c_gm[:, None]
             for j in range(self.t0c):
                 X0_gm = self.step.gm(X0_gm)
-        else: # lagged forecast
+        elif(opt==1): # lagged forecast
             logger.info("t0f={}".format(t0f))
             logger.info("spin up max = {}".format(maxiter))
             X0_gm = np.zeros((self.nx_gm,len(t0f)))
@@ -211,6 +225,14 @@ class L05nest_func():
                 tmp = self.step.gm(tmp)
                 if j in t0f:
                     X0_gm[:,t0f.index(j)] = tmp
+        else: # read initial ensemble in true geometry
+            x0file = "l05III_x0.npy"
+            if not os.path.isfile(x0file):
+                print("not exist {}".format(x0file))
+                exit()
+            X0 = np.load(x0file)
+            xt2gm = interp1d(self.step.ix_true,X0,axis=0)
+            X0_gm = xt2gm(self.step.ix_gm)
         gm2lam = interp1d(self.step.ix_gm, X0_gm, axis=0)
         X0_lam = gm2lam(self.step.ix_lam)
         return X0_gm, X0_lam

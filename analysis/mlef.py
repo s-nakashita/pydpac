@@ -458,7 +458,7 @@ class Mlef():
             else:
                 dh = self.obs.h_operator(yloc, xa[:, None] + pf) - self.obs.h_operator(yloc, xa)[:, None]
             zmat = rmat @ dh
-            logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+            #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
             d = y - self.obs.h_operator(yloc, xa)
             logger.info("zmat shape={}".format(zmat.shape))

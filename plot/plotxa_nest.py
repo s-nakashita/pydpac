@@ -11,7 +11,11 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+dscl = False
+if len(sys.argv)>4:
+    dscl = (sys.argv[4]=='T')
+print(dscl)
+perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 cmap = "coolwarm"
@@ -42,7 +46,10 @@ for pt in perts:
     axs[0].set_ylabel("DA cycle")
     axs[0].set_title("nature")
     p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
-    f = "{}_xagm_{}_{}.npy".format(model, op, pt)
+    if dscl:
+        f = "xagmonly_{}_{}.npy".format(op, pt)
+    else:
+        f = "xagm_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
@@ -60,7 +67,10 @@ for pt in perts:
         ax.vlines([ix_lam[0],ix_lam[-1]],0,1,\
             colors='black',linestyle='dashdot',transform=ax.get_xaxis_transform())
     fig.suptitle("nature and analysis in GM : "+pt+" "+op)
-    fig.savefig("{}_xagm_{}_{}.png".format(model,op,pt))
+    if dscl:
+        fig.savefig("{}_xagmonly_{}_{}.png".format(model,op,pt))
+    else:
+        fig.savefig("{}_xagm_{}_{}.png".format(model,op,pt))
     plt.close()
     ## error and spread
     fig2 = plt.figure(figsize=[10,7],constrained_layout=True)
@@ -70,14 +80,14 @@ for pt in perts:
     ax01 = fig2.add_subplot(gs00[0, :])
     xt2gm = xt2x(ix_gm)
     xd = xagm - xt2gm
-    vlim = np.max(np.abs(xd))
+    vlim = np.nanmax(np.abs(xd))
     mp2 = ax00.pcolormesh(ix_gm, t, xd, shading='auto', \
     cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
     ax00.set_xticks(ix_gm[::(nx//8)])
     ax00.set_yticks(t[::max(1,na//8)])
     ax00.set_xlabel("site")
     p2 = fig2.colorbar(mp2,ax=ax00,orientation="horizontal")
-    ax01.plot(ix_gm,np.abs(xd).mean(axis=0))
+    ax01.plot(ix_gm,np.nanmean(np.abs(xd),axis=0))
     ax01.set_xlim(ix_gm[0],ix_gm[-1])
     ax01.set_xticks(ix_gm[::(nx//8)])
     ax01.set_xticklabels([])
@@ -85,8 +95,11 @@ for pt in perts:
     for ax in [ax00,ax01]:
         ax.vlines([ix_lam[0],ix_lam[-1]],0,1,\
             colors='black',linestyle='dashdot',transform=ax.get_xaxis_transform())
-    if pt != "kf" and pt != "var" and pt != "4dvar":
-        f = "{}_xsagm_{}_{}.npy".format(model, op, pt)
+    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
+        if dscl:
+            f = "xsagmonly_{}_{}.npy".format(op, pt)
+        else:
+            f = "xsagm_{}_{}.npy".format(op, pt)
         if not os.path.isfile(f):
             print("not exist {}".format(f))
             continue
@@ -100,7 +113,7 @@ for pt in perts:
         ax10.set_yticks(t[::max(1,na//8)])
         ax10.set_xlabel("site")
         p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
-        ax11.plot(ix_gm,xsagm.mean(axis=0))
+        ax11.plot(ix_gm,np.nanmean(xsagm,axis=0))
         ax11.set_xlim(ix_gm[0],ix_gm[-1])
         ax11.set_xticks(ix_gm[::(nx//8)])
         ax11.set_xticklabels([])
@@ -111,7 +124,10 @@ for pt in perts:
         fig2.suptitle("error and spread in GM : "+pt+" "+op)
     else:
         fig2.suptitle("error in GM : "+pt+" "+op)
-    fig2.savefig("{}_xdgm_{}_{}.png".format(model,op,pt))
+    if dscl:
+        fig2.savefig("{}_xdgmonly_{}_{}.png".format(model,op,pt))
+    else:
+        fig2.savefig("{}_xdgm_{}_{}.png".format(model,op,pt))
     plt.close()
     #LAM
     ## nature and analysis
@@ -125,7 +141,10 @@ for pt in perts:
     axs[0].set_ylabel("DA cycle")
     axs[0].set_title("nature")
     p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
-    f = "{}_xalam_{}_{}.npy".format(model, op, pt)
+    if dscl:
+        f = "xadscl_{}_{}.npy".format(op, pt)
+    else:
+        f = "xalam_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
@@ -143,7 +162,10 @@ for pt in perts:
     for ax in axs.flatten():
         ax.set_xlim(ix_lam[0],ix_lam[-1])
     fig.suptitle("nature and analysis in LAM : "+pt+" "+op)
-    fig.savefig("{}_xalam_{}_{}.png".format(model,op,pt))
+    if dscl:
+        fig.savefig("{}_xadscl_{}_{}.png".format(model,op,pt))
+    else:
+        fig.savefig("{}_xalam_{}_{}.png".format(model,op,pt))
     plt.close()
     ## error and spread
     fig2 = plt.figure(figsize=[10,7],constrained_layout=True)
@@ -153,21 +175,24 @@ for pt in perts:
     ax01 = fig2.add_subplot(gs00[0, :])
     xt2lam = xt2x(ix_lam)
     xd = xalam - xt2lam
-    vlim = np.max(np.abs(xd))
+    vlim = np.nanmax(np.abs(xd))
     mp2 = ax00.pcolormesh(ix_lam, t, xd, shading='auto', \
     cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
     ax00.set_xticks(ix_lam[::(nx//8)])
     ax00.set_yticks(t[::max(1,na//8)])
     ax00.set_xlabel("site")
     p2 = fig2.colorbar(mp2,ax=ax00,orientation="horizontal")
-    ax01.plot(ix_lam,np.abs(xd).mean(axis=0))
+    ax01.plot(ix_lam,np.nanmean(np.abs(xd),axis=0))
     ax01.set_xticks(ix_lam[::(nx//8)])
     ax01.set_xticklabels([])
     ax01.set_title("error")
     for ax in [ax00,ax01]:
         ax.set_xlim(ix_lam[0],ix_lam[-1])
     if pt != "kf" and pt != "var" and pt != "4dvar":
-        f = "{}_xsalam_{}_{}.npy".format(model, op, pt)
+        if dscl:
+            f = "xsadscl_{}_{}.npy".format(op, pt)
+        else:
+            f = "xsalam_{}_{}.npy".format(op, pt)
         if not os.path.isfile(f):
             print("not exist {}".format(f))
             continue
@@ -181,7 +206,7 @@ for pt in perts:
         ax10.set_yticks(t[::max(1,na//8)])
         ax10.set_xlabel("site")
         p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
-        ax11.plot(ix_lam,xsalam.mean(axis=0))
+        ax11.plot(ix_lam,np.nanmean(xsalam,axis=0))
         ax11.set_xticks(ix_lam[::(nx//8)])
         ax11.set_xticklabels([])
         ax11.set_title("spread")
@@ -190,4 +215,7 @@ for pt in perts:
         fig2.suptitle("error and spread in LAM : "+pt+" "+op)
     else:
         fig2.suptitle("error in LAM : "+pt+" "+op)
-    fig2.savefig("{}_xdlam_{}_{}.png".format(model,op,pt))
+    if dscl:
+        fig2.savefig("{}_xddscl_{}_{}.png".format(model,op,pt))
+    else:
+        fig2.savefig("{}_xdlam_{}_{}.png".format(model,op,pt))

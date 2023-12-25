@@ -41,6 +41,11 @@ class L05_func():
         self.ltlm = params["ltlm"]
         self.infl_parm = params["infl_parm"]
         self.lsig = params["lsig"]
+        self.rseed = params["rseed"]
+        if self.rseed is not None:
+            self.rng = np.random.default_rng(seed=self.rseed)
+        else:
+            self.rng = np.random.default_rng()
         logger.info("nobs={}".format(self.nobs))
         logger.info("nt={} na={}".format(self.nt, self.na))
         logger.info("operator={} perturbation={} sig_obs={} ftype={}".format\
@@ -133,7 +138,7 @@ class L05_func():
     def init_ctl(self):
         #X0c = np.ones(self.nx)*self.F
         #X0c[self.nx//2 - 1] += 0.001*self.F
-        X0c = np.random.randn(self.nx)
+        X0c = self.rng.normal(0, scale=1.0, size=self.nx)
         #ix = np.arange(self.nx)/self.nx
         #nk = 2.0
         #X0c = np.cos(2.0*np.pi*ix*nk)*self.F
@@ -157,16 +162,16 @@ class L05_func():
             logger.info("spin up max = {}".format(self.t0c))
             X0c = self.init_ctl()
             logger.debug("X0c={}".format(X0c))
-            np.random.seed(514)
+            #np.random.seed(514)
             X0 = np.zeros((self.nx, len(t0f)))
-            X0[:, :] = np.random.normal(0.0,1.0,size=(self.nx,len(t0f))) + X0c[:, None]
+            X0[:, :] = self.rng.normal(0.0,1.0,size=(self.nx,len(t0f))) + X0c[:, None]
             for j in range(self.t0c):
                 X0 = self.step(X0)
         else: # lagged forecast
             logger.info("t0f={}".format(t0f))
             logger.info("spin up max = {}".format(maxiter))
             X0 = np.zeros((self.nx,len(t0f)))
-            tmp = np.random.randn(self.nx)
+            tmp = self.rng.normal(0.0,1.0,size=self.nx)
             #tmp = np.ones(self.nx)*self.F
             #tmp[self.nx//2 - 1] += 0.001*self.F
             #ix = np.arange(self.nx)/self.nx
@@ -176,6 +181,7 @@ class L05_func():
                 tmp = self.step(tmp)
                 if j in t0f:
                     X0[:,t0f.index(j)] = tmp
+        np.save(f"{self.model}_x0.npy",X0)
         return X0
 
     # initialize variables

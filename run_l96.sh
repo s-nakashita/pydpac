@@ -1,5 +1,6 @@
 #!/bin/sh
 # This is a run script for Lorenz96 experiment
+model="l96"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
 perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
@@ -7,21 +8,22 @@ perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
-perturbations="etkfbm"
-na=100 # Number of assimilation cycle
-nmem=40 # ensemble size
+perturbations="mlef"
+na=1460 # Number of assimilation cycle
+nmem=20 # ensemble size
 nobs=40 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="test_ss2"
+exp="test_nmc_m${nmem}"
 #exp="${datype}_loc_hint"
 echo ${exp}
-rm -rf work/${exp}
-mkdir -p work/${exp}
-cd work/${exp}
-cp ../../logging_config.ini .
+cdir=` pwd `
+rm -rf work/${model}/${exp}
+mkdir -p work/${model}/${exp}
+cd work/${model}/${exp}
+cp ${cdir}/logging_config.ini .
 rm -rf *.npy
 rm -rf *.log
 rm -rf timer
@@ -29,7 +31,7 @@ touch timer
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
-    cp ../../analysis/config/config_${pert}_sample.py config.py
+    cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
     gsed -i -e "2i \ \"op\":\"${op}\"," config.py
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
@@ -51,9 +53,9 @@ for op in ${operators}; do
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     start_time=$(gdate +"%s.%5N")
-    python ../../l96.py > l96_${op}_${pert}.log 2>&1
-    #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pert}.log 2>&1
-    #python ../../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb} > l96_${op}_${pt}_${lb}.log 2>&1
+    python ${cdir}/l96.py > l96_${op}_${pert}.log 2>&1
+    #python ${cdir}/l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pert}.log 2>&1
+    #python ${cdir}/l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb} > l96_${op}_${pt}_${lb}.log 2>&1
     wait
     end_time=$(gdate +"%s.%5N")
     echo "${op} ${pert}" >> timer
@@ -82,17 +84,18 @@ for op in ${operators}; do
     #  mv l96_lspf_${op}_${pt}_cycle$icycle.npy l96_lspf_${op}_${pert}_cycle$icycle.npy
     #  fi
     done
-    #python ../../plot/plotk.py ${op} l96 ${na} ${pert}
-    #python ../../plot/plotdxa.py ${op} l96 ${na} ${pert}
-    #python ../../plot/plotpf.py ${op} l96 ${na} ${pert}
-    #python ../../plot/plotlpf.py ${op} l96 ${na} ${pert} 
+    #python ${cdir}/plot/plotk.py ${op} l96 ${na} ${pert}
+    #python ${cdir}/plot/plotdxa.py ${op} l96 ${na} ${pert}
+    #python ${cdir}/plot/plotpf.py ${op} l96 ${na} ${pert}
+    #python ${cdir}/plot/plotlpf.py ${op} l96 ${na} ${pert} 
     #done
   done
-  python ../../plot/plote.py ${op} l96 ${na} etkf #mlef
-  #python ../../plot/plotchi.py ${op} l96 ${na}
-  #python ../../plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
-  #python ../../plot/plotxa.py ${op} l96 ${na}
-  #python ../../plot/plotdof.py ${op} l96 ${na}
+  python ${cdir}/plot/plote.py ${op} l96 ${na} #mlef
+  #python ${cdir}/plot/plotchi.py ${op} l96 ${na}
+  #python ${cdir}/plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
+  python ${cdir}/plot/plotxa.py ${op} l96 ${na}
+  python ${cdir}/plot/nmc.py ${op} l96 ${na}
+  #python ${cdir}/plot/plotdof.py ${op} l96 ${na}
   
   #rm obs*.npy
 done

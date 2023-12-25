@@ -22,9 +22,9 @@ dt = 0.05 / 6  # time step (=1 hour)
 # forecast model forward operator
 step = L96(nx, dt, F)
 
-x = np.linspace(-2.0, 2.0, nx)
+x = np.arange(nx)
 dx = x[1] - x[0]
-np.savetxt("x.txt", x)
+np.savetxt("ix.txt", x)
 
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -228,6 +228,39 @@ if __name__ == "__main__":
     innov = np.zeros((na,yobs.shape[1]*a_window))
     chi = np.zeros(na)
     dof = np.zeros(na)
+    xf12 = np.zeros((na+1,nx))
+    xf24 = np.zeros((na+3,nx))
+    xf48 = np.zeros((na+7,nx))
+    ## extended forecast
+    utmp = u.copy()
+    logger.info("id(u)=%s"%id(u))
+    logger.info("id(utmp)=%s"%id(utmp))
+    utmp = func.forecast(utmp)
+    if ft=="ensemble":
+        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            xf12[1] = utmp[:, 0]
+        else:
+            xf12[1] = np.mean(utmp, axis=1)
+    else:
+        xf12[1] = utmp
+    for j in range(2): # 12h->24h
+        utmp = func.forecast(utmp)
+    if ft=="ensemble":
+        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            xf24[3] = utmp[:, 0]
+        else:
+            xf24[3] = np.mean(utmp, axis=1)
+    else:
+        xf24[3] = utmp
+    for j in range(4): # 24h->48h
+        utmp = func.forecast(utmp)
+    if ft=="ensemble":
+        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            xf48[7] = utmp[:, 0]
+        else:
+            xf48[7] = np.mean(utmp, axis=1)
+    else:
+        xf48[7] = utmp
     for i in a_time:
         yloc = yobs[i:min(i+a_window,na),:,0]
         y = yobs[i:min(i+a_window,na),:,1]
@@ -324,6 +357,36 @@ if __name__ == "__main__":
                     xf[i+1] = np.mean(u, axis=1)
             else:
                 xf[i+1] = u
+            ## extended forecast
+            utmp = u.copy()
+            utmp = func.forecast(utmp) #6h->12h
+            if ft=="ensemble":
+                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    xf12[i+2] = utmp[:, 0]
+                else:
+                    xf12[i+2] = np.mean(utmp, axis=1)
+            else:
+                xf12[i+2] = utmp
+            utmp = func.forecast(utmp) #12h->18h
+            utmp = func.forecast(utmp) #18h->24h
+            if ft=="ensemble":
+                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    xf24[i+4] = utmp[:, 0]
+                else:
+                    xf24[i+4] = np.mean(utmp, axis=1)
+            else:
+                xf24[i+4] = utmp
+            utmp = func.forecast(utmp) #24h->30h
+            utmp = func.forecast(utmp) #30h->36h
+            utmp = func.forecast(utmp) #36h->42h
+            utmp = func.forecast(utmp) #42h->48h
+            if ft=="ensemble":
+                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    xf48[i+8] = utmp[:, 0]
+                else:
+                    xf48[i+8] = np.mean(utmp, axis=1)
+            else:
+                xf48[i+8] = utmp
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
@@ -334,6 +397,10 @@ if __name__ == "__main__":
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
+    
+    np.save("{}_xf12_{}_{}.npy".format(model, op, pt), xf12)
+    np.save("{}_xf24_{}_{}.npy".format(model, op, pt), xf24)
+    np.save("{}_xf48_{}_{}.npy".format(model, op, pt), xf48)
     
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
     np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)

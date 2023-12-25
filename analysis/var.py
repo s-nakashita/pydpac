@@ -56,7 +56,7 @@ class Var():
                 ax[1].invert_yaxis()
                 ax[1].set_aspect("equal")
                 fig.tight_layout()
-                fig.savefig("Bv{:.1f}l{:d}.png".format(self.sigb,int(self.lb)))
+                fig.savefig("Bv{:.1f}l{:d}_{}.png".format(self.sigb,int(self.lb),self.model))
                 plt.close()
         return self.bmat
 

@@ -7,13 +7,13 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
-marker = {"3d":"o","4d":"x"}
+marker = {"3d":"o","4d":"s","3ds":"x","4ds":"^"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
@@ -40,9 +40,9 @@ for pt in perts:
         print("not exist {}".format(f))
         continue
     e_gm = np.loadtxt(f)
-    if np.isnan(e_gm).any():
-        print("divergence in {}".format(pt))
-        continue
+    #if np.isnan(e_gm).any():
+    #    print("divergence in {}".format(pt))
+    #    continue
     print("{}, GM mean RMSE = {}".format(pt,np.mean(e_gm[int(na/3):])))
     f = "stda_gm_{}_{}.txt".format(op, pt)
     if not os.path.isfile(f):
@@ -55,9 +55,9 @@ for pt in perts:
         print("not exist {}".format(f))
         continue
     e_lam = np.loadtxt(f)
-    if np.isnan(e_lam).any():
-        print("divergence in {}".format(pt))
-        continue
+    #if np.isnan(e_lam).any():
+    #    print("divergence in {}".format(pt))
+    #    continue
     print("{}, LAM mean RMSE = {}".format(pt,np.mean(e_lam[int(na/3):])))
     f = "stda_lam_{}_{}.txt".format(op, pt)
     if not os.path.isfile(f):
@@ -67,17 +67,17 @@ for pt in perts:
     if pt[:2] != "4d":
         ax[0].plot(x, e_gm, linestyle="solid", marker=marker["3d"], color=linecolor[pt], label=pt)
         ax[1].plot(x, e_lam, linestyle="solid", marker=marker["3d"], color=linecolor[pt], label=pt)
-        if pt != "kf" and pt != "var":
-            ax[0].plot(x, stda_gm, linestyle="dashed", marker=marker["3d"], color=linecolor[pt])
-            ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["3d"], color=linecolor[pt])
+        if pt != "kf" and pt != "var" and pt != "var_nest":
+            ax[0].plot(x, stda_gm, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
+            ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
             ax2[0].plot(x, stda_gm/e_gm, marker=marker["3d"], color=linecolor[pt], label=pt)
             ax2[1].plot(x, stda_lam/e_lam, marker=marker["3d"], color=linecolor[pt], label=pt)
     else:
         ax[0].plot(x, e_gm, linestyle="solid", marker=marker["4d"], color=linecolor[pt], label=pt)
         ax[1].plot(x, e_lam, linestyle="solid", marker=marker["4d"], color=linecolor[pt], label=pt)
         if pt != "4dvar":
-            ax[0].plot(x, stda_gm, linestyle="dashed", marker=marker["4d"], color=linecolor[pt])
-            ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["4d"], color=linecolor[pt])
+            ax[0].plot(x, stda_gm, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
+            ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
             ax2[0].plot(x, stda_gm/e_gm, marker=marker["4d"], color=linecolor[pt], label=pt)
             ax2[1].plot(x, stda_lam/e_lam, marker=marker["4d"], color=linecolor[pt], label=pt)
 # observation error (loosely dashed)

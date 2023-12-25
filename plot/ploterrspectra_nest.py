@@ -11,7 +11,7 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var", "var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 if model == "z08":
@@ -36,35 +36,41 @@ xlim = 15.0
 for pt in perts:
     fig, axs = plt.subplots(nrows=2,figsize=[10,10],constrained_layout=True)
     #GM
-    f = "{}_xagm_{}_{}.npy".format(model, op, pt)
+    f = "xagm_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xagm = np.load(f)
     print(xagm.shape)
-    f = "{}_xsagm_{}_{}.npy".format(model, op, pt)
+    f = "xsagm_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xsagm = np.load(f)
     print(xsagm.shape)
+    if np.isnan(xagm).any():
+        print("divergence in {}".format(pt))
+        continue
     xg2xt = interp1d(ix_gm,xagm,fill_value="extrapolate")
     xdgm = xg2xt(ix_t) - xt
     axs[0].plot(ix_t,xdgm.mean(axis=0),c='tab:blue',label='GM,err')
     #axs[0].plot(ix_gm,xsagm.mean(axis=0),c='tab:blue',ls='dashed',label='GM,sprd')
     #LAM
-    f = "{}_xalam_{}_{}.npy".format(model, op, pt)
+    f = "xalam_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xalam = np.load(f)
     print(xalam.shape)
-    f = "{}_xsalam_{}_{}.npy".format(model, op, pt)
+    f = "xsalam_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xsalam = np.load(f)
     print(xsalam.shape)
+    if np.isnan(xalam).any():
+        print("divergence in {}".format(pt))
+        continue
     i0 = np.argmin(np.abs(ix_t-ix_lam[0]))
     i1 = np.argmin(np.abs(ix_t-ix_lam[-1]))
     xdlam = xalam - xt[:,i0:i1+1]

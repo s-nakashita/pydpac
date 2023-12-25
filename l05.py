@@ -10,7 +10,7 @@ from analysis.obs import Obs
 from l05_func import L05_func
 
 logging.config.fileConfig("logging_config.ini")
-parend_dir = os.path.abspath(os.path.dirname(__file__))
+parent_dir = os.path.abspath(os.path.dirname(__file__))
 
 model = "l05II"
 global nx, nk, F, dt
@@ -104,7 +104,7 @@ params["ss"]         =  False   # (For model space localization) statistical res
 params["getkf"]      =  False   # (For model space localization) gain form resampling flag
 params["ltlm"]       =  True    # flag for tangent linear observation operator
 params["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
-
+params["rseed"] = None # random seed
 ## update from configure file
 sys.path.append('./')
 from config import params as params_new
@@ -161,7 +161,7 @@ elif pt == "kf":
 elif pt == "var":
     from analysis.var import Var
     bmatdir = f"model/lorenz/n{nx}k{nk}i{ni}F{int(F)}b{b:.1f}c{c:.1f}"
-    f = os.path.join(parend_dir,bmatdir,"B.npy")
+    f = os.path.join(parent_dir,bmatdir,"B.npy")
     try:
         bmat = np.load(f)
     except FileNotFoundError or OSError:
@@ -213,6 +213,38 @@ if __name__ == "__main__":
     innov = np.zeros((na,yobs.shape[1]*a_window))
     chi = np.zeros(na)
     dof = np.zeros(na)
+    xf12 = np.zeros((na+1,nx))
+    xf24 = np.zeros((na+3,nx))
+    xf48 = np.zeros((na+7,nx))
+    ## extended forecast
+    utmp = u.copy()
+    utmp = func.forecast(utmp)
+    if ft=="ensemble":
+        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            xf12[1] = utmp[:, 0]
+        else:
+            xf12[1] = np.mean(utmp, axis=1)
+    else:
+        xf12[1] = utmp
+    for j in range(2): # 12h->24h
+        utmp = func.forecast(utmp)
+    if ft=="ensemble":
+        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            xf24[3] = utmp[:, 0]
+        else:
+            xf24[3] = np.mean(utmp, axis=1)
+    else:
+        xf24[3] = utmp
+    for j in range(4): # 24h->48h
+        utmp = func.forecast(utmp)
+    if ft=="ensemble":
+        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            xf48[7] = utmp[:, 0]
+        else:
+            xf48[7] = np.mean(utmp, axis=1)
+    else:
+        xf48[7] = utmp
+    nanl = 0
     for i in a_time:
         yloc = yobs[i:min(i+a_window,na),:,0]
         y = yobs[i:min(i+a_window,na),:,1]
@@ -297,10 +329,8 @@ if __name__ == "__main__":
                             stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 u = uf[-1]
-                pf = analysis.calc_pf(u, pa, i+1)
             else:
                 u = func.forecast(u)
-                pf = analysis.calc_pf(u, pa, i+1)
 
             if ft=="ensemble":
                 if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
@@ -309,6 +339,46 @@ if __name__ == "__main__":
                     xf[i+1] = np.mean(u, axis=1)
             else:
                 xf[i+1] = u
+            pf = analysis.calc_pf(u, pa, i+1)
+            if ft=="ensemble" and i >= 100:
+                np.save("{}_pf_{}_{}_cycle{}.npy".format(model, op, pt, i), pf)
+            
+            ## extended forecast
+            utmp = u.copy()
+            utmp = func.forecast(utmp) #6h->12h
+            if ft=="ensemble":
+                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    xf12[i+2] = utmp[:, 0]
+                else:
+                    xf12[i+2] = np.mean(utmp, axis=1)
+            else:
+                xf12[i+2] = utmp
+            utmp = func.forecast(utmp) #12h->18h
+            utmp = func.forecast(utmp) #18h->24h
+            if ft=="ensemble":
+                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    xf24[i+4] = utmp[:, 0]
+                else:
+                    xf24[i+4] = np.mean(utmp, axis=1)
+            else:
+                xf24[i+4] = utmp
+            utmp = func.forecast(utmp) #24h->30h
+            utmp = func.forecast(utmp) #30h->36h
+            utmp = func.forecast(utmp) #36h->42h
+            utmp = func.forecast(utmp) #42h->48h
+            if ft=="ensemble":
+                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    xf48[i+8] = utmp[:, 0]
+                else:
+                    xf48[i+8] = np.mean(utmp, axis=1)
+            else:
+                xf48[i+8] = utmp
+        if np.isnan(u).any():
+            e[i:] = np.nan
+            stda[i:] = np.nan
+            xa[i:,:] = np.nan
+            xsa[i:,:] = np.nan
+            break
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
@@ -319,18 +389,23 @@ if __name__ == "__main__":
         stda[i] = np.sqrt(np.trace(pa)/nx)
         xsa[i] = np.sqrt(np.diag(pa))
         xsmean += np.sqrt(np.diag(pa))
+        nanl += 1
 
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
     np.save("{}_xsa_{}_{}.npy".format(model, op, pt), xsa)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
+    np.save("{}_xf12_{}_{}.npy".format(model, op, pt), xf12)
+    np.save("{}_xf24_{}_{}.npy".format(model, op, pt), xf24)
+    np.save("{}_xf48_{}_{}.npy".format(model, op, pt), xf48)
+    
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
     np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
 
-    xdmean /= float(na)
-    xsmean /= float(na)
+    xdmean /= float(nanl)
+    xsmean /= float(nanl)
     np.savetxt("{}_xdmean_{}_{}.txt".format(model, op, pt), xdmean)
     np.savetxt("{}_xsmean_{}_{}.txt".format(model, op, pt), xsmean)

@@ -98,7 +98,7 @@ class Var_nest():
                 ax[1,1].invert_yaxis()
                 ax[1,1].set_aspect("equal")
                 fig.tight_layout()
-                fig.savefig("Bv{:.1f}l{:d}+Vv{:.1f}l{:d}.png".format(self.sigb,int(self.lb),self.sigv,int(self.lv)))
+                fig.savefig("Bv{:.1f}l{:d}+Vv{:.1f}l{:d}_{}.png".format(self.sigb,int(self.lb),self.sigv,int(self.lv),self.model))
                 plt.close()
         return self.bmat
 
@@ -113,37 +113,45 @@ class Var_nest():
         global bsqrt, vsqrtinv
         if first:
             eival, eivec = la.eigh(self.bmat)
-            eival[eival<1.0e-16] = 0.0
-            bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
+            eival = eival[::-1]
+            eivec = eivec[:,::-1]
+            #eival[eival<1.0e-16] = 0.0
+            npos = np.sum(eival>=1.0e-16)
+            logger.info(f"#positive eigenvalues in bmat={npos}")
+            bsqrt = np.dot(eivec[:,:npos],np.diag(np.sqrt(eival[:npos])))
             eival, eivec = la.eigh(self.vmat)
-            eival[eival<1.0e-16] = 0.0
-            vsqrtinv = np.dot(eivec,np.diag(1.0/np.sqrt(eival)))
+            eival = eival[::-1]
+            eivec = eivec[:,::-1]
+            #eival[eival<1.0e-16] = 1.0e-16
+            npos = np.sum(eival>=1.0e-16)
+            logger.info(f"#positive eigenvalues in vmat={npos}")
+            vsqrtinv = np.dot(np.diag(1.0/np.sqrt(eival[:npos])),eivec[:,:npos].T)
         return np.dot(bsqrt,w), bsqrt, vsqrtinv
 
     def calc_j(self, w, *args):
-        JH, rinv, ob, dk = args
+        JH, rinv, ob, dk, JH2 = args
         jb = 0.5 * np.dot(w,w)
         x, _, vsqrtinv = self.prec(w)
         d = JH @ x - ob
         jo = 0.5 * d.T @ rinv @ d
-        dktmp = vsqrtinv @ (x-dk)
+        dktmp = vsqrtinv @ (JH2@x-dk)
         jk = 0.5 * np.dot(dktmp,dktmp)
         return jb + jo + jk
 
     def calc_grad_j(self, w, *args):
-        JH, rinv, ob, dk = args
+        JH, rinv, ob, dk, JH2 = args
         x, bsqrt, vsqrtinv = self.prec(w)
         d = JH @ x - ob
-        dktmp = vsqrtinv @ (x-dk)
+        dktmp = vsqrtinv @ (JH2@x-dk)
         return w + bsqrt.T @ JH.T @ rinv @ d + bsqrt.T @ vsqrtinv.T @ dktmp
 
     def calc_hess(self, w, *args):
-        JH, rinv, ob, dk = args
+        JH, rinv, ob, dk, JH2 = args
         _, bsqrt, vsqrtinv = self.prec(w)
-        return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + bsqrt.T @ vsqrtinv.T @ vsqrtinv @ bsqrt
+        return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + bsqrt.T @ JH2.T @ vsqrtinv.T @ vsqrtinv @ JH2 @ bsqrt
 
     def __call__(self, xf, pf, y, yloc, xg, ix_lam, method="CG", cgtype=1,
-        gtol=1e-6, maxiter=None,\
+        gtol=1e-6, maxiter=30,\
         disp=False, save_hist=False, save_dh=False, icycle=0,
         evalout=False):
         global zetak, alphak, bsqrt
@@ -153,12 +161,18 @@ class Var_nest():
         JH = self.obs.dh_operator(yloc, xf)
         ob = y - self.obs.h_operator(yloc,xf)
         nobs = ob.size
-        x_gm2lam = interp1d(self.ix_gm,xg)
-        dk = x_gm2lam(ix_lam) - xf
+        i0 = np.argmin(np.abs(self.ix_gm-ix_lam[0]))
+        if self.ix_gm[i0]<ix_lam[0]: i0+=1
+        i1 = np.argmin(np.abs(self.ix_gm-ix_lam[-1]))
+        if self.ix_gm[i1]>ix_lam[-1]: i1-=1
+        x_lam2gm = interp1d(ix_lam,xf)
+        dk = xg[i0:i1+1] - x_lam2gm(self.ix_gm[i0:i1+1])
+        tmp_lam2gm = interp1d(ix_lam,np.eye(ix_lam.size),axis=0)
+        JH2 = tmp_lam2gm(self.ix_gm[i0:i1+1])
 
         w0 = np.zeros_like(xf)
         x0, bsqrt, vsqrtinv = self.prec(w0,first=True)
-        args_j = (JH, rinv, ob, dk)
+        args_j = (JH, rinv, ob, dk, JH2)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(w0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,

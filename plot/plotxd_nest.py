@@ -7,11 +7,11 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -59,7 +59,7 @@ for pt in perts:
     print("{}, LAM mean SPREAD = {}".format(pt,np.mean(xsmean_lam)))
     ax[0].plot(ix_gm, xdmean_gm, linestyle="solid", color=linecolor[pt], label=pt)
     ax[1].plot(ix_lam, xdmean_lam, linestyle="solid", color=linecolor[pt], label=pt)
-    if pt != "kf" and pt != "var" and pt != "4dvar":
+    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
         ax[0].plot(ix_gm, xsmean_gm, linestyle="dashed", color=linecolor[pt])
         ax[1].plot(ix_lam, xsmean_lam, linestyle="dashed", color=linecolor[pt])
         vmax = max(np.max(xdmean_gm),np.max(xdmean_lam),np.max(xsmean_gm),np.max(xsmean_lam),vmax)

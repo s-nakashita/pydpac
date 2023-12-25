@@ -11,7 +11,7 @@ perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
-marker = {"3d":"o","4d":"x"}
+marker = {"3d":"o","4d":"x","3ds":"x","4ds":"^"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
@@ -47,7 +47,7 @@ elif model == "l96" or model == "tc87":
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
-    marker = {"3d":"o","4d":"x"}
+    marker = {"3d":"o","4d":"x","3ds":"x","4ds":"^"}
     if len(sys.argv) > 4:
         pt = sys.argv[4]
         if pt == "mlef":
@@ -139,9 +139,9 @@ for pt in perts:
                 ax[i].plot(x, stda[:,i], linestyle="dashed", color=linecolor[pt], label=pt+" stdv.")
         else:
             if pt[:2] != "4d":
-                ax.plot(x, stda, linestyle="dashed", marker=marker["3d"], color=linecolor[pt], label=pt+" stdv.")
+                ax.plot(x, stda, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt], label=pt+" stdv.")
             else:
-                ax.plot(x, stda, linestyle="dashed", marker=marker["4d"], color=linecolor[pt[2:]], label=pt+" stdv.")
+                ax.plot(x, stda, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt[2:]], label=pt+" stdv.")
         if model == "qg":
             if e.shape[1] > na:
                 for i in range(2):
