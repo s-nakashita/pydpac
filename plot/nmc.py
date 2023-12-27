@@ -66,20 +66,20 @@ for pt in perts:
     print(x48h.shape)
     nx = ix.size
     ## 12h - 6h
-    x12m6 = x12h[ns-1:ne-1] - x6h[ns:ne]
-    #x12m6 = x12h[ns:ne] - x6h[ns:ne]
+    #x12m6 = x12h[ns-1:ne-1] - x6h[ns:ne]
+    x12m6 = x12h[ns:ne] - x6h[ns:ne]
     #x12m6 = x12m6 - x12m6.mean(axis=1)[:,None]
     print(x12m6.shape)
     B12m6 = np.dot(x12m6.T,x12m6)/float(ne-ns+1)*0.5
     ## 24h - 12h
-    x24m12 = x24h[ns-3:ne-3] - x12h[ns-1:ne-1]
-    #x24m12 = x24h[ns:ne] - x12h[ns:ne]
+    #x24m12 = x24h[ns-3:ne-3] - x12h[ns-1:ne-1]
+    x24m12 = x24h[ns:ne] - x12h[ns:ne]
     #x24m12 = x24m12 - x24m12.mean(axis=1)[:,None]
     print(x24m12.shape)
     B24m12 = np.dot(x24m12.T,x24m12)/float(ne-ns+1)*0.5
     ## 48h - 24h
-    x48m24 = x48h[ns-7:ne-7] - x24h[ns-3:ne-3]
-    #x48m24 = x48h[ns:ne] - x24h[ns:ne]
+    #x48m24 = x48h[ns-7:ne-7] - x24h[ns-3:ne-3]
+    x48m24 = x48h[ns:ne] - x24h[ns:ne]
     #x48m24 = x48m24 - x48m24.mean(axis=1)[:,None]
     print(x48m24.shape)
     B48m24 = np.dot(x48m24.T,x48m24)/float(ne-ns+1)*0.5
@@ -87,7 +87,7 @@ for pt in perts:
     fig, axs = plt.subplots(nrows=1,ncols=4,figsize=[12,6],constrained_layout=True,sharey=True)
     mp0 = axs[0].pcolormesh(ix, t[ns:ne], x6h[ns:ne,:], shading='auto',\
         cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    axs[0].set_xticks(ix[::(nx//8)])
+    axs[0].set_xticks(ix[::(nx//10)])
     axs[0].set_yticks(t[ns:ne:(na//8)])
     axs[0].set_xlabel("site")
     axs[0].set_ylabel("DA cycle")
@@ -96,7 +96,7 @@ for pt in perts:
     vlim = max(np.max(x12m6),-np.min(x12m6))
     mp1 = axs[1].pcolormesh(ix, t[ns:ne], x12m6, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[1].set_xticks(ix[::(nx//8)])
+    axs[1].set_xticks(ix[::(nx//10)])
     axs[1].set_yticks(t[ns:ne:(na//8)])
     axs[1].set_xlabel("site")
     axs[1].set_title("12h - 6h")
@@ -104,7 +104,7 @@ for pt in perts:
     vlim = max(np.max(x24m12),-np.min(x24m12))
     mp2 = axs[2].pcolormesh(ix, t[ns:ne], x24m12, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[2].set_xticks(ix[::(nx//8)])
+    axs[2].set_xticks(ix[::(nx//10)])
     axs[2].set_yticks(t[ns:ne:(na//8)])
     axs[2].set_xlabel("site")
     axs[2].set_title("24h - 12h")
@@ -112,7 +112,7 @@ for pt in perts:
     vlim = max(np.max(x48m24),-np.min(x48m24))
     mp3 = axs[3].pcolormesh(ix, t[ns:ne], x48m24, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[3].set_xticks(ix[::(nx//8)])
+    axs[3].set_xticks(ix[::(nx//10)])
     axs[3].set_yticks(t[ns:ne:(na//8)])
     axs[3].set_xlabel("site")
     axs[3].set_title("48h - 24h")
@@ -128,23 +128,23 @@ for pt in perts:
     ax01 = fig.add_subplot(gs0[:,1])
     ax02 = fig.add_subplot(gs0[:,2])
     mp0 = ax00.pcolormesh(ix, ix, B12m6, shading='auto')
-    ax00.set_xticks(ix[::(nx//8)])
-    ax00.set_yticks(ix[::(nx//8)])
+    ax00.set_xticks(ix[::(nx//10)])
+    ax00.set_yticks(ix[::(nx//10)])
     ax00.set_title("12h - 6h")
     ax00.set_aspect(1)
-    p0 = fig.colorbar(mp0,ax=ax00,shrink=0.6,pad=0.01) #,orientation="horizontal")
+    p0 = fig.colorbar(mp0,ax=ax00,shrink=0.5,pad=0.01) #,orientation="horizontal")
     mp1 = ax01.pcolormesh(ix, ix, B24m12, shading='auto')
-    ax01.set_xticks(ix[::(nx//8)])
-    ax01.set_yticks(ix[::(nx//8)])
+    ax01.set_xticks(ix[::(nx//10)])
+    ax01.set_yticks(ix[::(nx//10)])
     ax01.set_title("24h - 12h")
     ax01.set_aspect(1)
-    p1 = fig.colorbar(mp1,ax=ax01,shrink=0.6,pad=0.01) #,orientation="horizontal")
+    p1 = fig.colorbar(mp1,ax=ax01,shrink=0.5,pad=0.01) #,orientation="horizontal")
     mp2 = ax02.pcolormesh(ix, ix, B48m24, shading='auto')
-    ax02.set_xticks(ix[::(nx//8)])
-    ax02.set_yticks(ix[::(nx//8)])
+    ax02.set_xticks(ix[::(nx//10)])
+    ax02.set_yticks(ix[::(nx//10)])
     ax02.set_title("48h - 24h")
     ax02.set_aspect(1)
-    p2 = fig.colorbar(mp2,ax=ax02,shrink=0.6,pad=0.01) #,orientation="horizontal")
+    p2 = fig.colorbar(mp2,ax=ax02,shrink=0.5,pad=0.01) #,orientation="horizontal")
     ### diagonal
     gs1 = gs[2].subgridspec(1,2)
     ax10 = fig.add_subplot(gs1[:,0])
@@ -152,14 +152,14 @@ for pt in perts:
     ax10.plot(ix,np.diag(B12m6),label="12h - 6h")
     ax10.plot(ix,np.diag(B24m12),label="24h - 12h")
     ax10.plot(ix,np.diag(B48m24),label="48h - 24h")
-    ax10.set_xticks(ix[::(nx//8)])
+    ax10.set_xticks(ix[::(nx//10)])
     ax10.set_title("Diagonal")
     ax10.legend()
     ### row
     ax11.plot(ix,B12m6[nx//2,:],label="12h - 6h")
     ax11.plot(ix,B24m12[nx//2,:],label="24h - 12h")
     ax11.plot(ix,B48m24[nx//2,:],label="48h - 24h")
-    ax11.set_xticks(ix[::(nx//8)])
+    ax11.set_xticks(ix[::(nx//10)])
     ax11.set_title("Row")
     ax11.legend()
     fig.suptitle("NMC : "+pt+" "+op)

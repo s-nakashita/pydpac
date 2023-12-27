@@ -33,7 +33,7 @@ _status_message = {'success': 'Optimization terminated successfully.',
 class Minimize():
     def __init__(self, n, func, jac=None, hess=None, prec=None, args=None, 
         iprint=np.array([0,0]), method="LBFGS", cgtype=None, maxiter=None,
-        restart=False):
+        restart=False, loglevel=0):
         self.n = n
         self.m = min(self.n, 7)
         self.func = func
@@ -63,17 +63,27 @@ class Minimize():
         self.gtol = 1.0e-6
         self.disp = False
         self.maxiter = maxiter
-        logger.info(f"method={self.method}")
-        if self.cgtype is not None:
-            logger.info("%s%s" % ("cgtype: ", "Fletcher-Reeves" if self.cgtype == 1 else
-                                              "Polak-Ribiere" if self.cgtype == 2 else
-                                              "Positive Polak-Ribiere" if self.cgtype == 3
-                                              else ""))
         if restart:
             self.irest = 1
         else:
             self.irest = 0
-        logger.info(f"restart={self.irest==1}")
+        self.loglevel = loglevel # 0:info, >0:debug
+        if self.loglevel==0:
+            logger.info(f"method={self.method}")
+            if self.cgtype is not None:
+                logger.info("%s%s" % ("cgtype: ", "Fletcher-Reeves" if self.cgtype == 1 else
+                                              "Polak-Ribiere" if self.cgtype == 2 else
+                                              "Positive Polak-Ribiere" if self.cgtype == 3
+                                              else ""))
+            logger.info(f"restart={self.irest==1}")
+        else:
+            logger.debug(f"method={self.method}")
+            if self.cgtype is not None:
+                logger.debug("%s%s" % ("cgtype: ", "Fletcher-Reeves" if self.cgtype == 1 else
+                                              "Polak-Ribiere" if self.cgtype == 2 else
+                                              "Positive Polak-Ribiere" if self.cgtype == 3
+                                              else ""))
+            logger.debug(f"restart={self.irest==1}")
          
     def __call__(self, x0, callback=None):
         if self.method == "LBFGS":
@@ -185,14 +195,25 @@ class Minimize():
             msg = _status_message['success']
 
         if self.disp:
-            logger.info("%s%s" % ("Warning: " if warnflag != 0 else "", msg))
-            logger.info("         Current function value: %f" % fval)
-            logger.info("         Iterations: %d" % k)
-            logger.info("         Function evaluations: %d" % nfev)
-            logger.info("         Gradient evaluations: %d" % ngev)
+            if self.loglevel==0:
+                logger.info("%s%s" % ("Warning: " if warnflag != 0 else "", msg))
+                logger.info("         Current function value: %f" % fval)
+                logger.info("         Iterations: %d" % k)
+                logger.info("         Function evaluations: %d" % nfev)
+                logger.info("         Gradient evaluations: %d" % ngev)
+            else:
+                logger.debug("%s%s" % ("Warning: " if warnflag != 0 else "", msg))
+                logger.debug("         Current function value: %f" % fval)
+                logger.debug("         Iterations: %d" % k)
+                logger.debug("         Function evaluations: %d" % nfev)
+                logger.debug("         Gradient evaluations: %d" % ngev)
         else:
-            logger.info("success={} message={}".format(warnflag==0, msg))
-            logger.info("J={:7.3e} nit={}".format(fval, k))
+            if self.loglevel==0:
+                logger.info("success={} message={}".format(warnflag==0, msg))
+                logger.info("success={} message={}".format(warnflag==0, msg))
+            else:
+                logger.debug("J={:7.3e} nit={}".format(fval, k))
+                logger.debug("J={:7.3e} nit={}".format(fval, k))
         return xk, warnflag
 
     def minimize_newton(self, w0, callback=None, 
@@ -387,14 +408,26 @@ class Minimize():
             msg = _status_message['success']
 
         if self.disp:
-            logger.info("%s%s" % ("Warning: " if warnflag != 0 else "", msg))
-            logger.info("         Current function value: %f" % fval)
-            logger.info("         Iterations: %d" % k)
-            logger.info("         Function evaluations: %d" % nfev)
-            logger.info("         Gradient evaluations: %d" % ngev)
+            if self.loglevel==0:
+                logger.info("%s%s" % ("Warning: " if warnflag != 0 else "", msg))
+                logger.info("         Current function value: %f" % fval)
+                logger.info("         Iterations: %d" % k)
+                logger.info("         Function evaluations: %d" % nfev)
+                logger.info("         Gradient evaluations: %d" % ngev)
+            else:
+                logger.debug("%s%s" % ("Warning: " if warnflag != 0 else "", msg))
+                logger.debug("         Current function value: %f" % fval)
+                logger.debug("         Iterations: %d" % k)
+                logger.debug("         Function evaluations: %d" % nfev)
+                logger.debug("         Gradient evaluations: %d" % ngev)
         else:
-            logger.info("success={} message={}".format(warnflag==0, msg))
-            logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
+            if self.loglevel==0:
+                logger.info("success={} message={}".format(warnflag==0, msg))
+                logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
+                    fval, gnorm, k))
+            else:
+                logger.debug("success={} message={}".format(warnflag==0, msg))
+                logger.debug("J={:7.3e} dJ={:7.3e} nit={}".format( \
                     fval, gnorm, k))
         return wk, warnflag
 
@@ -414,9 +447,13 @@ class Minimize():
         else:
             fval = self.func(x0)
             gval = self.jac(x0)
-        logger.info("initial function value = {:13.6e}".format(fval))
+        if self.loglevel==0:
+            logger.info("initial function value = {:13.6e}".format(fval))
+            logger.info("initial gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
+        else:
+            logger.debug("initial function value = {:13.6e}".format(fval))
+            logger.debug("initial gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #        print("initial function value = {}".format(fval))
-        logger.info("initial gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #        print("initial gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
 
         #x = x0
@@ -440,7 +477,10 @@ class Minimize():
                           iprint=self.iprint, eps=self.eps, xtol=self.xtol, w=wold, \
                           iflag=iflag, irest=self.irest)
             iflag = oflag
-            logger.info(f"iflag={iflag}")
+            if self.loglevel==0:
+                logger.info(f"iflag={iflag}")
+            else:
+                logger.debug(f"iflag={iflag}")
             #update = np.dot((xk - x),(xk - x))
             #logger.debug(f"update={update}")
             #x = xk[:]
@@ -448,18 +488,27 @@ class Minimize():
             if iflag == 3: # line-search terminated successfully but not converged
                 icall += 1
                 if callback != None:
-                    logger.info(f"icall={icall} xk={xk} alphak={alphak:13.6e}")
+                    if self.loglevel==0:
+                        logger.info(f"icall={icall} xk={xk} alphak={alphak:13.6e}")
+                    else:
+                        logger.debug(f"icall={icall} xk={xk} alphak={alphak:13.6e}")
                     callback(xk, alphak)
                 if self.irest == 1:
                     # mutual orthogonality check
                     if np.dot(gold, gval) >= 0.2*np.dot(gval, gval):
-                        logger.info("not satisfy mutual orthogonality")
+                        if self.loglevel==0:
+                            logger.info("not satisfy mutual orthogonality")
+                        else:
+                            logger.debug("not satisfy mutual orthogonality")
                         iflag = -2
                         break
                     # downhill check
                     if np.dot(gval, dk) > -0.8*np.dot(gval, gval) \
                         or np.dot(gval, dk) < -1.2*np.dot(gval, gval):
-                        logger.info("not satisfy downhill direction")
+                        if self.loglevel==0:
+                            logger.info("not satisfy downhill direction")
+                        else:
+                            logger.debug("not satisfy downhill direction")
                         iflag = -2
                         break
             elif iflag == 1: # in line-search iteration
@@ -473,34 +522,54 @@ class Minimize():
             elif iflag == 0:
                 if callback != None:
                     callback(xk, alphak)
-                logger.info("minimization success")
-                logger.info("iteration = {}".format(icall))
-                logger.info("final step-length = {:13.6e}".format(alphak))
+                if self.loglevel==0:
+                    logger.info("minimization success")
+                    logger.info("iteration = {}".format(icall))
+                    logger.info("final step-length = {:13.6e}".format(alphak))
+                    logger.info("final function value = {:13.6e}".format(fval))
+                    logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
+                else:
+                    logger.debug("minimization success")
+                    logger.debug("iteration = {}".format(icall))
+                    logger.debug("final step-length = {:13.6e}".format(alphak))
+                    logger.debug("final function value = {:13.6e}".format(fval))
+                    logger.debug("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("iteration = {}".format(icall))
-                logger.info("final function value = {:13.6e}".format(fval))
 #                print("final function value = {}".format(fval))
-                logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
                 break
             elif iflag < 0:
                 if callback != None:
                     callback(xk, alphak)
-                logger.info("minimization failed, FLAG = {}".format(iflag))
-                logger.info("iteration = {}".format(icall))
-                logger.info("final step-length = {:13.6e}".format(alphak))
+                if self.loglevel==0:
+                    logger.info("minimization failed, FLAG = {}".format(iflag))
+                    logger.info("iteration = {}".format(icall))
+                    logger.info("final step-length = {:13.6e}".format(alphak))
+                    logger.info("final function value = {:13.6e}".format(fval))
+                    logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
+                else:
+                    logger.debug("minimization failed, FLAG = {}".format(iflag))
+                    logger.debug("iteration = {}".format(icall))
+                    logger.debug("final step-length = {:13.6e}".format(alphak))
+                    logger.debug("final function value = {:13.6e}".format(fval))
+                    logger.debug("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("iteration = {}".format(icall))
-                logger.info("final function value = {:13.6e}".format(fval))
 #                print("final function value = {}".format(fval))
-                logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
                 break
         if iflag > 0:
-            logger.info("minimization not converged")
+            if self.loglevel==0:
+                logger.info("minimization not converged")
+                logger.info("current step-length = {:13.6e}".format(alphak))
+                logger.info("current function value = {:13.6e}".format(fval))
+                logger.info("current gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
+            else:
+                logger.debug("minimization not converged")
+                logger.debug("current step-length = {:13.6e}".format(alphak))
+                logger.debug("current function value = {:13.6e}".format(fval))
+                logger.debug("current gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #            print("minimization not converged")
-            logger.info("current step-length = {:13.6e}".format(alphak))
-            logger.info("current function value = {:13.6e}".format(fval))
 #            print("current function value = {}".format(fval))
-            logger.info("current gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #            print("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
         file_utility.file_close(lb3.mp)
         file_utility.file_close(lb3.lp)
@@ -523,9 +592,13 @@ class Minimize():
         else:
             fval = self.func(x0)
             gval = self.jac(x0)
-        logger.info("initial function value = {:13.6e}".format(fval))
+        if self.loglevel==0:
+            logger.info("initial function value = {:13.6e}".format(fval))
+            logger.info("initial gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
+        else:
+            logger.debug("initial function value = {:13.6e}".format(fval))
+            logger.debug("initial gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #        print("initial function value = {}".format(fval))
-        logger.info("initial gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #        print("initial gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
 
         x = x0.copy()
@@ -548,7 +621,10 @@ class Minimize():
                     irest=self.irest, method=self.cgtype, finish=finish)
             iflag = oflag
             finish = bool(ofinish==1)
-            logger.info(f"iflag={iflag} finish={finish}")
+            if self.loglevel==0:
+                logger.info(f"iflag={iflag} finish={finish}")
+            else:
+                logger.debug(f"iflag={iflag} finish={finish}")
             if iflag <= 0:
                 break
             if iflag == 2:
@@ -596,34 +672,54 @@ class Minimize():
         if iflag == 0:
             #if callback != None:
             #    callback(x, alphak)
-            logger.info("minimization success")
-            logger.info("iteration = {}".format(icall))
+            if self.loglevel==0:
+                logger.info("minimization success")
+                logger.info("iteration = {}".format(icall))
+                logger.info("final step-length = {:13.6e}".format(alphak))
+                logger.info("final function value = {:13.6e}".format(fval))
+                logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
+            else:
+                logger.debug("minimization success")
+                logger.debug("iteration = {}".format(icall))
+                logger.debug("final step-length = {:13.6e}".format(alphak))
+                logger.debug("final function value = {:13.6e}".format(fval))
+                logger.debug("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("iteration = {}".format(icall))
-            logger.info("final step-length = {:13.6e}".format(alphak))
-            logger.info("final function value = {:13.6e}".format(fval))
 #                print("final function value = {}".format(fval))
-            logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
             
         if iflag < 0:
             if callback != None:
                 callback(x, alphak)
-            logger.info("minimization failed, FLAG = {}".format(iflag))
-            logger.info("iteration = {}".format(icall))
+            if self.loglevel==0:
+                logger.info("minimization failed, FLAG = {}".format(iflag))
+                logger.info("iteration = {}".format(icall))
+                logger.info("final step-length = {:13.6e}".format(alphak))
+                logger.info("final function value = {:13.6e}".format(fval))
+                logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
+            else:
+                logger.debug("minimization failed, FLAG = {}".format(iflag))
+                logger.debug("iteration = {}".format(icall))
+                logger.debug("final step-length = {:13.6e}".format(alphak))
+                logger.debug("final function value = {:13.6e}".format(fval))
+                logger.debug("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("iteration = {}".format(icall))
-            logger.info("final step-length = {:13.6e}".format(alphak))
-            logger.info("final function value = {:13.6e}".format(fval))
 #                print("final function value = {}".format(fval))
-            logger.info("final gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #                print("final gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
             
         if iflag > 0:
-            logger.info("minimization not converged")
+            if self.loglevel==0:
+                logger.info("minimization not converged")
+                logger.info("current step-length = {:13.6e}".format(alphak))
+                logger.info("current function value = {:13.6e}".format(fval))
+                logger.info("current gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
+            else:
+                logger.debug("minimization not converged")
+                logger.debug("current step-length = {:13.6e}".format(alphak))
+                logger.debug("current function value = {:13.6e}".format(fval))
+                logger.debug("current gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #            print("minimization not converged")
-            logger.info("current step-length = {:13.6e}".format(alphak))
-            logger.info("current function value = {:13.6e}".format(fval))
 #            print("current function value = {}".format(fval))
-            logger.info("current gradient norm = {:13.6e}".format(np.sqrt(np.dot(gval, gval))))
 #            print("current gradient norm = {}".format(np.sqrt(np.dot(gval, gval))))
         file_utility.file_close(cgdd.mp)
         file_utility.file_close(cgdd.lp)
@@ -637,8 +733,12 @@ class Minimize():
             else:
                 res = spo.minimize(self.func, x0, method=self.method, \
                    options={'disp':self.disp, 'maxiter':self.maxiter}, callback=callback)
-            logger.info("success={} message={}".format(res.success, res.message))
-            logger.info("J={:7.3e} nit={}".format(res.fun, res.nit))
+            if self.loglevel==0:
+                logger.info("success={} message={}".format(res.success, res.message))
+                logger.info("J={:7.3e} nit={}".format(res.fun, res.nit))
+            else:
+                logger.debug("success={} message={}".format(res.success, res.message))
+                logger.debug("J={:7.3e} nit={}".format(res.fun, res.nit))
         elif self.method == "Powell":
             if self.args is not None:
                 res = spo.minimize(self.func, x0, args=self.args, method=self.method, \
@@ -648,8 +748,12 @@ class Minimize():
                 res = spo.minimize(self.func, x0, method=self.method, \
                    bounds=None, \
                    options={'disp':self.disp, 'maxiter':self.maxiter}, callback=callback)
-            logger.info("success={} message={}".format(res.success, res.message))
-            logger.info("J={:7.3e} nit={}".format(res.fun, res.nit))
+            if self.loglevel==0:
+                logger.info("success={} message={}".format(res.success, res.message))
+                logger.info("J={:7.3e} nit={}".format(res.fun, res.nit))
+            else:
+                logger.debug("success={} message={}".format(res.success, res.message))
+                logger.debug("J={:7.3e} nit={}".format(res.fun, res.nit))
         elif self.method == "dogleg" or self.method == "trust-ncg" \
             or self.method == "trust-krylov" or self.method == "trust-exact" \
             or self.method == "Newton-CG":
@@ -659,8 +763,13 @@ class Minimize():
             else:
                 res = spo.minimize(self.func, x0, method=self.method, \
                    jac=self.jac, hess=self.hess, options={'gtol':self.gtol, 'disp':self.disp, 'maxiter':self.maxiter}, callback=callback)
-            logger.info("success={} message={}".format(res.success, res.message))
-            logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
+            if self.loglevel==0:
+                logger.info("success={} message={}".format(res.success, res.message))
+                logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
+                res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
+            else:
+                logger.debug("success={} message={}".format(res.success, res.message))
+                logger.debug("J={:7.3e} dJ={:7.3e} nit={}".format( \
                 res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
         else:
             if self.args is not None:
@@ -677,8 +786,13 @@ class Minimize():
                 else:
                     res = spo.minimize(self.func, x0, method=self.method, \
                         jac=self.jac, options={'gtol':self.gtol, 'disp':self.disp, 'maxiter':self.maxiter}, callback=callback)
-            logger.info("success={} message={}".format(res.success, res.message))
-            logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
+            if self.loglevel==0:
+                logger.info("success={} message={}".format(res.success, res.message))
+                logger.info("J={:7.3e} dJ={:7.3e} nit={}".format( \
+                res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
+            else:
+                logger.debug("success={} message={}".format(res.success, res.message))
+                logger.debug("J={:7.3e} dJ={:7.3e} nit={}".format( \
                 res.fun, np.sqrt(res.jac.transpose() @ res.jac), res.nit))
 
         if res.success:

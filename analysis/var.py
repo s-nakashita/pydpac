@@ -25,7 +25,8 @@ class Var():
         self.model = model
         self.verbose = True
         logger.info(f"model : {self.model}")
-        logger.info(f"pt={self.pt} op={self.op} sig={self.sig} lb={self.lb}")
+        logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
+        logger.info(f"sigb={self.sigb} lb={self.lb}")
         logger.info(f"bmat in={self.bmat is not None}")
 
     def calc_pf(self, xf, pa, cycle):

@@ -41,7 +41,7 @@ try:
         while(True):
             tmp=f.readline()[:-1]
             if tmp=='': break
-            if ptype=="infl":
+            if ptype=="infl" or ptype=="sigb" or ptype=="lb":
                 var.append(float(tmp))
             else:
                 var.append(int(tmp))
@@ -72,14 +72,17 @@ for pt in perts:
             nsuccess[pt][ivar] = data[0,0]
             xdmean[pt][ivar] = e
             j += 1
-        f = "{}_xsmean_{}_{}_{}.txt".format(model, op, pt, ivar)
-        if not os.path.isfile(f):
-            print("not exist {}".format(f))
-            xsmean[pt][ivar] = None
+        if pt != "kf" and pt != "var" and pt != "4dvar":
+            f = "{}_xsmean_{}_{}_{}.txt".format(model, op, pt, ivar)
+            if not os.path.isfile(f):
+                print("not exist {}".format(f))
+                xsmean[pt][ivar] = None
+            else:
+                data = np.loadtxt(f)
+                e = data[:,1:]
+                xsmean[pt][ivar] = e
         else:
-            data = np.loadtxt(f)
-            e = data[:,1:]
-            xsmean[pt][ivar] = e
+            xsmean[pt][ivar] = None
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if j > 0:
         methods.append(pt)
@@ -95,10 +98,11 @@ for pt in methods:
         xd = xdmean[pt][ivar]
         xs = xsmean[pt][ivar]
         ns = nsuccess[pt][ivar]
-        if xd is not None and xs is not None:
+        if xd is not None:
             ax.plot(ix,xd[0,],lw=2.0)
-            ax.plot(ix,xs[0,],ls='dashed')
             ax.plot(ix,np.ones(ix.size)*sigma[op],c='k',ls='dotted')
+        if xs is not None:
+            ax.plot(ix,xs[0,],ls='dashed')
         ax.set_title(f"{ptype}={ivar} : #{int(ns):d}")
     for i in range(nrows):
         axs[i,0].set_ylabel("RMSE or SPREAD")

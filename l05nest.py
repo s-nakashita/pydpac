@@ -22,14 +22,16 @@ nx_true = 960
 intgm = 4                    # grid interval
 nx_gm = nx_true // intgm     # number of points
 nk_gm = 8                    # advection length scale
-dt_gm = 0.05 / 36            # time step (=1/6 hour)
+#dt_gm = 0.05 / 36            # time step (=1/6 hour, Kretchmer et al. 2015)
+dt_gm = 0.05 / 48            # time step (=1/8 hour, Yoon et al. 2012)
 ## LAM
 nx_lam = 480                 # number of LAM points
 ist_lam = 240                # first grid index
-nsp = 30                     # width of sponge region
+nsp = 10                     # width of sponge region
 po = 1                       # order of relaxation function
-intrlx = 6                   # interval of boundary relaxation
-lamstep = 8                  # time steps relative to 1 step of GM
+#intrlx = 1                   # interval of boundary relaxation (K15)
+intrlx = 48                   # interval of boundary relaxation (Y12)
+lamstep = 1                  # time steps relative to 1 step of GM
 nk_lam = 32                  # advection length
 ni = 12                      # spatial filter width
 b = 10.0                     # frequency of small-scale perturbation
@@ -63,7 +65,7 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":50.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,"var_nest":None,
+sig_l = {"mlef":40.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}

@@ -232,12 +232,12 @@ class Lmlef():
         wlist = []
         Wlist = []
         if self.iloc == -1: #CW
-            logger.info("==R-localization, {}==, lsig={}".format(self.loctype[self.iloc],self.lsig))
+            logger.info("==R-localization, {}== lsig={}".format(self.loctype[self.iloc],self.lsig))
             iprint = np.zeros(2, dtype=np.int32)
             options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
             for i in range(xc.size):
                 far, Rwf_loc = self.r_loc(self.lsig, yloc, float(i))
-                logger.debug(f"Number of assimilated obs.={y.size - len(far)}")
+                logger.info(f"analysis grid={i} Number of assimilated obs.={y.size - len(far)}")
                 dhi = np.delete(dh, far, axis=0)
                 Rmat = np.diag(np.diag(rmat) * np.sqrt(Rwf_loc))
                 Rmat = np.delete(Rmat, far, axis=0)
@@ -267,7 +267,7 @@ class Lmlef():
                     args_j = (di, tmat, zmat, heinv)
                 minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter, restart=restart)
+                            maxiter=maxiter, restart=restart, loglevel=1)
                 if save_hist:
                     x, flg = minimize(x0, callback=self.callback)
                     jh = np.zeros(len(zetak))
@@ -304,7 +304,7 @@ class Lmlef():
                 pa[i,:] = pf[i,:] @ tmat 
                 Wlist.append(tmat)
         else: #Y
-            logger.info("==R-localization, {}==, lsig={}".format(self.loctype[self.iloc],self.lsig))
+            logger.info("==R-localization, {}== lsig={}".format(self.loctype[self.iloc],self.lsig))
             if maxiter is None:
                 maxiter = 5
             iter=0

@@ -93,7 +93,7 @@ params["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 params["pt"]         = "mlef"   # assimilation method
 params["nmem"]       =  40      # ensemble size (include control run)
 params["a_window"]   =  0       # assimilation window length
-params["sigb"]       =  0.6     # (For var & 4dvar) background error standard deviation
+params["sigb"]       =  2.0     # (For var & 4dvar) background error standard deviation
 params["lb"]         = -1.0     # (For var & 4dvar) correlation length for background error covariance
 params["linf"]       =  False   # inflation flag
 params["infl_parm"]  = -1.0     # multiplicative inflation coefficient
@@ -160,12 +160,13 @@ elif pt == "kf":
     step=step, nt=params["nt"], model=model)
 elif pt == "var":
     from analysis.var import Var
-    bmatdir = f"model/lorenz/n{nx}k{nk}i{ni}F{int(F)}b{b:.1f}c{c:.1f}"
-    f = os.path.join(parent_dir,bmatdir,"B.npy")
-    try:
-        bmat = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat = None
+#    bmatdir = f"model/lorenz/n{nx}k{nk}i{ni}F{int(F)}b{b:.1f}c{c:.1f}"
+#    f = os.path.join(parent_dir,bmatdir,"B.npy")
+#    try:
+#        bmat = np.load(f)
+#    except FileNotFoundError or OSError:
+#        bmat = None
+    bmat = None
     analysis = Var(obs, 
     sigb=params["sigb"], lb=params["lb"], bmat=bmat, model=model)
 elif pt == "4dvar":

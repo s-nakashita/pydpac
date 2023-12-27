@@ -3,20 +3,20 @@
 model="l05III"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlef"
-na=30 # Number of assimilation cycle
+perturbations="var"
+na=100 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-ptype=nmem
-exp="mlef_${ptype}_obs${nobs}"
+ptype=lb
+exp="var_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-rm -rf work/${model}/${exp}
+#rm -rf work/${model}/${exp}
 mkdir -p work/${model}/${exp}
 cd work/${model}/${exp}
 cp ${cdir}/logging_config.ini .
@@ -28,18 +28,27 @@ touch timer
 nmemlist="40 80 120 160 200"
 lsiglist="20 40 60 80 100 120 140 160"
 nobslist="480 240 120 60 30 15"
+sigblist="0.2 0.4 0.6 0.8 1.0 1.2"
+sigblist="1.6 2.0 2.4 2.8 3.2 3.6"
+lblist="-1.0 10.0 20.0 40.0 60.0 80.0"
 touch params.txt
 for op in ${operators}; do
   echo $ptype > params.txt
-  for nmem in ${nmemlist}; do
-    echo $nmem >> params.txt
-    ptmp=$nmem
+  #for nmem in ${nmemlist}; do
+  #  echo $nmem >> params.txt
+  #  ptmp=$nmem
   #for lsig in ${lsiglist}; do
   #  echo $lsig >> params.txt
   #  ptmp=$lsig
   #for nobs in ${nobslist}; do
   #  echo $nobs >> params.txt
   #  ptmp=$nobs
+  #for sigb in ${sigblist}; do
+  #  echo $sigb >> params.txt
+  #  ptmp=$sigb
+  for lb in ${lblist}; do
+    echo $lb >> params.txt
+    ptmp=$lb
     for pert in ${perturbations}; do
       echo $pert
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
@@ -61,6 +70,12 @@ for op in ${operators}; do
       sed -i -e '/getkf/s/True/False/' config.py
       if [ $ptype = loc ]; then
         gsed -i -e "6i \ \"lsig\":${lsig}," config.py
+      fi
+      if [ $ptype = sigb ]; then
+        gsed -i -e "6i \ \"sigb\":${sigb}," config.py
+      fi
+      if [ $ptype = lb ]; then
+        gsed -i -e "6i \ \"lb\":${lb}," config.py
       fi
       cat config.py
       ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
