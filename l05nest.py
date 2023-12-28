@@ -99,8 +99,8 @@ params_gm["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 params_gm["pt"]         = "mlef"   # assimilation method
 params_gm["nmem"]       =  40      # ensemble size (include control run)
 params_gm["a_window"]   =  0       # assimilation window length
-params_gm["sigb"]       =  0.6     # (For var & 4dvar) background error standard deviation
-params_gm["lb"]         = -1.0     # (For var & 4dvar) correlation length for background error covariance
+params_gm["sigb"]       =  1.6     # (For var & 4dvar) background error standard deviation
+params_gm["lb"]         = 10.0     # (For var & 4dvar) correlation length for background error covariance
 params_gm["linf"]       =  False   # inflation flag
 params_gm["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params_gm["lloc"]       =  False   # localization flag
@@ -111,12 +111,15 @@ params_gm["getkf"]      =  False   # (For model space localization) gain form re
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params_gm["rseed"] = None # random seed
+params_gm["extfcst"] = False # extended forecast
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"] = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"] = True # True: analyzed in the sponge region
-params_lam["sigv"]      =  0.6     # (For var_nest) GM background error standard deviation in LAM space
-params_lam["lv"]        = -1.0     # (For var_nest) GM correlation length for background error covariance in LAM space
+params_lam["sigb"]      =  2.4     # (For var & 4dvar) background error standard deviation
+params_lam["lb"]        = 20.0     # (For var & 4dvar) correlation length for background error covariance
+params_lam["sigv"]      =  1.6     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["lv"]        = 10.0     # (For var_nest) GM correlation length for background error covariance in LAM space
 params_lam["crosscov"] = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 
 ## update from configure file
@@ -212,58 +215,86 @@ elif pt == "kf":
     step=step.lam, nt=params_lam["nt"], model="l05nest_lam")
 elif pt == "var":
     from analysis.var import Var
-    bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
-    f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
-    try:
-        bmat_gm = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat_gm = None
-    analysis_gm = Var(obs_gm, 
-    sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, model="l05nest_gm")
-    f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
-    try:
-        bmat_lam = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat_lam = None
-    analysis_lam = Var(obs_lam, 
-    sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, model="l05nest_lam")
+#    #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
+#    #f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
+#    bmatdir = f"data/l05nest/nmc_obs240"
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
+#    try:
+#        bmat_gm = np.load(f)
+#    except FileNotFoundError or OSError:
+#        bmat_gm = None
+    bmat_gm = None
+    analysis_gm = Var(obs_gm, nx_gm, 
+    sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, \
+    calc_dist=step.calc_dist_gm, model="l05nest_gm")
+#    #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
+#    try:
+#        bmat_lam = np.load(f)
+#    except FileNotFoundError or OSError:
+#        bmat_lam = None
+    bmat_lam = None
+    analysis_lam = Var(obs_lam, nx_lam, 
+    sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, \
+    calc_dist=step.calc_dist_lam, model="l05nest_lam")
 elif pt == "var_nest":
     from analysis.var_nest import Var_nest
     from analysis.var import Var
-    bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
-    f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
-    try:
-        bmat_gm = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat_gm = None
-    analysis_gm = Var(obs_gm, 
-    sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, model="l05nest_gm")
-    f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
-    try:
-        bmat_lam = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat_lam = None
-    f = os.path.join(parent_dir,bmatdir,"B_gm.npy")
-    try:
-        vmat = np.load(f)
-    except FileNotFoundError or OSError:
-        vmat = None
+#    #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
+#    #f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
+#    bmatdir = f"data/l05nest/nmc_obs240"
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
+#    try:
+#        bmat_gm = np.load(f)
+#    except FileNotFoundError or OSError:
+#        bmat_gm = None
+    bmat_gm = None
+    analysis_gm = Var(obs_gm, nx_gm, 
+    sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, \
+    calc_dist=step.calc_dist_gm, model="l05nest_gm")
+#    #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
+#    try:
+#        bmat_lam = np.load(f)
+#    except FileNotFoundError or OSError:
+#        bmat_lam = None
+    bmat_lam = None
+#    #f = os.path.join(parent_dir,bmatdir,"B_gm.npy")
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_V48m24.npy")
+#    try:
+#        vmat = np.load(f)
+#    except FileNotFoundError or OSError:
+#        vmat = None
+    vmat = None
     if params_lam["crosscov"]:
-        f = os.path.join(parent_dir,bmatdir,"E_lg.npy")
-        try:
-            ebkmat = np.load(f)
-        except FileNotFoundError or OSError:
-            ebkmat = None
-        f = os.path.join(parent_dir,bmatdir,"E_gl.npy")
-        try:
-            ekbmat = np.load(f)
-        except FileNotFoundError or OSError:
-            ekbmat = None
-    analysis_lam = Var_nest(obs_lam, step.ix_gm, 
-    sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, 
-    sigv=params_lam["sigv"], lv=params_lam["lv"], vmat=vmat, 
-    crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
-    model="l05nest_lam")
+#        #f = os.path.join(parent_dir,bmatdir,"E_lg.npy")
+#        f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm2lam.npy")
+#        try:
+#            ebkmat = np.load(f)
+#            ekbmat = ebkmat.T
+#        except FileNotFoundError or OSError:
+#            ebkmat = None
+        ebkmat = None
+#        #f = os.path.join(parent_dir,bmatdir,"E_gl.npy")
+#        #try:
+#        #    ekbmat = np.load(f)
+#        #except FileNotFoundError or OSError:
+#            ekbmat = None
+        ekbmat = None
+    if params_lam["anlsp"]:
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam,
+        sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, 
+        sigv=params_lam["sigv"], lv=params_lam["lv"], vmat=vmat, 
+        crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
+        calc_dist=step.calc_dist_lam, #calc_dist_gm=step.calc_dist_gm,
+        model="l05nest_lam")
+    else:
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp],
+        sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, 
+        sigv=params_lam["sigv"], lv=params_lam["lv"], vmat=vmat, 
+        crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
+        calc_dist=step.calc_dist_lam, #calc_dist_gm=step.calc_dist_gm,
+        model="l05nest_lam")
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -332,50 +363,51 @@ if __name__ == "__main__":
     dof_gm = np.zeros(na)
     chi_lam = np.zeros(na)
     dof_lam = np.zeros(na)
-    xf12_gm = np.zeros((na+1,nx_gm))
-    xf24_gm = np.zeros((na+3,nx_gm))
-    xf48_gm = np.zeros((na+7,nx_gm))
-    xf12_lam = np.zeros((na+1,nx_lam))
-    xf24_lam = np.zeros((na+3,nx_lam))
-    xf48_lam = np.zeros((na+7,nx_lam))
-    ## extended forecast
-    utmp_gm = u_gm.copy()
-    utmp_lam = u_lam.copy()
-    utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
-    if ft=="ensemble":
-        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-            xf12_gm[1] = utmp_gm[:, 0]
-            xf12_lam[1] = utmp_lam[:, 0]
-        else:
-            xf12_gm[1] = np.mean(utmp_gm, axis=1)
-            xf12_lam[1] = np.mean(utmp_lam, axis=1)
-    else:
-        xf12_gm[1] = utmp_gm
-        xf12_lam[1] = utmp_lam
-    for j in range(2):
+    if params_gm["extfcst"]:
+        ## extended forecast
+        xf12_gm = np.zeros((na+1,nx_gm))
+        xf24_gm = np.zeros((na+3,nx_gm))
+        xf48_gm = np.zeros((na+7,nx_gm))
+        xf12_lam = np.zeros((na+1,nx_lam))
+        xf24_lam = np.zeros((na+3,nx_lam))
+        xf48_lam = np.zeros((na+7,nx_lam))
+        utmp_gm = u_gm.copy()
+        utmp_lam = u_lam.copy()
         utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
-    if ft=="ensemble":
-        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-            xf24_gm[3] = utmp_gm[:, 0]
-            xf24_lam[3] = utmp_lam[:, 0]
+        if ft=="ensemble":
+            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                xf12_gm[1] = utmp_gm[:, 0]
+                xf12_lam[1] = utmp_lam[:, 0]
+            else:
+                xf12_gm[1] = np.mean(utmp_gm, axis=1)
+                xf12_lam[1] = np.mean(utmp_lam, axis=1)
         else:
-            xf24_gm[3] = np.mean(utmp_gm, axis=1)
-            xf24_lam[3] = np.mean(utmp_lam, axis=1)
-    else:
-        xf24_gm[3] = utmp_gm
-        xf24_lam[3] = utmp_lam
-    for j in range(4):
-        utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
-    if ft=="ensemble":
-        if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-            xf48_gm[7] = utmp_gm[:, 0]
-            xf48_lam[7] = utmp_lam[:, 0]
+            xf12_gm[1] = utmp_gm
+            xf12_lam[1] = utmp_lam
+        for j in range(2):
+            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
+        if ft=="ensemble":
+            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                xf24_gm[3] = utmp_gm[:, 0]
+                xf24_lam[3] = utmp_lam[:, 0]
+            else:
+                xf24_gm[3] = np.mean(utmp_gm, axis=1)
+                xf24_lam[3] = np.mean(utmp_lam, axis=1)
         else:
-            xf48_gm[7] = np.mean(utmp_gm, axis=1)
-            xf48_lam[7] = np.mean(utmp_lam, axis=1)
-    else:
-        xf48_gm[7] = utmp_gm
-        xf48_lam[7] = utmp_lam
+            xf24_gm[3] = utmp_gm
+            xf24_lam[3] = utmp_lam
+        for j in range(4):
+            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
+        if ft=="ensemble":
+            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                xf48_gm[7] = utmp_gm[:, 0]
+                xf48_lam[7] = utmp_lam[:, 0]
+            else:
+                xf48_gm[7] = np.mean(utmp_gm, axis=1)
+                xf48_lam[7] = np.mean(utmp_lam, axis=1)
+        else:
+            xf48_gm[7] = utmp_gm
+            xf48_lam[7] = utmp_lam
     nanl = 0
     for i in a_time:
         yloc = yobs[i:min(i+a_window,na),:,0]
@@ -406,12 +438,12 @@ if __name__ == "__main__":
             args_gm = (u_gm,pf_gm,y[0],yloc[0])
         if params_lam["anlsp"]:
             if pt == "var_nest":
-                args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm,step.ix_lam)
+                args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)
             else:
                 args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
         else:
             if pt == "var_nest":
-                args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm,step.ix_lam[nsp:-nsp])
+                args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm) #,step.ix_lam[nsp:-nsp])
             else:
                 args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
         #if i in [1, 50, 100, 150, 200, 250]:
@@ -539,46 +571,47 @@ if __name__ == "__main__":
             pf_gm = analysis_gm.calc_pf(u_gm, pa_gm, i+1)
             pf_lam = analysis_lam.calc_pf(u_lam, pa_lam, i+1)
             
-            ## extended forecast
-            utmp_gm = u_gm.copy()
-            utmp_lam = u_lam.copy()
-            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #6h->12h
-            if ft=="ensemble":
-                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                    xf12_gm[i+2] = utmp_gm[:, 0]
-                    xf12_lam[i+2] = utmp_lam[:, 0]
+            if params_gm["extfcst"]:
+                ## extended forecast
+                utmp_gm = u_gm.copy()
+                utmp_lam = u_lam.copy()
+                utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #6h->12h
+                if ft=="ensemble":
+                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                        xf12_gm[i+2] = utmp_gm[:, 0]
+                        xf12_lam[i+2] = utmp_lam[:, 0]
+                    else:
+                        xf12_gm[i+2] = np.mean(utmp_gm, axis=1)
+                        xf12_lam[i+2] = np.mean(utmp_lam, axis=1)
                 else:
-                    xf12_gm[i+2] = np.mean(utmp_gm, axis=1)
-                    xf12_lam[i+2] = np.mean(utmp_lam, axis=1)
-            else:
-                xf12_gm[i+2] = utmp_gm
-                xf12_lam[i+2] = utmp_lam
-            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #12h->18h
-            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #18h->24h
-            if ft=="ensemble":
-                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                    xf24_gm[i+4] = utmp_gm[:, 0]
-                    xf24_lam[i+4] = utmp_lam[:, 0]
+                    xf12_gm[i+2] = utmp_gm
+                    xf12_lam[i+2] = utmp_lam
+                utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #12h->18h
+                utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #18h->24h
+                if ft=="ensemble":
+                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                        xf24_gm[i+4] = utmp_gm[:, 0]
+                        xf24_lam[i+4] = utmp_lam[:, 0]
+                    else:
+                        xf24_gm[i+4] = np.mean(utmp_gm, axis=1)
+                        xf24_lam[i+4] = np.mean(utmp_lam, axis=1)
                 else:
-                    xf24_gm[i+4] = np.mean(utmp_gm, axis=1)
-                    xf24_lam[i+4] = np.mean(utmp_lam, axis=1)
-            else:
-                xf24_gm[i+4] = utmp_gm
-                xf24_lam[i+4] = utmp_lam
-            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #24h->30h
-            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #30h->36h
-            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #36h->42h
-            utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #42h->48h
-            if ft=="ensemble":
-                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                    xf48_gm[i+8] = utmp_gm[:, 0]
-                    xf48_lam[i+8] = utmp_lam[:, 0]
+                    xf24_gm[i+4] = utmp_gm
+                    xf24_lam[i+4] = utmp_lam
+                utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #24h->30h
+                utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #30h->36h
+                utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #36h->42h
+                utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #42h->48h
+                if ft=="ensemble":
+                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                        xf48_gm[i+8] = utmp_gm[:, 0]
+                        xf48_lam[i+8] = utmp_lam[:, 0]
+                    else:
+                        xf48_gm[i+8] = np.mean(utmp_gm, axis=1)
+                        xf48_lam[i+8] = np.mean(utmp_lam, axis=1)
                 else:
-                    xf48_gm[i+8] = np.mean(utmp_gm, axis=1)
-                    xf48_lam[i+8] = np.mean(utmp_lam, axis=1)
-            else:
-                xf48_gm[i+8] = utmp_gm
-                xf48_lam[i+8] = utmp_lam
+                    xf48_gm[i+8] = utmp_gm
+                    xf48_lam[i+8] = utmp_lam
             if ft=="ensemble" and i >= 100:
                 np.save("{}_pfgm_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_gm)
                 np.save("{}_pflam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_lam)
@@ -593,10 +626,11 @@ if __name__ == "__main__":
                 else:
                     pf_gmlam = (u_gm[i0:i1+1,:]-u_gm[i0:i1+1,:].mean(axis=1).reshape(-1,1))@(utmp_lam2gm-utmp_lam2gm.mean(axis=1).reshape(-1,1)).T/(u_lam.shape[1]-1)
                 np.save("{}_pfgmlam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_gmlam)
-                pf48_gm = analysis_gm.calc_pf(utmp_gm, pa_gm, i+1)
-                pf48_lam = analysis_lam.calc_pf(utmp_lam, pa_lam, i+1)
-                np.save("{}_pf48gm_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_gm)
-                np.save("{}_pf48lam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_lam)
+                if params_gm["extfcst"]:
+                    pf48_gm = analysis_gm.calc_pf(utmp_gm, pa_gm, i+1)
+                    pf48_lam = analysis_lam.calc_pf(utmp_lam, pa_lam, i+1)
+                    np.save("{}_pf48gm_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_gm)
+                    np.save("{}_pf48lam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_lam)
 
         if np.isnan(u_gm).any() or np.isnan(u_lam).any():
             e_gm[i:] = np.nan
@@ -637,12 +671,13 @@ if __name__ == "__main__":
     np.save("{}_xsalam_{}_{}.npy".format(model, op, pt), xsa_lam)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
-    np.save("{}_xf12gm_{}_{}.npy".format(model, op, pt), xf12_gm)
-    np.save("{}_xf24gm_{}_{}.npy".format(model, op, pt), xf24_gm)
-    np.save("{}_xf48gm_{}_{}.npy".format(model, op, pt), xf48_gm)
-    np.save("{}_xf12lam_{}_{}.npy".format(model, op, pt), xf12_lam)
-    np.save("{}_xf24lam_{}_{}.npy".format(model, op, pt), xf24_lam)
-    np.save("{}_xf48lam_{}_{}.npy".format(model, op, pt), xf48_lam)
+    if params_gm["extfcst"]:
+        np.save("{}_xf12gm_{}_{}.npy".format(model, op, pt), xf12_gm)
+        np.save("{}_xf24gm_{}_{}.npy".format(model, op, pt), xf24_gm)
+        np.save("{}_xf48gm_{}_{}.npy".format(model, op, pt), xf48_gm)
+        np.save("{}_xf12lam_{}_{}.npy".format(model, op, pt), xf12_lam)
+        np.save("{}_xf24lam_{}_{}.npy".format(model, op, pt), xf24_lam)
+        np.save("{}_xf48lam_{}_{}.npy".format(model, op, pt), xf48_lam)
 
     np.savetxt("{}_e_gm_{}_{}.txt".format(model, op, pt), e_gm)
     np.savetxt("{}_stda_gm_{}_{}.txt".format(model, op, pt), stda_gm)

@@ -336,7 +336,9 @@ for pt in perts:
     np.save("{}_B48m24_lam.npy".format(model),B48m24_lam)
     #GM-LAM
     i0 = np.argmin(np.abs(ix_gm - ix_lam[0]))
+    if ix_gm[i0]<ix_lam[0]: i0+=1
     i1 = np.argmin(np.abs(ix_gm - ix_lam[-1]))
+    if ix_gm[i1]>ix_lam[-1]: i1-=1
     n = ix_gm[i0:i1+1].size
     #gm2lam = interp1d(ix_gm,x12m6_gm,axis=1)
     V12m6 = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_gm[:,i0:i1+1])/float(ne-ns+1)*0.5

@@ -3,23 +3,23 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlefcw"
+perturbations="var var_nest"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
 na=100 # Number of assimilation cycle
-nmem=40 # ensemble size
-nobs=15 # observation volume
+nmem=80 # ensemble size
+nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
-exp="mlefcw_Y12_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
-#exp="var_obs${nobs}"
+#exp="mlef_gmonly_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var_gausB_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -39,6 +39,7 @@ for op in ${operators}; do
     gsed -i -e "2i \ \"op\":\"${op}\"," config.py
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
+    gsed -i -e "2i \ \"rseed\":517," config.py
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
     if [ $linf = True ];then
     gsed -i -e '/linf/s/False/True/' config.py
@@ -63,14 +64,16 @@ for op in ${operators}; do
     if [ ! -z $llsig ]; then
     gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
     fi
+    ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
+    ###
     cat config_gm.py
     cat config_lam.py
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config_gm.py)
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     start_time=$(date +"%s")
-    python3.9 ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+    pytonh ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
@@ -103,22 +106,22 @@ for op in ${operators}; do
         mv ${model}_lam_pa_${op}_${pt}_cycle${icycle}.npy ${model}_palam_${op}_${pert}_cycle${icycle}.npy
       fi
       #done
-      python3.9 ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
+      pytonh ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
     fi
-    #python3.9 ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
+    #pytonh ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
+    #pytonh ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
+    #pytonh ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
+    #pytonh ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
   done
-  python3.9 ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
-  python3.9 ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
-  #python3.9 ${cdir}/plot/plotchi.py ${op} ${model} ${na}
-  #python3.9 ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-  python3.9 ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
-  #python3.9 ${cdir}/plot/plotdof.py ${op} ${model} ${na}
-  python3.9 ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
-  if [ ${na} -gt 100 ]; then python3.9 ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
+  python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
+  python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
+  #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
+  python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
+  python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
+  if [ ${na} -gt 100 ]; then pytonh ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
   
   #rm obs*.npy
 done

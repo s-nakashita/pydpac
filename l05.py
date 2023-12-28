@@ -94,7 +94,7 @@ params["pt"]         = "mlef"   # assimilation method
 params["nmem"]       =  40      # ensemble size (include control run)
 params["a_window"]   =  0       # assimilation window length
 params["sigb"]       =  2.0     # (For var & 4dvar) background error standard deviation
-params["lb"]         = -1.0     # (For var & 4dvar) correlation length for background error covariance
+params["lb"]         = 20.0     # (For var & 4dvar) correlation length for background error covariance
 params["linf"]       =  False   # inflation flag
 params["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params["lloc"]       =  False   # localization flag
@@ -167,8 +167,9 @@ elif pt == "var":
 #    except FileNotFoundError or OSError:
 #        bmat = None
     bmat = None
-    analysis = Var(obs, 
-    sigb=params["sigb"], lb=params["lb"], bmat=bmat, model=model)
+    analysis = Var(obs, nx, 
+    sigb=params["sigb"], lb=params["lb"], bmat=bmat, \
+    calc_dist=step.calc_dist, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5

@@ -13,15 +13,21 @@ zetak = []
 alphak = []
 
 class Var():
-    def __init__(self, obs, sigb=1.0, lb=-1.0, bmat=None, model="model"):
+    def __init__(self, obs, nx, sigb=1.0, lb=-1.0, bmat=None, calc_dist=None, cyclic=True, model="model"):
         self.pt = "var" # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
+        self.nx = nx # state size
         # climatological background error covariance
         self.sigb = sigb # error variance
         self.lb = lb # error correlation length (< 0.0 : diagonal)
         self.bmat = bmat # prescribed background error covariance
+        self.cyclic = cyclic # boundary treatment
+        if calc_dist is None:
+            self.calc_dist = self._calc_dist
+        else:
+            self.calc_dist = calc_dist # distance function
         self.model = model
         self.verbose = True
         logger.info(f"model : {self.model}")
@@ -29,22 +35,35 @@ class Var():
         logger.info(f"sigb={self.sigb} lb={self.lb}")
         logger.info(f"bmat in={self.bmat is not None}")
 
+    def _calc_dist(self, ix):
+        dist = np.zeros(self.nx)
+        for j in range(self.nx):
+            if self.cyclic:
+                dist[j] = np.abs(self.nx/np.pi*np.sin(np.pi*(i-j)/self.nx))
+            else:
+                dist[j] = np.abs(self.nx/np.pi/2*np.sin(np.pi*(i-j)/self.nx/2))
+        return dist
+
     def calc_pf(self, xf, pa, cycle):
         if cycle == 0:
-            nx = xf.size
             if self.bmat is None:
                 if self.lb < 0:
-                    self.bmat = self.sigb**2*np.eye(nx)
+                    self.bmat = self.sigb**2*np.eye(self.nx)
                 else:
-                    dist = np.eye(nx)
-                    for i in range(nx):
-                        for j in range(nx):
-                            dist[i,j] = np.abs(nx/np.pi*np.sin(np.pi*(i-j)/nx))
+                    dist = np.eye(self.nx)
+                    for i in range(self.nx):
+                        dist[i,:] = self.calc_dist(i)
+                    #for i in range(nx):
+                    #    for j in range(nx):
+                    #        if self.cyclic:
+                    #            dist[i,j] = np.abs(nx/np.pi*np.sin(np.pi*(i-j)/nx))
+                    #        else:
+                    #            dist[i,j] = np.abs(nx/np.pi/2*np.sin(np.pi*(i-j)/nx/2))
                     self.bmat = self.sigb**2 * np.exp(-0.5*(dist/self.lb)**2)
             if self.verbose:
                 import matplotlib.pyplot as plt
                 fig, ax = plt.subplots(ncols=2)
-                xaxis = np.arange(nx+1)
+                xaxis = np.arange(self.nx+1)
                 mappable = ax[0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
                 fig.colorbar(mappable, ax=ax[0],shrink=0.6,pad=0.01)
                 ax[0].set_title(r"$\mathbf{B}$")

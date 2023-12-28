@@ -43,6 +43,9 @@ try:
             if tmp=='': break
             if ptype=="infl":
                 var.append(float(tmp))
+            elif ptype=="sigb":
+                tmp2 = tmp.split()
+                var.append(f"g{tmp2[0]}l{tmp2[1]}")
             else:
                 var.append(int(tmp))
 except FileNotFoundError:
