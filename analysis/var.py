@@ -90,9 +90,11 @@ class Var():
     def prec(self,w,first=False):
         global bsqrt
         if first:
-            eval, evec = la.eigh(self.bmat)
-            eval[eval<1.0e-16] = 0.0
-            bsqrt = np.dot(evec,np.diag(np.sqrt(eval)))
+            eival, eivec = la.eigh(self.bmat)
+            eival[eival<1.0e-16] = 0.0
+            npos = np.sum(eival>=1.0e-16)
+            logger.info(f"#positive eigenvalues in bmat={npos}")
+            bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
         return np.dot(bsqrt,w), bsqrt
 
     def calc_j(self, w, *args):

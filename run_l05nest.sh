@@ -3,23 +3,23 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var var_nest"
+perturbations="mlefcw letkf"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=100 # Number of assimilation cycle
-nmem=80 # ensemble size
-nobs=30 # observation volume
+na=1460 # Number of assimilation cycle
+nmem=40 # ensemble size
+nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
-#exp="mlef_gmonly_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
-exp="var_gausB_obs${nobs}"
+exp="mlefcw_K15_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+#exp="var_gausB_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -73,7 +73,7 @@ for op in ${operators}; do
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     start_time=$(date +"%s")
-    pytonh ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+    python ${cdir}/${model}.py 1 > ${model}_${op}_${pert}.log 2>&1
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
@@ -106,12 +106,12 @@ for op in ${operators}; do
         mv ${model}_lam_pa_${op}_${pt}_cycle${icycle}.npy ${model}_palam_${op}_${pert}_cycle${icycle}.npy
       fi
       #done
-      pytonh ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
+      python ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
     fi
-    #pytonh ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #pytonh ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #pytonh ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #pytonh ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
+    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
   done
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
@@ -121,7 +121,7 @@ for op in ${operators}; do
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
-  if [ ${na} -gt 100 ]; then pytonh ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
+  #if [ ${na} -gt 100 ]; then python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
   
   #rm obs*.npy
 done

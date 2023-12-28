@@ -45,16 +45,11 @@ class Mlef():
         self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
         self.getkf = getkf # ensemble reduction method : True->Use reduced gain (Bishop et al. 2017)
         if calc_dist is None:
-            def calc_dist(self, i):
-                dist = np.zeros(self.ndim)
-                for j in range(self.ndim):
-                    dist[j] = min(abs(j-i),self.ndim-abs(j-i))
-                return dist
+            self.calc_dist = self._calc_dist
         else:
             self.calc_dist = calc_dist # distance calculation routine
         if calc_dist1 is None:
-            def calc_dist1(self, i, j):
-                return min(abs(j-i),self.ndim-abs(j-i))
+            self.calc_dist1 = self._calc_dist1
         else:
             self.calc_dist1 = calc_dist1 # distance calculation routine
         self.rs = np.random.default_rng() # random generator
@@ -85,6 +80,15 @@ class Mlef():
                 self.l_sqrt = l_sqrt
                 self.nmode = l_sqrt.shape[1]
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
+
+    def _calc_dist(self, i):
+        dist = np.zeros(self.ndim)
+        for j in range(self.ndim):
+            dist[j] = min(abs(j-i),self.ndim-abs(j-i))
+        return dist
+    
+    def _calc_dist1(self, i, j):
+        return min(abs(j-i),self.ndim-abs(j-i))
 
     def calc_pf(self, xf, pa, cycle):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)

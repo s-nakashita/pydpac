@@ -22,15 +22,15 @@ nx_true = 960
 intgm = 4                    # grid interval
 nx_gm = nx_true // intgm     # number of points
 nk_gm = 8                    # advection length scale
-#dt_gm = 0.05 / 36            # time step (=1/6 hour, Kretchmer et al. 2015)
-dt_gm = 0.05 / 48            # time step (=1/8 hour, Yoon et al. 2012)
+dt_gm = 0.05 / 36            # time step (=1/6 hour, Kretchmer et al. 2015)
+#dt_gm = 0.05 / 48            # time step (=1/8 hour, Yoon et al. 2012)
 ## LAM
 nx_lam = 480                 # number of LAM points
 ist_lam = 240                # first grid index
 nsp = 10                     # width of sponge region
 po = 1                       # order of relaxation function
-#intrlx = 1                   # interval of boundary relaxation (K15)
-intrlx = 48                   # interval of boundary relaxation (Y12)
+intrlx = 1                   # interval of boundary relaxation (K15)
+#intrlx = 48                   # interval of boundary relaxation (Y12)
 lamstep = 1                  # time steps relative to 1 step of GM
 nk_lam = 32                  # advection length
 ni = 12                      # spatial filter width
@@ -52,7 +52,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.15,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,"var_nest":None,
+infl_l = {"mlef":1.048,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.048,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
@@ -65,7 +65,7 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":40.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,"var_nest":None,
+sig_l = {"mlef":11.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}
@@ -87,9 +87,9 @@ ftype = {"mlef":"ensemble","mlefw":"ensemble","etkf":"ensemble","po":"ensemble",
 params_gm = dict()
 ### experiment settings
 htype = {"operator": "linear", "perturbation": "mlef"}
-params_gm["t0off"]      =  144     # initial offset between adjacent members
-params_gm["t0c"]        =  3000    # t0 for control
-params_gm["nobs"]       =  15      # observation number (nobs<=nx_true)
+params_gm["t0off"]      =  step.nt6h_gm * 4          # initial offset between adjacent members
+params_gm["t0c"]        =  step.nt6h_gm * 4 * 600    # t0 for control
+params_gm["nobs"]       =  15       # observation number (nobs<=nx_true)
 params_gm["obsloctype"] = "regular" # observation location type
 params_gm["op"]         = "linear" # observation operator type
 params_gm["na"]         =  100     # number of analysis cycle
@@ -612,21 +612,20 @@ if __name__ == "__main__":
                 else:
                     xf48_gm[i+8] = utmp_gm
                     xf48_lam[i+8] = utmp_lam
-            if ft=="ensemble" and i >= 100:
-                np.save("{}_pfgm_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_gm)
-                np.save("{}_pflam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_lam)
-                tmp_lam2gm = interp1d(step.ix_lam,u_lam,axis=0)
-                i0=np.argmin(np.abs(step.ix_gm-step.ix_lam[0]))
-                if step.ix_gm[i0]<step.ix_lam[0]: i0+=1
-                i1=np.argmin(np.abs(step.ix_gm-step.ix_lam[-1]))
-                if step.ix_gm[i1]>step.ix_lam[-1]: i1-=1
-                utmp_lam2gm = tmp_lam2gm(step.ix_gm[i0:i1+1])
-                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                    pf_gmlam = (u_gm[i0:i1+1,1:]-u_gm[i0:i1+1,0].reshape(-1,1))@(utmp_lam2gm[:,1:]-utmp_lam2gm[:,0].reshape(-1,1)).T
-                else:
-                    pf_gmlam = (u_gm[i0:i1+1,:]-u_gm[i0:i1+1,:].mean(axis=1).reshape(-1,1))@(utmp_lam2gm-utmp_lam2gm.mean(axis=1).reshape(-1,1)).T/(u_lam.shape[1]-1)
-                np.save("{}_pfgmlam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_gmlam)
-                if params_gm["extfcst"]:
+                if ft=="ensemble" and i >= 100:
+                    np.save("{}_pfgm_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_gm)
+                    np.save("{}_pflam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_lam)
+                    tmp_lam2gm = interp1d(step.ix_lam,u_lam,axis=0)
+                    i0=np.argmin(np.abs(step.ix_gm-step.ix_lam[0]))
+                    if step.ix_gm[i0]<step.ix_lam[0]: i0+=1
+                    i1=np.argmin(np.abs(step.ix_gm-step.ix_lam[-1]))
+                    if step.ix_gm[i1]>step.ix_lam[-1]: i1-=1
+                    utmp_lam2gm = tmp_lam2gm(step.ix_gm[i0:i1+1])
+                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                        pf_gmlam = (u_gm[i0:i1+1,1:]-u_gm[i0:i1+1,0].reshape(-1,1))@(utmp_lam2gm[:,1:]-utmp_lam2gm[:,0].reshape(-1,1)).T
+                    else:
+                        pf_gmlam = (u_gm[i0:i1+1,:]-u_gm[i0:i1+1,:].mean(axis=1).reshape(-1,1))@(utmp_lam2gm-utmp_lam2gm.mean(axis=1).reshape(-1,1)).T/(u_lam.shape[1]-1)
+                    np.save("{}_pfgmlam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_gmlam)
                     pf48_gm = analysis_gm.calc_pf(utmp_gm, pa_gm, i+1)
                     pf48_lam = analysis_lam.calc_pf(utmp_lam, pa_lam, i+1)
                     np.save("{}_pf48gm_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_gm)
