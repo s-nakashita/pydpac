@@ -70,7 +70,7 @@ class Minimize():
         self.loglevel = loglevel # 0:info, >0:debug
         if self.loglevel==0:
             logger.info(f"method={self.method}")
-            if self.cgtype is not None:
+            if (self.method=="cg" or self.method == "CG") and self.cgtype is not None:
                 logger.info("%s%s" % ("cgtype: ", "Fletcher-Reeves" if self.cgtype == 1 else
                                               "Polak-Ribiere" if self.cgtype == 2 else
                                               "Positive Polak-Ribiere" if self.cgtype == 3
@@ -78,7 +78,7 @@ class Minimize():
             logger.info(f"restart={self.irest==1}")
         else:
             logger.debug(f"method={self.method}")
-            if self.cgtype is not None:
+            if (self.method=="cg" or self.method == "CG") and self.cgtype is not None:
                 logger.debug("%s%s" % ("cgtype: ", "Fletcher-Reeves" if self.cgtype == 1 else
                                               "Polak-Ribiere" if self.cgtype == 2 else
                                               "Positive Polak-Ribiere" if self.cgtype == 3
@@ -477,10 +477,10 @@ class Minimize():
                           iprint=self.iprint, eps=self.eps, xtol=self.xtol, w=wold, \
                           iflag=iflag, irest=self.irest)
             iflag = oflag
-            if self.loglevel==0:
-                logger.info(f"iflag={iflag}")
-            else:
-                logger.debug(f"iflag={iflag}")
+            #if self.loglevel==0:
+            #    logger.info(f"iflag={iflag}")
+            #else:
+            logger.debug(f"iflag={iflag}")
             #update = np.dot((xk - x),(xk - x))
             #logger.debug(f"update={update}")
             #x = xk[:]
@@ -488,10 +488,10 @@ class Minimize():
             if iflag == 3: # line-search terminated successfully but not converged
                 icall += 1
                 if callback != None:
-                    if self.loglevel==0:
-                        logger.info(f"icall={icall} xk={xk} alphak={alphak:13.6e}")
-                    else:
-                        logger.debug(f"icall={icall} xk={xk} alphak={alphak:13.6e}")
+                    #if self.loglevel==0:
+                    #    logger.info(f"icall={icall} xk={xk} alphak={alphak:13.6e}")
+                    #else:
+                    logger.debug(f"icall={icall} xk={xk} alphak={alphak:13.6e}")
                     callback(xk, alphak)
                 if self.irest == 1:
                     # mutual orthogonality check

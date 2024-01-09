@@ -348,6 +348,7 @@ class EnKF():
             if save_dh:
                 np.save("{}_dxa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
             xa_ = np.squeeze(xa_)
+
         elif self.da=="letkf":
             #sigma = 7.5
             sigma = self.lsig
@@ -358,15 +359,16 @@ class EnKF():
             if self.linf:
                 logger.info("==inflation==, alpha={}".format(self.infl_parm))
                 E /= self.infl_parm
+            if self.iloc==0:
+                logger.info("==R-localization==, lsig={}".format(self.lsig))
             wlist = []
             Wlist = []
             for i in range(self.ndim):
                 far, Rwf_loc = self.r_loc(sigma, yloc, float(i))
-                logger.info("number of assimilated obs.={}".format(y.size - len(far)))
+                logger.debug("analysis grid={} number of assimilated obs.={}".format(i, (y.size - len(far))))
                 di = np.delete(d,far)
                 dyi = np.delete(dy,far,axis=0)
                 if self.iloc==0:
-                    logger.info("==R-localization==, lsig={}".format(self.lsig))
                     diagR = np.diag(R)
                     Ri = np.diag(diagR/Rwf_loc)
                 else:

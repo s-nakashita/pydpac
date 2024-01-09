@@ -60,13 +60,19 @@ class Var():
                     #        else:
                     #            dist[i,j] = np.abs(nx/np.pi/2*np.sin(np.pi*(i-j)/nx/2))
                     self.bmat = self.sigb**2 * np.exp(-0.5*(dist/self.lb)**2)
+            else:
+                # use only the correlation structure
+                diag = np.diag(self.bmat)
+                dsqrtinv = np.diag(1.0/np.sqrt(diag))
+                cmat = dsqrtinv @ self.bmat @ dsqrtinv
+                self.bmat = np.diag(np.full(cmat.shape[0],self.sigb)) @ cmat @ np.diag(np.full(cmat.shape[0],self.sigb))
             if self.verbose:
                 import matplotlib.pyplot as plt
                 fig, ax = plt.subplots(ncols=2)
                 xaxis = np.arange(self.nx+1)
                 mappable = ax[0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
                 fig.colorbar(mappable, ax=ax[0],shrink=0.6,pad=0.01)
-                ax[0].set_title(r"$\mathbf{B}$")
+                ax[0].set_title(r"$\mathrm{cond}(\mathbf{B})=$"+f"{la.cond(self.bmat):.3e}")
                 ax[0].invert_yaxis()
                 ax[0].set_aspect("equal")
                 binv = la.inv(self.bmat)

@@ -52,7 +52,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.048,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.048,"kf":1.2,"var":None,"var_nest":None,
+infl_l = {"mlef":1.02,"mlefw":1.2,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
@@ -215,57 +215,59 @@ elif pt == "kf":
     step=step.lam, nt=params_lam["nt"], model="l05nest_lam")
 elif pt == "var":
     from analysis.var import Var
-#    #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
-#    #f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
-#    bmatdir = f"data/l05nest/nmc_obs240"
-#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
-#    try:
-#        bmat_gm = np.load(f)
-#    except FileNotFoundError or OSError:
-#        bmat_gm = None
-    bmat_gm = None
+    #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
+    #f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
+    nmcobs=240
+    bmatdir = f"data/l05nest/nmc_obs{nmcobs}"
+    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
+    try:
+        bmat_gm = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat_gm = None
+#    bmat_gm = None
     analysis_gm = Var(obs_gm, nx_gm, 
     sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, \
     calc_dist=step.calc_dist_gm, model="l05nest_gm")
-#    #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
-#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
-#    try:
-#        bmat_lam = np.load(f)
-#    except FileNotFoundError or OSError:
-#        bmat_lam = None
-    bmat_lam = None
+    #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
+    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
+    try:
+        bmat_lam = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat_lam = None
+#    bmat_lam = None
     analysis_lam = Var(obs_lam, nx_lam, 
     sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, \
     calc_dist=step.calc_dist_lam, model="l05nest_lam")
 elif pt == "var_nest":
     from analysis.var_nest import Var_nest
     from analysis.var import Var
-#    #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
-#    #f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
-#    bmatdir = f"data/l05nest/nmc_obs240"
-#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
-#    try:
-#        bmat_gm = np.load(f)
-#    except FileNotFoundError or OSError:
-#        bmat_gm = None
-    bmat_gm = None
+    #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
+    #f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
+    nmcobs=240
+    bmatdir = f"data/l05nest/nmc_obs{nmcobs}"
+    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
+    try:
+        bmat_gm = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat_gm = None
+#    bmat_gm = None
     analysis_gm = Var(obs_gm, nx_gm, 
     sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, \
     calc_dist=step.calc_dist_gm, model="l05nest_gm")
-#    #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
-#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
-#    try:
-#        bmat_lam = np.load(f)
-#    except FileNotFoundError or OSError:
-#        bmat_lam = None
-    bmat_lam = None
-#    #f = os.path.join(parent_dir,bmatdir,"B_gm.npy")
-#    f = os.path.join(parent_dir,bmatdir,"l05nest_V48m24.npy")
-#    try:
-#        vmat = np.load(f)
-#    except FileNotFoundError or OSError:
-#        vmat = None
-    vmat = None
+    #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
+    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
+    try:
+        bmat_lam = np.load(f)
+    except FileNotFoundError or OSError:
+        bmat_lam = None
+#    bmat_lam = None
+    #f = os.path.join(parent_dir,bmatdir,"B_gm.npy")
+    f = os.path.join(parent_dir,bmatdir,"l05nest_V48m24.npy")
+    try:
+        vmat = np.load(f)
+    except FileNotFoundError or OSError:
+        vmat = None
+#    vmat = None
     if params_lam["crosscov"]:
 #        #f = os.path.join(parent_dir,bmatdir,"E_lg.npy")
 #        f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm2lam.npy")

@@ -237,7 +237,7 @@ class Lmlef():
             options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
             for i in range(xc.size):
                 far, Rwf_loc = self.r_loc(self.lsig, yloc, float(i))
-                logger.info(f"analysis grid={i} Number of assimilated obs.={y.size - len(far)}")
+                logger.debug(f"analysis grid={i} Number of assimilated obs.={y.size - len(far)}")
                 dhi = np.delete(dh, far, axis=0)
                 Rmat = np.diag(np.diag(rmat) * np.sqrt(Rwf_loc))
                 Rmat = np.delete(Rmat, far, axis=0)

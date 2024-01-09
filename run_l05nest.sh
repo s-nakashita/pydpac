@@ -3,14 +3,14 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="mlefcw letkf"
+perturbations="var_nest"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
 na=1460 # Number of assimilation cycle
-nmem=40 # ensemble size
+nmem=720 # ensemble size
 nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
@@ -18,14 +18,16 @@ ltlm=False # True:Use tangent linear approximation False:Not use
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
-exp="mlefcw_K15_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
-#exp="var_gausB_obs${nobs}"
+opt=0
+#exp="noloc_ini${opt}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var_nest_nmc240corr_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-rm -rf work/${model}/${exp}
-mkdir -p work/${model}/${exp}
-cd work/${model}/${exp}
+wdir=work/${model}_K15/${exp}
+rm -rf $wdir
+mkdir -p $wdir
+cd $wdir
 cp ${cdir}/logging_config.ini .
 ln -fs ${cdir}/data/l05III/truth.npy .
 rm -rf obs*.npy
@@ -64,6 +66,10 @@ for op in ${operators}; do
     if [ ! -z $llsig ]; then
     gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
     fi
+    ## diagonal B
+    gsed -i -e "6i \ \"lb\":-1," config_gm.py
+    gsed -i -e "6i \ \"lb\":-1," config_lam.py
+    ##
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ###
@@ -73,7 +79,7 @@ for op in ${operators}; do
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     start_time=$(date +"%s")
-    python ${cdir}/${model}.py 1 > ${model}_${op}_${pert}.log 2>&1
+    python ${cdir}/${model}.py ${opt} > ${model}_${op}_${pert}.log 2>&1
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer

@@ -111,28 +111,13 @@ class Var_nest():
                     #        else:
                     #            dist[i,j] = np.abs(2.0*self.nv/np.pi*np.sin(np.pi*(i-j)/self.nv/2.0))
                     self.vmat = self.sigv**2 * np.exp(-0.5*(dist/self.lv)**2)
-            ## calculate square root
-            eival, eivec = la.eigh(self.bmat)
-            eival = eival[::-1]
-            eivec = eivec[:,::-1]
-            #eival[eival<1.0e-16] = 0.0
-            npos = np.sum(eival>=1.0e-16)
-            logger.info(f"#positive eigenvalues in bmat={npos}")
-            self.bsqrt = np.dot(eivec[:,:npos],np.diag(np.sqrt(eival[:npos])))
-            eival, eivec = la.eigh(self.vmat)
-            eival = eival[::-1]
-            eivec = eivec[:,::-1]
-            #eival[eival<1.0e-16] = 1.0e-16
-            npos = np.sum(eival>=1.0e-16)
-            logger.info(f"#positive eigenvalues in vmat={npos}")
-            self.vsqrtinv = np.dot(np.diag(1.0/np.sqrt(eival[:npos])),eivec[:,:npos].T)
             if self.verbose:
                 import matplotlib.pyplot as plt
                 fig, ax = plt.subplots(nrows=2,ncols=2)
                 xaxis = np.arange(self.nx+1)
                 mappable = ax[0,0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
                 fig.colorbar(mappable, ax=ax[0,0],shrink=0.6,pad=0.01)
-                ax[0,0].set_title(r"$\mathbf{B}$")
+                ax[0,0].set_title(r"$\mathrm{cond}(\mathbf{B})=$"+f"{la.cond(self.bmat):.3e}")
                 ax[0,0].invert_yaxis()
                 ax[0,0].set_aspect("equal")
                 binv = la.inv(self.bmat)
@@ -144,7 +129,7 @@ class Var_nest():
                 xaxis = np.arange(self.nv+1)
                 mappable = ax[1,0].pcolor(xaxis, xaxis, self.vmat, cmap='Blues')
                 fig.colorbar(mappable, ax=ax[1,0],shrink=0.6,pad=0.01)
-                ax[1,0].set_title(r"$\mathbf{V}$")
+                ax[1,0].set_title(r"$\mathrm{cond}(\mathbf{V})=$"+f"{la.cond(self.vmat):.3e}")
                 ax[1,0].invert_yaxis()
                 ax[1,0].set_aspect("equal")
                 vinv = la.inv(self.vmat)
@@ -165,32 +150,77 @@ class Var_nest():
         if alpha is not None:
             alphak.append(alpha)
 
-    def prec(self,w):
-        return np.dot(self.bsqrt,w)
+    def prec(self,w,first=False):
+        global bsqrt, vsqrt, vsqrtinv
+        if first:
+            ## calculate square root
+            eival, eivec = la.eigh(self.bmat)
+            eival = eival[::-1]
+            eivec = eivec[:,::-1]
+            #eival[eival<1.0e-16] = 0.0
+            npos = np.sum(eival>=1.0e-16)
+            logger.info(f"#positive eigenvalues in vmat={npos}")
+            #accum = [eival[:i].sum()/eival.sum() for i in range(1,eival.size+1)]
+            #npos=0
+            #while True:
+            #    if accum[npos] > 0.99: break
+            #    npos += 1
+            #logger.info(f"#99% eigenvalues in bmat={npos}")
+            bsqrt = np.dot(eivec[:,:npos],np.diag(np.sqrt(eival[:npos])))
+            ## reconstruction of bmat
+            #self.bmat = np.dot(bsqrt, bsqrt.T)
+
+            eival, eivec = la.eigh(self.vmat)
+            eival = eival[::-1]
+            eivec = eivec[:,::-1]
+            #eival[eival<1.0e-16] = 1.0e-16
+            npos = np.sum(eival>=1.0e-16)
+            logger.info(f"#positive eigenvalues in vmat={npos}")
+            #accum = [eival[:i].sum()/eival.sum() for i in range(1,eival.size+1)]
+            #npos=0
+            #while True:
+            #    if accum[npos] > 0.99: break
+            #    npos += 1
+            #logger.info(f"#99% eigenvalues in vmat={npos}")
+            vsqrt = np.dot(eivec[:,:npos],np.diag(np.sqrt(eival[:npos])))
+            vsqrtinv = np.dot(np.diag(1.0/np.sqrt(eival[:npos])),eivec[:,:npos].T)
+            ## reconstruction of vmat
+            #self.vmat = np.dot(self.vsqrt, self.vsqrt.T)
+        return np.dot(bsqrt,w), bsqrt, vsqrt, vsqrtinv
 
     def calc_j(self, w, *args):
         JH, rinv, ob, dk, JH2 = args
         jb = 0.5 * np.dot(w,w)
-        x = self.prec(w)
+        x, _, vsqrt, _ = self.prec(w)
         d = JH @ x - ob
         jo = 0.5 * d.T @ rinv @ d
-        dktmp = self.vsqrtinv @ (JH2@x-dk)
-        jk = 0.5 * np.dot(dktmp,dktmp)
+        #dktmp = JH2@x - dk 
+        #dktmp2 = la.solve(self.vmat, dktmp)
+        dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
+        #dktmp = vsqrtinv @ (JH2@x-dk)
+        dktmp2 = dktmp
+        jk = 0.5 * np.dot(dktmp,dktmp2)
         return jb + jo + jk
 
     def calc_grad_j(self, w, *args):
         JH, rinv, ob, dk, JH2 = args
-        x = self.prec(w)
+        x, bsqrt, vsqrt, vsqrtinv = self.prec(w)
         d = JH @ x - ob
-        dktmp = self.vsqrtinv @ (JH2@x-dk)
-        return w + self.bsqrt.T @ JH.T @ rinv @ d + self.bsqrt.T @ JH2.T @ self.vsqrtinv.T @ dktmp
+        #dktmp = self.vsqrtinv @ (JH2@x-dk)
+        #dktmp2 = self.vsqrtinv.T @ dktmp
+        dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
+        dktmp2 = la.solve(vsqrt.T, dktmp) #valid only for the square matrix of vsqrt
+        #dktmp = JH2@x - dk 
+        #dktmp2 = la.solve(self.vmat, dktmp)
+        return w + bsqrt.T @ JH.T @ rinv @ d + bsqrt.T @ JH2.T @ dktmp2
 
     def calc_hess(self, w, *args):
         JH, rinv, ob, dk, JH2 = args
-        return np.eye(w.size) + self.bsqrt.T @ JH.T @ rinv @ JH @ self.bsqrt + self.bsqrt.T @ JH2.T @ self.vsqrtinv.T @ self.vsqrtinv @ JH2 @ self.bsqrt
+        _, bsqrt, vsqrt, vsqrtinv = self.prec(w)
+        return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + bsqrt.T @ JH2.T @ vsqrtinv.T @ vsqrtinv @ JH2 @ bsqrt
 
-    def __call__(self, xf, pf, y, yloc, xg, method="CG", cgtype=1,
-        gtol=1e-6, maxiter=30,\
+    def __call__(self, xf, pf, y, yloc, xg, method="LBFGS", cgtype=1,
+        gtol=1e-6, maxiter=100,\
         disp=False, save_hist=False, save_dh=False, icycle=0,
         evalout=False):
         global zetak, alphak, bsqrt
@@ -205,8 +235,8 @@ class Var_nest():
         tmp_lam2gm = interp1d(self.ix_lam,np.eye(self.nx),axis=0)
         JH2 = tmp_lam2gm(self.ix_gm[self.i0:self.i1+1])
 
-        w0 = np.zeros(self.bsqrt.shape[1])
-        x0 = self.prec(w0)
+        w0 = np.zeros_like(xf)
+        x0, bsqrt, _, _ = self.prec(w0,first=True)
         args_j = (JH, rinv, ob, dk, JH2)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
@@ -228,7 +258,7 @@ class Var_nest():
         else:
             w, flg = minimize(w0)
         
-        x = self.prec(w)
+        x, _, _, _ = self.prec(w)
         xa = xf + x
         innv = np.zeros_like(ob)
         fun = self.calc_j(w, *args_j)
@@ -237,7 +267,7 @@ class Var_nest():
         pai = self.calc_hess(w, *args_j)
         lam, v = la.eigh(pai)
         dfs = xf.size - np.sum(1.0/lam)
-        spa = self.bsqrt @ v @ np.diag(1.0/np.sqrt(lam)) @ v.transpose()
+        spa = bsqrt @ v @ np.diag(1.0/np.sqrt(lam)) @ v.transpose()
         pa = np.dot(spa,spa.T)
         #spf = la.cholesky(pf)
 

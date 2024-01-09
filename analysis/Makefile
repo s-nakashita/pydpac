@@ -1,5 +1,5 @@
-PFC = python3.9 -m numpy.f2py
-LDFLAGS = -L/usr/local/lib
+PFC = python -m numpy.f2py
+LDFLAGS = -L/opt/local/lib
 LIBS = -lblas
 
 all: lbfgs cgf file_utility
