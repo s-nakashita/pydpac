@@ -100,7 +100,9 @@ params_gm["pt"]         = "mlef"   # assimilation method
 params_gm["nmem"]       =  40      # ensemble size (include control run)
 params_gm["a_window"]   =  0       # assimilation window length
 params_gm["sigb"]       =  1.6     # (For var & 4dvar) background error standard deviation
-params_gm["lb"]         = 10.0     # (For var & 4dvar) correlation length for background error covariance
+params_gm["lb"]         = 21.6    # (For var & 4dvar) correlation length for background error covariance in degree
+params_gm["functype"]   = "gc5"  # (For var & 4dvar) background error correlation function
+params_gm["a"]          =  0.5  # (For var & 4dvar) background error correlation function shape parameter
 params_gm["linf"]       =  False   # inflation flag
 params_gm["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params_gm["lloc"]       =  False   # localization flag
@@ -117,9 +119,12 @@ params_lam = params_gm.copy()
 params_lam["lamstart"] = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"] = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  2.4     # (For var & 4dvar) background error standard deviation
-params_lam["lb"]        = 20.0     # (For var & 4dvar) correlation length for background error covariance
-params_lam["sigv"]      =  1.6     # (For var_nest) GM background error standard deviation in LAM space
-params_lam["lv"]        = 10.0     # (For var_nest) GM correlation length for background error covariance in LAM space
+params_lam["lb"]        = 21.6     # (For var & 4dvar) correlation length for background error covariance in degree
+params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
+params_lam["a"]         =  0.5  # (For var & 4dvar) background error correlation function shape parameter
+params_lam["sigv"]      =  4.8     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["lv"]        = 12.7     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
+params_lam["a_v"]       =  0.5  # (For var & 4dvar) background error correlation function shape parameter
 params_lam["crosscov"] = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 
 ## update from configure file
@@ -152,6 +157,9 @@ if params_lam["linf"] and params_lam["infl_parm"]==-1.0:
 if params_lam["lloc"] and params_lam["lsig"]==-1.0:
     params_lam["lsig"] = dict_sig[params_lam["op"]][params_lam["pt"]]
 params_lam["nt"] = params_lam["nt"] * step.lamstep
+params_gm["lb"] = params_gm["lb"] * np.pi / 180.0 # degree => radian
+params_lam["lb"] = params_lam["lb"] * np.pi / 180.0 # degree => radian
+params_lam["lv"] = params_lam["lv"] * np.pi / 180.0 # degree => radian
 
 # observation operator
 obs = Obs(op, sigma[op]) # for make observations
@@ -217,57 +225,76 @@ elif pt == "var":
     from analysis.var import Var
     #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
     #f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
-    nmcobs=240
-    bmatdir = f"data/l05nest/nmc_obs{nmcobs}"
-    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
-    try:
-        bmat_gm = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat_gm = None
-#    bmat_gm = None
-    analysis_gm = Var(obs_gm, nx_gm, 
-    sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, \
+#    nmcobs=240
+#    bmatdir = f"data/l05nest/nmc_obs{nmcobs}"
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
+#    try:
+#        bmat_gm = np.load(f)
+#    except FileNotFoundError or OSError:
+#        bmat_gm = None
+    bmat_gm = None
+    analysis_gm = Var(obs_gm, nx_gm,
+    sigb=params_gm["sigb"], lb=params_gm["lb"], functype=params_gm["functype"], a=params_gm["a"], bmat=bmat_gm, cyclic=True, \
     calc_dist=step.calc_dist_gm, model="l05nest_gm")
     #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
-    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
-    try:
-        bmat_lam = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat_lam = None
-#    bmat_lam = None
-    analysis_lam = Var(obs_lam, nx_lam, 
-    sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, \
-    calc_dist=step.calc_dist_lam, model="l05nest_lam")
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
+#    try:
+#        bmat_lam = np.load(f)
+#        if not params_lam["anlsp"]:
+#            bmat_lam = bmat_lam[nsp:-nsp,nsp:-nsp]
+#    except FileNotFoundError or OSError:
+#        bmat_lam = None
+    bmat_lam = None
+    if params_lam["anlsp"]:
+        analysis_lam = Var(obs_lam, nx_lam, 
+        sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, \
+        calc_dist=step.calc_dist_lam, model="l05nest_lam")
+    else:
+        analysis_lam = Var(obs_lam, nx_lam-2*nsp, 
+        sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, \
+        calc_dist=step.calc_dist_lam, model="l05nest_lam")
 elif pt == "var_nest":
     from analysis.var_nest import Var_nest
     from analysis.var import Var
     #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
     #f = os.path.join(parent_dir,bmatdir,"B_gmfull.npy")
-    nmcobs=240
-    bmatdir = f"data/l05nest/nmc_obs{nmcobs}"
-    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
-    try:
-        bmat_gm = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat_gm = None
-#    bmat_gm = None
-    analysis_gm = Var(obs_gm, nx_gm, 
-    sigb=params_gm["sigb"], lb=params_gm["lb"], bmat=bmat_gm, \
+#    nmcobs=240
+#    bmatdir = f"data/l05nest/nmc_obs{nmcobs}"
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm.npy")
+#    try:
+#        bmat_gm = np.load(f)
+#    except FileNotFoundError or OSError:
+#        bmat_gm = None
+    bmat_gm = None
+    analysis_gm = Var(obs_gm, nx_gm, pt="var_nest", 
+    sigb=params_gm["sigb"], lb=params_gm["lb"], functype=params_gm["functype"], a=params_gm["a"], bmat=bmat_gm, cyclic=True, \
     calc_dist=step.calc_dist_gm, model="l05nest_gm")
     #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
-    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
-    try:
-        bmat_lam = np.load(f)
-    except FileNotFoundError or OSError:
-        bmat_lam = None
-#    bmat_lam = None
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
+#    try:
+#        bmat_lam = np.load(f)
+#        if not params_lam["anlsp"]:
+#            bmat_lam = bmat_lam[nsp:-nsp,nsp:-nsp]
+#    except FileNotFoundError or OSError:
+#        bmat_lam = None
+    bmat_lam = None
     #f = os.path.join(parent_dir,bmatdir,"B_gm.npy")
-    f = os.path.join(parent_dir,bmatdir,"l05nest_V48m24.npy")
-    try:
-        vmat = np.load(f)
-    except FileNotFoundError or OSError:
-        vmat = None
-#    vmat = None
+#    f = os.path.join(parent_dir,bmatdir,"l05nest_V48m24.npy")
+#    try:
+#        vmat = np.load(f)
+#        if not params_lam["anlsp"]:
+#            i0 = np.argmin(np.abs(step.ix_gm-step.ix_lam[0]))
+#            if step.ix_gm[i0]<step.ix_lam[0]: i0+=1
+#            i1 = np.argmin(np.abs(step.ix_gm-step.ix_lam[-1]))
+#            if step.ix_gm[i1]>step.ix_lam[-1]: i1-=1
+#            ii0 = np.argmin(np.abs(step.ix_gm-step.ix_lam[nsp]))
+#            if step.ix_gm[ii0]<step.ix_lam[nsp]: ii0+=1
+#            ii1 = np.argmin(np.abs(step.ix_gm-step.ix_lam[-nsp]))
+#            if step.ix_gm[ii1]>step.ix_lam[-nsp]: ii1-=1
+#            vmat = vmat[ii0-i0+1:ii1-i0+2,ii0-i0+1:ii1-i0+2]
+#    except FileNotFoundError or OSError:
+#        vmat = None
+    vmat = None
     if params_lam["crosscov"]:
 #        #f = os.path.join(parent_dir,bmatdir,"E_lg.npy")
 #        f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_gm2lam.npy")
@@ -283,19 +310,22 @@ elif pt == "var_nest":
 #        #except FileNotFoundError or OSError:
 #            ekbmat = None
         ekbmat = None
+    else:
+        ebkmat=None
+        ekbmat=None
     if params_lam["anlsp"]:
         analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam,
-        sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, 
-        sigv=params_lam["sigv"], lv=params_lam["lv"], vmat=vmat, 
+        sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
+        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
-        calc_dist=step.calc_dist_lam, #calc_dist_gm=step.calc_dist_gm,
+        calc_dist=step.calc_dist_lam, calc_dist1_gm=step.calc_dist1_gm,
         model="l05nest_lam")
     else:
         analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp],
-        sigb=params_lam["sigb"], lb=params_lam["lb"], bmat=bmat_lam, 
-        sigv=params_lam["sigv"], lv=params_lam["lv"], vmat=vmat, 
+        sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
+        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
-        calc_dist=step.calc_dist_lam, #calc_dist_gm=step.calc_dist_gm,
+        calc_dist=step.calc_dist_lam, calc_dist1_gm=step.calc_dist1_gm,
         model="l05nest_lam")
 elif pt == "4dvar":
     from analysis.var4d import Var4d
@@ -439,18 +469,18 @@ if __name__ == "__main__":
         else:
             args_gm = (u_gm,pf_gm,y[0],yloc[0])
         if params_lam["anlsp"]:
-            if pt == "var_nest":
-                args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)
-            else:
-                args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
+            #if pt == "var_nest":
+            #    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)
+            #else:
+            args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
         else:
-            if pt == "var_nest":
-                args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm) #,step.ix_lam[nsp:-nsp])
-            else:
-                args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
+            #if pt == "var_nest":
+            #    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm) #,step.ix_lam[nsp:-nsp])
+            #else:
+            args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
         #if i in [1, 50, 100, 150, 200, 250]:
         #if i == a_time[-1]:
-        if i == 0:
+        if i < 100:
             u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(*args_gm, \
                     save_hist=True, save_dh=True, icycle=i)
             #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
@@ -461,9 +491,13 @@ if __name__ == "__main__":
             dof_gm[i:min(i+a_window,na)] = ds
             if i >= params_lam["lamstart"]:
                 if params_lam["anlsp"]:
+                    if pt == "var_nest":
+                        args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm)
                     u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(*args_lam, \
                         save_hist=True, save_dh=True, icycle=i)
                 else:
+                    if pt == "var_nest":
+                        args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm)
                     u_lam[nsp:-nsp], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(*args_lam, \
                         save_hist=True, save_dh=True, icycle=i)
                 #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
@@ -482,9 +516,13 @@ if __name__ == "__main__":
             dof_gm[i:min(i+a_window,na)] = ds
             if i >= params_lam["lamstart"]:
                 if params_lam["anlsp"]:
+                    if pt == "var_nest":
+                        args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm)
                     u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(*args_lam, icycle=i)
                 else:
-                    u_lam[nsp:-nsp,:], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(*args_lam, icycle=i)
+                    if pt == "var_nest":
+                        args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm)
+                    u_lam[nsp:-nsp], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(*args_lam, icycle=i)
                 chi_lam[i:min(i+a_window,na)] = chi2
                 dof_lam[i:min(i+a_window,na)] = ds
             else:

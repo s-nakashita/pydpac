@@ -6,6 +6,7 @@ import numpy.linalg as la
 import scipy.optimize as spo
 from .obs import Obs
 from .minimize import Minimize
+from .corrfunc import Corrfunc
 
 logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
@@ -13,8 +14,8 @@ zetak = []
 alphak = []
 
 class Var():
-    def __init__(self, obs, nx, sigb=1.0, lb=-1.0, bmat=None, calc_dist=None, cyclic=True, model="model"):
-        self.pt = "var" # DA type 
+    def __init__(self, obs, nx, pt="var", sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, calc_dist=None, cyclic=True, model="model"):
+        self.pt = pt # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
@@ -22,6 +23,9 @@ class Var():
         # climatological background error covariance
         self.sigb = sigb # error variance
         self.lb = lb # error correlation length (< 0.0 : diagonal)
+        self.functype = functype # correlation function type (gauss or gc5 or tri)
+        self.a = a # gc5 shape parameter
+        self.corrfunc = Corrfunc(self.lb,a=self.a)
         self.bmat = bmat # prescribed background error covariance
         self.cyclic = cyclic # boundary treatment
         if calc_dist is None:
@@ -32,7 +36,7 @@ class Var():
         self.verbose = True
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
-        logger.info(f"sigb={self.sigb} lb={self.lb}")
+        logger.info(f"sigb={self.sigb} lb={self.lb} functype={self.functype}")
         logger.info(f"bmat in={self.bmat is not None}")
 
     def _calc_dist(self, ix):
@@ -51,15 +55,35 @@ class Var():
                     self.bmat = self.sigb**2*np.eye(self.nx)
                 else:
                     dist = np.eye(self.nx)
+                    self.bmat = np.eye(self.nx)
                     for i in range(self.nx):
                         dist[i,:] = self.calc_dist(i)
-                    #for i in range(nx):
-                    #    for j in range(nx):
-                    #        if self.cyclic:
-                    #            dist[i,j] = np.abs(nx/np.pi*np.sin(np.pi*(i-j)/nx))
-                    #        else:
-                    #            dist[i,j] = np.abs(nx/np.pi/2*np.sin(np.pi*(i-j)/nx/2))
-                    self.bmat = self.sigb**2 * np.exp(-0.5*(dist/self.lb)**2)
+                        if self.functype == "gc5":
+                            if self.cyclic:
+                                ctmp = self.corrfunc(np.roll(dist[i,],-i)[:self.nx//2+1],ftype=self.functype)
+                                ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
+                                self.bmat[i,] = np.roll(ctmp2,i)
+                            else:
+                                if i < self.nx//2:
+                                    ctmp = self.corrfunc(np.roll(dist[i,],-i)[:self.nx-i],ftype=self.functype)
+                                    ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
+                                    self.bmat[i,] = np.roll(ctmp2,i)[:self.nx]
+                                else:
+                                    ctmp = self.corrfunc(np.flip(dist[i,:i+1]),ftype=self.functype)
+                                    ctmp2 = np.hstack([np.flip(ctmp),ctmp[1:-1]])
+                                    self.bmat[i,] = ctmp2[:self.nx]
+                        else:
+                            self.bmat[i,] = self.corrfunc(dist[i,],ftype=self.functype)
+                    #if self.functype=="gauss":
+                    #    self.bmat[i,] = np.exp(-0.5*(dist/self.lb)**2)
+                    #elif self.functype=="gc5":
+                    #    z = dist / self.lb / np.sqrt(10.0/3.0)
+                    #    self.bmat = np.where(z<1.0, 1.0 - 5.0*(z**2)/3.0 + 0.625*(z**3) + 0.5*(z**4) - 0.25*(z**5), np.where(z<2.0, 4.0 - 5.0*z + 5.0*(z**2)/3.0 + 0.625*(z**3) - 0.5*(z**4) + (z**5)/12.0 - 2.0/z/3.0, 0.0))
+                    #elif self.functype=="tri":
+                    #    nj = np.sqrt(3.0/10.0) / self.lb * 2.0 * np.pi
+                    #    logger.debug(f"lb={self.lb:.3f} nj={nj}")
+                    #    self.bmat = np.where(dist==0.0,1.0,np.sin(nj*dist/2.0)/np.tan(dist/2.0)/nj)
+                    self.bmat = np.diag(np.full(self.nx,self.sigb)) @ self.bmat @ np.diag(np.full(self.nx,self.sigb))
             else:
                 # use only the correlation structure
                 diag = np.diag(self.bmat)
@@ -68,21 +92,25 @@ class Var():
                 self.bmat = np.diag(np.full(cmat.shape[0],self.sigb)) @ cmat @ np.diag(np.full(cmat.shape[0],self.sigb))
             if self.verbose:
                 import matplotlib.pyplot as plt
-                fig, ax = plt.subplots(ncols=2)
+                fig, ax = plt.subplots(figsize=(10,4),ncols=3,constrained_layout=True)
                 xaxis = np.arange(self.nx+1)
                 mappable = ax[0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
-                fig.colorbar(mappable, ax=ax[0],shrink=0.6,pad=0.01)
+                fig.colorbar(mappable, ax=ax[0],shrink=0.4,pad=0.01)
                 ax[0].set_title(r"$\mathrm{cond}(\mathbf{B})=$"+f"{la.cond(self.bmat):.3e}")
                 ax[0].invert_yaxis()
                 ax[0].set_aspect("equal")
                 binv = la.inv(self.bmat)
                 mappable = ax[1].pcolor(xaxis, xaxis, binv, cmap='Blues')
-                fig.colorbar(mappable, ax=ax[1],shrink=0.6,pad=0.01)
+                fig.colorbar(mappable, ax=ax[1],shrink=0.4,pad=0.01)
                 ax[1].set_title(r"$\mathbf{B}^{-1}$")
                 ax[1].invert_yaxis()
                 ax[1].set_aspect("equal")
-                fig.tight_layout()
-                fig.savefig("Bv{:.1f}l{:d}_{}.png".format(self.sigb,int(self.lb),self.model))
+                mappable = ax[2].pcolor(xaxis, xaxis, dist, cmap='viridis')
+                fig.colorbar(mappable, ax=ax[2],shrink=0.4,pad=0.01)
+                ax[2].set_title(r"$d$")
+                ax[2].invert_yaxis()
+                ax[2].set_aspect("equal")
+                fig.savefig("Bv{:.1f}l{:.3f}_{}.png".format(self.sigb,self.lb,self.model))
                 plt.close()
         return self.bmat
 
@@ -145,15 +173,23 @@ class Var():
         logger.info(f"save_hist={save_hist} cycle={icycle}")
         if save_hist:
             w, flg = minimize(w0, callback=self.callback)
-            jh = np.zeros(len(zetak))
+            jh = np.zeros((len(zetak),2))
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
-                jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                #jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                # calculate jb and jo separately
+                JH, rinv, ob = args_j
+                jb = 0.5 * np.dot(zetak[i],zetak[i])
+                xtmp, _ = self.prec(zetak[i])
+                dtmp = JH @ xtmp - ob
+                jo = 0.5 * dtmp.T @ rinv @ dtmp
+                jh[i,0] = jb
+                jh[i,1] = jo
                 g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                 gh[i] = np.sqrt(g.transpose() @ g)
             np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
             np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
-            np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
+            if len(alphak)>0: np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
         else:
             w, flg = minimize(w0)
         

@@ -3,7 +3,7 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var_nest"
+perturbations="var var_nest"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
@@ -20,8 +20,9 @@ ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 opt=0
 #exp="noloc_ini${opt}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
-exp="var_nest_nmc240corr_obs${nobs}"
-#exp="${datype}_loc_hint"
+functype=gc5
+#a=0
+exp="var+var_nest_${functype}_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}_K15/${exp}
@@ -53,8 +54,8 @@ for op in ${operators}; do
     else
     gsed -i -e '/ltlm/s/True/False/' config.py
     fi
-    sed -i -e '/ss/s/False/True/' config.py
-    sed -i -e '/getkf/s/True/False/' config.py
+    #sed -i -e '/ss/s/False/True/' config.py
+    #sed -i -e '/getkf/s/True/False/' config.py
     if [ ! -z $lsig ]; then
     gsed -i -e "8i \ \"lsig\":${lsig}," config.py
     fi
@@ -66,10 +67,15 @@ for op in ${operators}; do
     if [ ! -z $llsig ]; then
     gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
     fi
-    ## diagonal B
-    gsed -i -e "6i \ \"lb\":-1," config_gm.py
-    gsed -i -e "6i \ \"lb\":-1," config_lam.py
-    ##
+    ### diagonal B
+    #gsed -i -e "6i \ \"lb\":-1," config_gm.py
+    #gsed -i -e "6i \ \"lb\":-1," config_lam.py
+    ###
+    gsed -i -e "6i \ \"functype\":\"${functype}\"," config_gm.py
+    gsed -i -e "6i \ \"functype\":\"${functype}\"," config_lam.py
+    #gsed -i -e "6i \ \"a\":${a}," config_gm.py
+    #gsed -i -e "6i \ \"a\":${a}," config_lam.py
+    #gsed -i -e "6i \ \"a_v\":0," config_lam.py
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ###
@@ -78,6 +84,9 @@ for op in ${operators}; do
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config_gm.py)
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
+    #if [ $pt = var_nest ]; then
+    #gsed -i -e "6i \ \"lb\":4," config_lam.py
+    #fi
     start_time=$(date +"%s")
     python ${cdir}/${model}.py ${opt} > ${model}_${op}_${pert}.log 2>&1
     wait
@@ -128,7 +137,8 @@ for op in ${operators}; do
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
   #if [ ${na} -gt 100 ]; then python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
-  
+  python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na}
+  rm ${model}_*_jh_${op}_*.txt ${model}_*_alpha_${op}_*.txt ${model}_*_gh_${op}_*.txt
   #rm obs*.npy
 done
 #rm ${model}*.txt 

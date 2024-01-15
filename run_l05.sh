@@ -3,17 +3,19 @@
 model="l05III"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var mlef"
-na=1000 # Number of assimilation cycle
+perturbations="var"
+na=1460 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=240 # observation volume
+nobs=15 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 #lsig=120
-exp="var+mlef_mem${nmem}obs${nobs}"
-#exp="var_obs${nobs}"
+#exp="var+mlef_mem${nmem}obs${nobs}"
+functype=gc5
+a=-0.2
+exp="var_${functype}a${a}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -49,12 +51,14 @@ for op in ${operators}; do
     if [ ! -z $lsig ]; then
       gsed -i -e "6i \ \"lsig\":${lsig}," config.py
     fi
+    gsed -i -e "6i \ \"functype\":\"${functype}\"," config.py
+    gsed -i -e "6i \ \"a\":${a}," config.py
     cat config.py
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     start_time=$(date +"%s")
-    python3.9 ${cdir}/l05.py ${model} > ${model}_${op}_${pert}.log 2>&1
+    python ${cdir}/l05.py ${model} > ${model}_${op}_${pert}.log 2>&1
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
@@ -86,20 +90,22 @@ for op in ${operators}; do
     #  mv ${model}_lspf_${op}_${pt}_cycle$icycle.npy ${model}_lspf_${op}_${pert}_cycle$icycle.npy
     #  fi
     done
-    #python3.9 ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #python3.9 ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
+    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
+    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
   done
-  python3.9 ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
-  python3.9 ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
-  #python3.9 ${cdir}/plot/plotchi.py ${op} ${model} ${na}
-  #python3.9 ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-  python3.9 ${cdir}/plot/plotxa.py ${op} ${model} ${na}
-  #python3.9 ${cdir}/plot/plotdof.py ${op} ${model} ${na}
-  python3.9 ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na}
-  python3.9 ${cdir}/plot/nmc.py ${op} ${model} ${na}
+  python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
+  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
+  #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
+  python ${cdir}/plot/plotxa.py ${op} ${model} ${na}
+  #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
+  python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na}
+  #python ${cdir}/plot/nmc.py ${op} ${model} ${na}
+  python ${cdir}/plot/plotjh+gh.py ${op} ${model} ${na}
+  rm ${model}_jh_${op}_*.txt ${model}_alpha_${op}_*.txt ${model}_gh_${op}_*.txt
   
   #rm obs*.npy
 done

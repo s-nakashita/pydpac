@@ -8,7 +8,7 @@ except ImportError:
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 # nesting Lorenz system
-# Reference : Kretschmer et al. (2015, Tellus A)
+# Reference : Yoon et al. (2012, Tellus A), Kretschmer et al. (2015, Tellus A)
 class L05nest():
     def __init__(self, nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
         ni, b, c, dt, F, intgm, ist_lam, nsp, \
@@ -179,23 +179,27 @@ class L05nest():
     def calc_dist_gm(self, iloc):
         dist = np.zeros(self.nx_gm)
         for j in range(self.nx_gm):
-            d = abs(float(self.ix_gm[int(iloc)] - self.ix_gm[j]))
-            dist[j] = min(d,self.nx_true-d)
+            d = 2.0*np.pi*abs(float(self.ix_gm[int(iloc)] - self.ix_gm[j]))/self.nx_true
+            dist[j] = min(d,2.0*np.pi-d)
+            #dist[j] = abs(self.nx_true*np.sin(np.pi*(self.ix_gm[int(iloc)] - self.ix_gm[j])/self.nx_true)/np.pi)
         return dist
     
     def calc_dist1_gm(self, iloc, jloc):
-        dist = abs(self.ix_gm[int(iloc)] - jloc)
-        dist = min(dist,self.nx_true-dist)
+        dist = 2.0*np.pi*abs(self.ix_gm[int(iloc)] - jloc)/self.nx_true
+        dist = min(dist,2.0*np.pi-dist)
+        #dist = abs(self.nx_true*np.sin(np.pi*(self.ix_gm[int(iloc)] - jloc)/self.nx_true)/np.pi)
         return dist
 
     def calc_dist_lam(self, iloc):
         dist = np.zeros(self.nx_lam)
         for j in range(self.nx_lam):
-            dist[j] = abs(float(self.ix_lam[int(iloc)] - self.ix_lam[j]))
+            dist[j] = 2.0*np.pi*abs(float(self.ix_lam[int(iloc)] - self.ix_lam[j]))/self.nx_true
+            #dist[j] = abs(self.nx_true*np.sin(np.pi*(self.ix_lam[int(iloc)] - self.ix_lam[j])/self.nx_true)/np.pi)
         return dist
     
     def calc_dist1_lam(self, iloc, jloc):
-        dist = abs(self.ix_lam[int(iloc)] - jloc)
+        dist = 2.0*np.pi*abs(self.ix_lam[int(iloc)] - jloc)/self.nx_true
+        #dist = abs(self.nx_true*np.sin(np.pi*(self.ix_lam[int(iloc)] - jloc)/self.nx_true)/np.pi)
         return dist
 
 if __name__ == "__main__":

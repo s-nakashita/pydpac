@@ -219,3 +219,24 @@ for pt in perts:
         fig2.savefig("{}_xddscl_{}_{}.png".format(model,op,pt))
     else:
         fig2.savefig("{}_xdlam_{}_{}.png".format(model,op,pt))
+    plt.close()
+    ## first 10 cycles
+    i0 = np.argmin(np.abs(ix_gm - ix_lam[0]))
+    if ix_gm[i0]<ix_lam[0]: i0+=1
+    i1 = np.argmin(np.abs(ix_gm - ix_lam[-1]))
+    if ix_gm[i1]>ix_lam[-1]: i1-=1
+    tmp_lam2gm = interp1d(ix_lam,np.eye(ix_lam.size),axis=0)
+    JH2 = tmp_lam2gm(ix_gm[i0:i1+1])
+    for icycle in range(10):
+        xt1 = xt[icycle]
+        xagm1 = xagm[icycle]
+        xalam1 = xalam[icycle]
+        fig, ax = plt.subplots(figsize=[6,4])
+        ax.plot(ix_t,xt1,label='nature')
+        ax.plot(ix_gm,xagm1,label='GM')
+        ax.plot(ix_lam,xalam1,label='LAM')
+        ax.plot(ix_gm[i0:i1+1],xagm1[i0:i1+1]-JH2@xalam1,label='dk')
+        ax.set_title(f't={t[icycle]}')
+        ax.legend()
+        fig.savefig("{}_xa_{}_{}_c{}.png".format(model,op,pt,icycle))
+        plt.close()

@@ -94,7 +94,9 @@ params["pt"]         = "mlef"   # assimilation method
 params["nmem"]       =  40      # ensemble size (include control run)
 params["a_window"]   =  0       # assimilation window length
 params["sigb"]       =  2.0     # (For var & 4dvar) background error standard deviation
-params["lb"]         = 20.0     # (For var & 4dvar) correlation length for background error covariance
+params["lb"]         =  24.6    # (For var & 4dvar) correlation length for background error covariance in degree
+params["functype"]   = "gc5"    # (For var & 4dvar) background error correlation function type
+params["a"]          =  0.5     # (For var & 4dvar) background error correlation function shape parameter
 params["linf"]       =  False   # inflation flag
 params["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params["lloc"]       =  False   # localization flag
@@ -121,6 +123,7 @@ if params["linf"] and params["infl_parm"] == -1.0:
     params["infl_parm"] = dict_infl[params["op"]][params["pt"]]
 if params["lloc"] and params["lsig"] == -1.0:
     params["lsig"] = dict_sig[params["op"]][params["pt"]]
+params["lb"] = params["lb"] * np.pi / 180.0 # degree => radian
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -168,7 +171,7 @@ elif pt == "var":
 #        bmat = None
     bmat = None
     analysis = Var(obs, nx, 
-    sigb=params["sigb"], lb=params["lb"], bmat=bmat, \
+    sigb=params["sigb"], lb=params["lb"], functype=params["functype"], a=params["a"], bmat=bmat, \
     calc_dist=step.calc_dist, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
@@ -254,7 +257,7 @@ if __name__ == "__main__":
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
         #if i in [1, 50, 100, 150, 200, 250]:
-        if i < 0:
+        if i <= 100:
             ##if a_window > 1:
             if pt[:2] == "4d":
                 u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \

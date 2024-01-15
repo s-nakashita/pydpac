@@ -137,13 +137,15 @@ class L05III():
     def calc_dist(self, iloc):
         dist = np.zeros(self.nx)
         for j in range(self.nx):
-            dist[j] = abs(iloc - float(j))
-            dist[j] = min(dist[j],self.nx-dist[j])
+            dist[j] = 2.0*np.pi*abs(iloc - float(j))/self.nx
+            dist[j] = min(dist[j],2.0*np.pi-dist[j])
+            #dist[j] = abs(self.nx*np.sin(np.pi*(iloc - float(j))/self.nx)/np.pi)
         return dist
     
     def calc_dist1(self, iloc, jloc):
-        dist = abs(iloc - jloc)
-        dist = min(dist,self.nx-dist)
+        dist = 2.0*np.pi*abs(iloc - jloc)/self.nx
+        dist = min(dist,2.0*np.pi-dist)
+        #dist = abs(self.nx*np.sin(np.pi*(iloc - jloc)/self.nx)/np.pi)
         return dist
 
 if __name__ == "__main__":

@@ -3,19 +3,20 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="letkf"
+perturbations="var"
 na=100 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=30 # observation volume
+nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-ptype=ingl
+ptype=lb
+functype=gc5
 #lgsig=110
 #llsig=70
-exp="letkf_K15_${ptype}_mem${nmem}obs${nobs}"
+#exp="letkf_K15_${ptype}_mem${nmem}obs${nobs}"
 #exp="mlef_gmonly_${ptype}_mem${nmem}obs${nobs}"
-#exp="var_${ptype}_obs${nobs}"
+exp="var_${functype}_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -34,7 +35,7 @@ nobslist="480 240 120 60 30 15"
 infllist="1.0 1.01 1.02 1.03 1.04 1.05"
 #sigblist="0.2 0.4 0.6 0.8 1.0 1.2"
 sigblist="1.2 1.6 2.0 2.4 2.8 3.2"
-lblist="-1.0 10.0 20.0 40.0 60.0 80.0"
+lblist="1.0 2.0 3.0 4.0 5.0 6.0"
 touch params.txt
 for op in ${operators}; do
   echo $ptype > params.txt
@@ -47,17 +48,17 @@ for op in ${operators}; do
   #for nobs in ${nobslist}; do
   #  echo $nobs >> params.txt
   #  ptmp=$nobs
-  for infl in ${infllist}; do
-    echo $infl >> params.txt
-    ptmp=$infl
+  #for infl in ${infllist}; do
+  #  echo $infl >> params.txt
+  #  ptmp=$infl
   #for gsigb in ${sigblist}; do
   #for lsigb in ${sigblist}; do
   #  echo $gsigb $lsigb >> params.txt
   #  ptmp=g${gsigb}l${lsigb}
-  #for glb in ${lblist}; do
-  #for llb in ${lblist}; do
-  #  echo $glb $llb >> params.txt
-  #  ptmp=g${glb}l${llb}
+  for glb in ${lblist}; do
+  for llb in ${lblist}; do
+    echo $glb $llb >> params.txt
+    ptmp=g${glb}l${llb}
     for pert in ${perturbations}; do
       echo $pert
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
@@ -75,8 +76,8 @@ for op in ${operators}; do
       else
         gsed -i -e '/ltlm/s/True/False/' config.py
       fi
-      sed -i -e '/ss/s/False/True/' config.py
-      sed -i -e '/getkf/s/True/False/' config.py
+      #sed -i -e '/ss/s/False/True/' config.py
+      #sed -i -e '/getkf/s/True/False/' config.py
 #      if [ $ptype = loc ]; then
 #        gsed -i -e "6i \ \"lsig\":${lsig}," config.py
 #      fi
@@ -101,12 +102,19 @@ for op in ${operators}; do
       if [ $ptype = sigb ]; then
         gsed -i -e "6i \ \"sigb\":${gsigb}," config_gm.py
         gsed -i -e "6i \ \"sigb\":${lsigb}," config_lam.py
+        #gsed -i -e "6i \ \"sigv\":${gsigb}," config_lam.py
       fi
       if [ $ptype = lb ]; then
         gsed -i -e "6i \ \"lb\":${glb}," config_gm.py
         gsed -i -e "6i \ \"lb\":${llb}," config_lam.py
+        #gsed -i -e "6i \ \"lv\":${glb}," config_lam.py
       fi
+      ###
+      gsed -i -e "6i \ \"functype\":\"${functype}\"," config_gm.py
+      gsed -i -e "6i \ \"functype\":\"${functype}\"," config_lam.py
+      ### gmonly
       #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
+      ###
       cat config_gm.py
       cat config_lam.py
       for count in $(seq 1 10); do
@@ -155,7 +163,7 @@ for op in ${operators}; do
     done #pert
     #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #ptmp
-  #done #ptmp
+  done #ptmp (sigb or lb)
   cat params.txt
   if [ $ptype = sigb ] || [ $ptype = lb ]; then
   python ${cdir}/plot/ploteparam2d_nest.py ${op} ${model} ${na} $ptype
