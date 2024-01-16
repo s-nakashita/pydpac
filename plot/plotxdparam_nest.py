@@ -9,10 +9,10 @@ model = sys.argv[2]
 na = int(sys.argv[3])
 sigma = {"linear": 1.0, "quadratic": 8.0e-1, "cubic": 7.0e-2, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, "test":1.0}
-perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
+perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 if len(sys.argv)>4:

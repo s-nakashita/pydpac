@@ -12,7 +12,7 @@ alphak = []
 fileConfig("./logging_config.ini")
 logger = getLogger('anl')
         
-class Mlef():
+class EnVAR():
 
     def __init__(self, state_size, nmem, obs, 
         nvars=1,ndims=1,
@@ -22,7 +22,7 @@ class Mlef():
         calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
         # necessary parameters
-        self.pt = "mlef" # DA type 
+        self.pt = "envar" # DA type 
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
@@ -38,7 +38,7 @@ class Mlef():
         self.infl_parm = infl_parm # inflation parameter
         # localization
         self.iloc = iloc # iloc = None->No localization
-                         #      <=0   ->R-localization (in lmlef.py)
+                         #      <=0   ->R-localization (TODO: implement)
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
         self.lsig = lsig # localization parameter
@@ -57,6 +57,8 @@ class Mlef():
         self.ltlm = ltlm # True->Use tangent linear approximation False->Not use
         # incremental form
         self.incremental = incremental
+        if self.op == "linear":
+            self.incremental = True
         # forecast model name
         self.model = model
         logger.info(f"model : {self.model}")
@@ -64,14 +66,14 @@ class Mlef():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         if self.iloc is not None:
-          if self.iloc <= 0:
-            from .lmlef import Lmlef
-            self.lmlef = Lmlef(self.nmem,self.obs,
-            nvars=self.nvars,ndims=self.ndims,
-            linf=self.linf,infl_parm=self.infl_parm,
-            iloc=self.iloc,lsig=self.lsig,calc_dist1=self.calc_dist1,
-            ltlm=self.ltlm,incremental=self.incremental,model=self.model)
-          else:
+          #if self.iloc <= 0:
+          #  from .lmlef import Lmlef
+          #  self.lmlef = Lmlef(self.nmem,self.obs,
+          #  nvars=self.nvars,ndims=self.ndims,
+          #  linf=self.linf,infl_parm=self.infl_parm,
+          #  iloc=self.iloc,lsig=self.lsig,calc_dist1=self.calc_dist1,
+          #  ltlm=self.ltlm,incremental=self.incremental,model=self.model)
+          #else:
             if l_mat is None or l_sqrt is None:
                 self.l_mat, self.l_sqrt, self.nmode, self.enswts \
                 = self.loc_mat(self.lsig, self.ndim, self.ndim)
@@ -91,8 +93,8 @@ class Mlef():
         return min(abs(j-i),self.ndim-abs(j-i))
 
     def calc_pf(self, xf, pa, cycle):
-        spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
-        pf = spf @ spf.transpose()
+        dxf = xf[:, 1:] - np.mean(xf, axis=1)[:, None]
+        pf = dxf @ dxf.transpose() / (self.nmem - 1)
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
         return pf
 
@@ -100,13 +102,14 @@ class Mlef():
         #u, s, vt = la.svd(zmat)
         #v = vt.transpose()
         #is2r = 1 / (1 + s**2)
+        nk = zmat.shape[1]
         rho = 1.0
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             rho = 1.0 / self.infl_parm
         c = zmat.transpose() @ zmat
         lam, v = la.eigh(c)
-        D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho))))
+        D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho*(nk-1)))))
         vt = v.transpose()
         tmat = v @ D @ vt
         heinv = tmat @ tmat.T
@@ -124,19 +127,19 @@ class Mlef():
             alphak.append(alpha)
 
     def calc_j(self, zeta, *args):
+        nk = zeta.size
         if not self.incremental:
-            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
             ob = y - self.obs.h_operator(yloc, x)
-            jb = 0.5 * zeta.transpose() @ heinv @ zeta
+            jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta
             jo = 0.5 * ob.transpose() @ rinv @ ob
         #    j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
         else:
         ## incremental form
             d, tmat, zmat, heinv = args
-            nmem = zeta.size
             w = tmat @ zeta
-            jb = 0.5 * zeta.transpose() @ heinv @ zeta 
+            jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta 
             jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
             #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
@@ -144,37 +147,39 @@ class Mlef():
         return j
 
     def calc_grad_j(self, zeta, *args):
+        nk = zeta.size
         if not self.incremental:
-            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
             hx = self.obs.h_operator(yloc, x)
             ob = y - hx
             if self.ltlm:
-                dh = self.obs.dh_operator(yloc, x) @ pf
+                dy = self.obs.dh_operator(yloc, x) @ dxf
             else:
-                dh = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
-            grad = heinv @ zeta - tmat @ dh.transpose() @ rinv @ ob
+                dy = self.obs.h_operator(yloc, x[:, None] + dxf) - hx[:, None]
+            grad = (nk-1) * heinv @ zeta - tmat @ dy.transpose() @ rinv @ ob
         else:
         ## incremental form
             d, tmat, zmat, heinv = args
-            nmem = zeta.size
             w = tmat @ zeta
-            grad = heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+            grad = (nk-1) * heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+        logger.info(f"|dj|:{np.sqrt(np.dot(grad,grad)):.6e}")
         return grad 
 
     def calc_hess(self, zeta, *args):
+        nk = zeta.size
         if not self.incremental:
-            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
             if self.ltlm:
-                dh = self.obs.dh_operator(yloc, x) @ pf
+                dy = self.obs.dh_operator(yloc, x) @ dxf
             else:
-                dh = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
-            hess = tmat @ (np.eye(zeta.size) + dh.transpose() @ rinv @ dh) @ tmat
+                dy = self.obs.h_operator(yloc, x[:, None] + dxf) - self.obs.h_operator(yloc, x)[:, None]
+            hess = tmat @ ((nk-1) * np.eye(zeta.size) + dy.transpose() @ rinv @ dy) @ tmat
         else:
         ## incremental form
             d, tmat, zmat, heinv = args
-            hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
+            hess = tmat @ ((nk-1) * np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
@@ -292,9 +297,11 @@ class Mlef():
         gtol=1e-6, maxiter=None, restart=False, maxrest=20, update_ensemble=False,
         disp=False, save_hist=False, save_dh=False, icycle=0, evalout=False):
         if self.iloc is not None and self.iloc <= 0:
-            return self.lmlef(xb,pb,y,yloc,r=r,rmat=rmat,rinv=rinv,
-            method=method,cgtype=cgtype,gtol=gtol,maxiter=maxiter,restart=restart,maxrest=maxrest,update_ensemble=update_ensemble,
-            disp=disp,save_hist=save_hist,save_dh=save_dh,icycle=icycle)
+        #    return self.lmlef(xb,pb,y,yloc,r=r,rmat=rmat,rinv=rinv,
+        #    method=method,cgtype=cgtype,gtol=gtol,maxiter=maxiter,restart=restart,maxrest=maxrest,update_ensemble=update_ensemble,
+        #    disp=disp,save_hist=save_hist,save_dh=save_dh,icycle=icycle)
+            print("not implemented yet")
+            exit()
         else:
             global zetak, alphak
             zetak = []
@@ -306,22 +313,24 @@ class Mlef():
                 logger.info("use input R")
             logger.debug("r={}".format(r))
             logger.debug("r^[-1/2]={}".format(rmat))
-            xf = xb[:, 1:]
-            xc = xb[:, 0]
+            xf = xb.copy()
+            xf_ = np.mean(xb,axis=1)
             nmem = xf.shape[1]
             chi2_test = Chi(y.size, nmem, rmat)
-            pf = xf - xc[:, None]
+            dxf = xf - xf_[:, None]
+            pf = dxf / np.sqrt(nmem-1)
             #if self.linf:
             #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
             #    pf *= self.infl_parm
-            fpf = pf @ pf.T
+            fpf = dxf @ dxf.T / (nmem-1)
             if save_dh:
                 np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
                 np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
                 np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
             if self.iloc is not None:
                 logger.info("==localization==, lsig={}".format(self.lsig))
-                pf_orig = pf.copy()
+                dxf_orig = dxf.copy()
+                pf_orig = dxf_orig / np.sqrt(nmem-1)
                 if self.iloc == 1:
                     pf, wts = self.pfloc(pf_orig, self.l_mat, save_dh, icycle,\
                         op=self.op,pt=self.pt,model=self.model)
@@ -329,34 +338,35 @@ class Mlef():
                     pf = self.pfmod(pf_orig, self.l_sqrt, save_dh, icycle,\
                         op=self.op,pt=self.pt,model=self.model)
                 logger.info("pf.shape={}".format(pf.shape))
-                xf = xc[:, None] + pf
+                dxf = pf * np.sqrt(pf.shape[1]-1)
+                xf = xf_[:, None] + dxf
             #logger.debug("norm(pf)={}".format(la.norm(pf)))
             #logger.debug("r={}".format(np.diag(r)))
             if self.ltlm:
                 logger.debug("dhdx={}".format(self.obs.dhdx(xc)))
-                dh = self.obs.dh_operator(yloc,xc) @ pf
+                dy = self.obs.dh_operator(yloc,xf_) @ dxf
             else:
-                dh = self.obs.h_operator(yloc,xc[:, None]+pf) - self.obs.h_operator(yloc,xc)[:, None]
-            ob = y - self.obs.h_operator(yloc,xc)
+                dy = self.obs.h_operator(yloc,xf_[:, None]+dxf) - self.obs.h_operator(yloc,xf_)[:, None]
+            ob = y - self.obs.h_operator(yloc,xf_)
             logger.debug("ob={}".format(ob))
-            logger.debug("dh={}".format(dh))
+            logger.debug("dy={}".format(dy))
             if save_dh:
-                np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
+                np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dy)
                 np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
             logger.info("save_dh={}".format(save_dh))
-            zmat = rmat @ dh
+            zmat = rmat @ dy
             d = rmat @ ob
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
-            logger.debug("pf.shape={}".format(pf.shape))
+            logger.debug("dxf.shape={}".format(dxf.shape))
             logger.debug("tmat.shape={}".format(tmat.shape))
             logger.debug("heinv.shape={}".format(heinv.shape))
-            gmat = pf @ tmat
+            gmat = dxf @ tmat
             logger.debug("gmat.shape={}".format(gmat.shape))
-            x0 = np.zeros(pf.shape[1])
+            x0 = np.zeros(dxf.shape[1])
             x = x0.copy()
             if not self.incremental:
-                args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+                args_j = (xf_, dxf, y, yloc, tmat, gmat, heinv, rinv)
             else:
                 args_j = (d, tmat, zmat, heinv)
             iprint = np.zeros(2, dtype=np.int32)
@@ -377,7 +387,20 @@ class Mlef():
                     if save_hist:
                         x, flg = minimize(x0, callback=self.callback)
                         for i in range(len(zetak)):
-                            jh.append(self.calc_j(np.array(zetak[i]), *args_j))
+                            #jh.append(self.calc_j(np.array(zetak[i]), *args_j))
+                            # calculate jb and jo separately
+                            nk = zetak[i].size
+                            if not self.incremental:
+                                xk = xf_ + gmat @ zetak[i]
+                                ob = y - self.obs.h_operator(yloc, xk)
+                                jb = 0.5 * (nk-1) * zetak[i].transpose() @ heinv @ zetak[i]
+                                jo = 0.5 * ob.transpose() @ rinv @ ob
+                            else:
+                            ## incremental form
+                                wk = tmat @ zetak[i]
+                                jb = 0.5 * (nk-1) * zetak[i].transpose() @ heinv @ zetak[i] 
+                                jo = 0.5 * (zmat@wk - d).transpose() @ (zmat@wk - d)
+                            jh.append([jb,jo])
                             g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                             gh.append(np.sqrt(g.transpose() @ g))
                     else:
@@ -391,24 +414,24 @@ class Mlef():
                         logger.info("Stagnation at {}th restart : solution not updated"
                         .format(irest))
                         break
-                    xa = xc + gmat @ x
-                    xc = xa
+                    xa_ = xf_ + gmat @ x
+                    xf_ = xa_
                     if self.ltlm:
-                        dh = self.obs.dh_operator(yloc, xc) @ pf
+                        dy = self.obs.dh_operator(yloc, xf_) @ dxf
                     else:
-                        dh = self.obs.h_operator(yloc, xc[:, None]+pf) - self.obs.h_operator(yloc, xc)[:, None]
-                    zmat = rmat @ dh
+                        dy = self.obs.h_operator(yloc, xf_[:, None]+dxf) - self.obs.h_operator(yloc, xf_)[:, None]
+                    zmat = rmat @ dy
                     tmat, heinv = self.precondition(zmat)
-                    gmat = pf @ tmat
+                    gmat = dxf @ tmat
                     if update_ensemble:
-                        pf = pf @ tmat
+                        dxf = dxf @ tmat
                     # update arguments
                     if not self.incremental:
-                        args_j = (xc, pf, y, yloc, tmat, gmat, heinv, rinv)
+                        args_j = (xf_, dxf, y, yloc, tmat, gmat, heinv, rinv)
                     else:
-                        d = rmat @ (y - self.obs.h_operator(yloc,xc))
+                        d = rmat @ (y - self.obs.h_operator(yloc,xf_))
                         args_j = (d, tmat, zmat, heinv)
-                    x0 = np.zeros(pf.shape[1])
+                    x0 = np.zeros(dxf.shape[1])
                     # reload minimize class
                     minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
                             args=args_j, iprint=iprint, method=method, cgtype=cgtype,
@@ -432,15 +455,29 @@ class Mlef():
             else:
                 if save_hist:
                     x, flg = minimize(x0, callback=self.callback)
-                    jh = np.zeros(len(zetak))
+                    jh = np.zeros((len(zetak),2))
                     gh = np.zeros(len(zetak))
                     for i in range(len(zetak)):
                         jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                        # calculate jb and jo separately
+                        nk = zetak[i].size
+                        if not self.incremental:
+                            xk = xf_ + gmat @ zetak[i]
+                            ob = y - self.obs.h_operator(yloc, xk)
+                            jb = 0.5 * (nk-1) * zetak[i].transpose() @ heinv @ zetak[i]
+                            jo = 0.5 * ob.transpose() @ rinv @ ob
+                        else:
+                        ## incremental form
+                            wk = tmat @ zetak[i]
+                            jb = 0.5 * (nk-1) * np.dot(wk,wk) 
+                            jo = 0.5 * (zmat@wk - d).transpose() @ (zmat@wk - d)
+                        jh[i,0] = jb
+                        jh[i,1] = jo
                         g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                         gh[i] = np.sqrt(g.transpose() @ g)
                     np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
                     np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
-                    np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
+                    if len(alphak)>0: np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
                     if self.model=="z08":
                         xmax = max(np.abs(np.min(x)),np.max(x))
                         logger.debug("resx max={}".format(xmax))
@@ -454,26 +491,26 @@ class Mlef():
                         self.cost_j(200, xf.shape[1], x, icycle, *args_j)
                 else:
                     x, flg = minimize(x0)
-            xa = xc + gmat @ x
+            xa_ = xf_ + gmat @ x
             if save_dh:
                 np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
             if self.ltlm:
-                dh = self.obs.dh_operator(yloc,xa) @ pf
+                dy = self.obs.dh_operator(yloc,xa_) @ dxf
             else:
-                dh = self.obs.h_operator(yloc, xa[:, None] + pf) - self.obs.h_operator(yloc, xa)[:, None]
-            zmat = rmat @ dh
+                dy = self.obs.h_operator(yloc, xa_[:, None] + dxf) - self.obs.h_operator(yloc, xa_)[:, None]
+            zmat = rmat @ dy
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
-            d = y - self.obs.h_operator(yloc, xa)
+            d = y - self.obs.h_operator(yloc, xa_)
             logger.info("zmat shape={}".format(zmat.shape))
             logger.info("d shape={}".format(d.shape))
             innv, chi2 = chi2_test(zmat, d)
             ds = self.dfs(zmat)
             logger.info("dfs={}".format(ds))
-            pa = pf @ tmat
+            dxa = dxf @ tmat * np.sqrt(nmem-1)
             if self.iloc is not None:
-                nmem2 = pf.shape[1]
-                ptrace = np.sum(np.diag(pa @ pa.T))
+                nmem2 = dxf.shape[1]
+                ptrace = np.sum(np.diag(dxa @ dxa.T)/(nmem2-1))
                 if self.ss:
                     # random sampling
                     rvec = self.rs.standard_normal(size=(nmem2, nmem))
@@ -484,41 +521,42 @@ class Mlef():
                     rvec_stdv = np.sqrt((rvec**2).sum(axis=0) / (nmem2-1))
                     rvec = rvec / rvec_stdv[None,:]
                     logger.debug("rvec={}".format(rvec[:,0]))
-                    pa = pf @ tmat @ rvec / np.sqrt(nmem-1)
+                    dxa = dxf @ tmat @ rvec / np.sqrt(nmem2-1)
+                    dxa = dxa - dxa.mean(axis=1)[:,None]
                 elif self.getkf:
                     if self.ltlm:
-                        dh = self.obs.dh_operator(yloc,xa) @ pf_orig
+                        dy_orig = self.obs.dh_operator(yloc,xa_) @ dxf_orig
                     else:
-                        dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
-                    zmat_orig = rmat @ dh
+                        dy_orig = self.obs.h_operator(yloc, xa_[:, None] + dxf_orig) - self.obs.h_operator(yloc, xa_)[:, None]
+                    zmat_orig = rmat @ dy_orig
                     u, s, vt = la.svd(zmat, full_matrices=False)
                     logger.debug(f"s.shape={s.shape}")
                     logger.debug(f"u.shape={u.shape}")
                     logger.debug(f"vt.shape={vt.shape}")
-                    sp = s**2 + 1.0
-                    D = (1.0 - np.sqrt(1.0/sp))/s
+                    sp = s**2 + (nmem2-1)
+                    D = (1.0 - np.sqrt((nmem2-1)/sp))/s
                     nsig = D.size
-                    reducedgain = pf @ vt.transpose() @ np.diag(D) @ u.transpose()
-                    pa = pf_orig - reducedgain @ zmat_orig
+                    reducedgain = dxf @ vt.transpose() @ np.diag(D) @ u.transpose()
+                    dxa = dxf_orig - reducedgain @ zmat_orig
                 else: # tmat computed from original forecast ensemble
                     if self.ltlm:
-                        dh = self.obs.dh_operator(yloc,xa) @ pf_orig
+                        dy_orig = self.obs.dh_operator(yloc,xa_) @ dxf_orig
                     else:
-                        dh = self.obs.h_operator(yloc, xa[:, None] + pf_orig) - self.obs.h_operator(yloc, xa)[:, None]
-                    zmat_orig = rmat @ dh
+                        dy_orig = self.obs.h_operator(yloc, xa_[:, None] + dxf_orig) - self.obs.h_operator(yloc, xa_)[:, None]
+                    zmat_orig = rmat @ dy_orig
                     tmat, heinv = self.precondition(zmat_orig)
-                    pa = pf_orig @ tmat
-                trace = np.sum(np.diag(pa @ pa.T))
+                    dxa = dxf_orig @ tmat
+                trace = np.sum(np.diag(dxa @ dxa.T)/(nmem-1))
                 logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
                 if np.sqrt(ptrace / trace) > 1.05:
-                    pa *= np.sqrt(ptrace / trace)
+                    dxa *= np.sqrt(ptrace / trace)
             #if self.linf:
             #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
             #    pa *= self.infl_parm
 
             u = np.zeros_like(xb)
-            u[:, 0] = xa
-            u[:, 1:] = xa[:, None] + pa
+            u = xa_[:, None] + dxa
+            pa = dxa / np.sqrt(nmem-1)
             fpa = pa @ pa.T
             if save_dh:
                 np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)

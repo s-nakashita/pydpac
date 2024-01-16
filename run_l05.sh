@@ -3,19 +3,19 @@
 model="l05III"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var"
-na=1460 # Number of assimilation cycle
-nmem=80 # ensemble size
+perturbations="var envar"
+na=100 # Number of assimilation cycle
+nmem=100 # ensemble size
 nobs=15 # observation volume
-linf=True  # True:Apply inflation False:Not apply
+linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 #lsig=120
-#exp="var+mlef_mem${nmem}obs${nobs}"
 functype=gc5
 a=-0.2
-exp="var_${functype}a${a}_obs${nobs}"
+#exp="var_${functype}a${a}_obs${nobs}"
+exp="var_${functype}a${a}_envar_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -105,9 +105,9 @@ for op in ${operators}; do
   python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na}
   #python ${cdir}/plot/nmc.py ${op} ${model} ${na}
   python ${cdir}/plot/plotjh+gh.py ${op} ${model} ${na}
-  rm ${model}_jh_${op}_*.txt ${model}_alpha_${op}_*.txt ${model}_gh_${op}_*.txt
+  rm ${model}_jh_${op}_*.txt ${model}_gh_${op}_*.txt ${model}_alpha_${op}_*.txt
   
   #rm obs*.npy
 done
 #rm ${model}*.txt 
-#rm ${model}*.npy 
+rm ${model}_*_cycle*.npy 

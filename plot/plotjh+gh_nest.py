@@ -8,10 +8,10 @@ from matplotlib.lines import Line2D
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "mlefw", "var","var_nest",\
+perts = ["mlef", "envar", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange', "var":"tab:olive","var_nest":"tab:brown",\
+linecolor = {"mlef":'tab:blue',"envar":'tab:orange', "var":"tab:olive","var_nest":"tab:brown",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \

@@ -7,9 +7,9 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
 marker = {"3d":"o","4d":"x","3ds":"x","4ds":"^"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -43,9 +43,9 @@ elif model == "z05":
     x = np.arange(na)+1
     sigma = {"linear": 0.05, "quadratic": 0.05}
 elif model == "l96" or model == "tc87":
-    perts = ["mlef", "mlefw", "etkf", "po", "srf", "letkf", "kf", "var",\
+    perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-    linecolor = {"mlef":'tab:blue',"mlefw":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+    linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
     marker = {"3d":"o","4d":"x","3ds":"x","4ds":"^"}
     if len(sys.argv) > 4:
@@ -73,9 +73,9 @@ elif model == "l96" or model == "tc87":
     "test":1.0, "abs":1.0, "hint":1.0}
     x = np.arange(na) + 1
 elif model == "qg":
-    perts = ["letkf", "mlef", "etkf", "po", "srf",\
+    perts = ["letkf", "mlef", "envar", "etkf", "po", "srf",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dmlef"]
-    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+    linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple",\
         "4dmlef":'tab:blue',"4detkf":'tab:green', "4dpo":'tab:red',\
         "4dsrf":"tab:pink", "4dletkf":"tab:purple"}

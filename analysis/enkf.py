@@ -74,12 +74,11 @@ class EnKF():
                 self.nmode = l_sqrt.shape[1]
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), self.l_mat)
 
-
     def calc_pf(self, xf, pa, cycle):
         dxf = xf - np.mean(xf,axis=1)[:, None]
         pf = dxf @ dxf.transpose() / (self.nmem-1)
         return pf
-        
+
     def cost_j(self, w, *args):
         xf, dxf, y, yloc, rinv = args
         x = xf + dxf @ w 
@@ -89,6 +88,7 @@ class EnKF():
         logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
         j = jb + jo 
         return j
+
     def __call__(self, xf, pf, y, yloc, R=None, rmat=None, rinv=None,
         save_hist=False, save_dh=False, save_w=False, icycle=0, evalout=False):
         #xf = xb[:]

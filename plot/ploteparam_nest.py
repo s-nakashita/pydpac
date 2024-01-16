@@ -18,10 +18,10 @@ if model == "z08" or model == "z05":
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 else:
-    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var",\
+    perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
+    linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
     marker = {"3d":"o","4d":"x"}
