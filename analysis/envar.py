@@ -14,21 +14,21 @@ logger = getLogger('anl')
         
 class EnVAR():
 
-    def __init__(self, state_size, nmem, obs, 
+    def __init__(self, state_size, nmem, obs, pt="envar",
         nvars=1,ndims=1,
         linf=False, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
-        # necessary parameters
-        self.pt = "envar" # DA type 
+        # essential parameters
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         # optional parameters
+        self.pt = pt # DA type 
         # for 2 or more variables
         self.nvars = nvars
         # for 2 or more dimensional data

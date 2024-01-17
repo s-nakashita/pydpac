@@ -3,14 +3,14 @@
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var var_nest"
+perturbations="envar"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
 na=1460 # Number of assimilation cycle
-nmem=720 # ensemble size
+nmem=240 # ensemble size
 nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
@@ -19,10 +19,10 @@ ltlm=False # True:Use tangent linear approximation False:Not use
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
 opt=0
-#exp="noloc_ini${opt}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 functype=gc5
 #a=0
 exp="var+var_nest_${functype}_obs${nobs}"
+exp="envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}_K15/${exp}
@@ -87,6 +87,8 @@ for op in ${operators}; do
     #if [ $pt = var_nest ]; then
     #gsed -i -e "6i \ \"lb\":4," config_lam.py
     #fi
+    #for nmc
+    gsed -i -e "6i \ \"extfcst\":True," config_gm.py
     start_time=$(date +"%s")
     python ${cdir}/${model}.py ${opt} > ${model}_${op}_${pert}.log 2>&1
     wait
@@ -136,10 +138,11 @@ for op in ${operators}; do
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
-  #if [ ${na} -gt 100 ]; then python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
+  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na}
   rm ${model}_*_jh_${op}_*.txt ${model}_*_alpha_${op}_*.txt ${model}_*_gh_${op}_*.txt
   #rm obs*.npy
 done
 #rm ${model}*.txt 
-#rm ${model}*.npy 
+rm ${model}_*_cycle*.npy 
+

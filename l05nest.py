@@ -52,7 +52,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.02,"mlefw":1.2,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
+infl_l = {"mlef":1.02,"envar":1.02,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
@@ -65,7 +65,7 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":11.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
+sig_l = {"mlef":11.0,"envar":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}
@@ -77,7 +77,7 @@ dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
     "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, \
     "test":sig_t, "abs":sig_l, "hint": sig_l}
 # forecast type (ensemble or deterministic)
-ftype = {"mlef":"ensemble","mlefw":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
+ftype = {"mlef":"ensemble","envar":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
     "kf":"deterministic","var":"deterministic",\
     "var_nest":"deterministic",\
     "4dmlef":"ensemble","4detkf":"ensemble","4dpo":"ensemble","4dsrf":"ensemble","4dletkf":"ensemble",\
@@ -199,6 +199,20 @@ if pt == "mlef":
 #        rhofile=f"{model}_rho_{op}_{pt}.npy"
 #        rhofile_new=f"{model}_rholam_{op}_{pt}.npy"
 #        os.rename(rhofile,rhofile_new)
+elif pt == "envar":
+    from analysis.envar import EnVAR
+    analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, \
+            linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+            iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
+            ss=params_gm["ss"], getkf=params_gm["getkf"], \
+            calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
+            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model="l05nest_gm")
+    analysis_lam = EnVAR(nx_lam, params_lam["nmem"], obs_lam, \
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            ss=params_lam["ss"], getkf=params_lam["getkf"], \
+            calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis_gm = EnKF(pt, nx_gm, params_gm["nmem"], obs_gm, \
@@ -407,7 +421,7 @@ if __name__ == "__main__":
         utmp_lam = u_lam.copy()
         utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
         if ft=="ensemble":
-            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef":
                 xf12_gm[1] = utmp_gm[:, 0]
                 xf12_lam[1] = utmp_lam[:, 0]
             else:
@@ -419,7 +433,7 @@ if __name__ == "__main__":
         for j in range(2):
             utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
         if ft=="ensemble":
-            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef":
                 xf24_gm[3] = utmp_gm[:, 0]
                 xf24_lam[3] = utmp_lam[:, 0]
             else:
@@ -431,7 +445,7 @@ if __name__ == "__main__":
         for j in range(4):
             utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
         if ft=="ensemble":
-            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef":
                 xf48_gm[7] = utmp_gm[:, 0]
                 xf48_lam[7] = utmp_lam[:, 0]
             else:
@@ -537,7 +551,7 @@ if __name__ == "__main__":
         #    else:
         #        u += np.random.randn(u.shape[0], u.shape[1])
         if ft=="ensemble":
-            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef":
                 xa_gm[i] = u_gm[:, 0]
                 xa_lam[i] = u_lam[:, 0]
             else:
@@ -599,7 +613,7 @@ if __name__ == "__main__":
                 u_gm, u_lam = func.forecast(u_gm,u_lam)
             
             if ft=="ensemble":
-                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                if pt == "mlef" or pt == "4dmlef":
                     xf_gm[i+1] = u_gm[:, 0]
                     xf_lam[i+1] = u_lam[:, 0]
                 else:
@@ -617,7 +631,7 @@ if __name__ == "__main__":
                 utmp_lam = u_lam.copy()
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #6h->12h
                 if ft=="ensemble":
-                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    if pt == "mlef" or pt == "4dmlef":
                         xf12_gm[i+2] = utmp_gm[:, 0]
                         xf12_lam[i+2] = utmp_lam[:, 0]
                     else:
@@ -629,7 +643,7 @@ if __name__ == "__main__":
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #12h->18h
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #18h->24h
                 if ft=="ensemble":
-                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    if pt == "mlef" or pt == "4dmlef":
                         xf24_gm[i+4] = utmp_gm[:, 0]
                         xf24_lam[i+4] = utmp_lam[:, 0]
                     else:
@@ -643,7 +657,7 @@ if __name__ == "__main__":
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #36h->42h
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #42h->48h
                 if ft=="ensemble":
-                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    if pt == "mlef" or pt == "4dmlef":
                         xf48_gm[i+8] = utmp_gm[:, 0]
                         xf48_lam[i+8] = utmp_lam[:, 0]
                     else:
@@ -661,7 +675,7 @@ if __name__ == "__main__":
                     i1=np.argmin(np.abs(step.ix_gm-step.ix_lam[-1]))
                     if step.ix_gm[i1]>step.ix_lam[-1]: i1-=1
                     utmp_lam2gm = tmp_lam2gm(step.ix_gm[i0:i1+1])
-                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                    if pt == "mlef" or pt == "4dmlef":
                         pf_gmlam = (u_gm[i0:i1+1,1:]-u_gm[i0:i1+1,0].reshape(-1,1))@(utmp_lam2gm[:,1:]-utmp_lam2gm[:,0].reshape(-1,1)).T
                     else:
                         pf_gmlam = (u_gm[i0:i1+1,:]-u_gm[i0:i1+1,:].mean(axis=1).reshape(-1,1))@(utmp_lam2gm-utmp_lam2gm.mean(axis=1).reshape(-1,1)).T/(u_lam.shape[1]-1)

@@ -3,9 +3,9 @@
 model="l05III"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var envar"
-na=100 # Number of assimilation cycle
-nmem=100 # ensemble size
+perturbations="envar"
+na=1460 # Number of assimilation cycle
+nmem=240 # ensemble size
 nobs=15 # observation volume
 linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
@@ -15,7 +15,7 @@ ltlm=False # True:Use tangent linear approximation False:Not use
 functype=gc5
 a=-0.2
 #exp="var_${functype}a${a}_obs${nobs}"
-exp="var_${functype}a${a}_envar_mem${nmem}obs${nobs}"
+exp="envar_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -103,7 +103,7 @@ for op in ${operators}; do
   python ${cdir}/plot/plotxa.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na}
-  #python ${cdir}/plot/nmc.py ${op} ${model} ${na}
+  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh.py ${op} ${model} ${na}
   rm ${model}_jh_${op}_*.txt ${model}_gh_${op}_*.txt ${model}_alpha_${op}_*.txt
   
