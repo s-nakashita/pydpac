@@ -1,5 +1,6 @@
 #!/bin/sh
 # This is a run script for Lorenz05 experiment
+alias python=python3.9
 model="l05III"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
@@ -12,7 +13,9 @@ lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 ptype=lb
-exp="var_gauss_${ptype}_obs${nobs}"
+functype=gc5
+a=-0.2
+exp="var_${functype}a${a}_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -30,7 +33,7 @@ lsiglist="20 40 60 80 100 120 140 160"
 nobslist="480 240 120 60 30 15"
 sigblist="0.2 0.4 0.6 0.8 1.0 1.2"
 sigblist="1.6 2.0 2.4 2.8 3.2 3.6"
-lblist="4.0 6.0 8.0 10.0 12.0 14.0"
+lblist="2.0 4.0 6.0 8.0 10.0 12.0"
 touch params.txt
 for op in ${operators}; do
   echo $ptype > params.txt
@@ -76,6 +79,10 @@ for op in ${operators}; do
       fi
       if [ $ptype = lb ]; then
         gsed -i -e "6i \ \"lb\":${lb}," config.py
+      fi
+      if [ $pert = var ]; then
+        gsed -i -e "6i \ \"functype\":\"${functype}\"," config.py
+        gsed -i -e "6i \ \"a\":${a}," config.py
       fi
       cat config.py
       ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)

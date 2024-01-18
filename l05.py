@@ -94,7 +94,7 @@ params["pt"]         = "mlef"   # assimilation method
 params["nmem"]       =  40      # ensemble size (include control run)
 params["a_window"]   =  0       # assimilation window length
 params["sigb"]       =  2.0     # (For var & 4dvar) background error standard deviation
-params["lb"]         =  24.6    # (For var & 4dvar) correlation length for background error covariance in degree
+params["lb"]         =  6.0     # (For var & 4dvar) correlation length for background error covariance in degree
 params["functype"]   = "gc5"    # (For var & 4dvar) background error correlation function type
 params["a"]          =  0.5     # (For var & 4dvar) background error correlation function shape parameter
 params["linf"]       =  False   # inflation flag
@@ -107,6 +107,7 @@ params["getkf"]      =  False   # (For model space localization) gain form resam
 params["ltlm"]       =  True    # flag for tangent linear observation operator
 params["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params["rseed"] = None # random seed
+params["extfcst"] = False # extended forecast
 ## update from configure file
 sys.path.append('./')
 from config import params as params_new
@@ -172,7 +173,7 @@ elif pt == "var":
     bmat = None
     analysis = Var(obs, nx, 
     sigb=params["sigb"], lb=params["lb"], functype=params["functype"], a=params["a"], bmat=bmat, \
-    calc_dist=step.calc_dist, model=model)
+    calc_dist1=step.calc_dist1, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -218,37 +219,38 @@ if __name__ == "__main__":
     innov = np.zeros((na,yobs.shape[1]*a_window))
     chi = np.zeros(na)
     dof = np.zeros(na)
-    xf12 = np.zeros((na+1,nx))
-    xf24 = np.zeros((na+3,nx))
-    xf48 = np.zeros((na+7,nx))
-    ## extended forecast
-    utmp = u.copy()
-    utmp = func.forecast(utmp)
-    if ft=="ensemble":
-        if pt == "mlef" or pt == "4dmlef":
-            xf12[1] = utmp[:, 0]
-        else:
-            xf12[1] = np.mean(utmp, axis=1)
-    else:
-        xf12[1] = utmp
-    for j in range(2): # 12h->24h
+    if params["extfcst"]:
+        ## extended forecast
+        xf12 = np.zeros((na+1,nx))
+        xf24 = np.zeros((na+3,nx))
+        xf48 = np.zeros((na+7,nx))
+        utmp = u.copy()
         utmp = func.forecast(utmp)
-    if ft=="ensemble":
-        if pt == "mlef" or pt == "4dmlef":
-            xf24[3] = utmp[:, 0]
+        if ft=="ensemble":
+            if pt == "mlef" or pt == "4dmlef":
+                xf12[1] = utmp[:, 0]
+            else:
+                xf12[1] = np.mean(utmp, axis=1)
         else:
-            xf24[3] = np.mean(utmp, axis=1)
-    else:
-        xf24[3] = utmp
-    for j in range(4): # 24h->48h
-        utmp = func.forecast(utmp)
-    if ft=="ensemble":
-        if pt == "mlef" or pt == "4dmlef":
-            xf48[7] = utmp[:, 0]
+            xf12[1] = utmp
+        for j in range(2): # 12h->24h
+            utmp = func.forecast(utmp)
+        if ft=="ensemble":
+            if pt == "mlef" or pt == "4dmlef":
+                xf24[3] = utmp[:, 0]
+            else:
+                xf24[3] = np.mean(utmp, axis=1)
         else:
-            xf48[7] = np.mean(utmp, axis=1)
-    else:
-        xf48[7] = utmp
+            xf24[3] = utmp
+        for j in range(4): # 24h->48h
+            utmp = func.forecast(utmp)
+        if ft=="ensemble":
+            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+                xf48[7] = utmp[:, 0]
+            else:
+                xf48[7] = np.mean(utmp, axis=1)
+        else:
+            xf48[7] = utmp
     nanl = 0
     for i in a_time:
         yloc = yobs[i:min(i+a_window,na),:,0]
@@ -348,36 +350,37 @@ if __name__ == "__main__":
             if ft=="ensemble" and i >= 100:
                 np.save("{}_pf_{}_{}_cycle{}.npy".format(model, op, pt, i), pf)
             
-            ## extended forecast
-            utmp = u.copy()
-            utmp = func.forecast(utmp) #6h->12h
-            if ft=="ensemble":
-                if pt == "mlef" or pt == "4dmlef":
-                    xf12[i+2] = utmp[:, 0]
+            if params["extfcst"]:
+                ## extended forecast
+                utmp = u.copy()
+                utmp = func.forecast(utmp) #6h->12h
+                if ft=="ensemble":
+                    if pt == "mlef" or pt == "4dmlef":
+                        xf12[i+2] = utmp[:, 0]
+                    else:
+                        xf12[i+2] = np.mean(utmp, axis=1)
                 else:
-                    xf12[i+2] = np.mean(utmp, axis=1)
-            else:
-                xf12[i+2] = utmp
-            utmp = func.forecast(utmp) #12h->18h
-            utmp = func.forecast(utmp) #18h->24h
-            if ft=="ensemble":
-                if pt == "mlef" or pt == "4dmlef":
-                    xf24[i+4] = utmp[:, 0]
+                    xf12[i+2] = utmp
+                utmp = func.forecast(utmp) #12h->18h
+                utmp = func.forecast(utmp) #18h->24h
+                if ft=="ensemble":
+                    if pt == "mlef" or pt == "4dmlef":
+                        xf24[i+4] = utmp[:, 0]
+                    else:
+                        xf24[i+4] = np.mean(utmp, axis=1)
                 else:
-                    xf24[i+4] = np.mean(utmp, axis=1)
-            else:
-                xf24[i+4] = utmp
-            utmp = func.forecast(utmp) #24h->30h
-            utmp = func.forecast(utmp) #30h->36h
-            utmp = func.forecast(utmp) #36h->42h
-            utmp = func.forecast(utmp) #42h->48h
-            if ft=="ensemble":
-                if pt == "mlef" or pt == "4dmlef":
-                    xf48[i+8] = utmp[:, 0]
+                    xf24[i+4] = utmp
+                utmp = func.forecast(utmp) #24h->30h
+                utmp = func.forecast(utmp) #30h->36h
+                utmp = func.forecast(utmp) #36h->42h
+                utmp = func.forecast(utmp) #42h->48h
+                if ft=="ensemble":
+                    if pt == "mlef" or pt == "4dmlef":
+                        xf48[i+8] = utmp[:, 0]
+                    else:
+                        xf48[i+8] = np.mean(utmp, axis=1)
                 else:
-                    xf48[i+8] = np.mean(utmp, axis=1)
-            else:
-                xf48[i+8] = utmp
+                    xf48[i+8] = utmp
         if np.isnan(u).any():
             e[i:] = np.nan
             stda[i:] = np.nan
@@ -401,9 +404,10 @@ if __name__ == "__main__":
     np.save("{}_xsa_{}_{}.npy".format(model, op, pt), xsa)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
-    np.save("{}_xf12_{}_{}.npy".format(model, op, pt), xf12)
-    np.save("{}_xf24_{}_{}.npy".format(model, op, pt), xf24)
-    np.save("{}_xf48_{}_{}.npy".format(model, op, pt), xf48)
+    if params["extfcst"]:
+        np.save("{}_xf12_{}_{}.npy".format(model, op, pt), xf12)
+        np.save("{}_xf24_{}_{}.npy".format(model, op, pt), xf24)
+        np.save("{}_xf48_{}_{}.npy".format(model, op, pt), xf48)
     
     np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
     np.savetxt("{}_stda_{}_{}.txt".format(model, op, pt), stda)

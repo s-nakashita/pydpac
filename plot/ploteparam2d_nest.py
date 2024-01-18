@@ -67,7 +67,7 @@ for pt in perts:
             ## GM
             f = "{}_e_gm_{}_{}_{}.txt".format(model, op, pt, ivar)
             if not os.path.isfile(f):
-                print("not exist {}".format(f))
+#                print("not exist {}".format(f))
                 el_gm[i,j] = np.nan
                 es_gm[i,j] = np.nan
             else:
@@ -85,7 +85,7 @@ for pt in perts:
             ## LAM
             f = "{}_e_lam_{}_{}_{}.txt".format(model, op, pt, ivar)
             if not os.path.isfile(f):
-                print("not exist {}".format(f))
+#                print("not exist {}".format(f))
                 el_lam[i,j] = np.nan
                 es_lam[i,j] = np.nan
             else:
@@ -124,7 +124,8 @@ for pt in methods:
     #else:
     #    mark=marker["3d"]; color=linecolor[pt]
     im0, cbar0 = heatmap(el_gm, vargm, varlam, ax=axs[0],\
-        cmap='PiYG_r',cbarlabel="averaged RMSE in GM")
+        cmap='PiYG_r',cbarlabel="averaged RMSE in GM",\
+        cbar_kw={'shrink':0.6,'pad':0.01})
     txt0 = annotate_heatmap(im0, valfmt="{x:.2f}")
     #axs[0].errorbar(xaxis, el_gm, yerr=es_gm, marker=mark, color=color, label=pt)
     #for j in range(ns_gm.size):
@@ -132,7 +133,8 @@ for pt in methods:
     #    transform=axs[0].get_xaxis_transform(),\
     #    ha='center',fontsize=16,c='r')
     im1, cbar1 = heatmap(el_lam, vargm, varlam, ax=axs[1],\
-        cmap='PiYG_r',cbarlabel="averaged RMSE in LAM")
+        cmap='PiYG_r',cbarlabel="averaged RMSE in LAM",\
+        cbar_kw={'shrink':0.6,'pad':0.01})
     txt1 = annotate_heatmap(im1, valfmt="{x:.2f}")
     #axs[1].errorbar(xaxis, el_lam, yerr=es_lam, marker=mark, color=color, label=pt)
     #for j in range(ns_lam.size):

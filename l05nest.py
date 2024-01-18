@@ -100,7 +100,7 @@ params_gm["pt"]         = "mlef"   # assimilation method
 params_gm["nmem"]       =  40      # ensemble size (include control run)
 params_gm["a_window"]   =  0       # assimilation window length
 params_gm["sigb"]       =  1.6     # (For var & 4dvar) background error standard deviation
-params_gm["lb"]         = 21.6    # (For var & 4dvar) correlation length for background error covariance in degree
+params_gm["lb"]         =  6.0    # (For var & 4dvar) correlation length for background error covariance in degree
 params_gm["functype"]   = "gc5"  # (For var & 4dvar) background error correlation function
 params_gm["a"]          =  0.5  # (For var & 4dvar) background error correlation function shape parameter
 params_gm["linf"]       =  False   # inflation flag
@@ -119,11 +119,11 @@ params_lam = params_gm.copy()
 params_lam["lamstart"] = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"] = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  2.4     # (For var & 4dvar) background error standard deviation
-params_lam["lb"]        = 21.6     # (For var & 4dvar) correlation length for background error covariance in degree
+params_lam["lb"]        =  6.0     # (For var & 4dvar) correlation length for background error covariance in degree
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 params_lam["a"]         =  0.5  # (For var & 4dvar) background error correlation function shape parameter
-params_lam["sigv"]      =  4.8     # (For var_nest) GM background error standard deviation in LAM space
-params_lam["lv"]        = 12.7     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
+params_lam["sigv"]      =  1.6     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["lv"]        =  6.0     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
 params_lam["a_v"]       =  0.5  # (For var & 4dvar) background error correlation function shape parameter
 params_lam["crosscov"] = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 
@@ -247,9 +247,9 @@ elif pt == "var":
 #    except FileNotFoundError or OSError:
 #        bmat_gm = None
     bmat_gm = None
-    analysis_gm = Var(obs_gm, nx_gm,
+    analysis_gm = Var(obs_gm, nx_gm, ix=step.ix_gm,  
     sigb=params_gm["sigb"], lb=params_gm["lb"], functype=params_gm["functype"], a=params_gm["a"], bmat=bmat_gm, cyclic=True, \
-    calc_dist=step.calc_dist_gm, model="l05nest_gm")
+    calc_dist1=step.calc_dist1_gm, model="l05nest_gm")
     #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
 #    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
 #    try:
@@ -260,13 +260,13 @@ elif pt == "var":
 #        bmat_lam = None
     bmat_lam = None
     if params_lam["anlsp"]:
-        analysis_lam = Var(obs_lam, nx_lam, 
+        analysis_lam = Var(obs_lam, nx_lam, ix=step.ix_lam, 
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, \
-        calc_dist=step.calc_dist_lam, model="l05nest_lam")
+        calc_dist1=step.calc_dist1_lam, model="l05nest_lam")
     else:
-        analysis_lam = Var(obs_lam, nx_lam-2*nsp, 
+        analysis_lam = Var(obs_lam, nx_lam-2*nsp, ix=step.ix_lam[nsp:-nsp], ioffset=nsp, 
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, \
-        calc_dist=step.calc_dist_lam, model="l05nest_lam")
+        calc_dist1=step.calc_dist1_lam, model="l05nest_lam")
 elif pt == "var_nest":
     from analysis.var_nest import Var_nest
     from analysis.var import Var
@@ -280,9 +280,9 @@ elif pt == "var_nest":
 #    except FileNotFoundError or OSError:
 #        bmat_gm = None
     bmat_gm = None
-    analysis_gm = Var(obs_gm, nx_gm, pt="var_nest", 
+    analysis_gm = Var(obs_gm, nx_gm, pt="var_nest", ix=step.ix_gm, 
     sigb=params_gm["sigb"], lb=params_gm["lb"], functype=params_gm["functype"], a=params_gm["a"], bmat=bmat_gm, cyclic=True, \
-    calc_dist=step.calc_dist_gm, model="l05nest_gm")
+    calc_dist1=step.calc_dist1_gm, model="l05nest_gm")
     #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
 #    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
 #    try:
@@ -332,14 +332,14 @@ elif pt == "var_nest":
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
         sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
-        calc_dist=step.calc_dist_lam, calc_dist1_gm=step.calc_dist1_gm,
+        calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model="l05nest_lam")
     else:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp],
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp,
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
         sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
-        calc_dist=step.calc_dist_lam, calc_dist1_gm=step.calc_dist1_gm,
+        calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model="l05nest_lam")
 elif pt == "4dvar":
     from analysis.var4d import Var4d

@@ -1,9 +1,10 @@
 #!/bin/sh
 # This is a run script for Nesting Lorenz experiment
+alias python=python3.9
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var"
+perturbations="var var_nest"
 na=100 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=15 # observation volume
@@ -20,9 +21,10 @@ exp="var_${functype}_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-rm -rf work/${model}/${exp}
-mkdir -p work/${model}/${exp}
-cd work/${model}/${exp}
+wdir=work/${model}_K15/${exp}
+rm -rf ${wdir}
+mkdir -p ${wdir}
+cd ${wdir}
 cp ${cdir}/logging_config.ini .
 ln -fs ${cdir}/data/l05III/truth.npy .
 rm -rf obs*.npy
@@ -35,7 +37,7 @@ nobslist="480 240 120 60 30 15"
 infllist="1.0 1.01 1.02 1.03 1.04 1.05"
 #sigblist="0.2 0.4 0.6 0.8 1.0 1.2"
 sigblist="1.2 1.6 2.0 2.4 2.8 3.2"
-lblist="1.0 2.0 3.0 4.0 5.0 6.0"
+lblist="2.0 4.0 6.0 8.0 10.0 12.0"
 touch params.txt
 for op in ${operators}; do
   echo $ptype > params.txt
@@ -107,7 +109,7 @@ for op in ${operators}; do
       if [ $ptype = lb ]; then
         gsed -i -e "6i \ \"lb\":${glb}," config_gm.py
         gsed -i -e "6i \ \"lb\":${llb}," config_lam.py
-        #gsed -i -e "6i \ \"lv\":${glb}," config_lam.py
+        gsed -i -e "6i \ \"lv\":${glb}," config_lam.py
       fi
       ###
       gsed -i -e "6i \ \"functype\":\"${functype}\"," config_gm.py

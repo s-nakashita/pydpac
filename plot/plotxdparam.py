@@ -87,26 +87,27 @@ for pt in perts:
     if j > 0:
         methods.append(pt)
 i=0
-for pt in methods:
-    nfigs = len(var)
-    ncols = 2
-    nrows = int(np.ceil(nfigs / ncols))
-    figwidth = 10
-    figheight = 3*nrows - 1
-    fig, axs = plt.subplots(figsize=[figwidth,figheight],nrows=nrows,ncols=ncols,sharex=True,constrained_layout=True)
-    for ivar, ax in zip(var,axs.flatten()):
+nfigs = len(var)
+ncols = 2
+nrows = int(np.ceil(nfigs / ncols))
+figwidth = 10
+figheight = 3*nrows - 1
+fig, axs = plt.subplots(figsize=[figwidth,figheight],nrows=nrows,ncols=ncols,sharex=True,constrained_layout=True)
+for ivar, ax in zip(var,axs.flatten()):
+    for pt in methods:
         xd = xdmean[pt][ivar]
         xs = xsmean[pt][ivar]
         ns = nsuccess[pt][ivar]
         if xd is not None:
-            ax.plot(ix,xd[0,],lw=2.0)
+            ax.plot(ix,xd[0,],lw=2.0,c=linecolor[pt],label=pt)
             ax.plot(ix,np.ones(ix.size)*sigma[op],c='k',ls='dotted')
         if xs is not None:
-            ax.plot(ix,xs[0,],ls='dashed')
-        ax.set_title(f"{ptype}={ivar} : #{int(ns):d}")
-    for i in range(nrows):
-        axs[i,0].set_ylabel("RMSE or SPREAD")
-    if len(axs.flatten())>len(var):
-        axs[nrows-1,ncols-1].remove()
-    fig.suptitle(op)
-    fig.savefig("{}_xdmean_{}_{}.png".format(model, ptype, op))
+            ax.plot(ix,xs[0,],ls='dashed',c=linecolor[pt])
+    ax.set_title(f"{ptype}={ivar} : #{int(ns):d}")
+for i in range(nrows):
+    axs[i,0].set_ylabel("RMSE or SPREAD")
+axs[0,0].legend()
+if len(axs.flatten())>len(var):
+    axs[nrows-1,ncols-1].remove()
+fig.suptitle(op)
+fig.savefig("{}_xdmean_{}_{}.png".format(model, ptype, op))

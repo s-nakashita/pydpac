@@ -19,11 +19,11 @@ zetak = []
 alphak = []
 
 class Var_nest():
-    def __init__(self, obs, ix_gm, ix_lam,\
+    def __init__(self, obs, ix_gm, ix_lam, ioffset=0, \
         sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, \
         sigv=1.0, lv=-1.0, a_v=0.5, vmat=None, \
         crosscov=False, ekbmat=None, ebkmat=None, cyclic=False, \
-        calc_dist=None, calc_dist1_gm=None, \
+        calc_dist1=None, calc_dist1_gm=None, \
         model="model"):
         self.pt = "var_nest" # DA type 
         self.obs = obs # observation operator
@@ -39,6 +39,7 @@ class Var_nest():
         self.i0 = i0 # GM first index within LAM domain
         self.i1 = i1 # GM last index within LAM domain
         self.nv = self.i1 - self.i0 + 1
+        self.ioffset = ioffset # LAM index offset (for sponge)
         self.cyclic = cyclic
         # LAM background error covariance
         self.sigb = sigb # error variance
@@ -47,10 +48,10 @@ class Var_nest():
         self.a = a # correlation function shape parameter
         self.corrfunc = Corrfunc(self.lb,a=self.a)
         self.bmat = bmat # prescribed background error covariance
-        if calc_dist is None:
-            self.calc_dist = self._calc_dist
+        if calc_dist1 is None:
+            self.calc_dist1 = self._calc_dist1
         else:
-            self.calc_dist = calc_dist
+            self.calc_dist1 = calc_dist1
         # GM background error covariance within LAM domain
         self.sigv = sigv # error variance
         self.lv = lv # error correlation length (< 0.0 : diagonal)
@@ -79,12 +80,10 @@ class Var_nest():
         dist = abs(self.ix_gm[self.i0+i]-j)
         return dist
     
-    def _calc_dist(self, i):
-        dist = np.zeros(self.nx)
-        for j in range(self.nx):
-            dist[j] = min(abs(self.ix_lam[i]-self.ix_lam[j]))
-            if self.cyclic:
-                dist[j] = min(dist[j],self.nx-dist[j])
+    def _calc_dist1(self, i, j):
+        dist = min(abs(self.ix_lam[i]-j))
+        if self.cyclic:
+            dist = min(dist,self.nx-dist)
         return dist
 
     def calc_pf(self, xf, pa, cycle):
@@ -96,14 +95,15 @@ class Var_nest():
                     dist = np.eye(self.nx)
                     self.bmat = np.eye(self.nx)
                     for i in range(self.nx):
-                        dist[i,:] = self.calc_dist(i)
+                        for j in range(self.nx):
+                            dist[i,j] = self.calc_dist1(i+self.ioffset,self.ix_lam[j])
                         if self.functype == "gc5":
                             if self.cyclic:
                                 ctmp = self.corrfunc(np.roll(dist[i,],-i)[:self.nx//2+1],ftype=self.functype)
                                 ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
                                 self.bmat[i,] = np.roll(ctmp2,i)
                             else:
-                                if i < self.nx//2:
+                                if i < self.nx-i:
                                     ctmp = self.corrfunc(np.roll(dist[i,],-i)[:self.nx-i],ftype=self.functype)
                                     ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
                                     self.bmat[i,] = np.roll(ctmp2,i)[:self.nx]
@@ -138,13 +138,15 @@ class Var_nest():
                                 ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
                                 self.vmat[i,] = np.roll(ctmp2,i)
                             else:
-                                if i < self.nv//2:
+                                if i < self.nv-i:
+                                    logger.info(f"i={i},1")
                                     ctmp = self.corrfuncv(np.roll(distg[i,],-i)[:self.nv-i],ftype=self.functype)
-                                    ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
+                                    ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:])])
                                     self.vmat[i,] = np.roll(ctmp2,i)[:self.nv]
                                 else:
+                                    logger.info(f"i={i},2")
                                     ctmp = self.corrfuncv(np.flip(distg[i,:i+1]),ftype=self.functype)
-                                    ctmp2 = np.hstack([np.flip(ctmp),ctmp[1:-1]])
+                                    ctmp2 = np.hstack([np.flip(ctmp),ctmp[1:]])
                                     self.vmat[i,] = ctmp2[:self.nv]
                         else:
                             self.vmat[i,] = self.corrfuncv(distg[i,],ftype=self.functype)

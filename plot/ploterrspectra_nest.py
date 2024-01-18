@@ -146,5 +146,6 @@ for pt in perts:
     axs[1].grid()
 #    xd2 = ifft(esp,axis=1)
 #    axs[0].plot(xs,xd2[0,],label='reconstructed')
+    fig.suptitle(f"{op} {pt}")
     fig.savefig("{}_errspectra_{}_{}.png".format(model,op,pt))
 #    plt.show()

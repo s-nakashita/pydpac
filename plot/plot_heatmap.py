@@ -42,8 +42,10 @@ def heatmap(data, row_labels, col_labels, ax=None,
     cbar.ax.set_ylabel(cbarlabel, rotation=-90, va="bottom")
 
     # Show all ticks and label them with the respective list entries.
-    ax.set_xticks(np.arange(data.shape[1]), labels=col_labels)
-    ax.set_yticks(np.arange(data.shape[0]), labels=row_labels)
+    ax.set_xticks(np.arange(data.shape[1])) #, labels=col_labels)
+    ax.set_xticklabels(col_labels)
+    ax.set_yticks(np.arange(data.shape[0])) #, labels=row_labels)
+    ax.set_yticklabels(row_labels)
 
     # Let the horizontal axes labeling appear on top.
     ax.tick_params(top=False, bottom=True,

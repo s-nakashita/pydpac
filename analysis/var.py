@@ -14,7 +14,10 @@ zetak = []
 alphak = []
 
 class Var():
-    def __init__(self, obs, nx, pt="var", sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, calc_dist=None, cyclic=True, model="model"):
+    def __init__(self, obs, nx, pt="var", \
+        ix=None, ioffset=0, sigb=1.0, lb=-1.0, \
+        functype="gauss", a=0.5, bmat=None, \
+        calc_dist1=None, cyclic=True, model="model"):
         self.pt = pt # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
@@ -28,10 +31,15 @@ class Var():
         self.corrfunc = Corrfunc(self.lb,a=self.a)
         self.bmat = bmat # prescribed background error covariance
         self.cyclic = cyclic # boundary treatment
-        if calc_dist is None:
-            self.calc_dist = self._calc_dist
+        if calc_dist1 is None:
+            self.calc_dist1 = self._calc_dist1
         else:
-            self.calc_dist = calc_dist # distance function
+            self.calc_dist1 = calc_dist1 # distance function
+        if ix is None:
+            self.ix = np.arange(self.nx)
+        else:
+            self.ix = ix # grid
+        self.ioffset = ioffset
         self.model = model
         self.verbose = True
         logger.info(f"model : {self.model}")
@@ -39,13 +47,11 @@ class Var():
         logger.info(f"sigb={self.sigb} lb={self.lb} functype={self.functype}")
         logger.info(f"bmat in={self.bmat is not None}")
 
-    def _calc_dist(self, ix):
-        dist = np.zeros(self.nx)
-        for j in range(self.nx):
-            if self.cyclic:
-                dist[j] = np.abs(self.nx/np.pi*np.sin(np.pi*(i-j)/self.nx))
-            else:
-                dist[j] = np.abs(self.nx/np.pi/2*np.sin(np.pi*(i-j)/self.nx/2))
+    def _calc_dist1(self, i, j):
+        if self.cyclic:
+            dist = np.abs(self.nx/np.pi*np.sin(np.pi*(i-j)/self.nx))
+        else:
+            dist = np.abs(self.nx/np.pi/2*np.sin(np.pi*(i-j)/self.nx/2))
         return dist
 
     def calc_pf(self, xf, pa, cycle):
@@ -57,14 +63,15 @@ class Var():
                     dist = np.eye(self.nx)
                     self.bmat = np.eye(self.nx)
                     for i in range(self.nx):
-                        dist[i,:] = self.calc_dist(i)
+                        for j in range(self.nx):
+                            dist[i,j] = self.calc_dist1(i+self.ioffset,self.ix[j])
                         if self.functype == "gc5":
                             if self.cyclic:
                                 ctmp = self.corrfunc(np.roll(dist[i,],-i)[:self.nx//2+1],ftype=self.functype)
                                 ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
                                 self.bmat[i,] = np.roll(ctmp2,i)
                             else:
-                                if i < self.nx//2:
+                                if i < self.nx-i:
                                     ctmp = self.corrfunc(np.roll(dist[i,],-i)[:self.nx-i],ftype=self.functype)
                                     ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
                                     self.bmat[i,] = np.roll(ctmp2,i)[:self.nx]
