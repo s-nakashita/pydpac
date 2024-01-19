@@ -700,20 +700,20 @@ if __name__ == "__main__":
                 true2gm = interp1d(step.ix_true,xt[k])
                 e_gm[k] = np.sqrt(np.mean((xa_gm[k, :] - true2gm(step.ix_gm))**2))
                 e_lam[k] = np.sqrt(np.mean((xa_lam[k, :] - true2gm(step.ix_lam))**2))
-                xdmean_gm += np.abs(xa_gm[k,:]-true2gm(step.ix_gm))
-                xdmean_lam += np.abs(xa_lam[k,:]-true2gm(step.ix_lam))
+                xdmean_gm += (xa_gm[k,:]-true2gm(step.ix_gm))**2
+                xdmean_lam += (xa_lam[k,:]-true2gm(step.ix_lam))**2
         else:
             true2gm = interp1d(step.ix_true,xt[i])
             e_gm[i] = np.sqrt(np.mean((xa_gm[i, :] - true2gm(step.ix_gm))**2))
             e_lam[i] = np.sqrt(np.mean((xa_lam[i, :] - true2gm(step.ix_lam))**2))
-            xdmean_gm += np.abs(xa_gm[i,:]-true2gm(step.ix_gm))
-            xdmean_lam += np.abs(xa_lam[i,:]-true2gm(step.ix_lam))
+            xdmean_gm += (xa_gm[i,:]-true2gm(step.ix_gm))**2
+            xdmean_lam += (xa_lam[i,:]-true2gm(step.ix_lam))**2
         stda_gm[i] = np.sqrt(np.trace(pa_gm)/nx_gm)
         stda_lam[i] = np.sqrt(np.trace(pa_lam)/nx_lam)
         xsa_gm[i] = np.sqrt(np.diag(pa_gm))
         xsa_lam[i] = np.sqrt(np.diag(pa_lam))
-        xsmean_gm += np.sqrt(np.diag(pa_gm))
-        xsmean_lam += np.sqrt(np.diag(pa_lam))
+        xsmean_gm += np.diag(pa_gm)
+        xsmean_lam += np.diag(pa_lam)
         nanl += 1
 
     np.save("{}_xfgm_{}_{}.npy".format(model, op, pt), xf_gm)
@@ -741,10 +741,10 @@ if __name__ == "__main__":
     np.savetxt("{}_chi_lam_{}_{}.txt".format(model, op, pt), chi_lam)
     np.savetxt("{}_dof_lam_{}_{}.txt".format(model, op, pt), dof_lam)
 
-    xdmean_gm /= float(nanl)
-    xdmean_lam /= float(nanl)
-    xsmean_gm /= float(nanl)
-    xsmean_lam /= float(nanl)
+    xdmean_gm = np.sqrt(xdmean_gm/float(nanl))
+    xdmean_lam = np.sqrt(xdmean_lam/float(nanl))
+    xsmean_gm = np.sqrt(xsmean_gm/float(nanl))
+    xsmean_lam = np.sqrt(xsmean_lam/float(nanl))
     np.savetxt("{}_xdmean_gm_{}_{}.txt".format(model, op, pt), xdmean_gm)
     np.savetxt("{}_xsmean_gm_{}_{}.txt".format(model, op, pt), xsmean_gm)
     np.savetxt("{}_xdmean_lam_{}_{}.txt".format(model, op, pt), xdmean_lam)

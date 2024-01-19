@@ -6,6 +6,7 @@ import matplotlib.gridspec as gridspec
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.interpolate import interp1d
+from nmc_tools import corrscale
 plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
@@ -27,7 +28,7 @@ xt = np.load(f)[:na,]
 print(xt.shape)
 nx = xt.shape[1]
 t = np.arange(na)
-ix = np.loadtxt("ix.txt")
+ix = np.loadtxt("ix.txt") * 360. / nx
 xlim = 15.0
 ns = na//10
 ne = na
@@ -87,7 +88,7 @@ for pt in perts:
     fig, axs = plt.subplots(nrows=1,ncols=4,figsize=[12,6],constrained_layout=True,sharey=True)
     mp0 = axs[0].pcolormesh(ix, t[ns:ne], x6h[ns:ne,:], shading='auto',\
         cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    axs[0].set_xticks(ix[::(nx//10)])
+    axs[0].set_xticks(ix[::(nx//6)])
     axs[0].set_yticks(t[ns:ne:(na//8)])
     axs[0].set_xlabel("site")
     axs[0].set_ylabel("DA cycle")
@@ -96,7 +97,7 @@ for pt in perts:
     vlim = max(np.max(x12m6),-np.min(x12m6))
     mp1 = axs[1].pcolormesh(ix, t[ns:ne], x12m6, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[1].set_xticks(ix[::(nx//10)])
+    axs[1].set_xticks(ix[::(nx//6)])
     axs[1].set_yticks(t[ns:ne:(na//8)])
     axs[1].set_xlabel("site")
     axs[1].set_title("12h - 6h")
@@ -104,7 +105,7 @@ for pt in perts:
     vlim = max(np.max(x24m12),-np.min(x24m12))
     mp2 = axs[2].pcolormesh(ix, t[ns:ne], x24m12, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[2].set_xticks(ix[::(nx//10)])
+    axs[2].set_xticks(ix[::(nx//6)])
     axs[2].set_yticks(t[ns:ne:(na//8)])
     axs[2].set_xlabel("site")
     axs[2].set_title("24h - 12h")
@@ -112,7 +113,7 @@ for pt in perts:
     vlim = max(np.max(x48m24),-np.min(x48m24))
     mp3 = axs[3].pcolormesh(ix, t[ns:ne], x48m24, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[3].set_xticks(ix[::(nx//10)])
+    axs[3].set_xticks(ix[::(nx//6)])
     axs[3].set_yticks(t[ns:ne:(na//8)])
     axs[3].set_xlabel("site")
     axs[3].set_title("48h - 24h")
@@ -121,47 +122,81 @@ for pt in perts:
     fig.savefig("{}_xf_{}_{}.png".format(model,op,pt))
     plt.show()
     plt.close()
-    fig = plt.figure(figsize=[12,10],constrained_layout=True)
+    fig = plt.figure(figsize=[12,8],constrained_layout=True)
     gs = gridspec.GridSpec(3,1,figure=fig)
     gs0 = gs[:2].subgridspec(1,3)
     ax00 = fig.add_subplot(gs0[:,0])
     ax01 = fig.add_subplot(gs0[:,1])
     ax02 = fig.add_subplot(gs0[:,2])
-    mp0 = ax00.pcolormesh(ix, ix, B12m6, shading='auto')
-    ax00.set_xticks(ix[::(nx//10)])
-    ax00.set_yticks(ix[::(nx//10)])
+    vlim = max(np.max(B12m6),-np.min(B12m6))
+    mp0 = ax00.pcolormesh(ix, ix, B12m6, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax00.set_xticks(ix[::(nx//6)])
+    ax00.set_yticks(ix[::(nx//6)])
     ax00.set_title("12h - 6h")
     ax00.set_aspect(1)
     p0 = fig.colorbar(mp0,ax=ax00,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    mp1 = ax01.pcolormesh(ix, ix, B24m12, shading='auto')
-    ax01.set_xticks(ix[::(nx//10)])
-    ax01.set_yticks(ix[::(nx//10)])
+    vlim = max(np.max(B24m12),-np.min(B24m12))
+    mp1 = ax01.pcolormesh(ix, ix, B24m12, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax01.set_xticks(ix[::(nx//6)])
+    ax01.set_yticks(ix[::(nx//6)])
     ax01.set_title("24h - 12h")
     ax01.set_aspect(1)
     p1 = fig.colorbar(mp1,ax=ax01,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    mp2 = ax02.pcolormesh(ix, ix, B48m24, shading='auto')
-    ax02.set_xticks(ix[::(nx//10)])
-    ax02.set_yticks(ix[::(nx//10)])
+    vlim = max(np.max(B48m24),-np.min(B48m24))
+    mp2 = ax02.pcolormesh(ix, ix, B48m24, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax02.set_xticks(ix[::(nx//6)])
+    ax02.set_yticks(ix[::(nx//6)])
     ax02.set_title("48h - 24h")
     ax02.set_aspect(1)
     p2 = fig.colorbar(mp2,ax=ax02,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    ### diagonal
     gs1 = gs[2].subgridspec(1,2)
     ax10 = fig.add_subplot(gs1[:,0])
     ax11 = fig.add_subplot(gs1[:,1])
-    ax10.plot(ix,np.diag(B12m6),label="12h - 6h")
-    ax10.plot(ix,np.diag(B24m12),label="24h - 12h")
-    ax10.plot(ix,np.diag(B48m24),label="48h - 24h")
-    ax10.set_xticks(ix[::(nx//10)])
-    ax10.set_title("Diagonal")
-    ax10.legend()
-    ### row
-    ax11.plot(ix,B12m6[nx//2,:],label="12h - 6h")
-    ax11.plot(ix,B24m12[nx//2,:],label="24h - 12h")
-    ax11.plot(ix,B48m24[nx//2,:],label="48h - 24h")
-    ax11.set_xticks(ix[::(nx//10)])
-    ax11.set_title("Row")
-    ax11.legend()
+    ### standard deviation
+    data = [
+        np.sqrt(np.diag(B12m6)),
+        np.sqrt(np.diag(B24m12)),
+        np.sqrt(np.diag(B48m24)),
+        ]
+    labels = [
+        "12h - 6h",
+        "24h - 12h",
+        "48h - 24h"
+    ]
+    bp0=ax10.boxplot(data, vert=True, sym='+')
+    ax10.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+    ax10.set_xticks(np.arange(1,len(data)+1))
+    ax10.set_xticklabels(labels)
+    ax10.set(axisbelow=True,title=r"$\sigma$")
+    for i in range(len(data)):
+        med = bp0['medians'][i]
+        ax10.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+        s = str(round(np.average(data[i]),3))
+        ax10.text(np.average(med.get_xdata()),.95,s,
+        transform=ax10.get_xaxis_transform(),ha='center',c='r')
+    ### correlation length scale
+    L12m6  = corrscale(np.deg2rad(ix),B12m6,cyclic=True)
+    L24m12 = corrscale(np.deg2rad(ix),B24m12,cyclic=True)
+    L48m24 = corrscale(np.deg2rad(ix),B48m24,cyclic=True)
+    data = [
+        np.rad2deg(L12m6),
+        np.rad2deg(L24m12),
+        np.rad2deg(L48m24),
+        ]
+    bp1=ax11.boxplot(data, vert=True, sym='+')
+    ax11.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+    ax11.set_xticks(np.arange(1,len(data)+1))
+    ax11.set_xticklabels(labels)
+    ax11.set(axisbelow=True,title="Length-scale (degree)")
+    for i in range(len(data)):
+        med = bp1['medians'][i]
+        ax11.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+        s = str(round(np.average(data[i]),3))
+        ax11.text(np.average(med.get_xdata()),.95,s,
+        transform=ax11.get_xaxis_transform(),ha='center',c='r')
     fig.suptitle("NMC : "+pt+" "+op)
     fig.savefig("{}_nmc_{}_{}.png".format(model,op,pt))
     plt.show()

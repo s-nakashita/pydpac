@@ -219,9 +219,9 @@ if __name__ == "__main__":
     F = 15.0
     ist_lam = 240
     lamstep = 1
-    nsp = 30
+    nsp = 10
     po = 1
-    intrlx = 6
+    intrlx = 1
     step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F, intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx, debug=True)
 
     figdir = Path(f'lorenz/l05nest/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}i{ni}/nsp{nsp}p{step.po}intrlx{step.intrlx}')

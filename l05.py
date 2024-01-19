@@ -390,13 +390,13 @@ if __name__ == "__main__":
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
-                xdmean += np.abs(xa[k,:] - xt[k,:])
+                xdmean += (xa[k,:] - xt[k,:])**2
         else:
             e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
-            xdmean += np.abs(xa[i,:] - xt[i,:])
+            xdmean += (xa[i,:] - xt[i,:])**2
         stda[i] = np.sqrt(np.trace(pa)/nx)
         xsa[i] = np.sqrt(np.diag(pa))
-        xsmean += np.sqrt(np.diag(pa))
+        xsmean += np.diag(pa)
         nanl += 1
 
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
@@ -414,7 +414,7 @@ if __name__ == "__main__":
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
 
-    xdmean /= float(nanl)
-    xsmean /= float(nanl)
+    xdmean = np.sqrt(xdmean/float(nanl))
+    xsmean = np.sqrt(xdmean/float(nanl))
     np.savetxt("{}_xdmean_{}_{}.txt".format(model, op, pt), xdmean)
     np.savetxt("{}_xsmean_{}_{}.txt".format(model, op, pt), xsmean)

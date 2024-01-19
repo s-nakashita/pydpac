@@ -6,6 +6,7 @@ import matplotlib.gridspec as gridspec
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.interpolate import interp1d
+from nmc_tools import corrscale
 plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
@@ -27,9 +28,12 @@ xt = np.load(f)[:na,]
 print(xt.shape)
 nx = xt.shape[1]
 t = np.arange(na)
-ix_t = np.loadtxt("ix_true.txt")
-ix_gm = np.loadtxt("ix_gm.txt")
-ix_lam = np.loadtxt("ix_lam.txt")
+ix_t = np.loadtxt("ix_true.txt") * 2.0 * np.pi / nx
+ix_gm = np.loadtxt("ix_gm.txt") * 2.0 * np.pi / nx
+ix_lam = np.loadtxt("ix_lam.txt") * 2.0 * np.pi / nx
+ix_t_deg = np.rad2deg(ix_t)
+ix_gm_deg = np.rad2deg(ix_gm)
+ix_lam_deg = np.rad2deg(ix_lam)
 xt2x = interp1d(ix_t, xt)
 xlim = 15.0
 ns = na//10
@@ -98,83 +102,117 @@ for pt in perts:
     B48m24_gm = np.dot(x48m24_gm.T,x48m24_gm)/float(ne-ns+1)*0.5
     ## plot
     fig, axs = plt.subplots(nrows=1,ncols=4,figsize=[12,6],constrained_layout=True,sharey=True)
-    mp0 = axs[0].pcolormesh(ix_gm, t[ns:ne], x6hgm[ns:ne], shading='auto',\
+    mp0 = axs[0].pcolormesh(ix_gm_deg, t[ns:ne], x6hgm[ns:ne], shading='auto',\
         cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    axs[0].set_xticks(ix_gm[::(nx//10)])
+    axs[0].set_xticks(ix_gm_deg[::(nx//6)])
     axs[0].set_yticks(t[ns:ne:(na//8)])
     axs[0].set_xlabel("site")
     axs[0].set_ylabel("DA cycle")
     axs[0].set_title("6h")
     p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     vlim = max(np.max(x12m6_gm),-np.min(x12m6_gm))
-    mp1 = axs[1].pcolormesh(ix_gm, t[ns:ne], x12m6_gm, shading='auto',\
+    mp1 = axs[1].pcolormesh(ix_gm_deg, t[ns:ne], x12m6_gm, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[1].set_xticks(ix_gm[::(nx//10)])
+    axs[1].set_xticks(ix_gm_deg[::(nx//6)])
     axs[1].set_yticks(t[ns:ne:(na//8)])
     axs[1].set_xlabel("site")
     axs[1].set_title("12h - 6h")
     p1 = fig.colorbar(mp1,ax=axs[1],orientation="horizontal")
     vlim = max(np.max(x24m12_gm),-np.min(x24m12_gm))
-    mp2 = axs[2].pcolormesh(ix_gm, t[ns:ne], x24m12_gm, shading='auto',\
+    mp2 = axs[2].pcolormesh(ix_gm_deg, t[ns:ne], x24m12_gm, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[2].set_xticks(ix_gm[::(nx//10)])
+    axs[2].set_xticks(ix_gm_deg[::(nx//6)])
     axs[2].set_yticks(t[ns:ne:(na//8)])
     axs[2].set_xlabel("site")
     axs[2].set_title("24h - 12h")
     p2 = fig.colorbar(mp2,ax=axs[2],orientation="horizontal")
     vlim = max(np.max(x48m24_gm),-np.min(x48m24_gm))
-    mp3 = axs[3].pcolormesh(ix_gm, t[ns:ne], x48m24_gm, shading='auto',\
+    mp3 = axs[3].pcolormesh(ix_gm_deg, t[ns:ne], x48m24_gm, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[3].set_xticks(ix_gm[::(nx//10)])
+    axs[3].set_xticks(ix_gm_deg[::(nx//6)])
     axs[3].set_yticks(t[ns:ne:(na//8)])
     axs[3].set_xlabel("site")
     axs[3].set_title("48h - 24h")
     p3 = fig.colorbar(mp3,ax=axs[3],orientation="horizontal")
     fig.suptitle("forecast in GM : "+pt+" "+op)
     fig.savefig("{}_xfgm_{}_{}.png".format(model,op,pt))
-    plt.show()
+    #plt.show()
     plt.close()
-    fig = plt.figure(figsize=[12,10],constrained_layout=True)
+    fig = plt.figure(figsize=[12,8],constrained_layout=True)
     gs = gridspec.GridSpec(3,1,figure=fig)
     gs0 = gs[:2].subgridspec(1,3)
     ax00 = fig.add_subplot(gs0[:,0])
     ax01 = fig.add_subplot(gs0[:,1])
     ax02 = fig.add_subplot(gs0[:,2])
-    mp0 = ax00.pcolormesh(ix_gm, ix_gm, B12m6_gm, shading='auto')
-    ax00.set_xticks(ix_gm[::(nx//10)])
-    ax00.set_yticks(ix_gm[::(nx//10)])
+    vlim = max(np.max(B12m6_gm),-np.min(B12m6_gm))
+    mp0 = ax00.pcolormesh(ix_gm_deg, ix_gm_deg, B12m6_gm, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax00.set_xticks(ix_gm_deg[::(nx//6)])
+    ax00.set_yticks(ix_gm_deg[::(nx//6)])
     ax00.set_title("12h - 6h")
     ax00.set_aspect("equal")
     p0 = fig.colorbar(mp0,ax=ax00,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    mp1 = ax01.pcolormesh(ix_gm, ix_gm, B24m12_gm, shading='auto')
-    ax01.set_xticks(ix_gm[::(nx//10)])
-    ax01.set_yticks(ix_gm[::(nx//10)])
+    vlim = max(np.max(B24m12_gm),-np.min(B24m12_gm))
+    mp1 = ax01.pcolormesh(ix_gm_deg, ix_gm_deg, B24m12_gm, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax01.set_xticks(ix_gm_deg[::(nx//6)])
+    ax01.set_yticks(ix_gm_deg[::(nx//6)])
     ax01.set_title("24h - 12h")
     ax01.set_aspect("equal")
     p1 = fig.colorbar(mp1,ax=ax01,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    mp2 = ax02.pcolormesh(ix_gm, ix_gm, B48m24_gm, shading='auto')
-    ax02.set_xticks(ix_gm[::(nx//10)])
-    ax02.set_yticks(ix_gm[::(nx//10)])
+    vlim = max(np.max(B48m24_gm),-np.min(B48m24_gm))
+    mp2 = ax02.pcolormesh(ix_gm_deg, ix_gm_deg, B48m24_gm, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax02.set_xticks(ix_gm_deg[::(nx//6)])
+    ax02.set_yticks(ix_gm_deg[::(nx//6)])
     ax02.set_title("48h - 24h")
     ax02.set_aspect("equal")
     p2 = fig.colorbar(mp2,ax=ax02,shrink=0.5,pad=0.01)
     gs1 = gs[2].subgridspec(1,2)
     ax10 = fig.add_subplot(gs1[:,0])
     ax11 = fig.add_subplot(gs1[:,1])
-    ### diagonal
-    ax10.plot(ix_gm,np.diag(B12m6_gm),label="12h - 6h")
-    ax10.plot(ix_gm,np.diag(B24m12_gm),label="24h - 12h")
-    ax10.plot(ix_gm,np.diag(B48m24_gm),label="48h - 24h")
-    ax10.set_xticks(ix_gm[::(nx//10)])
-    ax10.set_title("Diagonal")
-    ax10.legend()
-    ### row
-    ax11.plot(ix_gm,B12m6_gm[nx//2,:],label="12h - 6h")
-    ax11.plot(ix_gm,B24m12_gm[nx//2,:],label="24h - 12h")
-    ax11.plot(ix_gm,B48m24_gm[nx//2,:],label="48h - 24h")
-    ax11.set_xticks(ix_gm[::(nx//10)])
-    ax11.set_title("Row")
-    ax11.legend()
+    ### standard deviation
+    data = [
+        np.sqrt(np.diag(B12m6_gm)),
+        np.sqrt(np.diag(B24m12_gm)),
+        np.sqrt(np.diag(B48m24_gm)),
+        ]
+    labels = [
+        "12h - 6h",
+        "24h - 12h",
+        "48h - 24h"
+    ]
+    bp0=ax10.boxplot(data, vert=True, sym='+')
+    ax10.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+    ax10.set_xticks(np.arange(1,len(data)+1))
+    ax10.set_xticklabels(labels)
+    ax10.set(axisbelow=True,title=r"$\sigma$")
+    for i in range(len(data)):
+        med = bp0['medians'][i]
+        ax10.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+        s = str(round(np.average(data[i]),3))
+        ax10.text(np.average(med.get_xdata()),.95,s,
+        transform=ax10.get_xaxis_transform(),ha='center',c='r')
+    ### correlation length scale
+    L12m6_gm  = corrscale(ix_gm,B12m6_gm,cyclic=True)
+    L24m12_gm = corrscale(ix_gm,B24m12_gm,cyclic=True)
+    L48m24_gm = corrscale(ix_gm,B48m24_gm,cyclic=True)
+    data = [
+        np.rad2deg(L12m6_gm),
+        np.rad2deg(L24m12_gm),
+        np.rad2deg(L48m24_gm),
+        ]
+    bp1=ax11.boxplot(data, vert=True, sym='+')
+    ax11.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+    ax11.set_xticks(np.arange(1,len(data)+1))
+    ax11.set_xticklabels(labels)
+    ax11.set(axisbelow=True,title="Length-scale (degree)")
+    for i in range(len(data)):
+        med = bp1['medians'][i]
+        ax11.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+        s = str(round(np.average(data[i]),3))
+        ax11.text(np.average(med.get_xdata()),.95,s,
+        transform=ax11.get_xaxis_transform(),ha='center',c='r')
     fig.suptitle("NMC in GM : "+pt+" "+op)
     if dscl:
         fig.savefig("{}_nmcgmonly_{}_{}.png".format(model,op,pt))
@@ -247,34 +285,34 @@ for pt in perts:
     B48m24_lam = np.dot(x48m24_lam.T,x48m24_lam)/float(ne-ns+1)*0.5
     ## plot
     fig, axs = plt.subplots(nrows=1,ncols=4,figsize=[12,6],constrained_layout=True,sharey=True)
-    mp0 = axs[0].pcolormesh(ix_lam, t[ns:ne], x6hlam[ns:ne], shading='auto',\
+    mp0 = axs[0].pcolormesh(ix_lam_deg, t[ns:ne], x6hlam[ns:ne], shading='auto',\
         cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    axs[0].set_xticks(ix_lam[::(nx//10)])
+    axs[0].set_xticks(ix_lam_deg[::(nx//6)])
     axs[0].set_yticks(t[ns:ne:(na//8)])
     axs[0].set_xlabel("site")
     axs[0].set_ylabel("DA cycle")
     axs[0].set_title("6h")
     p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     vlim = max(np.max(x12m6_lam),-np.min(x12m6_lam))
-    mp1 = axs[1].pcolormesh(ix_lam, t[ns:ne], x12m6_lam, shading='auto',\
+    mp1 = axs[1].pcolormesh(ix_lam_deg, t[ns:ne], x12m6_lam, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[1].set_xticks(ix_lam[::(nx//10)])
+    axs[1].set_xticks(ix_lam_deg[::(nx//6)])
     axs[1].set_yticks(t[ns:ne:(na//8)])
     axs[1].set_xlabel("site")
     axs[1].set_title("12h - 6h")
     p1 = fig.colorbar(mp1,ax=axs[1],orientation="horizontal")
     vlim = max(np.max(x24m12_lam),-np.min(x24m12_lam))
-    mp2 = axs[2].pcolormesh(ix_lam, t[ns:ne], x24m12_lam, shading='auto',\
+    mp2 = axs[2].pcolormesh(ix_lam_deg, t[ns:ne], x24m12_lam, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[2].set_xticks(ix_lam[::(nx//10)])
+    axs[2].set_xticks(ix_lam_deg[::(nx//6)])
     axs[2].set_yticks(t[ns:ne:(na//8)])
     axs[2].set_xlabel("site")
     axs[2].set_title("24h - 12h")
     p2 = fig.colorbar(mp2,ax=axs[2],orientation="horizontal")
     vlim = max(np.max(x48m24_lam),-np.min(x48m24_lam))
-    mp3 = axs[3].pcolormesh(ix_lam, t[ns:ne], x48m24_lam, shading='auto',\
+    mp3 = axs[3].pcolormesh(ix_lam_deg, t[ns:ne], x48m24_lam, shading='auto',\
         cmap="PiYG", norm=Normalize(vmin=-vlim, vmax=vlim))
-    axs[3].set_xticks(ix_lam[::(nx//10)])
+    axs[3].set_xticks(ix_lam_deg[::(nx//6)])
     axs[3].set_yticks(t[ns:ne:(na//8)])
     axs[3].set_xlabel("site")
     axs[3].set_title("48h - 24h")
@@ -283,47 +321,81 @@ for pt in perts:
     fig.savefig("{}_xflam_{}_{}.png".format(model,op,pt))
     #plt.show()
     plt.close()
-    fig = plt.figure(figsize=[12,10],constrained_layout=True)
+    fig = plt.figure(figsize=[12,8],constrained_layout=True)
     gs = gridspec.GridSpec(3,1,figure=fig)
     gs0 = gs[:2].subgridspec(1,3)
     ax00 = fig.add_subplot(gs0[:,0])
     ax01 = fig.add_subplot(gs0[:,1])
     ax02 = fig.add_subplot(gs0[:,2])
-    mp0 = ax00.pcolormesh(ix_lam, ix_lam, B12m6_lam, shading='auto')
-    ax00.set_xticks(ix_lam[::(nx//10)])
-    ax00.set_yticks(ix_lam[::(nx//10)])
+    vlim = max(np.max(B12m6_lam),-np.min(B12m6_lam))
+    mp0 = ax00.pcolormesh(ix_lam_deg, ix_lam_deg, B12m6_lam, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax00.set_xticks(ix_lam_deg[::(nx//6)])
+    ax00.set_yticks(ix_lam_deg[::(nx//6)])
     ax00.set_title("12h - 6h")
     ax00.set_aspect("equal")
     p0 = fig.colorbar(mp0,ax=ax00,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    mp1 = ax01.pcolormesh(ix_lam, ix_lam, B24m12_lam, shading='auto')
-    ax01.set_xticks(ix_lam[::(nx//10)])
-    ax01.set_yticks(ix_lam[::(nx//10)])
+    vlim = max(np.max(B24m12_lam),-np.min(B24m12_lam))
+    mp1 = ax01.pcolormesh(ix_lam_deg, ix_lam_deg, B24m12_lam, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax01.set_xticks(ix_lam_deg[::(nx//6)])
+    ax01.set_yticks(ix_lam_deg[::(nx//6)])
     ax01.set_title("24h - 12h")
     ax01.set_aspect("equal")
     p1 = fig.colorbar(mp1,ax=ax01,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    mp2 = ax02.pcolormesh(ix_lam, ix_lam, B48m24_lam, shading='auto')
-    ax02.set_xticks(ix_lam[::(nx//10)])
-    ax02.set_yticks(ix_lam[::(nx//10)])
+    vlim = max(np.max(B48m24_lam),-np.min(B48m24_lam))
+    mp2 = ax02.pcolormesh(ix_lam_deg, ix_lam_deg, B48m24_lam, shading='auto',\
+        cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+    ax02.set_xticks(ix_lam_deg[::(nx//6)])
+    ax02.set_yticks(ix_lam_deg[::(nx//6)])
     ax02.set_title("48h - 24h")
     ax02.set_aspect("equal")
     p2 = fig.colorbar(mp2,ax=ax02,shrink=0.5,pad=0.01)
     gs1 = gs[2].subgridspec(1,2)
     ax10 = fig.add_subplot(gs1[:,0])
     ax11 = fig.add_subplot(gs1[:,1])
-    ### diagonal
-    ax10.plot(ix_lam,np.diag(B12m6_lam),label="12h - 6h")
-    ax10.plot(ix_lam,np.diag(B24m12_lam),label="24h - 12h")
-    ax10.plot(ix_lam,np.diag(B48m24_lam),label="48h - 24h")
-    ax10.set_xticks(ix_lam[::(nx//10)])
-    ax10.set_title("Diagonal")
-    ax10.legend()
-    ### row
-    ax11.plot(ix_lam,B12m6_lam[nx//2,:],label="12h - 6h")
-    ax11.plot(ix_lam,B24m12_lam[nx//2,:],label="24h - 12h")
-    ax11.plot(ix_lam,B48m24_lam[nx//2,:],label="48h - 24h")
-    ax11.set_xticks(ix_lam[::(nx//10)])
-    ax11.set_title("Row")
-    ax11.legend()
+    ### standard deviation
+    data = [
+        np.sqrt(np.diag(B12m6_lam)),
+        np.sqrt(np.diag(B24m12_lam)),
+        np.sqrt(np.diag(B48m24_lam)),
+        ]
+    labels = [
+        "12h - 6h",
+        "24h - 12h",
+        "48h - 24h"
+    ]
+    bp0=ax10.boxplot(data, vert=True, sym='+')
+    ax10.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+    ax10.set_xticks(np.arange(1,len(data)+1))
+    ax10.set_xticklabels(labels)
+    ax10.set(axisbelow=True,title=r"$\sigma$")
+    for i in range(len(data)):
+        med = bp0['medians'][i]
+        ax10.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+        s = str(round(np.average(data[i]),3))
+        ax10.text(np.average(med.get_xdata()),.95,s,
+        transform=ax10.get_xaxis_transform(),ha='center',c='r')
+    ### correlation length scale
+    L12m6_lam  = corrscale(ix_lam,B12m6_lam,cyclic=False)
+    L24m12_lam = corrscale(ix_lam,B24m12_lam,cyclic=False)
+    L48m24_lam = corrscale(ix_lam,B48m24_lam,cyclic=False)
+    data = [
+        np.rad2deg(L12m6_lam),
+        np.rad2deg(L24m12_lam),
+        np.rad2deg(L48m24_lam),
+        ]
+    bp1=ax11.boxplot(data, vert=True, sym='+')
+    ax11.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+    ax11.set_xticks(np.arange(1,len(data)+1))
+    ax11.set_xticklabels(labels)
+    ax11.set(axisbelow=True,title="Length-scale (degree)")
+    for i in range(len(data)):
+        med = bp1['medians'][i]
+        ax11.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+        s = str(round(np.average(data[i]),3))
+        ax11.text(np.average(med.get_xdata()),.95,s,
+        transform=ax11.get_xaxis_transform(),ha='center',c='r')
     fig.suptitle("NMC in LAM : "+pt+" "+op)
     if dscl:
         fig.savefig("{}_nmcdscl_{}_{}.png".format(model,op,pt))
@@ -335,107 +407,216 @@ for pt in perts:
     np.save("{}_B24m12_lam.npy".format(model),B24m12_lam)
     np.save("{}_B48m24_lam.npy".format(model),B48m24_lam)
     #GM-LAM
+    ixlist = []
+    vmatlist=[]
+    gm2lamlist=[]
+    ## GM interpolated into nominal LAM grid (H_1:GM=>LAM, H_2=I)
+    ixlist.append(ix_lam)
+    gm2lam = interp1d(ix_gm,x12hgm[ns:ne],axis=1)
+    x12hgm2lam = gm2lam(ix_lam)
+    ek12h = x12hgm2lam - x12hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    V12m6 = np.dot(ek12h.T,ek12h)/float(ne-ns+1)*0.5
+    B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
+    vmatlist.append(V12m6)
+    gm2lamlist.append(B12m6_gm2lam)
+    gm2lam = interp1d(ix_gm,x24hgm[ns:ne],axis=1)
+    x24hgm2lam = gm2lam(ix_lam)
+    ek24h = x24hgm2lam - x24hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    V24m12 = np.dot(ek24h.T,ek24h)/float(ne-ns+1)*0.5
+    B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
+    vmatlist.append(V24m12)
+    gm2lamlist.append(B24m12_gm2lam)
+    gm2lam = interp1d(ix_gm,x48hgm[ns:ne],axis=1)
+    x48hgm2lam = gm2lam(ix_lam)
+    ek48h = x48hgm2lam - x48hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    V48m24 = np.dot(ek48h.T,ek48h)/float(ne-ns+1)*0.5
+    B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
+    vmatlist.append(V48m24)
+    gm2lamlist.append(B48m24_gm2lam)
+    ## extract GM included in the LAM domain (H_1:crop, H_2:LAM=>cropped GM)
     i0 = np.argmin(np.abs(ix_gm - ix_lam[0]))
     if ix_gm[i0]<ix_lam[0]: i0+=1
     i1 = np.argmin(np.abs(ix_gm - ix_lam[-1]))
     if ix_gm[i1]>ix_lam[-1]: i1-=1
-    n = ix_gm[i0:i1+1].size
-    #gm2lam = interp1d(ix_gm,x12m6_gm,axis=1)
-    V12m6 = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
-    B12m6_gm2lam = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_lam)/float(ne-ns+1)*0.5
-    #gm2lam = interp1d(ix_gm,x24m12_gm,axis=1)
-    V24m12 = np.dot(x24m12_gm[:,i0:i1+1].T,x24m12_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
-    B24m12_gm2lam = np.dot(x24m12_gm[:,i0:i1+1].T,x24m12_lam)/float(ne-ns+1)*0.5
-    V48m24 = np.dot(x48m24_gm[:,i0:i1+1].T,x48m24_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
-    B48m24_gm2lam = np.dot(x48m24_gm[:,i0:i1+1].T,x48m24_lam)/float(ne-ns+1)*0.5
+    ixlist.append(ix_gm[i0:i1+1])
+    lam2gm = interp1d(ix_lam,x12hlam[ns:ne],axis=1)
+    x12hlam2gm = lam2gm(ix_gm[i0:i1+1])
+    ek12h = x12hgm[ns:ne,i0:i1+1] - x12hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    V12m6 = np.dot(ek12h.T,ek12h)/float(ne-ns+1)*0.5
+    B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
+    vmatlist.append(V12m6)
+    gm2lamlist.append(B12m6_gm2lam)
+    lam2gm = interp1d(ix_lam,x24hlam[ns:ne],axis=1)
+    x24hlam2gm = lam2gm(ix_gm[i0:i1+1])
+    ek24h = x24hgm[ns:ne,i0:i1+1]- x24hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    V24m12 = np.dot(ek24h.T,ek24h)/float(ne-ns+1)*0.5
+    B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
+    vmatlist.append(V24m12)
+    gm2lamlist.append(B24m12_gm2lam)
+    lam2gm = interp1d(ix_lam,x48hlam[ns:ne],axis=1)
+    x48hlam2gm = lam2gm(ix_gm[i0:i1+1])
+    ek48h = x48hgm[ns:ne,i0:i1+1] - x48hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    V48m24 = np.dot(ek48h.T,ek48h)/float(ne-ns+1)*0.5
+    B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
+    vmatlist.append(V48m24)
+    gm2lamlist.append(B48m24_gm2lam)
+    ##gm2lam = interp1d(ix_gm,x12m6_gm,axis=1)
+    #V12m6 = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
+    #B12m6_gm2lam = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_lam)/float(ne-ns+1)*0.5
+    ##gm2lam = interp1d(ix_gm,x24m12_gm,axis=1)
+    #V24m12 = np.dot(x24m12_gm[:,i0:i1+1].T,x24m12_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
+    #B24m12_gm2lam = np.dot(x24m12_gm[:,i0:i1+1].T,x24m12_lam)/float(ne-ns+1)*0.5
+    #V48m24 = np.dot(x48m24_gm[:,i0:i1+1].T,x48m24_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
+    #B48m24_gm2lam = np.dot(x48m24_gm[:,i0:i1+1].T,x48m24_lam)/float(ne-ns+1)*0.5
     ## plot
-    fig = plt.figure(figsize=[12,10],constrained_layout=True)
-    gs = gridspec.GridSpec(3,1,figure=fig)
-    gs0 = gs[:2].subgridspec(1,3)
-    ax00 = fig.add_subplot(gs0[:,0])
-    ax01 = fig.add_subplot(gs0[:,1])
-    ax02 = fig.add_subplot(gs0[:,2])
-    mp0 = ax00.pcolormesh(ix_gm[i0:i1+1], ix_gm[i0:i1+1], V12m6, shading='auto')
-    ax00.set_xticks(ix_gm[i0:i1+1:(n//8)])
-    ax00.set_yticks(ix_gm[i0:i1+1:(n//8)])
-    ax00.set_title("12h - 6h")
-    ax00.set_aspect("equal")
-    p0 = fig.colorbar(mp0,ax=ax00,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    mp1 = ax01.pcolormesh(ix_gm[i0:i1+1], ix_gm[i0:i1+1], V24m12, shading='auto')
-    ax01.set_xticks(ix_gm[i0:i1+1:(n//8)])
-    ax01.set_yticks(ix_gm[i0:i1+1:(n//8)])
-    ax01.set_title("24h - 12h")
-    ax01.set_aspect("equal")
-    p1 = fig.colorbar(mp1,ax=ax01,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    mp2 = ax02.pcolormesh(ix_gm[i0:i1+1], ix_gm[i0:i1+1], V48m24, shading='auto')
-    ax02.set_xticks(ix_gm[i0:i1+1:(n//8)])
-    ax02.set_yticks(ix_gm[i0:i1+1:(n//8)])
-    ax02.set_title("48h - 24h")
-    ax02.set_aspect("equal")
-    p2 = fig.colorbar(mp2,ax=ax02,shrink=0.5,pad=0.01) #,orientation="horizontal")
-    gs1 = gs[2].subgridspec(1,2)
-    ax10 = fig.add_subplot(gs1[:,0])
-    ax11 = fig.add_subplot(gs1[:,1])
-    ### diagonal
-    ax10.plot(ix_gm[i0:i1+1],np.diag(V12m6),label="12h - 6h")
-    ax10.plot(ix_gm[i0:i1+1],np.diag(V24m12),label="24h - 12h")
-    ax10.plot(ix_gm[i0:i1+1],np.diag(V48m24),label="48h - 24h")
-    ax10.set_xticks(ix_gm[i0:i1+1:(n//8)])
-    ax10.set_title("Diagonal")
-    ax10.legend()
-    ### row
-    ax11.plot(ix_gm[i0:i1+1],V12m6[n//2,:],label="12h - 6h")
-    ax11.plot(ix_gm[i0:i1+1],V24m12[n//2,:],label="24h - 12h")
-    ax11.plot(ix_gm[i0:i1+1],V48m24[n//2,:],label="48h - 24h")
-    ax11.set_xticks(ix_gm[i0:i1+1:(n//8)])
-    ax11.set_title("Row")
-    ax11.legend()
-    fig.suptitle("NMC in GM within LAM : "+pt+" "+op)
-    fig.savefig("{}_nmcv_{}_{}.png".format(model,op,pt))
-    plt.show()
-    plt.close()
-    np.save("{}_V12m6.npy".format(model),V12m6)
-    np.save("{}_V24m12.npy".format(model),V24m12)
-    np.save("{}_V48m24.npy".format(model),V48m24)
-    ## plot
-    fig, axs = plt.subplots(nrows=2,ncols=2,figsize=[10,10],\
-        constrained_layout=True)
-    mp0 = axs[0,0].pcolormesh(ix_lam, ix_gm[i0:i1+1], B12m6_gm2lam, shading='auto')
-    axs[0,0].set_xticks(ix_lam[::(nx//10)])
-    axs[0,0].set_yticks(ix_gm[i0:i1+1:(n//8)])
-    axs[0,0].set_title("12h - 6h")
-    axs[0,0].set_aspect(n/nx)
-    p0 = fig.colorbar(mp0,ax=axs[0,0],orientation="horizontal")
-    mp1 = axs[0,1].pcolormesh(ix_lam, ix_gm[i0:i1+1], B24m12_gm2lam, shading='auto')
-    axs[0,1].set_xticks(ix_lam[::(nx//10)])
-    axs[0,1].set_yticks(ix_gm[i0:i1+1:(n//8)])
-    axs[0,1].set_title("24h - 12h")
-    axs[0,1].set_aspect(n/nx)
-    p1 = fig.colorbar(mp1,ax=axs[0,1],orientation="horizontal")
-    mp2 = axs[1,0].pcolormesh(ix_lam, ix_gm[i0:i1+1], B48m24_gm2lam, shading='auto')
-    axs[1,0].set_xticks(ix_lam[::(nx//10)])
-    axs[1,0].set_yticks(ix_gm[i0:i1+1:(n//8)])
-    axs[1,0].set_title("48h - 24h")
-    axs[1,0].set_aspect(n/nx)
-    p2 = fig.colorbar(mp2,ax=axs[1,0],orientation="horizontal")
-    #### diagonal
-    #axs[1,0].plot(ix_gm[i0:i1+1],np.diag(B12m6_gm2lam),label="12h - 6h")
-    #axs[1,0].plot(ix_gm[i0:i1+1],np.diag(B24m12_gm2lam),label="24h - 12h")
-    #axs[1,0].set_xticks(ix_gm[i0:i1+1:(n//8)])
-    #axs[1,0].set_title("Diagonal")
-    #axs[1,0].legend()
-    ### row
-    axs[1,1].plot(ix_lam,B12m6_gm2lam[n//2,:],label="12h - 6h")
-    axs[1,1].plot(ix_lam,B24m12_gm2lam[n//2,:],label="24h - 12h")
-    axs[1,1].plot(ix_lam,B48m24_gm2lam[n//2,:],label="48h - 24h")
-    axs[1,1].set_xticks(ix_lam[::(nx//10)])
-    axs[1,1].set_title("Row")
-    axs[1,1].legend()
-    fig.suptitle("NMC in GM x LAM : "+pt+" "+op)
-    fig.savefig("{}_nmcgm2lam_{}_{}.png".format(model,op,pt))
-    plt.show()
-    plt.close()
-    np.save("{}_B12m6_gm2lam.npy".format(model),B12m6_gm2lam)
-    np.save("{}_B24m12_gm2lam.npy".format(model),B24m12_gm2lam)
-    np.save("{}_B48m24_gm2lam.npy".format(model),B48m24_gm2lam)
+    fnamelist = ['highres','lowres']
+    titlelist = [
+        'GM interpolated into nominal LAM grid (H_1:GM=>LAM, H_2=I)',
+        'extract GM in the LAM domain (H_1:crop, H_2:LAM=>cropped GM)'
+        ]
+    for i in range(len(fnamelist)):
+        fname = fnamelist[i]
+        title = titlelist[i]
+        ixtmp = ixlist[i]
+        ixtmp_deg = np.rad2deg(ixtmp)
+        n = ixtmp.size
+        j = 3*i
+        V12m6 = vmatlist[j]
+        B12m6_gm2lam = gm2lamlist[j]
+        j+=1
+        V24m12 = vmatlist[j]
+        B24m12_gm2lam = gm2lamlist[j]
+        j+=1
+        V48m24 = vmatlist[j]
+        B48m24_gm2lam = gm2lamlist[j]
+
+        fig = plt.figure(figsize=[12,8],constrained_layout=True)
+        gs = gridspec.GridSpec(3,1,figure=fig)
+        gs0 = gs[:2].subgridspec(1,3)
+        ax00 = fig.add_subplot(gs0[:,0])
+        ax01 = fig.add_subplot(gs0[:,1])
+        ax02 = fig.add_subplot(gs0[:,2])
+        vlim = max(np.max(V12m6),-np.min(V12m6))
+        mp0 = ax00.pcolormesh(ixtmp_deg, ixtmp_deg, V12m6, shading='auto',\
+            cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+        ax00.set_xticks(ixtmp_deg[::(n//6)])
+        ax00.set_yticks(ixtmp_deg[::(n//6)])
+        ax00.set_title("12h - 6h")
+        ax00.set_aspect("equal")
+        p0 = fig.colorbar(mp0,ax=ax00,shrink=0.5,pad=0.01) #,orientation="horizontal")
+        vlim = max(np.max(V24m12),-np.min(V24m12))
+        mp1 = ax01.pcolormesh(ixtmp_deg, ixtmp_deg, V24m12, shading='auto',\
+            cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+        ax01.set_xticks(ixtmp_deg[::(n//6)])
+        ax01.set_yticks(ixtmp_deg[::(n//6)])
+        ax01.set_title("24h - 12h")
+        ax01.set_aspect("equal")
+        p1 = fig.colorbar(mp1,ax=ax01,shrink=0.5,pad=0.01) #,orientation="horizontal")
+        vlim = max(np.max(V48m24),-np.min(V48m24))
+        mp2 = ax02.pcolormesh(ixtmp_deg, ixtmp_deg, V48m24, shading='auto',\
+            cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+        ax02.set_xticks(ixtmp_deg[::(n//6)])
+        ax02.set_yticks(ixtmp_deg[::(n//6)])
+        ax02.set_title("48h - 24h")
+        ax02.set_aspect("equal")
+        p2 = fig.colorbar(mp2,ax=ax02,shrink=0.5,pad=0.01) #,orientation="horizontal")
+        gs1 = gs[2].subgridspec(1,2)
+        ax10 = fig.add_subplot(gs1[:,0])
+        ax11 = fig.add_subplot(gs1[:,1])
+        ### standard deviation
+        data = [
+            np.sqrt(np.diag(V12m6)),
+            np.sqrt(np.diag(V24m12)),
+            np.sqrt(np.diag(V48m24)),
+            ]
+        labels = [
+            "12h - 6h",
+            "24h - 12h",
+            "48h - 24h"
+        ]
+        bp0=ax10.boxplot(data, vert=True, sym='+')
+        ax10.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+        ax10.set_xticks(np.arange(1,len(data)+1))
+        ax10.set_xticklabels(labels)
+        ax10.set(axisbelow=True,title=r"$\sigma$")
+        for i in range(len(data)):
+            med = bp0['medians'][i]
+            ax10.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+            s = str(round(np.average(data[i]),3))
+            ax10.text(np.average(med.get_xdata()),.95,s,
+            transform=ax10.get_xaxis_transform(),ha='center',c='r')
+        ### correlation length scale
+        L12m6_v  = corrscale(ixtmp,V12m6,cyclic=False)
+        L24m12_v = corrscale(ixtmp,V24m12,cyclic=False)
+        L48m24_v = corrscale(ixtmp,V48m24,cyclic=False)
+        data = [
+            np.rad2deg(L12m6_v),
+            np.rad2deg(L24m12_v),
+            np.rad2deg(L48m24_v),
+            ]
+        bp1=ax11.boxplot(data, vert=True, sym='+')
+        ax11.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+        ax11.set_xticks(np.arange(1,len(data)+1))
+        ax11.set_xticklabels(labels)
+        ax11.set(axisbelow=True,title="Length-scale (degree)")
+        for i in range(len(data)):
+            med = bp1['medians'][i]
+            ax11.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+            s = str(round(np.average(data[i]),3))
+            ax11.text(np.average(med.get_xdata()),.95,s,
+            transform=ax11.get_xaxis_transform(),ha='center',c='r')
+        fig.suptitle(f"NMC for {title} : "+pt+" "+op)
+        fig.savefig("{}_nmcv_{}_{}_{}.png".format(model,fname,op,pt))
+        plt.show()
+        plt.close()
+        np.save("{}_V12m6_{}.npy".format(model,fname),V12m6)
+        np.save("{}_V24m12_{}.npy".format(model,fname),V24m12)
+        np.save("{}_V48m24_{}.npy".format(model,fname),V48m24)
+        ## plot
+        fig, axs = plt.subplots(nrows=2,ncols=2,figsize=[12,6],\
+            constrained_layout=True)
+        vlim = max(np.max(B12m6_gm2lam),-np.min(B12m6_gm2lam))
+        mp0 = axs[0,0].pcolormesh(ix_lam_deg, ixtmp_deg, B12m6_gm2lam, shading='auto',\
+            cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+        axs[0,0].set_xticks(ix_lam_deg[::(nx//6)])
+        axs[0,0].set_yticks(ixtmp_deg[::(n//6)])
+        axs[0,0].set_title("12h - 6h")
+        axs[0,0].set_aspect(n/nx)
+        p0 = fig.colorbar(mp0,ax=axs[0,0],shrink=0.5,pad=0.01) #,orientation="horizontal")
+        vlim = max(np.max(B24m12_gm2lam),-np.min(B24m12_gm2lam))
+        mp1 = axs[0,1].pcolormesh(ix_lam_deg, ixtmp_deg, B24m12_gm2lam, shading='auto',\
+            cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+        axs[0,1].set_xticks(ix_lam_deg[::(nx//6)])
+        axs[0,1].set_yticks(ixtmp_deg[::(n//6)])
+        axs[0,1].set_title("24h - 12h")
+        axs[0,1].set_aspect(n/nx)
+        p1 = fig.colorbar(mp1,ax=axs[0,1],shrink=0.5,pad=0.01) #,orientation="horizontal")
+        vlim = max(np.max(B48m24_gm2lam),-np.min(B48m24_gm2lam))
+        mp2 = axs[1,0].pcolormesh(ix_lam_deg, ixtmp_deg, B48m24_gm2lam, shading='auto',\
+            cmap='bwr',norm=Normalize(vmin=-vlim,vmax=vlim))
+        axs[1,0].set_xticks(ix_lam_deg[::(nx//6)])
+        axs[1,0].set_yticks(ixtmp_deg[::(n//6)])
+        axs[1,0].set_title("48h - 24h")
+        axs[1,0].set_aspect(n/nx)
+        p2 = fig.colorbar(mp2,ax=axs[1,0],shrink=0.5,pad=0.01) #,orientation="horizontal")
+        #### diagonal
+        #axs[1,0].plot(ix_gm[i0:i1+1],np.diag(B12m6_gm2lam),label="12h - 6h")
+        #axs[1,0].plot(ix_gm[i0:i1+1],np.diag(B24m12_gm2lam),label="24h - 12h")
+        #axs[1,0].set_xticks(ix_gm[i0:i1+1:(n//6)])
+        #axs[1,0].set_title("Diagonal")
+        #axs[1,0].legend()
+        ### row
+        axs[1,1].plot(ix_lam_deg,B12m6_gm2lam[n//2,:],label="12h - 6h")
+        axs[1,1].plot(ix_lam_deg,B24m12_gm2lam[n//2,:],label="24h - 12h")
+        axs[1,1].plot(ix_lam_deg,B48m24_gm2lam[n//2,:],label="48h - 24h")
+        axs[1,1].set_xticks(ix_lam_deg[::(nx//6)])
+        axs[1,1].set_title("Row")
+        axs[1,1].legend()
+        fig.suptitle(f"NMC for {title} x LAM : "+pt+" "+op)
+        fig.savefig("{}_nmcgm2lam_{}_{}_{}.png".format(model,fname,op,pt))
+        plt.show()
+        plt.close()
+        np.save("{}_B12m6_gm2lam_{}.npy".format(model,fname),B12m6_gm2lam)
+        np.save("{}_B24m12_gm2lam_{}.npy".format(model,fname),B24m12_gm2lam)
+        np.save("{}_B48m24_gm2lam_{}.npy".format(model,fname),B48m24_gm2lam)
     
