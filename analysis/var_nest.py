@@ -12,6 +12,7 @@ from scipy.interpolate import interp1d
 from .obs import Obs
 from .minimize import Minimize
 from .corrfunc import Corrfunc
+from .trunc1d import Trunc1d
 
 logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
@@ -21,7 +22,7 @@ alphak = []
 class Var_nest():
     def __init__(self, obs, ix_gm, ix_lam, ioffset=0, \
         sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, \
-        sigv=1.0, lv=-1.0, a_v=0.5, vmat=None, \
+        sigv=1.0, lv=-1.0, a_v=0.5, ntrunc=None, vmat=None, \
         crosscov=False, ekbmat=None, ebkmat=None, cyclic=False, \
         calc_dist1=None, calc_dist1_gm=None, \
         model="model"):
@@ -38,7 +39,8 @@ class Var_nest():
         if self.ix_gm[i1]>self.ix_lam[-1]: i1-=1
         self.i0 = i0 # GM first index within LAM domain
         self.i1 = i1 # GM last index within LAM domain
-        self.nv = self.i1 - self.i0 + 1
+        #self.nv = self.i1 - self.i0 + 1
+        self.nv = self.ix_lam.size
         self.ioffset = ioffset # LAM index offset (for sponge)
         self.cyclic = cyclic
         # LAM background error covariance
@@ -56,6 +58,11 @@ class Var_nest():
         self.sigv = sigv # error variance
         self.lv = lv # error correlation length (< 0.0 : diagonal)
         self.a_v = a_v # correlation function shape parameter
+        if ntrunc is None:
+            self.ntrunc = self.nv // 2
+        else:
+            self.ntrunc = ntrunc # truncation number for GM error covariance
+        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False)
         self.corrfuncv = Corrfunc(self.lv,a=self.a_v)
         self.vmat = vmat # prescribed background error covariance
         if calc_dist1_gm is None:
@@ -131,7 +138,8 @@ class Var_nest():
                     self.vmat = np.eye(self.nv)
                     for i in range(self.nv):
                         for j in range(self.nv):
-                            distg[i,j] = self.calc_dist1_gm(self.i0+i,self.ix_gm[self.i0+j])
+                            #distg[i,j] = self.calc_dist1_gm(self.i0+i,self.ix_gm[self.i0+j])
+                            distg[i,j] = self.calc_dist1(i+self.ioffset,self.ix_lam[j])
                         if self.functype == "gc5":
                             if self.cyclic:
                                 ctmp = self.corrfuncv(np.roll(distg[i,],-i)[:self.nv//2+1],ftype=self.functype)
@@ -247,7 +255,7 @@ class Var_nest():
         return np.dot(bsqrt,w), bsqrt, vsqrt, vsqrtpinv
 
     def calc_j(self, w, *args, return_each=False):
-        JH, rinv, ob, dk, JH2 = args
+        JH, rinv, ob, dk = args
         jb = 0.5 * np.dot(w,w)
         x, _, vsqrt, vsqrtpinv = self.prec(w)
         d = JH @ x - ob
@@ -255,7 +263,7 @@ class Var_nest():
         #dktmp = JH2@x - dk 
         #dktmp2 = la.solve(self.vmat, dktmp)
         #dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
-        dktmp = vsqrtpinv @ (JH2@x-dk)
+        dktmp = vsqrtpinv @ (self.trunc_operator(x)-dk)
         dktmp2 = dktmp
         jk = 0.5 * np.dot(dktmp,dktmp2)
         if return_each:
@@ -264,21 +272,23 @@ class Var_nest():
             return jb + jo + jk
 
     def calc_grad_j(self, w, *args):
-        JH, rinv, ob, dk, JH2 = args
+        JH, rinv, ob, dk = args
         x, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
         d = JH @ x - ob
         #dktmp = JH2@x - dk 
         #dktmp2 = la.solve(self.vmat, dktmp)
         #dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
         #dktmp2 = la.solve(vsqrt.T, dktmp) #valid only for the square matrix of vsqrt
-        dktmp = vsqrtpinv @ (JH2@x-dk)
+        dktmp = vsqrtpinv @ (self.trunc_operator(x)-dk)
         dktmp2 = vsqrtpinv.T @ dktmp
-        return w + bsqrt.T @ JH.T @ rinv @ d + bsqrt.T @ JH2.T @ dktmp2
+        JH2Lb = self.trunc_operator(bsqrt)
+        return w + bsqrt.T @ JH.T @ rinv @ d + JH2Lb.T @ dktmp2
 
     def calc_hess(self, w, *args):
-        JH, rinv, ob, dk, JH2 = args
+        JH, rinv, ob, dk = args
         _, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
-        qkmat = vsqrtpinv @ JH2 @ bsqrt
+        JH2Lb = self.trunc_operator(bsqrt)
+        qkmat = vsqrtpinv @ JH2Lb
         return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + qkmat.T @ qkmat
 
     def __call__(self, xf, pf, y, yloc, xg, method="LBFGS", cgtype=1,
@@ -292,14 +302,17 @@ class Var_nest():
         JH = self.obs.dh_operator(yloc, xf)
         ob = y - self.obs.h_operator(yloc,xf)
         nobs = ob.size
-        x_lam2gm = interp1d(self.ix_lam,xf)
-        dk = xg[self.i0:self.i1+1] - x_lam2gm(self.ix_gm[self.i0:self.i1+1])
-        tmp_lam2gm = interp1d(self.ix_lam,np.eye(self.nx),axis=0)
-        JH2 = tmp_lam2gm(self.ix_gm[self.i0:self.i1+1])
+        #x_lam2gm = interp1d(self.ix_lam,xf)
+        #dk = xg[self.i0:self.i1+1] - x_lam2gm(self.ix_gm[self.i0:self.i1+1])
+        #tmp_lam2gm = interp1d(self.ix_lam,np.eye(self.nx),axis=0)
+        #JH2 = tmp_lam2gm(self.ix_gm[self.i0:self.i1+1])
+        x_gm2lam = interp1d(self.ix_gm,xg)
+        dk = x_gm2lam(self.ix_lam)
+        dk = self.trunc_operator(dk) - self.trunc_operator(xf)
 
         w0 = np.zeros_like(xf)
         x0, bsqrt, _, _ = self.prec(w0,first=True)
-        args_j = (JH, rinv, ob, dk, JH2)
+        args_j = (JH, rinv, ob, dk)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'iprint':iprint, 'method':method, 'cgtype':cgtype, \
                 'gtol':gtol, 'disp':disp, 'maxiter':maxiter}

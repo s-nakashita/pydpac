@@ -123,8 +123,9 @@ params_lam["lb"]        = 25.0     # (For var & 4dvar) correlation length for ba
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 params_lam["a"]         = -0.2  # (For var & 4dvar) background error correlation function shape parameter
 params_lam["sigv"]      =  0.4     # (For var_nest) GM background error standard deviation in LAM space
-params_lam["lv"]        = 23.6     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
-params_lam["a_v"]       = -0.2  # (For var & 4dvar) background error correlation function shape parameter
+params_lam["lv"]        = 23.1     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
+params_lam["a_v"]       = -0.1  # (For var_nest) background error correlation function shape parameter
+params_lam["ntrunc"]    = 12    # (For var_nest) truncation number for GM error covariance
 params_lam["crosscov"] = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 
 ## update from configure file
@@ -330,14 +331,14 @@ elif pt == "var_nest":
     if params_lam["anlsp"]:
         analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam,
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
-        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], vmat=vmat, 
+        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model="l05nest_lam")
     else:
         analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp,
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
-        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], vmat=vmat, 
+        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model="l05nest_lam")

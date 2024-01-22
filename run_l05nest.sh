@@ -1,6 +1,6 @@
 #!/bin/sh
 # This is a run script for Nesting Lorenz experiment
-alias python=python3.9
+#alias python=python3.9
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
@@ -22,7 +22,7 @@ ltlm=False # True:Use tangent linear approximation False:Not use
 opt=0
 functype=gc5
 #a=-0.1
-exp="var+var_nest_${functype}nmc_obs${nobs}"
+exp="var+var_nest_${functype}nmctrunc_obs${nobs}"
 #exp="envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
