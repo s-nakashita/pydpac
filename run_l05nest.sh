@@ -10,7 +10,7 @@ perturbations="var var_nest"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=100 # Number of assimilation cycle
+na=1460 # Number of assimilation cycle
 nmem=240 # ensemble size
 nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -21,8 +21,8 @@ ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 opt=0
 functype=gc5
-a=-0.1
-exp="var+var_nest_${functype}a${a}_obs${nobs}_noanlsp"
+#a=-0.1
+exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
@@ -74,12 +74,12 @@ for op in ${operators}; do
     ###
     gsed -i -e "6i \ \"functype\":\"${functype}\"," config_gm.py
     gsed -i -e "6i \ \"functype\":\"${functype}\"," config_lam.py
-    gsed -i -e "6i \ \"a\":${a}," config_gm.py
-    gsed -i -e "6i \ \"a\":${a}," config_lam.py
-    if [ $pert = var_nest ]; then
-    gsed -i -e "6i \ \"a_v\":${a}," config_lam.py
-    #gsed -i -e "6i \ \"lb\":4," config_lam.py
-    fi
+#    gsed -i -e "6i \ \"a\":${a}," config_gm.py
+#    gsed -i -e "6i \ \"a\":${a}," config_lam.py
+#    if [ $pert = var_nest ]; then
+#    gsed -i -e "6i \ \"a_v\":${a}," config_lam.py
+#    #gsed -i -e "6i \ \"lb\":4," config_lam.py
+#    fi
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ###
@@ -141,7 +141,7 @@ for op in ${operators}; do
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
 #  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na}
-  rm ${model}_*_jh_${op}_*.txt ${model}_*_alpha_${op}_*.txt ${model}_*_gh_${op}_*.txt
+  rm ${model}_*_jh_${op}_*_cycle*.txt ${model}_*_alpha_${op}_*_cycle*.txt ${model}_*_gh_${op}_*_cycle*.txt
   #rm obs*.npy
 done
 #rm ${model}*.txt 

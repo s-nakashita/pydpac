@@ -126,7 +126,7 @@ class EnVAR():
         if alpha is not None:
             alphak.append(alpha)
 
-    def calc_j(self, zeta, *args):
+    def calc_j(self, zeta, *args, return_each=False):
         nk = zeta.size
         if not self.incremental:
             xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
@@ -143,8 +143,11 @@ class EnVAR():
             jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
             #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
-        j = jb + jo
-        return j
+        if return_each:
+            return jb, jo
+        else:
+            j = jb + jo
+            return j
 
     def calc_grad_j(self, zeta, *args):
         nk = zeta.size
@@ -372,10 +375,10 @@ class EnVAR():
             iprint = np.zeros(2, dtype=np.int32)
             irest = 0 # restart counter
             flg = -1  # optimilation result flag
-            options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+            options = {'iprint':iprint, 'method':method, 'cgtype':cgtype, \
+                    'gtol':gtol, 'disp':disp, 'maxiter':maxiter, 'restart':restart}
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter, restart=restart)
+                            args=args_j, **options)
             logger.info("save_hist={}".format(save_hist))
             if restart:
                 if save_hist:
@@ -389,17 +392,7 @@ class EnVAR():
                         for i in range(len(zetak)):
                             #jh.append(self.calc_j(np.array(zetak[i]), *args_j))
                             # calculate jb and jo separately
-                            nk = zetak[i].size
-                            if not self.incremental:
-                                xk = xf_ + gmat @ zetak[i]
-                                ob = y - self.obs.h_operator(yloc, xk)
-                                jb = 0.5 * (nk-1) * zetak[i].transpose() @ heinv @ zetak[i]
-                                jo = 0.5 * ob.transpose() @ rinv @ ob
-                            else:
-                            ## incremental form
-                                wk = tmat @ zetak[i]
-                                jb = 0.5 * (nk-1) * zetak[i].transpose() @ heinv @ zetak[i] 
-                                jo = 0.5 * (zmat@wk - d).transpose() @ (zmat@wk - d)
+                            jb,jo = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
                             jh.append([jb,jo])
                             g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                             gh.append(np.sqrt(g.transpose() @ g))
@@ -458,19 +451,9 @@ class EnVAR():
                     jh = np.zeros((len(zetak),2))
                     gh = np.zeros(len(zetak))
                     for i in range(len(zetak)):
-                        jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                        #jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
                         # calculate jb and jo separately
-                        nk = zetak[i].size
-                        if not self.incremental:
-                            xk = xf_ + gmat @ zetak[i]
-                            ob = y - self.obs.h_operator(yloc, xk)
-                            jb = 0.5 * (nk-1) * zetak[i].transpose() @ heinv @ zetak[i]
-                            jo = 0.5 * ob.transpose() @ rinv @ ob
-                        else:
-                        ## incremental form
-                            wk = tmat @ zetak[i]
-                            jb = 0.5 * (nk-1) * np.dot(wk,wk) 
-                            jo = 0.5 * (zmat@wk - d).transpose() @ (zmat@wk - d)
+                        jb, jo = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
                         jh[i,0] = jb
                         jh[i,1] = jo
                         g = self.calc_grad_j(np.array(zetak[i]), *args_j)

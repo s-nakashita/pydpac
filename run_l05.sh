@@ -106,7 +106,7 @@ for op in ${operators}; do
   python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na}
   if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh.py ${op} ${model} ${na}
-  rm ${model}_jh_${op}_*.txt ${model}_gh_${op}_*.txt ${model}_alpha_${op}_*.txt
+  rm ${model}_jh_${op}_*_cycle*.txt ${model}_gh_${op}_*_cycle*.txt ${model}_alpha_${op}_*_cycle*.txt
   
   #rm obs*.npy
 done

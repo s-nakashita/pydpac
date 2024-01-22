@@ -6,6 +6,7 @@ from scipy.fft import fft, fftfreq, ifft
 import matplotlib.gridspec as gridspec
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
+from matplotlib.ticker import FixedLocator, FixedFormatter
 plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
@@ -56,7 +57,7 @@ for pt in perts:
     axs[0].legend()
     axs[0].grid()
     esp = fft(xd,axis=1)
-    freq = fftfreq(nx,dx)[:nx//2] * 2.0 * np.pi
+    freq = fftfreq(nx,dx)[:nx//2] #* 2.0 * np.pi
     print(esp.shape)
     print(freq)
     psd = 2.0*np.mean(np.abs(esp[:,:nx//2])**2,axis=0)*dx*dx/2.0/np.pi
@@ -72,6 +73,17 @@ for pt in perts:
     axs[1].set_title("spectral space")
     axs[1].legend()
     axs[1].grid()
+    def one_over(x):
+        x = np.array(x, float)
+        near_zero = np.isclose(x, 0)
+        x[near_zero] = np.inf
+        x[~near_zero] = 1.0 / x[~near_zero]
+        return x
+    inverse = one_over
+    secax = axs[1].secondary_xaxis('top',functions=(one_over,inverse))
+    secax.set_xlabel('wave length [radian]')
+    secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/180.]))
+    secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\pi/30$',r'$\pi/60$',r'$\pi/120$',r'$\pi/180$']))
 #    xd2 = ifft(esp,axis=1)
 #    axs[0].plot(xs,xd2[0,],label='reconstructed')
     fig.suptitle(f"{op} {pt}")

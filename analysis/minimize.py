@@ -33,7 +33,7 @@ _status_message = {'success': 'Optimization terminated successfully.',
 class Minimize():
     def __init__(self, n, func, jac=None, hess=None, prec=None, args=None, 
         iprint=np.array([0,0]), method="LBFGS", cgtype=None, maxiter=None,
-        restart=False, loglevel=0):
+        gtol=1.0e-6, disp=False, restart=False, loglevel=0):
         self.n = n
         self.m = min(self.n, 7)
         self.func = func
@@ -42,9 +42,21 @@ class Minimize():
         self.prec = prec
         self.args = args
         self.method = method
+        # self.cgtype = 1 : Fletcher-Reeves
+        #               2 : Polak-Ribiere
+        #               3 : Positive Polak-Ribiere
+        self.cgtype = cgtype
+        # for scipy.optimize.minimize
+        self.maxiter = maxiter
+        self.gtol = gtol
+        self.disp = disp
+        if restart:
+            self.irest = 1
+        else:
+            self.irest = 0
+        self.loglevel = loglevel # 0:info, >0:debug
         # for lbfgs and cgfam
         self.iprint = iprint
-        self.eps = 1.0e-5
         self.xtol = 1.0e-16
         # for lbfgs
         self.diagco = False
@@ -53,21 +65,8 @@ class Minimize():
         self.lwork = np.zeros(self.llwork)
         # for cgfam
         self.desc = np.ones(self.n)
-        # self.cgtype = 1 : Fletcher-Reeves
-        #               2 : Polak-Ribiere
-        #               3 : Positive Polak-Ribiere
-        self.cgtype = cgtype
         self.lcwork = self.n
         self.cwork = np.zeros(self.lcwork)
-        # for scipy.optimize.minimize
-        self.gtol = 1.0e-6
-        self.disp = False
-        self.maxiter = maxiter
-        if restart:
-            self.irest = 1
-        else:
-            self.irest = 0
-        self.loglevel = loglevel # 0:info, >0:debug
         if self.loglevel==0:
             logger.info(f"method={self.method}")
             if (self.method=="cg" or self.method == "CG") and self.cgtype is not None:
@@ -217,7 +216,7 @@ class Minimize():
         return xk, warnflag
 
     def minimize_newton(self, w0, callback=None, 
-                    gtol=1e-5, delta=1e-10, mu=0.5, c1=1e-4, c2=0.9):
+                    delta=1e-10, mu=0.5, c1=1e-4, c2=0.9):
         from scipy.optimize import line_search
         from scipy.optimize.linesearch import LineSearchWarning
         def pcg(g, H, M, delta=1e-10, eps=None, maxiter=30):
@@ -333,7 +332,7 @@ class Minimize():
             Mk = np.eye(self.n)
         logger.debug("preconditioner={}".format(Mk))
 
-        while (gnorm > gtol) and (k < maxiter):
+        while (gnorm > self.gtol) and (k < maxiter):
             if self.args is not None:
                 Hk = self.hess(wk, *self.args)    
             else:
@@ -474,7 +473,7 @@ class Minimize():
             [xk, dk, alphak, self.lwork, oflag] = \
             lbfgs(n=self.n, m=self.m, x=xk, f=fval, g=gval, \
                           diagco=self.diagco, diag=self.diag, \
-                          iprint=self.iprint, eps=self.eps, xtol=self.xtol, w=wold, \
+                          iprint=self.iprint, eps=self.gtol, xtol=self.xtol, w=wold, \
                           iflag=iflag, irest=self.irest)
             iflag = oflag
             #if self.loglevel==0:
@@ -617,7 +616,7 @@ class Minimize():
             [x, gval, self.desc, gold, alphak, oflag, ofinish] = \
                 cgfam(n=self.n, x=xold, f=fval, g=gold, \
                     d=dold, gold=gold_old, \
-                    iprint=self.iprint, eps=self.eps, w=self.cwork, iflag=iflag, \
+                    iprint=self.iprint, eps=self.gtol, w=self.cwork, iflag=iflag, \
                     irest=self.irest, method=self.cgtype, finish=finish)
             iflag = oflag
             finish = bool(ofinish==1)
@@ -633,10 +632,10 @@ class Minimize():
                 gnorm = np.sqrt(np.dot(gval, gval))
                 xnorm = np.sqrt(np.dot(x,x))
                 xnorm = max(1.0,xnorm)
-                if gnorm/xnorm <= self.eps:
+                if gnorm/xnorm <= self.gtol:
                     finish = True
                 icall += 1
-                #tlev = self.eps*(1.0+np.abs(fval))
+                #tlev = self.gtol*(1.0+np.abs(fval))
                 #i = 0
                 #if (np.abs(gval[i]) > tlev):
                 #    continue

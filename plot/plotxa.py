@@ -76,28 +76,30 @@ for pt in perts:
     ax01.set_title("error")
     for ax in [ax00,ax01]:
         ax.set_xlim(xs[0],xs[-1])
+#    if pt != "kf" and pt != "var" and pt != "4dvar":
+    f = "{}_xsa_{}_{}.npy".format(model, op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    xsa = np.load(f)
+    print(xsa.shape)
+    gs01 = gs0[1].subgridspec(5, 1)
+    ax10 = fig2.add_subplot(gs01[1:, :])
+    ax11 = fig2.add_subplot(gs01[0, :])
+    mp3 = ax10.pcolormesh(xs, t, xsa, shading='auto')
+    ax10.set_xticks(xs[::(nx//8)])
+    ax10.set_yticks(t[::max(1,na//8)])
+    ax10.set_xlabel("site")
+    p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
+    ax11.plot(xs,xsa.mean(axis=0))
+    ax11.set_xticks(xs[::(nx//8)])
+    ax11.set_xticklabels([])
+    for ax in [ax10,ax11]:
+        ax.set_xlim(xs[0],xs[-1])
     if pt != "kf" and pt != "var" and pt != "4dvar":
-        f = "{}_xsa_{}_{}.npy".format(model, op, pt)
-        if not os.path.isfile(f):
-            print("not exist {}".format(f))
-            continue
-        xsa = np.load(f)
-        print(xsa.shape)
-        gs01 = gs0[1].subgridspec(5, 1)
-        ax10 = fig2.add_subplot(gs01[1:, :])
-        ax11 = fig2.add_subplot(gs01[0, :])
-        mp3 = ax10.pcolormesh(xs, t, xsa, shading='auto')
-        ax10.set_xticks(xs[::(nx//8)])
-        ax10.set_yticks(t[::max(1,na//8)])
-        ax10.set_xlabel("site")
-        p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
-        ax11.plot(xs,xsa.mean(axis=0))
-        ax11.set_xticks(xs[::(nx//8)])
-        ax11.set_xticklabels([])
         ax11.set_title("spread")
-        for ax in [ax10,ax11]:
-            ax.set_xlim(xs[0],xs[-1])
         fig2.suptitle("error and spread : "+pt+" "+op)
     else:
-        fig2.suptitle("error : "+pt+" "+op)
+        ax11.set_title("analysis error standard deviation")
+        fig2.suptitle("error and stdv : "+pt+" "+op)
     fig2.savefig("{}_xd_{}_{}.png".format(model,op,pt))

@@ -362,10 +362,10 @@ class Mlef():
             iprint = np.zeros(2, dtype=np.int32)
             irest = 0 # restart counter
             flg = -1  # optimilation result flag
-            options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+            options = {'iprint':iprint, 'method':method, 'cgtype':cgtype, \
+                    'gtol':gtol, 'disp':disp, 'maxiter':maxiter, 'restart':restart}
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter, restart=restart)
+                            args=args_j, **options)
             logger.info("save_hist={}".format(save_hist))
             if restart:
                 if save_hist:

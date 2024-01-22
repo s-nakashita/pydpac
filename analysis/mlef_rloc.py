@@ -281,9 +281,10 @@ class Mlef_rloc():
             x = x0.copy()
             irest = 0 # restart counter
             flg = -1  # optimization result flag
+            options={'iprint':iprint, 'method':method, 'cgtype':cgtype, \
+                    'gtol':gtol, 'desp':desp, 'maxiter':maxiter, 'restart':restart}
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter, restart=restart)
+                            args=args_j, **options)
             if save_hist:
                 x, flg = minimize(x0, callback=self.callback)
                 jh = np.zeros(len(zetak))

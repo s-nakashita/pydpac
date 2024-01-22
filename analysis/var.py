@@ -138,13 +138,16 @@ class Var():
             bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
         return np.dot(bsqrt,w), bsqrt
 
-    def calc_j(self, w, *args):
+    def calc_j(self, w, *args, return_each=False):
         JH, rinv, ob = args
         jb = 0.5 * np.dot(w,w)
         x, _ = self.prec(w)
         d = JH @ x - ob
         jo = 0.5 * d.T @ rinv @ d
-        return jb + jo
+        if return_each:
+            return jb, jo
+        else:
+            return jb + jo
 
     def calc_grad_j(self, w, *args):
         JH, rinv, ob = args
@@ -173,10 +176,10 @@ class Var():
         x0, bsqrt = self.prec(w0,first=True)
         args_j = (JH, rinv, ob)
         iprint = np.zeros(2, dtype=np.int32)
-        options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+        options = {'iprint':iprint, 'method':method, 'cgtype':cgtype,\
+                'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(w0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter)
+                            args=args_j, **options)
         logger.info(f"save_hist={save_hist} cycle={icycle}")
         if save_hist:
             w, flg = minimize(w0, callback=self.callback)
@@ -185,11 +188,7 @@ class Var():
             for i in range(len(zetak)):
                 #jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
                 # calculate jb and jo separately
-                JH, rinv, ob = args_j
-                jb = 0.5 * np.dot(zetak[i],zetak[i])
-                xtmp, _ = self.prec(zetak[i])
-                dtmp = JH @ xtmp - ob
-                jo = 0.5 * dtmp.T @ rinv @ dtmp
+                jb, jo = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
                 jh[i,0] = jb
                 jh[i,1] = jo
                 g = self.calc_grad_j(np.array(zetak[i]), *args_j)

@@ -68,29 +68,29 @@ for pt in perts:
     if pt[:2] != "4d":
         ax[0].plot(x, e_gm, linestyle="solid", marker=marker["3d"], color=linecolor[pt], label=pt)
         ax[1].plot(x, e_lam, linestyle="solid", marker=marker["3d"], color=linecolor[pt], label=pt)
-        if pt != "kf" and pt != "var" and pt != "var_nest":
-            ax[0].plot(x, stda_gm, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
-            ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
-            ax2[0].plot(x, stda_gm/e_gm, marker=marker["3d"], color=linecolor[pt], label=pt)
-            ax2[1].plot(x, stda_lam/e_lam, marker=marker["3d"], color=linecolor[pt], label=pt)
+        #if pt != "kf" and pt != "var" and pt != "var_nest":
+        ax[0].plot(x, stda_gm, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
+        ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
+        ax2[0].plot(x, stda_gm/e_gm, marker=marker["3d"], color=linecolor[pt], label=pt)
+        ax2[1].plot(x, stda_lam/e_lam, marker=marker["3d"], color=linecolor[pt], label=pt)
     else:
         ax[0].plot(x, e_gm, linestyle="solid", marker=marker["4d"], color=linecolor[pt], label=pt)
         ax[1].plot(x, e_lam, linestyle="solid", marker=marker["4d"], color=linecolor[pt], label=pt)
-        if pt != "4dvar":
-            ax[0].plot(x, stda_gm, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
-            ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
-            ax2[0].plot(x, stda_gm/e_gm, marker=marker["4d"], color=linecolor[pt], label=pt)
-            ax2[1].plot(x, stda_lam/e_lam, marker=marker["4d"], color=linecolor[pt], label=pt)
+        #if pt != "4dvar":
+        ax[0].plot(x, stda_gm, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
+        ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
+        ax2[0].plot(x, stda_gm/e_gm, marker=marker["4d"], color=linecolor[pt], label=pt)
+        ax2[1].plot(x, stda_lam/e_lam, marker=marker["4d"], color=linecolor[pt], label=pt)
 # observation error (loosely dashed)
 ax[0].plot(x, y, linestyle=(0, (5, 10)), color='black')
 ax[1].plot(x, y, linestyle=(0, (5, 10)), color='black')
-ax[0].set(xlabel="analysis cycle", ylabel="RMSE or SPREAD",
+ax[0].set(xlabel="analysis cycle", ylabel="RMSE or STDV",
         title=op+" GM")
-ax[1].set(xlabel="analysis cycle", ylabel="RMSE or SPREAD",
+ax[1].set(xlabel="analysis cycle", ylabel="RMSE or STDV",
         title=op+" LAM")
-ax2[0].set(xlabel="analysis cycle", ylabel="SPREAD/RMSE",
+ax2[0].set(xlabel="analysis cycle", ylabel="STDV/RMSE",
         title=op+" GM")
-ax2[1].set(xlabel="analysis cycle", ylabel="SPREAD/RMSE",
+ax2[1].set(xlabel="analysis cycle", ylabel="STDV/RMSE",
         title=op+" LAM")
 for i in range(2):
         if len(x) > 50:

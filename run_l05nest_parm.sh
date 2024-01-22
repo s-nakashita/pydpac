@@ -4,20 +4,20 @@ alias python=python3.9
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var var_nest"
-na=100 # Number of assimilation cycle
+perturbations="var"
+na=200 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-ptype=lb
+ptype=sigb
 functype=gc5
 #lgsig=110
 #llsig=70
 #exp="letkf_K15_${ptype}_mem${nmem}obs${nobs}"
 #exp="mlef_gmonly_${ptype}_mem${nmem}obs${nobs}"
-exp="var_${functype}_${ptype}_obs${nobs}"
+exp="var_${functype}nmc_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -35,8 +35,8 @@ nmemlist="40 80 120 160 200 240"
 lsiglist="20 30 40 50 60 70 80 90 100"
 nobslist="480 240 120 60 30 15"
 infllist="1.0 1.01 1.02 1.03 1.04 1.05"
-#sigblist="0.2 0.4 0.6 0.8 1.0 1.2"
-sigblist="1.2 1.6 2.0 2.4 2.8 3.2"
+sigblist="0.1 0.2 0.4 0.6 0.8 1.0"
+#sigblist="0.8 1.2 1.6 2.0 2.4 2.8"
 lblist="2.0 4.0 6.0 8.0 10.0 12.0"
 touch params.txt
 for op in ${operators}; do
@@ -53,14 +53,14 @@ for op in ${operators}; do
   #for infl in ${infllist}; do
   #  echo $infl >> params.txt
   #  ptmp=$infl
-  #for gsigb in ${sigblist}; do
-  #for lsigb in ${sigblist}; do
-  #  echo $gsigb $lsigb >> params.txt
-  #  ptmp=g${gsigb}l${lsigb}
-  for glb in ${lblist}; do
-  for llb in ${lblist}; do
-    echo $glb $llb >> params.txt
-    ptmp=g${glb}l${llb}
+  for gsigb in ${sigblist}; do
+  for lsigb in ${sigblist}; do
+    echo $gsigb $lsigb >> params.txt
+    ptmp=g${gsigb}l${lsigb}
+  #for glb in ${lblist}; do
+  #for llb in ${lblist}; do
+  #  echo $glb $llb >> params.txt
+  #  ptmp=g${glb}l${llb}
     for pert in ${perturbations}; do
       echo $pert
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py

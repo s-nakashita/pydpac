@@ -27,35 +27,49 @@ labels = []
 lines2 = []
 labels2 = []
 for pt in perts:
-    cycles = []
-    j = []
-    g = []
-    niter = []
-    for icycle in range(na):
-        f = "{}_jh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
-        if not os.path.isfile(f): continue
-        j1 = np.loadtxt(f)
-        if j1.ndim == 2:
-            j.append(j1[-1,:])
-        else:
-            j.append(j1)
-        f = "{}_gh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
-        if not os.path.isfile(f): continue
-        g1 = np.loadtxt(f)
-        if g1.ndim == 1:
-            g.append(g1[-1])
-            niter.append(g1.size)
-        else:
-            g.append(g1)
-            niter.append(1)
-        #
-        cycles.append(icycle)
-    if len(cycles) == 0:
-        print("not exist {}".format(pt))
-        continue
-    lplot=True
-    j = np.array(j)
-    g = np.array(g)
+    f = "{}_jh_{}_{}.txt".format(model, op, pt)
+    if os.path.isfile(f):
+        j = np.loadtxt(f)
+        f = "{}_gh_{}_{}.txt".format(model, op, pt)
+        g = np.loadtxt(f)
+        f = "{}_niter_{}_{}.txt".format(model, op, pt)
+        niter = np.loadtxt(f)
+        cycles = np.arange(j.shape[0])
+        lplot=True
+    else:
+        cycles = []
+        j = []
+        g = []
+        niter = []
+        for icycle in range(na):
+            f = "{}_jh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
+            if not os.path.isfile(f): continue
+            j1 = np.loadtxt(f)
+            if j1.ndim == 2:
+                j.append(j1[-1,:])
+            else:
+                j.append(j1)
+            f = "{}_gh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
+            if not os.path.isfile(f): continue
+            g1 = np.loadtxt(f)
+            if g1.ndim == 1:
+                g.append(g1[-1])
+                niter.append(g1.size)
+            else:
+                g.append(g1)
+                niter.append(1)
+            #
+            cycles.append(icycle)
+        if len(cycles) == 0:
+            print("not exist {}".format(pt))
+            continue
+        lplot=True
+        j = np.array(j)
+        g = np.array(g)
+        niter = np.array(niter)
+        np.savetxt("{}_jh_{}_{}.txt".format(model, op, pt), j)
+        np.savetxt("{}_gh_{}_{}.txt".format(model, op, pt), g)
+        np.savetxt("{}_niter_{}_{}.txt".format(model, op, pt), niter)
     print("{}, mean J = {}".format(pt,np.mean(j.sum(axis=1))))
     print("{}, mean dJ = {}".format(pt,np.mean(g)))
     ax[0].plot(cycles, j[:,0], linestyle="solid", color=linecolor[pt]) #, label=pt+",Jb")

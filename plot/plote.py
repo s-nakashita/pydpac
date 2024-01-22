@@ -127,45 +127,45 @@ for pt in perts:
             ax.plot(x, e, marker=marker["3d"], color=linecolor[pt], label=pt)
         else:
             ax.plot(x, e, marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
-    if pt!="kf" and pt!="var" and pt!="4dvar":
-        f = "stda_{}_{}.txt".format(op, pt)
-        if not os.path.isfile(f):
-            print("not exist {}".format(f))
-            continue
-        stda = np.loadtxt(f)
-        if model == "qg":
-            stda = stda.reshape(-1,2)
+#    if pt!="kf" and pt!="var" and pt!="4dvar":
+    f = "stda_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    stda = np.loadtxt(f)
+    if model == "qg":
+        stda = stda.reshape(-1,2)
+        for i in range(2):
+            ax[i].plot(x, stda[:,i], linestyle="dashed", color=linecolor[pt], label=pt+" stdv.")
+    else:
+        if pt[:2] != "4d":
+            ax.plot(x, stda, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt], label=pt+" stdv.")
+        else:
+            ax.plot(x, stda, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt[2:]], label=pt+" stdv.")
+    if model == "qg":
+        if e.shape[1] > na:
             for i in range(2):
-                ax[i].plot(x, stda[:,i], linestyle="dashed", color=linecolor[pt], label=pt+" stdv.")
+                if pt[:2] != "4d":
+                    ax2[i].plot(x[1:], stda[:,i]/e[1:,i], marker=marker["3d"], color=linecolor[pt], label=pt)
+                else:
+                    ax2[i].plot(x[1:], stda[:,i]/e[1:,i], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
+        else:
+            for i in range(2):
+                if pt[:2] != "4d":
+                    ax2[i].plot(x, stda[:,i]/e[:,i], marker=marker["3d"], color=linecolor[pt], label=pt)
+                else:
+                    ax2[i].plot(x, stda[:,i]/e[:,i], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
+    else:
+        if e.size > na:
+            if pt[:2] != "4d":
+                ax2.plot(x[1:], stda/e[1:], marker=marker["3d"], color=linecolor[pt], label=pt)
+            else:
+                ax2.plot(x[1:], stda/e[1:], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
         else:
             if pt[:2] != "4d":
-                ax.plot(x, stda, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt], label=pt+" stdv.")
+                ax2.plot(x, stda/e, marker=marker["3d"], color=linecolor[pt], label=pt)
             else:
-                ax.plot(x, stda, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt[2:]], label=pt+" stdv.")
-        if model == "qg":
-            if e.shape[1] > na:
-                for i in range(2):
-                    if pt[:2] != "4d":
-                        ax2[i].plot(x[1:], stda[:,i]/e[1:,i], marker=marker["3d"], color=linecolor[pt], label=pt)
-                    else:
-                        ax2[i].plot(x[1:], stda[:,i]/e[1:,i], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
-            else:
-                for i in range(2):
-                    if pt[:2] != "4d":
-                        ax2[i].plot(x, stda[:,i]/e[:,i], marker=marker["3d"], color=linecolor[pt], label=pt)
-                    else:
-                        ax2[i].plot(x, stda[:,i]/e[:,i], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
-        else:
-            if e.size > na:
-                if pt[:2] != "4d":
-                    ax2.plot(x[1:], stda/e[1:], marker=marker["3d"], color=linecolor[pt], label=pt)
-                else:
-                    ax2.plot(x[1:], stda/e[1:], marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
-            else:
-                if pt[:2] != "4d":
-                    ax2.plot(x, stda/e, marker=marker["3d"], color=linecolor[pt], label=pt)
-                else:
-                    ax2.plot(x, stda/e, marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
+                ax2.plot(x, stda/e, marker=marker["4d"], color=linecolor[pt[2:]], label=pt)
     #f = "{}_e_{}-nodiff_{}.txt".format(model, op, pt)
     #if not os.path.isfile(f):
     #    print("not exist {}".format(f))

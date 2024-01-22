@@ -209,7 +209,7 @@ class Var_nest():
             alphak.append(alpha)
 
     def prec(self,w,first=False):
-        global bsqrt, vsqrt, vsqrtinv
+        global bsqrt, vsqrt, vsqrtpinv
         if first:
             ## calculate square root
             eival, eivec = la.eigh(self.bmat)
@@ -231,7 +231,7 @@ class Var_nest():
             eival, eivec = la.eigh(self.vmat)
             eival = eival[::-1]
             eivec = eivec[:,::-1]
-            eival[eival<1.0e-16] = 1.0e-16
+            eival[eival<1.0e-16] = 0.0
             npos = np.sum(eival>1.0e-16)
             logger.info(f"#positive eigenvalues in vmat={npos}")
             #accum = [eival[:i].sum()/eival.sum() for i in range(1,eival.size+1)]
@@ -241,41 +241,45 @@ class Var_nest():
             #    npos += 1
             #logger.info(f"#99% eigenvalues in vmat={npos}")
             vsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
-            vsqrtinv = np.dot(np.diag(1.0/np.sqrt(eival)),eivec.T)
+            vsqrtpinv = la.pinv(vsqrt) #Moore-Penrose pseudoinverse
             ## reconstruction of vmat
             #self.vmat = np.dot(self.vsqrt, self.vsqrt.T)
-        return np.dot(bsqrt,w), bsqrt, vsqrt, vsqrtinv
+        return np.dot(bsqrt,w), bsqrt, vsqrt, vsqrtpinv
 
-    def calc_j(self, w, *args):
+    def calc_j(self, w, *args, return_each=False):
         JH, rinv, ob, dk, JH2 = args
         jb = 0.5 * np.dot(w,w)
-        x, _, vsqrt, _ = self.prec(w)
+        x, _, vsqrt, vsqrtpinv = self.prec(w)
         d = JH @ x - ob
         jo = 0.5 * d.T @ rinv @ d
         #dktmp = JH2@x - dk 
         #dktmp2 = la.solve(self.vmat, dktmp)
-        dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
-        #dktmp = vsqrtinv @ (JH2@x-dk)
+        #dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
+        dktmp = vsqrtpinv @ (JH2@x-dk)
         dktmp2 = dktmp
         jk = 0.5 * np.dot(dktmp,dktmp2)
-        return jb + jo + jk
+        if return_each:
+            return jb, jo, jk
+        else:
+            return jb + jo + jk
 
     def calc_grad_j(self, w, *args):
         JH, rinv, ob, dk, JH2 = args
-        x, bsqrt, vsqrt, vsqrtinv = self.prec(w)
+        x, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
         d = JH @ x - ob
-        #dktmp = self.vsqrtinv @ (JH2@x-dk)
-        #dktmp2 = self.vsqrtinv.T @ dktmp
-        dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
-        dktmp2 = la.solve(vsqrt.T, dktmp) #valid only for the square matrix of vsqrt
         #dktmp = JH2@x - dk 
         #dktmp2 = la.solve(self.vmat, dktmp)
+        #dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
+        #dktmp2 = la.solve(vsqrt.T, dktmp) #valid only for the square matrix of vsqrt
+        dktmp = vsqrtpinv @ (JH2@x-dk)
+        dktmp2 = vsqrtpinv.T @ dktmp
         return w + bsqrt.T @ JH.T @ rinv @ d + bsqrt.T @ JH2.T @ dktmp2
 
     def calc_hess(self, w, *args):
         JH, rinv, ob, dk, JH2 = args
-        _, bsqrt, vsqrt, vsqrtinv = self.prec(w)
-        return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + bsqrt.T @ JH2.T @ vsqrtinv.T @ vsqrtinv @ JH2 @ bsqrt
+        _, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
+        qkmat = vsqrtpinv @ JH2 @ bsqrt
+        return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + qkmat.T @ qkmat
 
     def __call__(self, xf, pf, y, yloc, xg, method="LBFGS", cgtype=1,
         gtol=1e-6, maxiter=100,\
@@ -297,10 +301,10 @@ class Var_nest():
         x0, bsqrt, _, _ = self.prec(w0,first=True)
         args_j = (JH, rinv, ob, dk, JH2)
         iprint = np.zeros(2, dtype=np.int32)
-        options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+        options = {'iprint':iprint, 'method':method, 'cgtype':cgtype, \
+                'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
         minimize = Minimize(w0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter)
+                            args=args_j, **options)
         logger.info(f"save_hist={save_hist} cycle={icycle}")
         if save_hist:
             w, flg = minimize(w0, callback=self.callback)
@@ -308,17 +312,7 @@ class Var_nest():
             gh = np.zeros(len(zetak))
             for i in range(len(zetak)):
                 #jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
-                JH, rinv, ob, dk, JH2 = args_j
-                jb = 0.5 * np.dot(zetak[i],zetak[i])
-                xtmp, _, vsqrt, _ = self.prec(zetak[i])
-                dtmp = JH @ xtmp - ob
-                jo = 0.5 * dtmp.T @ rinv @ dtmp
-                #dktmp = JH2@x - dk 
-                #dktmp2 = la.solve(self.vmat, dktmp)
-                dktmp = la.solve(vsqrt, (JH2@xtmp-dk)) #valid only for the square matrix of vsqrt
-                #dktmp = vsqrtinv @ (JH2@x-dk)
-                dktmp2 = dktmp
-                jk = 0.5 * np.dot(dktmp,dktmp2)
+                jb, jo, jk = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
                 jh[i,0] = jb
                 jh[i,1] = jo
                 jh[i,2] = jk

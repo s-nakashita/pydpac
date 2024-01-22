@@ -95,35 +95,37 @@ for pt in perts:
     for ax in [ax00,ax01]:
         ax.vlines([ix_lam[0],ix_lam[-1]],0,1,\
             colors='black',linestyle='dashdot',transform=ax.get_xaxis_transform())
+    #if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
+    if dscl:
+        f = "xsagmonly_{}_{}.npy".format(op, pt)
+    else:
+        f = "xsagm_{}_{}.npy".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    xsagm = np.load(f)
+    print(xsagm.shape)
+    gs01 = gs0[1].subgridspec(5, 1)
+    ax10 = fig2.add_subplot(gs01[1:, :])
+    ax11 = fig2.add_subplot(gs01[0, :])
+    mp3 = ax10.pcolormesh(ix_gm, t, xsagm, shading='auto')
+    ax10.set_xticks(ix_gm[::(nx//8)])
+    ax10.set_yticks(t[::max(1,na//8)])
+    ax10.set_xlabel("site")
+    p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
+    ax11.plot(ix_gm,np.nanmean(xsagm,axis=0))
+    ax11.set_xlim(ix_gm[0],ix_gm[-1])
+    ax11.set_xticks(ix_gm[::(nx//8)])
+    ax11.set_xticklabels([])
+    for ax in [ax10,ax11]:
+        ax.vlines([ix_lam[0],ix_lam[-1]],0,1,\
+        colors='black',linestyle='dashdot',transform=ax.get_xaxis_transform())
     if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
-        if dscl:
-            f = "xsagmonly_{}_{}.npy".format(op, pt)
-        else:
-            f = "xsagm_{}_{}.npy".format(op, pt)
-        if not os.path.isfile(f):
-            print("not exist {}".format(f))
-            continue
-        xsagm = np.load(f)
-        print(xsagm.shape)
-        gs01 = gs0[1].subgridspec(5, 1)
-        ax10 = fig2.add_subplot(gs01[1:, :])
-        ax11 = fig2.add_subplot(gs01[0, :])
-        mp3 = ax10.pcolormesh(ix_gm, t, xsagm, shading='auto')
-        ax10.set_xticks(ix_gm[::(nx//8)])
-        ax10.set_yticks(t[::max(1,na//8)])
-        ax10.set_xlabel("site")
-        p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
-        ax11.plot(ix_gm,np.nanmean(xsagm,axis=0))
-        ax11.set_xlim(ix_gm[0],ix_gm[-1])
-        ax11.set_xticks(ix_gm[::(nx//8)])
-        ax11.set_xticklabels([])
         ax11.set_title("spread")
-        for ax in [ax10,ax11]:
-            ax.vlines([ix_lam[0],ix_lam[-1]],0,1,\
-            colors='black',linestyle='dashdot',transform=ax.get_xaxis_transform())
         fig2.suptitle("error and spread in GM : "+pt+" "+op)
     else:
-        fig2.suptitle("error in GM : "+pt+" "+op)
+        ax11.set_title("analysis error standard deviation")
+        fig2.suptitle("error and stdv in GM : "+pt+" "+op)
     if dscl:
         fig2.savefig("{}_xdgmonly_{}_{}.png".format(model,op,pt))
     else:
@@ -188,33 +190,35 @@ for pt in perts:
     ax01.set_title("error")
     for ax in [ax00,ax01]:
         ax.set_xlim(ix_lam[0],ix_lam[-1])
-    if pt != "kf" and pt != "var" and pt != "4dvar":
-        if dscl:
-            f = "xsadscl_{}_{}.npy".format(op, pt)
-        else:
-            f = "xsalam_{}_{}.npy".format(op, pt)
-        if not os.path.isfile(f):
-            print("not exist {}".format(f))
-            continue
-        xsalam = np.load(f)
-        print(xsalam.shape)
-        gs01 = gs0[1].subgridspec(5, 1)
-        ax10 = fig2.add_subplot(gs01[1:, :])
-        ax11 = fig2.add_subplot(gs01[0, :])
-        mp3 = ax10.pcolormesh(ix_lam, t, xsalam, shading='auto')
-        ax10.set_xticks(ix_lam[::(nx//8)])
-        ax10.set_yticks(t[::max(1,na//8)])
-        ax10.set_xlabel("site")
-        p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
-        ax11.plot(ix_lam,np.nanmean(xsalam,axis=0))
-        ax11.set_xticks(ix_lam[::(nx//8)])
-        ax11.set_xticklabels([])
+    #if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
+    if dscl:
+        f = "xsadscl_{}_{}.npy".format(op, pt)
+    else:
+        f = "xsalam_{}_{}.npy".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    xsalam = np.load(f)
+    print(xsalam.shape)
+    gs01 = gs0[1].subgridspec(5, 1)
+    ax10 = fig2.add_subplot(gs01[1:, :])
+    ax11 = fig2.add_subplot(gs01[0, :])
+    mp3 = ax10.pcolormesh(ix_lam, t, xsalam, shading='auto')
+    ax10.set_xticks(ix_lam[::(nx//8)])
+    ax10.set_yticks(t[::max(1,na//8)])
+    ax10.set_xlabel("site")
+    p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
+    ax11.plot(ix_lam,np.nanmean(xsalam,axis=0))
+    ax11.set_xticks(ix_lam[::(nx//8)])
+    ax11.set_xticklabels([])
+    for ax in [ax10,ax11]:
+        ax.set_xlim(ix_lam[0],ix_lam[-1])
+    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
         ax11.set_title("spread")
-        for ax in [ax10,ax11]:
-            ax.set_xlim(ix_lam[0],ix_lam[-1])
         fig2.suptitle("error and spread in LAM : "+pt+" "+op)
     else:
-        fig2.suptitle("error in LAM : "+pt+" "+op)
+        ax11.set_title("analysis error standard deviation")
+        fig2.suptitle("error and stdv in LAM : "+pt+" "+op)
     if dscl:
         fig2.savefig("{}_xddscl_{}_{}.png".format(model,op,pt))
     else:

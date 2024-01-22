@@ -301,10 +301,10 @@ class Mlef4d():
             else:
                 args_j = (d, tmat, zmat)
             iprint = np.zeros(2, dtype=np.int32)
-            options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+            options = {'iprint':iprint, 'method':method, 'cgtype':cgtype, \
+                    'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter)
+                            args=args_j, **options)
             logger.info("save_hist={}".format(save_hist))
             if save_hist:
                 x, flg = minimize(x0, callback=self.callback)

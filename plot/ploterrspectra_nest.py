@@ -6,6 +6,7 @@ from scipy.fft import fft, fftfreq, ifft
 from scipy.interpolate import interp1d
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FixedLocator, FixedFormatter
 plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
@@ -49,13 +50,13 @@ for pt in perts:
         print("not exist {}".format(f))
         continue
     xagm = np.load(f)
-    print(xagm.shape)
+    print(f"xagm.shape={xagm.shape}")
     f = "xsagm_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xsagm = np.load(f)
-    print(xsagm.shape)
+    print(f"xsagm.shape={xsagm.shape}")
     if np.isnan(xagm).any():
         print("divergence in {}".format(pt))
         continue
@@ -65,13 +66,13 @@ for pt in perts:
         print("not exist {}".format(f))
         continue
     xalam = np.load(f)
-    print(xalam.shape)
+    print(f"xalam.shape={xalam.shape}")
     f = "xsalam_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xsalam = np.load(f)
-    print(xsalam.shape)
+    print(f"xsalam.shape={xsalam.shape}")
     if np.isnan(xalam).any():
         print("divergence in {}".format(pt))
         continue
@@ -110,13 +111,13 @@ for pt in perts:
     axs[0].grid()
     lines = []
     labels = []
-    espgm = fft(xdgm,axis=1)
-    freq = fftfreq(nx_gm,dx_gm)[:nx_gm//2] * 2.0 * np.pi
+    espgm = fft(xdgm,axis=1)[:,:nx_gm//2]
+    wnum = fftfreq(nx_gm,dx_gm)[:nx_gm//2]
     #freq = np.arange(0,nx//2)
-    print(espgm.shape)
-    print(freq)
-    psdgm = 2.0*np.mean(np.abs(espgm[:,:nx_gm//2])**2,axis=0)*dx_gm*dx_gm/Lx_gm
-    axs[1].plot(freq,psdgm,c='tab:blue')
+    print(f"espgm.shape={espgm.shape}")
+    print(f"wnum_gm={wnum}")
+    psdgm = 2.0*np.mean(np.abs(espgm)**2,axis=0)*dx_gm*dx_gm/Lx_gm
+    axs[1].loglog(wnum,psdgm,c='tab:blue')
     lines.append(Line2D([0],[0],color='tab:blue',lw=2))
     labels.append('GM,err')
     #nx = xsagm.shape[1]
@@ -127,13 +128,13 @@ for pt in perts:
     #    psdgm = 2.0*np.mean(np.abs(espgms[:,:nx_gm//2])**2,axis=0)*dx_gm*dx_gm/Lx_gm
     #    axs[1].plot(freq,psdgm,c='tab:blue',ls='dashed',label='GM,sprd')
     nx = xd.shape[1]
-    esp = fft(xd,axis=1)
-    freq = fftfreq(nx,dx_lam)[:nx_lam//2] * 2.0 * np.pi
+    esp = fft(xd,axis=1)[:,:nx_lam//2]
+    wnum = fftfreq(nx,dx_lam)[:nx_lam//2]
     #freq = np.arange(0,nx//2)
-    print(freq)
-    print(esp.shape)
-    psd = 2.0*np.mean(np.abs(esp[:,:nx_lam//2])**2,axis=0)*dx_lam*dx_lam/Lx_lam
-    axs[1].plot(freq,psd,c='tab:orange')
+    print(f"esplam.shape={esp.shape}")
+    print(f"wnum_lam={wnum}")
+    psd = 2.0*np.mean(np.abs(esp)**2,axis=0)*dx_lam*dx_lam/Lx_lam
+    axs[1].loglog(wnum,psd,c='tab:orange')
     lines.append(Line2D([0],[0],color='tab:orange',lw=2))
     labels.append('LAM,err')
     #ax2 = axs[1].twinx()
@@ -147,27 +148,24 @@ for pt in perts:
     #    esps = fft(xsa,axis=1)
     #    psd = 2.0*np.mean(np.abs(esps[:,:nx_lam//2])**2,axis=0)*dx_lam*dx_lam/Lx_lam
     #    axs[1].plot(freq,psd,c='tab:orange',ls='dashed',label='LAM,sprd')
-    axs[1].set_xlim(freq[0],freq[-1])
-    axs[1].set_yscale("log")
-    axs[1].set_xlabel("wave number")
+#    axs[1].set_xlim(wnum[1],wnum[-1])
+    axs[1].set_xlabel(r"wave number [radian$^{-1}$]")
     axs[1].set_ylabel("power spectral density")
-    axs[1].set_title("spectral space")
-    """
-    def num2len(k):
-        #Vectorized 1/x, treating x==0 manually
-        k = np.array(k, float)
-        near_zero = np.isclose(k, 0)
-        x = np.zeros_like(k)
-        x[near_zero] = np.inf
-        x[~near_zero] = nx * dx / k[~near_zero]
-        return x
-    len2num = num2len
-    print(num2len(freq))
-    secax = axs[1].secondary_xaxis('top',functions=(num2len,len2num))
-    secax.set_xlabel('wave length')
-    #secax.set_xscale('log')
-    """
+    #axs[1].set_title("spectral space")
     axs[1].legend(lines,labels)
+    axs[1].xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
+    axs[1].xaxis.set_major_formatter(FixedFormatter([r'$180/\pi$',r'$120/\pi$',r'$60/\pi$',r'$30/\pi$',r'$1/\pi$']))
+    def one_over(x):
+        x = np.array(x, float)
+        near_zero = np.isclose(x, 0)
+        x[near_zero] = np.inf
+        x[~near_zero] = 1.0 / x[~near_zero]
+        return x
+    inverse = one_over
+    secax = axs[1].secondary_xaxis('top',functions=(one_over,inverse))
+    secax.set_xlabel('wave length [radian]')
+    secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/180.]))
+    secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\pi/30$',r'$\pi/60$',r'$\pi/120$',r'$\pi/180$']))
     axs[1].grid()
 #    xd2 = ifft(esp,axis=1)
 #    axs[0].plot(xs,xd2[0,],label='reconstructed')
