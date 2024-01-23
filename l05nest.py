@@ -52,7 +52,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.02,"envar":1.02,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
+infl_l = {"mlef":1.02,"envar":1.02,"envar_nest":1.02,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
@@ -65,7 +65,7 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":11.0,"envar":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
+sig_l = {"mlef":11.0,"envar":11.0,"envar_nest":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}
@@ -77,9 +77,9 @@ dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
     "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, \
     "test":sig_t, "abs":sig_l, "hint": sig_l}
 # forecast type (ensemble or deterministic)
-ftype = {"mlef":"ensemble","envar":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
-    "kf":"deterministic","var":"deterministic",\
-    "var_nest":"deterministic",\
+ftype = {"mlef":"ensemble","envar":"ensemble","envar_nest":"ensemble",\
+    "etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
+    "kf":"deterministic","var":"deterministic","var_nest":"deterministic",\
     "4dmlef":"ensemble","4detkf":"ensemble","4dpo":"ensemble","4dsrf":"ensemble","4dletkf":"ensemble",\
     "4dvar":"deterministic"}
 
@@ -209,6 +209,31 @@ elif pt == "envar":
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model="l05nest_gm")
     analysis_lam = EnVAR(nx_lam, params_lam["nmem"], obs_lam, \
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            ss=params_lam["ss"], getkf=params_lam["getkf"], \
+            calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+elif pt == "envar_nest":
+    from analysis.envar import EnVAR
+    from analysis.envar_nest import EnVAR_nest
+    analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, pt="envar_nest", \
+            linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+            iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
+            ss=params_gm["ss"], getkf=params_gm["getkf"], \
+            calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
+            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model="l05nest_gm")
+    if params_lam["anlsp"]:
+        analysis_lam = EnVAR_nest(nx_lam, params_lam["nmem"], obs_lam, \
+            step.ix_gm, step.ix_lam, ntrunc=params_lam["ntrunc"],\
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            ss=params_lam["ss"], getkf=params_lam["getkf"], \
+            calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+    else:
+        analysis_lam = EnVAR_nest(nx_lam, params_lam["nmem"], obs_lam, \
+            step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
@@ -506,12 +531,12 @@ if __name__ == "__main__":
             dof_gm[i:min(i+a_window,na)] = ds
             if i >= params_lam["lamstart"]:
                 if params_lam["anlsp"]:
-                    if pt == "var_nest":
+                    if pt == "var_nest" or pt == "envar_nest":
                         args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm)
                     u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(*args_lam, \
                         save_hist=True, save_dh=True, icycle=i)
                 else:
-                    if pt == "var_nest":
+                    if pt == "var_nest" or pt == "envar_nest":
                         args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm)
                     u_lam[nsp:-nsp], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(*args_lam, \
                         save_hist=True, save_dh=True, icycle=i)
@@ -531,11 +556,11 @@ if __name__ == "__main__":
             dof_gm[i:min(i+a_window,na)] = ds
             if i >= params_lam["lamstart"]:
                 if params_lam["anlsp"]:
-                    if pt == "var_nest":
+                    if pt == "var_nest" or pt == "envar_nest":
                         args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm)
                     u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(*args_lam, icycle=i)
                 else:
-                    if pt == "var_nest":
+                    if pt == "var_nest" or pt == "envar_nest":
                         args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm)
                     u_lam[nsp:-nsp], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(*args_lam, icycle=i)
                 chi_lam[i:min(i+a_window,na)] = chi2

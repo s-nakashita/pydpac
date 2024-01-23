@@ -1,3 +1,6 @@
+#
+# Nesting ensemble variational assimilation
+#
 import logging
 from logging import getLogger
 from logging.config import fileConfig
@@ -6,16 +9,19 @@ import numpy.linalg as la
 import copy
 from .chi_test import Chi
 from .minimize import Minimize
+from .trunc1d import Trunc1d
+from scipy.interpolate import interp1d
 
 zetak = []
 alphak = []
 fileConfig("./logging_config.ini")
 logger = getLogger('anl')
         
-class EnVAR():
+class EnVAR_nest():
 
-    def __init__(self, state_size, nmem, obs, pt="envar",
-        nvars=1,ndims=1,
+    def __init__(self, state_size, nmem, obs, ix_gm, ix_lam,
+        pt="envar_nest", ntrunc=None, cyclic=False, 
+        nvars=1, ndims=1, 
         linf=False, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
@@ -27,6 +33,13 @@ class EnVAR():
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
+        self.ix_gm = ix_gm # GM grid
+        self.ix_lam = ix_lam # LAM grid
+        if ntrunc is None:
+            self.ntrunc = self.ix_lam.size // 2
+        else:
+            self.ntrunc = ntrunc # truncation number for GM analysis
+        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False)
         # optional parameters
         self.pt = pt # DA type 
         # for 2 or more variables
@@ -98,7 +111,10 @@ class EnVAR():
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
         return pf
 
-    def precondition(self,zmat):
+    def precondition(self,zmat,qmat):
+        ## Z = R^{-1/2}HX^b
+        ## Q = (H_1X^{AA})^\dag H_2X^b
+        ## Hess = (I + Z^T Z + Q^T Q)
         #u, s, vt = la.svd(zmat)
         #v = vt.transpose()
         #is2r = 1 / (1 + s**2)
@@ -107,7 +123,7 @@ class EnVAR():
         if self.linf:
             logger.info("==inflation==, alpha={}".format(self.infl_parm))
             rho = 1.0 / self.infl_parm
-        c = zmat.transpose() @ zmat
+        c = zmat.transpose() @ zmat + qmat.transpose() @ qmat
         lam, v = la.eigh(c)
         D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho*(nk-1)))))
         vt = v.transpose()
@@ -127,62 +143,75 @@ class EnVAR():
             alphak.append(alpha)
 
     def calc_j(self, zeta, *args, return_each=False):
+        ## Z = R^{-1/2}JHX^b
+        ## Q = (JH_1X^{AA})^\dag JH_2X^b
+        ## dk = (JH_1X^{AA})^\dag (H_1(x^{AA}) - H_2(x^b))
         nk = zeta.size
         if not self.incremental:
-            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
             x = xc + gmat @ zeta
+            w = tmat @ zeta
             ob = y - self.obs.h_operator(yloc, x)
             jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta
             jo = 0.5 * ob.transpose() @ rinv @ ob
+            jk = 0.5 * (qmat@w - dk).transpose() @ (qmat@w - dk)
         #    j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
         else:
         ## incremental form
-            d, tmat, zmat, heinv = args
+            d, tmat, zmat, dk, qmat, heinv = args
             w = tmat @ zeta
             jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta 
             jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
+            jk = 0.5 * (qmat@w - dk).transpose() @ (qmat@w - dk)
             #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
-        logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
+        logger.info(f"jb:{jb:.6e} jo:{jo:.6e} jk:{jk:.6e}")
         if return_each:
-            return jb, jo
+            return jb, jo, jk
         else:
-            j = jb + jo
+            j = jb + jo + jk
             return j
 
     def calc_grad_j(self, zeta, *args):
+        ## Z = R^{-1/2}JHX^b
+        ## Q = (JH_1X^{AA})^\dag JH_2X^b
+        ## dk = (JH_1X^{AA})^\dag (H_1(x^{AA}) - H_2(x^b))
         nk = zeta.size
         if not self.incremental:
-            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
             x = xc + gmat @ zeta
+            w = tmat @ zeta
             hx = self.obs.h_operator(yloc, x)
             ob = y - hx
             if self.ltlm:
                 dy = self.obs.dh_operator(yloc, x) @ dxf
             else:
                 dy = self.obs.h_operator(yloc, x[:, None] + dxf) - hx[:, None]
-            grad = (nk-1) * heinv @ zeta - tmat @ dy.transpose() @ rinv @ ob
+            grad = (nk-1) * heinv @ zeta - tmat @ dy.transpose() @ rinv @ ob + tmat @ qmat.transpose() @ (qmat@w - dk)
         else:
         ## incremental form
-            d, tmat, zmat, heinv = args
+            d, tmat, zmat, dk, qmat, heinv = args
             w = tmat @ zeta
-            grad = (nk-1) * heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+            grad = (nk-1) * heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d) + tmat @ qmat.transpose() @ (qmat@w - dk)
         logger.info(f"|dj|:{np.sqrt(np.dot(grad,grad)):.6e}")
         return grad 
 
     def calc_hess(self, zeta, *args):
+        ## Z = R^{-1/2}JHX^b
+        ## Q = (JH_1X^{AA})^\dag JH_2X^b
+        ## dk = (JH_1X^{AA})^\dag (H_1(x^{AA}) - H_2(x^b))
         nk = zeta.size
         if not self.incremental:
-            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
             x = xc + gmat @ zeta
             if self.ltlm:
                 dy = self.obs.dh_operator(yloc, x) @ dxf
             else:
                 dy = self.obs.h_operator(yloc, x[:, None] + dxf) - self.obs.h_operator(yloc, x)[:, None]
-            hess = tmat @ ((nk-1) * np.eye(zeta.size) + dy.transpose() @ rinv @ dy) @ tmat
+            hess = tmat @ ((nk-1) * np.eye(zeta.size) + dy.transpose() @ rinv @ dy + qmat.transpose() @ qmat) @ tmat
         else:
         ## incremental form
-            d, tmat, zmat, heinv = args
-            hess = tmat @ ((nk-1) * np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
+            d, tmat, zmat, dk, qmat, heinv = args
+            hess = tmat @ ((nk-1) * np.eye(zeta.size) + zmat.transpose() @ zmat + qmat.transpose() @ qmat) @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
@@ -295,7 +324,7 @@ class EnVAR():
                 logger.debug(f"{i:02d} lmat {l_tmp[:,i]}")
         return l_mat, l_sqrt, nmode, np.sqrt(lam[:nmode])
 
-    def __call__(self, xb, pb, y, yloc, r=None, rmat=None, rinv=None,
+    def __call__(self, xb, pb, y, yloc, xg, r=None, rmat=None, rinv=None,
         method="CG", cgtype=1,
         gtol=1e-6, maxiter=None, restart=False, maxrest=20, update_ensemble=False,
         disp=False, save_hist=False, save_dh=False, icycle=0, evalout=False):
@@ -330,6 +359,17 @@ class EnVAR():
                 np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
                 np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
                 np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
+            ## global analysis ensemble
+            xg_ = np.mean(xg,axis=1)
+            dxg = xg - xg_[:,None]
+            x_gm2lam = interp1d(self.ix_gm,xg_)
+            xens_gm2lam = interp1d(self.ix_gm,dxg,axis=0)
+            JH1xa = self.trunc_operator(x_gm2lam(self.ix_lam))
+            dk = JH1xa - self.trunc_operator(xf_)
+            JH2XB = self.trunc_operator(dxf)
+            JH1XAA = self.trunc_operator(xens_gm2lam(self.ix_lam))
+            qmat = la.pinv(JH1XAA) @ JH2XB
+            dk = la.pinv(JH1XAA) @ dk
             if self.iloc is not None:
                 logger.info("==localization==, lsig={}".format(self.lsig))
                 dxf_orig = dxf.copy()
@@ -360,7 +400,7 @@ class EnVAR():
             zmat = rmat @ dy
             d = rmat @ ob
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
-            tmat, heinv = self.precondition(zmat)
+            tmat, heinv = self.precondition(zmat,qmat)
             logger.debug("dxf.shape={}".format(dxf.shape))
             logger.debug("tmat.shape={}".format(tmat.shape))
             logger.debug("heinv.shape={}".format(heinv.shape))
@@ -369,9 +409,9 @@ class EnVAR():
             x0 = np.zeros(dxf.shape[1])
             x = x0.copy()
             if not self.incremental:
-                args_j = (xf_, dxf, y, yloc, tmat, gmat, heinv, rinv)
+                args_j = (xf_, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv)
             else:
-                args_j = (d, tmat, zmat, heinv)
+                args_j = (d, tmat, zmat, dk, qmat, heinv)
             iprint = np.zeros(2, dtype=np.int32)
             irest = 0 # restart counter
             flg = -1  # optimilation result flag
@@ -392,8 +432,8 @@ class EnVAR():
                         for i in range(len(zetak)):
                             #jh.append(self.calc_j(np.array(zetak[i]), *args_j))
                             # calculate jb and jo separately
-                            jb,jo = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
-                            jh.append([jb,jo])
+                            jb,jo,jk = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
+                            jh.append([jb,jo,jk])
                             g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                             gh.append(np.sqrt(g.transpose() @ g))
                     else:
@@ -414,16 +454,18 @@ class EnVAR():
                     else:
                         dy = self.obs.h_operator(yloc, xf_[:, None]+dxf) - self.obs.h_operator(yloc, xf_)[:, None]
                     zmat = rmat @ dy
-                    tmat, heinv = self.precondition(zmat)
+                    tmat, heinv = self.precondition(zmat,qmat)
                     gmat = dxf @ tmat
+                    dk = JH1xa - self.trunc_operator(xf_)
+                    dk = la.pinv(JH1XAA) @ dk
                     if update_ensemble:
                         dxf = dxf @ tmat
                     # update arguments
                     if not self.incremental:
-                        args_j = (xf_, dxf, y, yloc, tmat, gmat, heinv, rinv)
+                        args_j = (xf_, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv)
                     else:
                         d = rmat @ (y - self.obs.h_operator(yloc,xf_))
-                        args_j = (d, tmat, zmat, heinv)
+                        args_j = (d, tmat, zmat, dk, qmat, heinv)
                     x0 = np.zeros(dxf.shape[1])
                     # reload minimize class
                     minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
@@ -448,14 +490,15 @@ class EnVAR():
             else:
                 if save_hist:
                     x, flg = minimize(x0, callback=self.callback)
-                    jh = np.zeros((len(zetak),2))
+                    jh = np.zeros((len(zetak),3))
                     gh = np.zeros(len(zetak))
                     for i in range(len(zetak)):
                         #jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
-                        # calculate jb and jo separately
-                        jb, jo = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
+                        # calculate jb, jo and jk separately
+                        jb, jo, jk = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
                         jh[i,0] = jb
                         jh[i,1] = jo
+                        jh[i,2] = jk
                         g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                         gh[i] = np.sqrt(g.transpose() @ g)
                     np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
@@ -483,7 +526,7 @@ class EnVAR():
                 dy = self.obs.h_operator(yloc, xa_[:, None] + dxf) - self.obs.h_operator(yloc, xa_)[:, None]
             zmat = rmat @ dy
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
-            tmat, heinv = self.precondition(zmat)
+            tmat, heinv = self.precondition(zmat, qmat)
             d = y - self.obs.h_operator(yloc, xa_)
             logger.info("zmat shape={}".format(zmat.shape))
             logger.info("d shape={}".format(d.shape))

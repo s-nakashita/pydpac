@@ -26,7 +26,7 @@ dscl = False
 if len(sys.argv)>4:
     dscl = (sys.argv[4]=='T')
 print(dscl)
-perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
+perts = ["mlef", "envar", "envar_nest", "etkf", "po", "srf", "letkf", "kf", "var", "var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 cmap = "coolwarm"

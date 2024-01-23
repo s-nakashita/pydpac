@@ -9,7 +9,6 @@ logger = logging.getLogger('anl')
 # 1-dimensional truncation module using FFT
 class Trunc1d:
     def __init__(self,ix,ntrunc,cyclic=True):
-        logger.info(f"Trunc1d: ntrunc={ntrunc}")
         nx = ix.size
         dx = ix[1] - ix[0]
         if cyclic:
@@ -24,6 +23,7 @@ class Trunc1d:
             nx += 2*nghost-1
         self.F = fft.fft(np.eye(nx),axis=0)
         f = fft.fftfreq(nx,dx)
+        logger.info(f"Trunc1d: ntrunc={ntrunc} ftrunc={f[ntrunc]:.4f}")
         self.T = np.eye(self.F.shape[0])
         self.T[ntrunc+1:f.size-ntrunc,:] = 0.0
         self.Fi = fft.ifft(np.eye(self.T.shape[0]),axis=0)

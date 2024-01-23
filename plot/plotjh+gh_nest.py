@@ -8,10 +8,10 @@ from matplotlib.lines import Line2D
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "envar", "var","var_nest",\
+perts = ["mlef", "envar", "envar_nest", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"envar":'tab:orange', "var":"tab:olive","var_nest":"tab:brown",\
+linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -119,16 +119,16 @@ for pt in perts:
     ax[1].plot(cycles, j_lam[:,1], linestyle="dashed", color=linecolor[pt]) #, label=pt+",Jo")
     #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashed"))
     #labels.append(pt+",Jo")
-    if pt=="var_nest":
+    if pt=="var_nest" or pt=="envar_nest":
         ax[1].plot(cycles, j_lam[:,2], linestyle="dotted", color=linecolor[pt]) #, label=pt+",Jk")
         lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dotted"))
         labels.append(pt+",Jk")
     ax2[0,0].plot(cycles, g_gm, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
     lines2.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashdot"))
     labels2.append(pt+r",$\nabla$J")
-    ax2[0,1].plot(cycles, niter_gm, color=linecolor[pt])
+    ax2[0,1].bar(cycles, niter_gm, color=linecolor[pt], alpha=0.5)
     ax2[1,0].plot(cycles, g_lam, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
-    ax2[1,1].plot(cycles, niter_lam, color=linecolor[pt])
+    ax2[1,1].bar(cycles, niter_lam, color=linecolor[pt], alpha=0.5)
     #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashdot"))
     #labels.append(pt+r",$\nabla$J")
 if lplot:

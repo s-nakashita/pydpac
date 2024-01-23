@@ -30,9 +30,9 @@ class Var_nest():
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
+        self.ix_gm = ix_gm # GM grid
         self.ix_lam = ix_lam # LAM grid
         self.nx = self.ix_lam.size
-        self.ix_gm = ix_gm # GM grid
         i0=np.argmin(np.abs(self.ix_gm-self.ix_lam[0]))
         if self.ix_gm[i0]<self.ix_lam[0]: i0+=1
         i1=np.argmin(np.abs(self.ix_gm-self.ix_lam[-1]))

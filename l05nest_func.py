@@ -209,7 +209,7 @@ class L05nest_func():
             logger.debug("X0c_gm={}".format(X0c_gm))
             logger.debug("X0c_lam={}".format(X0c_lam))
             X0_gm = np.zeros((self.nx_gm, len(t0f)))
-            X0_gm[:, :] = np.random.normal(0.0,1.0,size=(self.nx_gm,len(t0f))) + X0c_gm[:, None]
+            X0_gm[:, :] = self.rng.normal(0.0,scale=1.0,size=(self.nx_gm,len(t0f))) + X0c_gm[:, None]
             for j in range(self.t0c):
                 X0_gm = self.step.gm(X0_gm)
         elif(opt==1): # lagged forecast
