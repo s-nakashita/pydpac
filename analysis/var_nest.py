@@ -308,7 +308,7 @@ class Var_nest():
         #JH2 = tmp_lam2gm(self.ix_gm[self.i0:self.i1+1])
         x_gm2lam = interp1d(self.ix_gm,xg)
         dk = x_gm2lam(self.ix_lam)
-        dk = self.trunc_operator(dk) - self.trunc_operator(xf)
+        dk = self.trunc_operator(dk - xf)
         if save_dh:
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
             np.save("{}_dk_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dk)

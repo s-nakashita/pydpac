@@ -154,7 +154,7 @@ class EnVAR_nest():
             ob = y - self.obs.h_operator(yloc, x)
             jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta
             jo = 0.5 * ob.transpose() @ rinv @ ob
-            jk = 0.5 * (qmat@w - dk).transpose() @ (qmat@w - dk)
+            jk = 0.5 * (nk-1) * (qmat@w - dk).transpose() @ (qmat@w - dk)
         #    j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
         else:
         ## incremental form
@@ -162,7 +162,7 @@ class EnVAR_nest():
             w = tmat @ zeta
             jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta 
             jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
-            jk = 0.5 * (qmat@w - dk).transpose() @ (qmat@w - dk)
+            jk = 0.5 * (nk-1) * (qmat@w - dk).transpose() @ (qmat@w - dk)
             #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         logger.info(f"jb:{jb:.6e} jo:{jo:.6e} jk:{jk:.6e}")
         if return_each:
@@ -186,12 +186,16 @@ class EnVAR_nest():
                 dy = self.obs.dh_operator(yloc, x) @ dxf
             else:
                 dy = self.obs.h_operator(yloc, x[:, None] + dxf) - hx[:, None]
-            grad = (nk-1) * heinv @ zeta - tmat @ dy.transpose() @ rinv @ ob + tmat @ qmat.transpose() @ (qmat@w - dk)
+            grad = (nk-1) * heinv @ zeta \
+                - tmat @ dy.transpose() @ rinv @ ob \
+                + (nk-1) * tmat @ qmat.transpose() @ (qmat@w - dk)
         else:
         ## incremental form
             d, tmat, zmat, dk, qmat, heinv = args
             w = tmat @ zeta
-            grad = (nk-1) * heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d) + tmat @ qmat.transpose() @ (qmat@w - dk)
+            grad = (nk-1) * heinv @ zeta \
+                + tmat @ zmat.transpose() @ (zmat@w - d) \
+                + (nk-1) * tmat @ qmat.transpose() @ (qmat@w - dk)
         logger.info(f"|dj|:{np.sqrt(np.dot(grad,grad)):.6e}")
         return grad 
 
@@ -207,11 +211,15 @@ class EnVAR_nest():
                 dy = self.obs.dh_operator(yloc, x) @ dxf
             else:
                 dy = self.obs.h_operator(yloc, x[:, None] + dxf) - self.obs.h_operator(yloc, x)[:, None]
-            hess = tmat @ ((nk-1) * np.eye(zeta.size) + dy.transpose() @ rinv @ dy + qmat.transpose() @ qmat) @ tmat
+            hess = tmat @ ((nk-1) * np.eye(zeta.size) \
+                + dy.transpose() @ rinv @ dy \
+                + (nk-1) * qmat.transpose() @ qmat) @ tmat
         else:
         ## incremental form
             d, tmat, zmat, dk, qmat, heinv = args
-            hess = tmat @ ((nk-1) * np.eye(zeta.size) + zmat.transpose() @ zmat + qmat.transpose() @ qmat) @ tmat
+            hess = tmat @ ((nk-1) * np.eye(zeta.size) \
+                + zmat.transpose() @ zmat \
+                + (nk-1) * qmat.transpose() @ qmat) @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
@@ -364,8 +372,7 @@ class EnVAR_nest():
             dxg = xg - xg_[:,None]
             x_gm2lam = interp1d(self.ix_gm,xg_)
             xens_gm2lam = interp1d(self.ix_gm,dxg,axis=0)
-            JH1xa = self.trunc_operator(x_gm2lam(self.ix_lam))
-            dk = JH1xa - self.trunc_operator(xf_)
+            dk = self.trunc_operator(x_gm2lam(self.ix_lam) - xf_)
             JH2XB = self.trunc_operator(dxf)
             JH1XAA = self.trunc_operator(xens_gm2lam(self.ix_lam))
             if save_dh:
@@ -460,7 +467,7 @@ class EnVAR_nest():
                     zmat = rmat @ dy
                     tmat, heinv = self.precondition(zmat,qmat)
                     gmat = dxf @ tmat
-                    dk = JH1xa - self.trunc_operator(xf_)
+                    dk = self.trunc_operator(x_gm2lam(self.ix_lam) - xf_)
                     dk = la.pinv(JH1XAA) @ dk
                     if update_ensemble:
                         dxf = dxf @ tmat

@@ -1,24 +1,24 @@
 #!/bin/sh
 # This is a run script for Nesting Lorenz experiment
 export OMP_NUM_THREADS=4
-alias python=python3.9
+#alias python=python3.9
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var"
-na=200 # Number of assimilation cycle
+perturbations="envar envar_nest"
+na=300 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-ptype=sigb
+ptype=nobs
 functype=gc5
 #lgsig=110
 #llsig=70
 #exp="letkf_K15_${ptype}_mem${nmem}obs${nobs}"
-#exp="mlef_gmonly_${ptype}_mem${nmem}obs${nobs}"
-exp="var_${functype}nmc_${ptype}_obs${nobs}"
+exp="envar+envar_nest_${ptype}_mem${nmem}obs${nobs}"
+#exp="var_${functype}nmc_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -48,16 +48,16 @@ for op in ${operators}; do
   #for lsig in ${lsiglist}; do
   #  echo $lsig >> params.txt
   #  ptmp=$lsig
-  #for nobs in ${nobslist}; do
-  #  echo $nobs >> params.txt
-  #  ptmp=$nobs
+  for nobs in ${nobslist}; do
+    echo $nobs >> params.txt
+    ptmp=$nobs
   #for infl in ${infllist}; do
   #  echo $infl >> params.txt
   #  ptmp=$infl
-  for gsigb in ${sigblist}; do
-  for lsigb in ${sigblist}; do
-    echo $gsigb $lsigb >> params.txt
-    ptmp=g${gsigb}l${lsigb}
+  #for gsigb in ${sigblist}; do
+  #for lsigb in ${sigblist}; do
+  #  echo $gsigb $lsigb >> params.txt
+  #  ptmp=g${gsigb}l${lsigb}
   #for glb in ${lblist}; do
   #for llb in ${lblist}; do
   #  echo $glb $llb >> params.txt
@@ -166,7 +166,7 @@ for op in ${operators}; do
     done #pert
     #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #ptmp
-  done #ptmp (sigb or lb)
+  #done #ptmp (sigb or lb)
   cat params.txt
   if [ $ptype = sigb ] || [ $ptype = lb ]; then
   python ${cdir}/plot/ploteparam2d_nest.py ${op} ${model} ${na} $ptype
