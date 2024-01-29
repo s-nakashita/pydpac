@@ -1,5 +1,6 @@
 #!/bin/sh
 # This is a run script for Lorenz05 experiment
+export OMP_NUM_THREADS=4
 alias python=python3.9
 model="l05III"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"

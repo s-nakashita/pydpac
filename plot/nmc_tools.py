@@ -27,7 +27,7 @@ def corrscale(ix,bmat,cyclic=True):
     return np.where(l2>=0.0, np.sqrt(l2), 0.)
 
 # grid variance => power spectral density
-def psd(x,ix,axis=0,cyclic=True):
+def psd(x,ix,axis=0,cyclic=True,nghost=None):
     nx = x.shape[axis]
     dx = ix[1] - ix[0]
     Lx = ix[-1] - ix[0]
@@ -35,25 +35,29 @@ def psd(x,ix,axis=0,cyclic=True):
         Lx+=dx
         xtmp = x.copy()
     else:
-        nghost = nx//10
+        if nghost is None:
+            nghost = nx//10
         Lx += 2*nghost*dx
-        dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
-        if x.ndim==2:
-            if axis==0:
-                xtmp = np.zeros((nx+2*nghost-1,x.shape[1]))
-                xtmp[nghost:nghost+nx,:] = x[:,:]
-                xtmp[0:nghost,:] = x[0,:].reshape(1,-1) * dwindow[::-1,None]
-                xtmp[nghost+nx:,:] = x[-1,:].reshape(1,-1) * dwindow[:-1,None]
+        if nghost>0:
+            dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
+            if x.ndim==2:
+                if axis==0:
+                    xtmp = np.zeros((nx+2*nghost-1,x.shape[1]))
+                    xtmp[nghost:nghost+nx,:] = x[:,:]
+                    xtmp[0:nghost,:] = x[0,:].reshape(1,-1) * dwindow[::-1,None]
+                    xtmp[nghost+nx:,:] = x[-1,:].reshape(1,-1) * dwindow[:-1,None]
+                else:
+                    xtmp = np.zeros((x.shape[0],nx+2*nghost-1))
+                    xtmp[:,nghost:nghost+nx] = x[:,:]
+                    xtmp[:,0:nghost] = x[:,0].reshape(-1,1) * dwindow[None,::-1]
+                    xtmp[:,nghost+nx:] = x[:,-1].reshape(-1,1) * dwindow[None,:-1]
             else:
-                xtmp = np.zeros((x.shape[0],nx+2*nghost-1))
-                xtmp[:,nghost:nghost+nx] = x[:,:]
-                xtmp[:,0:nghost] = x[:,0].reshape(-1,1) * dwindow[None,::-1]
-                xtmp[:,nghost+nx:] = x[:,-1].reshape(-1,1) * dwindow[None,:-1]
+                xtmp = np.zeros(nx+2*nghost-1)
+                xtmp[nghost:nghost+nx] = x[:]
+                x[0:nghost] = x[0] * dwindow[::-1]
+                x[nghost+nx:] = x[-1] * dwindow[:-1]
         else:
-            xtmp = np.zeros(nx+2*nghost-1)
-            xtmp[nghost:nghost+nx] = x[:]
-            x[0:nghost] = x[0] * dwindow[::-1]
-            x[nghost+nx:] = x[-1] * dwindow[:-1]
+            xtmp = x.copy()
     sp = fft.fft(xtmp,axis=axis)
     wnum = fft.fftfreq(xtmp.shape[axis],dx)[:nx//2]
     if x.ndim==2:
@@ -66,7 +70,7 @@ def psd(x,ix,axis=0,cyclic=True):
     return wnum, psd
 
 # cross power spectral density
-def cpsd(x,y,ix,iy,axis=0,cyclic=True):
+def cpsd(x,y,ix,iy,axis=0,cyclic=True,nghost=None):
     nx = x.shape[axis]
     dx = ix[1] - ix[0]
     Lx = ix[-1] - ix[0]
@@ -82,40 +86,48 @@ def cpsd(x,y,ix,iy,axis=0,cyclic=True):
         Ly+=dy
         ytmp = y.copy()
     else:
-        nghost_x = nx//10
-        Lx += 2*nghost_x*dx
-        dwindow_x = (1.0 + np.cos(np.pi*np.arange(1,nghost_x+1)/nghost_x))*0.5
-        nghost_y = ny//10
-        Ly += 2*nghost_y*dy
-        dwindow_y = (1.0 + np.cos(np.pi*np.arange(1,nghost_y+1)/nghost_y))*0.5
-        if x.ndim==2:
-            if axis==0:
-                xtmp = np.zeros((nx+2*nghost_x-1,x.shape[1]))
-                xtmp[nghost_x:nghost_x+nx,:] = x[:,:]
-                xtmp[0:nghost_x,:] = x[0,:].reshape(1,-1) * dwindow_x[::-1,None]
-                xtmp[nghost_x+nx:,:] = x[-1,:].reshape(1,-1) * dwindow_x[:-1,None]
-                ytmp = np.zeros((ny+2*nghost_y-1,y.shape[1]))
-                ytmp[nghost_y:nghost_y+ny,:] = y[:,:]
-                ytmp[0:nghost_y,:] = y[0,:].reshape(1,-1) * dwindow_y[::-1,None]
-                ytmp[nghost_y+ny:,:] = y[-1,:].reshape(1,-1) * dwindow_y[:-1,None]
-            else:
-                xtmp = np.zeros((x.shape[0],nx+2*nghost_x-1))
-                xtmp[:,nghost_x:nghost_x+nx] = x[:,:]
-                xtmp[:,0:nghost_x] = x[:,0].reshape(-1,1) * dwindow_x[None,::-1]
-                xtmp[:,nghost_x+nx:] = x[:,-1].reshape(-1,1) * dwindow_x[None,:-1]
-                ytmp = np.zeros((y.shape[0],ny+2*nghost_y-1))
-                ytmp[:,nghost_y:nghost_y+ny] = y[:,:]
-                ytmp[:,0:nghost_y] = y[:,0].reshape(-1,1) * dwindow_y[None,::-1]
-                ytmp[:,nghost_y+ny:] = y[:,-1].reshape(-1,1) * dwindow_y[None,:-1]
+        if nghost is None:
+            nghost_x = nx//10
+            nghost_y = ny//10
         else:
-            xtmp = np.zeros(nx+2*nghost_x-1)
-            xtmp[nghost_x:nghost_x+nx] = x[:]
-            x[0:nghost_x] = x[0] * dwindow_x[::-1]
-            x[nghost_x+nx:] = x[-1] * dwindow_x[:-1]
-            ytmp = np.zeros(ny+2*nghost_y-1)
-            ytmp[nghost:nghost+nx] = x[:]
-            y[0:nghost_y] = y[0] * dwindow_y[::-1]
-            y[nghost_y+ny:] = y[-1] * dwindow_y[:-1]
+            nghost_x = nghost
+            nghost_y = nghost
+        Lx += 2*nghost_x*dx
+        Ly += 2*nghost_y*dy
+        if nghost_x > 0 and nghost_y > 0:
+            dwindow_x = (1.0 + np.cos(np.pi*np.arange(1,nghost_x+1)/nghost_x))*0.5
+            dwindow_y = (1.0 + np.cos(np.pi*np.arange(1,nghost_y+1)/nghost_y))*0.5
+            if x.ndim==2:
+                if axis==0:
+                    xtmp = np.zeros((nx+2*nghost_x-1,x.shape[1]))
+                    xtmp[nghost_x:nghost_x+nx,:] = x[:,:]
+                    xtmp[0:nghost_x,:] = x[0,:].reshape(1,-1) * dwindow_x[::-1,None]
+                    xtmp[nghost_x+nx:,:] = x[-1,:].reshape(1,-1) * dwindow_x[:-1,None]
+                    ytmp = np.zeros((ny+2*nghost_y-1,y.shape[1]))
+                    ytmp[nghost_y:nghost_y+ny,:] = y[:,:]
+                    ytmp[0:nghost_y,:] = y[0,:].reshape(1,-1) * dwindow_y[::-1,None]
+                    ytmp[nghost_y+ny:,:] = y[-1,:].reshape(1,-1) * dwindow_y[:-1,None]
+                else:
+                    xtmp = np.zeros((x.shape[0],nx+2*nghost_x-1))
+                    xtmp[:,nghost_x:nghost_x+nx] = x[:,:]
+                    xtmp[:,0:nghost_x] = x[:,0].reshape(-1,1) * dwindow_x[None,::-1]
+                    xtmp[:,nghost_x+nx:] = x[:,-1].reshape(-1,1) * dwindow_x[None,:-1]
+                    ytmp = np.zeros((y.shape[0],ny+2*nghost_y-1))
+                    ytmp[:,nghost_y:nghost_y+ny] = y[:,:]
+                    ytmp[:,0:nghost_y] = y[:,0].reshape(-1,1) * dwindow_y[None,::-1]
+                    ytmp[:,nghost_y+ny:] = y[:,-1].reshape(-1,1) * dwindow_y[None,:-1]
+            else:
+                xtmp = np.zeros(nx+2*nghost_x-1)
+                xtmp[nghost_x:nghost_x+nx] = x[:]
+                xtmp[0:nghost_x] = x[0] * dwindow_x[::-1]
+                xtmp[nghost_x+nx:] = x[-1] * dwindow_x[:-1]
+                ytmp = np.zeros(ny+2*nghost_y-1)
+                ytmp[nghost:nghost+nx] = x[:]
+                ytmp[0:nghost_y] = y[0] * dwindow_y[::-1]
+                ytmp[nghost_y+ny:] = y[-1] * dwindow_y[:-1]
+        else:
+            xtmp = x.copy()
+            ytmp = y.copy()
     sp_x = fft.fft(xtmp,axis=axis)
     sp_y = fft.fft(ytmp,axis=axis)
     wnum = fft.fftfreq(xtmp.shape[axis],dx)[:nx//2]
@@ -133,7 +145,7 @@ def cpsd(x,y,ix,iy,axis=0,cyclic=True):
     return wnum, np.abs(cpsd)
 
 # truncation operator using FFT
-def trunc_operator(x,ix=None,ftmax=None,first=False,cyclic=True):
+def trunc_operator(x,ix=None,ftmax=None,first=False,cyclic=True,nghost=None):
     global E, F, T, Fi, Ei
     if first:
         nx = ix.size

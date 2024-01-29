@@ -62,7 +62,7 @@ class Var_nest():
             self.ntrunc = self.nv // 2
         else:
             self.ntrunc = ntrunc # truncation number for GM error covariance
-        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False)
+        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,nghost=0)
         self.corrfuncv = Corrfunc(self.lv,a=self.a_v)
         self.vmat = vmat # prescribed background error covariance
         if calc_dist1_gm is None:
@@ -309,6 +309,9 @@ class Var_nest():
         x_gm2lam = interp1d(self.ix_gm,xg)
         dk = x_gm2lam(self.ix_lam)
         dk = self.trunc_operator(dk) - self.trunc_operator(xf)
+        if save_dh:
+            np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
+            np.save("{}_dk_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dk)
 
         w0 = np.zeros_like(xf)
         x0, bsqrt, _, _ = self.prec(w0,first=True)

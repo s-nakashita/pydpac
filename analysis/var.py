@@ -171,6 +171,8 @@ class Var():
         JH = self.obs.dh_operator(yloc, xf)
         ob = y - self.obs.h_operator(yloc,xf)
         nobs = ob.size
+        if save_dh:
+            np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
 
         w0 = np.zeros_like(xf)
         x0, bsqrt = self.prec(w0,first=True)

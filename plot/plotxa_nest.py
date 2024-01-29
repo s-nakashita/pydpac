@@ -239,7 +239,12 @@ for pt in perts:
         ax.plot(ix_t,xt1,label='nature')
         ax.plot(ix_gm,xagm1,label='GM')
         ax.plot(ix_lam,xalam1,label='LAM')
-        ax.plot(ix_gm[i0:i1+1],xagm1[i0:i1+1]-JH2@xalam1,label='dk')
+        f = "{}_lam_dk_{}_{}_cycle{}.npy".format(model,op,pt,icycle)
+        if os.path.isfile(f):
+            dk = np.load(f)
+            ax.plot(ix_lam,dk,label='dk')
+        #else:
+        #    ax.plot(ix_gm[i0:i1+1],xagm1[i0:i1+1]-JH2@xalam1,label='dk')
         ax.set_title(f't={t[icycle]}')
         ax.legend()
         fig.savefig("{}_xa_{}_{}_c{}.png".format(model,op,pt,icycle))

@@ -39,7 +39,7 @@ class EnVAR_nest():
             self.ntrunc = self.ix_lam.size // 2
         else:
             self.ntrunc = ntrunc # truncation number for GM analysis
-        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False)
+        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,nghost=0)
         # optional parameters
         self.pt = pt # DA type 
         # for 2 or more variables
@@ -368,6 +368,10 @@ class EnVAR_nest():
             dk = JH1xa - self.trunc_operator(xf_)
             JH2XB = self.trunc_operator(dxf)
             JH1XAA = self.trunc_operator(xens_gm2lam(self.ix_lam))
+            if save_dh:
+                np.save("{}_dk_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dk)
+                svmat = JH1XAA / np.sqrt(JH1XAA.shape[1]-1)
+                np.save("{}_svmat_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), svmat)
             qmat = la.pinv(JH1XAA) @ JH2XB
             dk = la.pinv(JH1XAA) @ dk
             if self.iloc is not None:

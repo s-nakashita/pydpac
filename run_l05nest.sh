@@ -1,5 +1,6 @@
 #!/bin/sh
 # This is a run script for Nesting Lorenz experiment
+export OMP_NUM_THREADS=4
 #alias python=python3.9
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
@@ -10,8 +11,8 @@ perturbations="envar envar_nest"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=100 # Number of assimilation cycle
-nmem=80 # ensemble size
+na=1460 # Number of assimilation cycle
+nmem=240 # ensemble size
 nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
@@ -128,12 +129,12 @@ for op in ${operators}; do
     fi
     #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
     #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
+    python ${cdir}/plot/plotpf_nest.py ${op} ${model} ${na} ${pert} 1 100
     #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
   done
-  python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} mlef
-  python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na} mlef
+  python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}
+  python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
@@ -145,5 +146,6 @@ for op in ${operators}; do
   #rm obs*.npy
 done
 #rm ${model}*.txt 
-rm ${model}_*_cycle*.npy 
-
+#rm ${model}_*_cycle*.npy 
+mkdir -p data
+mv ${model}_*_cycle*.npy data/
