@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator, FixedFormatter
-from nmc_tools import psd
+from nmc_tools import psd, wnum2wlen, wlen2wnum
 sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
 from trunc1d import Trunc1d
 plt.rcParams['font.size'] = 16
@@ -44,8 +44,9 @@ nghost = 0 # ghost region for periodicity in LAM
 ix_t_rad = ix_t * 2.0 * np.pi / nx_t
 ix_gm_rad = ix_gm * 2.0 * np.pi / nx_t
 ix_lam_rad = ix_lam * 2.0 * np.pi / nx_t
-#Lx_gm = 2.0 * np.pi
+Lx_gm = 2.0 * np.pi
 #dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
+Lx_lam = 2.0 * np.pi * nx_lam / nx_t
 #Lx_lam = 2.0 * np.pi * (nx_lam + 2*nghost) / nx_t
 #dx_gm = Lx_gm / nx_gm
 #dx_lam = Lx_lam / (nx_lam + 2*nghost)
@@ -83,9 +84,9 @@ for pt in perts:
         print("divergence in {}".format(pt))
         continue
     fig, axs = plt.subplots(nrows=2,figsize=[10,10],constrained_layout=True)
-    xg2xt = interp1d(ix_gm,xagm,fill_value="extrapolate")
-    xdgm = xg2xt(ix_t) - xt
-    axs[0].plot(ix_t,np.sqrt(np.mean(xdgm**2,axis=0)),c='tab:blue',label='GM,err')
+    xt2xg = interp1d(ix_t,xt)
+    xdgm = xagm - xt2xg(ix_gm)
+    axs[0].plot(ix_gm,np.sqrt(np.mean(xdgm**2,axis=0)),c='tab:blue',label='GM,err')
     #if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
     #    axs[0].plot(ix_gm,xsagm.mean(axis=0),c='tab:blue',ls='dashed',label='GM,sprd')
     i0 = np.argmin(np.abs(ix_t-ix_lam[0]))
@@ -124,7 +125,7 @@ for pt in perts:
     wnum, psdgm = psd(xdgm,ix_gm_rad,axis=1)
     print(f"psdgm.shape={psdgm.shape}")
     print(f"wnum_gm={wnum}")
-    axs[1].loglog(wnum,psdgm,c='tab:blue')
+    axs[1].loglog(wnum,psdgm,c='tab:blue',marker='x')
     lines.append(Line2D([0],[0],color='tab:blue',lw=2))
     labels.append('GM,err')
     #nx = xsagm.shape[1]
@@ -142,7 +143,7 @@ for pt in perts:
     wnum, psdlam = psd(xdlam,ix_lam_rad,axis=1,cyclic=False,nghost=0)
     print(f"psdlam.shape={psdlam.shape}")
     print(f"wnum_lam={wnum}")
-    axs[1].loglog(wnum,psdlam,c='tab:orange')
+    axs[1].loglog(wnum,psdlam,c='tab:orange',marker='x')
     lines.append(Line2D([0],[0],color='tab:orange',lw=2))
     labels.append('LAM,err')
     #ax2 = axs[1].twinx()
@@ -157,23 +158,18 @@ for pt in perts:
     #    psd = 2.0*np.mean(np.abs(esps[:,:nx_lam//2])**2,axis=0)*dx_lam*dx_lam/Lx_lam
     #    axs[1].plot(freq,psd,c='tab:orange',ls='dashed',label='LAM,sprd')
 #    axs[1].set_xlim(wnum[1],wnum[-1])
-    axs[1].set_xlabel(r"wave number [radian$^{-1}$]")
+    axs[1].set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
     axs[1].set_ylabel("power spectral density")
     #axs[1].set_title("spectral space")
     axs[1].legend(lines,labels)
-    axs[1].xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
-    axs[1].xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
-    def one_over(x):
-        x = np.array(x, float)
-        near_zero = np.isclose(x, 0)
-        x[near_zero] = np.inf
-        x[~near_zero] = 1.0 / x[~near_zero]
-        return x
-    inverse = one_over
-    secax = axs[1].secondary_xaxis('top',functions=(one_over,inverse))
-    secax.set_xlabel('wave length [radian]')
-    secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/180.]))
-    secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{180}$']))
+    #axs[1].xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+    #axs[1].xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+    axs[1].xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
+    axs[1].xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
+    secax = axs[1].secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
+    secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+    secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi,np.pi/4.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+    secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\pi$',r'$\frac{\pi}{4}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
     axs[1].grid()
 #    xd2 = ifft(esp,axis=1)
 #    axs[0].plot(xs,xd2[0,],label='reconstructed')

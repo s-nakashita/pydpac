@@ -8,16 +8,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FixedLocator, FixedFormatter
 plt.rcParams['font.size'] = 16
-from nmc_tools import psd
-def one_over(k):
-    #Vectorized 1/x, treating x==0 manually
-    k = np.array(k, float)
-    near_zero = np.isclose(k, 0)
-    x = np.zeros_like(k)
-    x[near_zero] = np.inf
-    x[~near_zero] = 1.0 / k[~near_zero]
-    return x
-inverse = one_over
+from nmc_tools import psd, wnum2len, wlen2wnum
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -82,13 +73,15 @@ for pt in perts:
     #axs[1].set_xlim(wnum[0],wnum[-1])
     axs[1].set(xlabel=r'wave number [radian$^{-1}$]',title='variance power spectra')
     axs[1].set_xscale('log')
-    axs[1].xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
-    axs[1].xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
+    #axs[1].xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+    #axs[1].xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+    axs[1].xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
+    axs[1].xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
     #axs[1].set_xlim(0.5/np.pi,wnum[-1])
-    secax = axs[1].secondary_xaxis('top',functions=(one_over,inverse))
+    secax = axs[1].secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
     secax.set_xlabel('wave length [radian]')
-    secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
-    secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+    secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi,np.pi/4.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+    secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\pi$',r'$\frac{\pi}{4}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
     axs[1].set_yscale("log")
     axs[1].set_ylabel("power spectral density")
     axs[1].set_title("spectral space")

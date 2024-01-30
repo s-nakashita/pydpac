@@ -25,7 +25,7 @@ nk_gm = 8                    # advection length scale
 dt_gm = 0.05 / 36            # time step (=1/6 hour, Kretchmer et al. 2015)
 #dt_gm = 0.05 / 48            # time step (=1/8 hour, Yoon et al. 2012)
 ## LAM
-nx_lam = 480                 # number of LAM points
+nx_lam = 120                 # number of LAM points
 ist_lam = 240                # first grid index
 nsp = 10                     # width of sponge region
 po = 1                       # order of relaxation function

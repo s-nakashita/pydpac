@@ -58,15 +58,15 @@ def psd(x,ix,axis=0,cyclic=True,nghost=None):
                 x[nghost+nx:] = x[-1] * dwindow[:-1]
         else:
             xtmp = x.copy()
-    sp = fft.fft(xtmp,axis=axis)
-    wnum = fft.fftfreq(xtmp.shape[axis],dx)[:nx//2]
+    sp = fft.rfft(xtmp,axis=axis)
+    wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi
     if x.ndim==2:
         if axis==0:
-            psd = 2.0*np.mean(np.abs(sp[:nx//2])**2,axis=1)*dx*dx/Lx
+            psd = 2.0*np.mean(np.abs(sp)**2,axis=1)*dx*dx/Lx
         else:
-            psd = 2.0*np.mean(np.abs(sp[:,:nx//2])**2,axis=0)*dx*dx/Lx
+            psd = 2.0*np.mean(np.abs(sp)**2,axis=0)*dx*dx/Lx
     else:
-        psd = 2.0*np.abs(sp[:nx//2])**2*dx*dx/Lx
+        psd = 2.0*np.abs(sp)**2*dx*dx/Lx
     return wnum, psd
 
 # cross power spectral density
@@ -128,21 +128,32 @@ def cpsd(x,y,ix,iy,axis=0,cyclic=True,nghost=None):
         else:
             xtmp = x.copy()
             ytmp = y.copy()
-    sp_x = fft.fft(xtmp,axis=axis)
-    sp_y = fft.fft(ytmp,axis=axis)
-    wnum = fft.fftfreq(xtmp.shape[axis],dx)[:nx//2]
+    sp_x = fft.rfft(xtmp,axis=axis)
+    sp_y = fft.rfft(ytmp,axis=axis)
+    wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi
     if x.ndim==2:
         if axis==0:
-            spm_x = np.mean(sp_x[:nx//2],axis=1)
-            spm_y = np.mean(sp_y[:ny//2],axis=1)
+            spm_x = np.mean(sp_x,axis=1)
+            spm_y = np.mean(sp_y,axis=1)
         else:
-            spm_x = np.mean(sp_x[:,:nx//2],axis=0)
-            spm_y = np.mean(sp_y[:,:ny//2],axis=0)
+            spm_x = np.mean(sp_x,axis=0)
+            spm_y = np.mean(sp_y,axis=0)
     else:
-        spm_x = sp_x[:nx//2]
-        spm_y = sp_y[:ny//2]
+        spm_x = sp_x
+        spm_y = sp_y
     cpsd = 2.0*((spm_x.real+spm_x.imag*1.j)*(spm_y.real-spm_y.imag*1.j))*dx*dx/Lx
     return wnum, np.abs(cpsd)
+
+def wnum2wlen(wnum):
+    #Vectorized 2\pi/x, treating x==0 manually
+    wnum = np.array(wnum, float)
+    near_zero = np.isclose(wnum, 0)
+    wlen = np.zeros_like(wnum)
+    wlen[near_zero] = np.inf
+    wlen[~near_zero] = 2.0 * np.pi / wnum[~near_zero]
+    return wlen
+
+wlen2wnum = wnum2wlen
 
 # truncation operator using FFT
 def trunc_operator(x,ix=None,ftmax=None,first=False,cyclic=True,nghost=None):
@@ -161,13 +172,13 @@ def trunc_operator(x,ix=None,ftmax=None,first=False,cyclic=True,nghost=None):
             E[nghost:nghost+nx,:] = np.eye(nx)[:,:]
             E[nghost+nx:,-1] = dwindow[1:]
             nx += 2*nghost-1
-        F = fft.fft(np.eye(nx),axis=0)
-        f = fft.fftfreq(nx,dx)
-        ntrunc = np.argmin(np.abs(f[0:nx//2-1]-ftmax))
+        F = fft.rfft(np.eye(nx),axis=0)
+        f = fft.rfftfreq(nx,dx)
+        ntrunc = np.argmin(np.abs(f-ftmax))
         print(f"ntrunc={ntrunc}")
         T = np.eye(F.shape[0])
-        T[ntrunc+1:f.size-ntrunc,:] = 0.0
-        Fi = fft.ifft(np.eye(T.shape[0]),axis=0)
+        T[ntrunc+1:,:] = 0.0
+        Fi = fft.irfft(np.eye(T.shape[0]),axis=0)
         if cyclic:
             Ei = np.eye(ix.size)
         else:
