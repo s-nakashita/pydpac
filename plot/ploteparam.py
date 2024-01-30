@@ -56,7 +56,7 @@ try:
         while(True):
             tmp=f.readline()[:-1]
             if tmp=='': break
-            if ptype=="infl" or ptype=="sigb" or ptype=="lb":
+            if ptype=="infl" or ptype=="sigo" or ptype=="sigb" or ptype=="lb":
                 var.append(float(tmp))
             else:
                 var.append(int(tmp))

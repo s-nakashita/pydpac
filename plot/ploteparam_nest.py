@@ -56,7 +56,7 @@ try:
         while(True):
             tmp=f.readline()[:-1]
             if tmp=='': break
-            if ptype=="infl":
+            if ptype=="infl" or ptype=="sigo":
                 var.append(float(tmp))
             elif ptype=="sigb":
                 tmp2 = tmp.split()

@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a run script for Nesting Lorenz experiment
 export OMP_NUM_THREADS=4
-#alias python=python3.9
+alias python=python3.9
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
@@ -12,7 +12,7 @@ nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-ptype=nobs
+ptype=sigo
 functype=gc5
 #lgsig=110
 #llsig=70
@@ -35,6 +35,7 @@ touch timer
 nmemlist="40 80 120 160 200 240"
 lsiglist="20 30 40 50 60 70 80 90 100"
 nobslist="480 240 120 60 30 15"
+sigolist="1.0 0.5 0.3 0.1 0.05 0.03"
 infllist="1.0 1.01 1.02 1.03 1.04 1.05"
 sigblist="0.1 0.2 0.4 0.6 0.8 1.0"
 #sigblist="0.8 1.2 1.6 2.0 2.4 2.8"
@@ -48,9 +49,12 @@ for op in ${operators}; do
   #for lsig in ${lsiglist}; do
   #  echo $lsig >> params.txt
   #  ptmp=$lsig
-  for nobs in ${nobslist}; do
-    echo $nobs >> params.txt
-    ptmp=$nobs
+  #for nobs in ${nobslist}; do
+  #  echo $nobs >> params.txt
+  #  ptmp=$nobs
+  for sigo in ${sigolist}; do
+    echo $sigo >> params.txt
+    ptmp=$sigo
   #for infl in ${infllist}; do
   #  echo $infl >> params.txt
   #  ptmp=$infl
@@ -81,6 +85,9 @@ for op in ${operators}; do
       fi
       #sed -i -e '/ss/s/False/True/' config.py
       #sed -i -e '/getkf/s/True/False/' config.py
+      if [ $ptype = sigo ]; then
+        gsed -i -e "6i \ \"sigo\":${sigo}," config.py
+      fi
 #      if [ $ptype = loc ]; then
 #        gsed -i -e "6i \ \"lsig\":${lsig}," config.py
 #      fi

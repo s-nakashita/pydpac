@@ -92,6 +92,7 @@ params_gm["t0c"]        =  step.nt6h_gm * 4 * 600    # t0 for control
 params_gm["nobs"]       =  15       # observation number (nobs<=nx_true)
 params_gm["obsloctype"] = "regular" # observation location type
 params_gm["op"]         = "linear" # observation operator type
+params_gm["sigo"]       = sigma[params_gm["op"]] # observation error standard deviation
 params_gm["na"]         =  100     # number of analysis cycle
 params_gm["nt"]         =  1       # number of step per forecast (=6 hour)
 params_gm["namax"]      =  1460    # maximum number of analysis cycle (1 year)
@@ -140,9 +141,10 @@ try:
     params_lam.update(params_lam_new)
 except ImportError:
     pass
-global op, pt, ft
+global op, pt, sigo, ft
 op  = params_gm["op"]
 pt  = params_gm["pt"]
+sigo= params_gm["sigo"]
 ft  = ftype[pt]
 global na, a_window
 na = params_gm["na"]
@@ -163,12 +165,12 @@ params_lam["lb"] = params_lam["lb"] * np.pi / 180.0 # degree => radian
 params_lam["lv"] = params_lam["lv"] * np.pi / 180.0 # degree => radian
 
 # observation operator
-obs = Obs(op, sigma[op]) # for make observations
-obs_gm = Obs(op, sigma[op], ix=step.ix_gm) # for analysis_gm
+obs = Obs(op, sigo) # for make observations
+obs_gm = Obs(op, sigo, ix=step.ix_gm) # for analysis_gm
 if params_lam["anlsp"]:
-    obs_lam = Obs(op, sigma[op], ix=step.ix_lam, icyclic=False) # analysis_lam
+    obs_lam = Obs(op, sigo, ix=step.ix_lam, icyclic=False) # analysis_lam
 else:
-    obs_lam = Obs(op, sigma[op], ix=step.ix_lam[nsp:-nsp], icyclic=False) # analysis_lam (exclude sponge regions)
+    obs_lam = Obs(op, sigo, ix=step.ix_lam[nsp:-nsp], icyclic=False) # analysis_lam (exclude sponge regions)
 
 # assimilation class
 state_gm = nx_gm
