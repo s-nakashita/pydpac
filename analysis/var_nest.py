@@ -24,7 +24,7 @@ class Var_nest():
         sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, \
         sigv=1.0, lv=-1.0, a_v=0.5, ntrunc=None, vmat=None, \
         crosscov=False, ekbmat=None, ebkmat=None, cyclic=False, \
-        calc_dist1=None, calc_dist1_gm=None, \
+        calc_dist1=None, calc_dist1_gm=None, verbose=True, \
         model="model"):
         self.pt = "var_nest" # DA type 
         self.obs = obs # observation operator
@@ -75,7 +75,7 @@ class Var_nest():
         self.ebkmat = ebkmat
         #
         self.model = model
-        self.verbose = True
+        self.verbose = verbose
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} lb={self.lb} functype={self.functype}")
         logger.info(f"bmat in={self.bmat is not None}")
