@@ -18,12 +18,14 @@ model = "l05nest"
 # model parameter
 ## true
 nx_true = 960
+nk_true = 32
 ## GM
-intgm = 4                    # grid interval
+intgm = 1                    # grid interval
 nx_gm = nx_true // intgm     # number of points
-nk_gm = 8                    # advection length scale
+nk_gm = nk_true // intgm     # advection length scale
 dt_gm = 0.05 / 36            # time step (=1/6 hour, Kretchmer et al. 2015)
 #dt_gm = 0.05 / 48            # time step (=1/8 hour, Yoon et al. 2012)
+gm_same_with_nature = True   # DEBUG: Lorenz III used for GM
 ## LAM
 nx_lam = 120                 # number of LAM points
 ist_lam = 240                # first grid index
@@ -41,7 +43,7 @@ F = 15.0                     # forcing
 # forecast model forward operator
 step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
     ni, b, c, dt_gm, F, intgm, ist_lam, nsp, \
-    lamstep=lamstep, intrlx=intrlx, po=po)
+    lamstep=lamstep, intrlx=intrlx, po=po, gm_same_with_nature=gm_same_with_nature)
 
 np.savetxt("ix_true.txt",step.ix_true)
 np.savetxt("ix_gm.txt",step.ix_gm)

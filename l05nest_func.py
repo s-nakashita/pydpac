@@ -17,10 +17,17 @@ class L05nest_func():
     def __init__(self, step, obs, params_gm, params_lam):
         self.step = step
         self.nx_true = step.nx_true
-        (self.nx_gm, self.nk_gm, self.dt_gm, self.F_gm),\
-        (self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.dt_lam, self.F_lam), self.lamstep, self.nsp \
+        if self.step.gm_same_with_nature:
+            (self.nx_gm, self.nk_gm, self.ni_gm, self.b_gm, self.c_gm, self.dt_gm, self.F_gm),\
+            (self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.dt_lam, self.F_lam), self.lamstep, self.nsp \
             = self.step.get_params()
-        logger.info("GM: nx={} nk={} F={} dt={:7.3e}".format(\
+            logger.info("GM: nx={} nk={} ni={} b={} c={} F={} dt={:7.3e}".format(\
+            self.nx_gm, self.nk_gm, self.ni_gm, self.b_gm, self.c_gm, self.F_gm, self.dt_gm))
+        else:
+            (self.nx_gm, self.nk_gm, self.dt_gm, self.F_gm),\
+            (self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.dt_lam, self.F_lam), self.lamstep, self.nsp \
+            = self.step.get_params()
+            logger.info("GM: nx={} nk={} F={} dt={:7.3e}".format(\
             self.nx_gm, self.nk_gm, self.F_gm, self.dt_gm))
         logger.info("LAM: nx={} nk={} ni={} b={} c={} F={} dt={:7.3e}".format(\
             self.nx_lam, self.nk_lam, self.ni_lam, self.b, self.c, self.F_lam, self.dt_lam))

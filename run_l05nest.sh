@@ -11,8 +11,8 @@ perturbations="envar"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=500 # Number of assimilation cycle
-nmem=120 # ensemble size
+na=300 # Number of assimilation cycle
+nmem=80 # ensemble size
 nobs=15 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
@@ -24,10 +24,10 @@ opt=0
 functype=gc5
 #a=-0.1
 #exp="var+var_nest_${functype}nmctrunc_obs${nobs}"
-exp="envar_m${nmem}obs${nobs}_nxlam120" #lg${lgsig}l${llsig}"
+exp="envar+envar_nest_gmtrue_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
-wdir=work/${model}_LAMdomain/${exp}
+wdir=work/${model}_K15/${exp}
 rm -rf $wdir
 mkdir -p $wdir
 cd $wdir

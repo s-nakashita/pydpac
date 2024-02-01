@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 class L05nest():
     def __init__(self, nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
         ni, b, c, dt, F, intgm, ist_lam, nsp, \
-        lamstep=1, po=1, intrlx=None, debug=False):
+        lamstep=1, po=1, intrlx=None, gm_same_with_nature=False, debug=False):
         self.dt6h = 0.05
         # Actual grid
         self.nx_true = nx_true
@@ -47,7 +47,13 @@ class L05nest():
         self.nk_gm = nk_gm
         self.ix_gm = np.arange(0,self.nx_gm*self.intgm,self.intgm,dtype=np.int32)
         self.xaxis_gm = self.nx_true / np.pi * np.sin(np.pi * self.ix_gm / self.nx_true)
-        self.gm = L05II(self.nx_gm, self.nk_gm, self.dt_gm, self.F)
+        self.gm_same_with_nature = gm_same_with_nature
+        if self.gm_same_with_nature:
+            self.ni_gm = self.ni // intgm
+            self.gm = L05III(self.nx_gm, self.nk_gm, self.ni_gm, \
+                self.b, self.c, self.dt_lam, self.F)
+        else:
+            self.gm = L05II(self.nx_gm, self.nk_gm, self.dt_gm, self.F)
         # Boundary condition
         self.nsp = nsp # sponge region width
         self.intrlx = intrlx # time interval for boundary relaxation
