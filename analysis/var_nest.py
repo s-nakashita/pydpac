@@ -21,7 +21,7 @@ alphak = []
 
 class Var_nest():
     def __init__(self, obs, ix_gm, ix_lam, ioffset=0, \
-        sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, \
+        sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, bsqrt=None, \
         sigv=1.0, lv=-1.0, a_v=0.5, ntrunc=None, vmat=None, \
         crosscov=False, ekbmat=None, ebkmat=None, cyclic=False, \
         calc_dist1=None, calc_dist1_gm=None, verbose=True, \
@@ -50,6 +50,7 @@ class Var_nest():
         self.a = a # correlation function shape parameter
         self.corrfunc = Corrfunc(self.lb,a=self.a)
         self.bmat = bmat # prescribed background error covariance
+        self.bsqrt = bsqrt # prescribed preconditioning matrix
         if calc_dist1 is None:
             self.calc_dist1 = self._calc_dist1
         else:
@@ -219,22 +220,25 @@ class Var_nest():
     def prec(self,w,first=False):
         global bsqrt, vsqrt, vsqrtpinv
         if first:
-            ## calculate square root
-            eival, eivec = la.eigh(self.bmat)
-            eival = eival[::-1]
-            eivec = eivec[:,::-1]
-            eival[eival<1.0e-16] = 0.0
-            npos = np.sum(eival>=1.0e-16)
-            logger.info(f"#positive eigenvalues in bmat={npos}")
-            #accum = [eival[:i].sum()/eival.sum() for i in range(1,eival.size+1)]
-            #npos=0
-            #while True:
-            #    if accum[npos] > 0.99: break
-            #    npos += 1
-            #logger.info(f"#99% eigenvalues in bmat={npos}")
-            bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
-            ## reconstruction of bmat
-            #self.bmat = np.dot(bsqrt, bsqrt.T)
+            if self.bsqrt is not None:
+                bsqrt = self.bsqrt
+            else:
+                ## calculate square root
+                eival, eivec = la.eigh(self.bmat)
+                eival = eival[::-1]
+                eivec = eivec[:,::-1]
+                eival[eival<1.0e-16] = 0.0
+                npos = np.sum(eival>=1.0e-16)
+                logger.info(f"#positive eigenvalues in bmat={npos}")
+                #accum = [eival[:i].sum()/eival.sum() for i in range(1,eival.size+1)]
+                #npos=0
+                #while True:
+                #    if accum[npos] > 0.99: break
+                #    npos += 1
+                #logger.info(f"#99% eigenvalues in bmat={npos}")
+                bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
+                ## reconstruction of bmat
+                #self.bmat = np.dot(bsqrt, bsqrt.T)
 
             eival, eivec = la.eigh(self.vmat)
             eival = eival[::-1]

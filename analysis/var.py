@@ -16,7 +16,7 @@ alphak = []
 class Var():
     def __init__(self, obs, nx, pt="var", \
         ix=None, ioffset=0, sigb=1.0, lb=-1.0, \
-        functype="gauss", a=0.5, bmat=None, \
+        functype="gauss", a=0.5, bmat=None, bsqrt=None, \
         calc_dist1=None, cyclic=True, model="model"):
         self.pt = pt # DA type 
         self.obs = obs # observation operator
@@ -30,6 +30,7 @@ class Var():
         self.a = a # gc5 shape parameter
         self.corrfunc = Corrfunc(self.lb,a=self.a)
         self.bmat = bmat # prescribed background error covariance
+        self.bsqrt = bsqrt # prescribed preconditioning matrix
         self.cyclic = cyclic # boundary treatment
         if calc_dist1 is None:
             self.calc_dist1 = self._calc_dist1
@@ -131,11 +132,14 @@ class Var():
     def prec(self,w,first=False):
         global bsqrt
         if first:
-            eival, eivec = la.eigh(self.bmat)
-            eival[eival<1.0e-16] = 0.0
-            npos = np.sum(eival>=1.0e-16)
-            logger.info(f"#positive eigenvalues in bmat={npos}")
-            bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
+            if self.bsqrt is not None:
+                bsqrt = self.bsqrt
+            else:
+                eival, eivec = la.eigh(self.bmat)
+                eival[eival<1.0e-16] = 0.0
+                npos = np.sum(eival>=1.0e-16)
+                logger.info(f"#positive eigenvalues in bmat={npos}")
+                bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
         return np.dot(bsqrt,w), bsqrt
 
     def calc_j(self, w, *args, return_each=False):

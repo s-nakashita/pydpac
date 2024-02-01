@@ -1,7 +1,6 @@
 import numpy as np
 # numpy 1.17.0 or later
 from numpy.random import default_rng
-rng = default_rng()
 #from numpy import random
 import math
 import logging
@@ -11,10 +10,12 @@ logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
 
 class Obs():
-    def __init__(self, operator, sigma, nvars=1, ndims=1, ni=0, nj=0, ix=None, jx=None, icyclic=True, jcyclic=True):
+    def __init__(self, operator, sigma, seed=None, nvars=1, ndims=1, ni=0, nj=0, ix=None, jx=None, icyclic=True, jcyclic=True):
         self.operator = operator
         self.sigma = sigma
         self.gamma = 3
+        self.seed = seed
+        self.rng = default_rng(seed=self.seed)
         logger.info(f"operator={self.operator}, obserr={self.sigma}")#, gamma={self.gamma}")
         self.nvars = nvars
         logger.info(f"nvars={self.nvars}")
@@ -218,8 +219,8 @@ class Obs():
 
     def add_noise(self, x):
 # numpy 1.17.0 or later
-        return x + rng.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
-        #np.random.seed(514)
+        return x + self.rng.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
+        #np.random.seed(self.seed)
         #return x + random.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
 
     def itpl1d(self, ri, x):
