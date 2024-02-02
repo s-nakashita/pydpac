@@ -84,7 +84,7 @@ axs[1].set_title(r'$\mathbf{B}_\mathrm{LAM}$')
 plt.close()
 
 ## DA
-nmem = 120
+nmem = 240
 infl_parm = 1.05
 obsloc = ix_lam[1:-1]
 nobs = obsloc.size
