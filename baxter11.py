@@ -99,7 +99,7 @@ var_nest = Var_nest(obsope_lam, ix_gm, ix_lam[1:-1], bmat=B_lam, bsqrt=U_lam, si
 rng = default_rng()
 
 ## start trials
-ntrial = 30
+ntrial = 50
 rmseb_list = []
 rmsea_list = []
 rmsea_nest_list = []
@@ -322,6 +322,19 @@ fig.savefig(figdir_parent/f'rmse_nobs{nobs}.png',dpi=300)
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}.pdf')
 plt.show()
 
+# t-test
+from scipy.stats import t
+diff_rmse = np.array(rmsea_list) - np.array(rmsea_nest_list)
+diff_mean = np.mean(diff_rmse)
+diff_std  = np.std(diff_rmse,ddof=1)
+t_value = diff_mean / diff_std / np.sqrt(ntrial)
+logger.info("=== t-test for RMSE: LAM - LAM_nest ===")
+logger.info("   T     90%     95%     99%  ")
+logger.info(f" {t_value:.4f} "+\
+    f"{t.ppf(1-0.1/2,ntrial-1):.4f} "+\
+    f"{t.ppf(1-0.05/2,ntrial-1):.4f} "+\
+    f"{t.ppf(1-0.01/2,ntrial-1):.4f}")
+
 fig, axs = plt.subplots(figsize=[10,6],nrows=2)
 errspecb = np.array(errspecb_list)
 print(errspecb.shape)
@@ -353,3 +366,18 @@ fig.suptitle(f'ntrial={ntrial} nobs={nobs}, 3DVar')
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}.png',dpi=300)
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}.pdf')
 plt.show()
+
+# t-test
+logger.info("=== t-test for spectrum: LAM - LAM_nest ===")
+logger.info(" k      T     90%     95%     99%  ")
+for ik in range(wnum_lam.size):
+    k = wnum_lam[ik]
+    diff_spec = errspeca[:,ik] - errspeca_nest[:,ik]
+    diff_mean = np.mean(diff_spec)
+    diff_std  = np.std(diff_spec,ddof=1)
+    t_value = diff_mean / diff_std / np.sqrt(ntrial)
+    logger.info(f"{int(k):2d} "+\
+    f"{t_value:.4f} "+\
+    f"{t.ppf(1-0.1/2,ntrial-1):.4f} "+\
+    f"{t.ppf(1-0.05/2,ntrial-1):.4f} "+\
+    f"{t.ppf(1-0.01/2,ntrial-1):.4f}")
