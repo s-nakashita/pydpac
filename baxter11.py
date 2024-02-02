@@ -45,6 +45,9 @@ nsponge = 3
 print(f"nx_t={nx_t} nx_gm={nx_gm} nx_lam={nx_lam}")
 print(f"dx_t={dx_t} dx_gm={dx_gm} dx_lam={dx_lam}")
 print(f"dt_t={dt_t} dt_gm={dt_gm} dt_lam={dt_lam}")
+print(f"ix_t={ix_t}")
+print(f"ix_gm={ix_gm}")
+print(f"ix_lam={ix_lam}")
 
 # Assimilation settings
 sigo = 0.5
@@ -87,8 +90,9 @@ plt.close()
 
 ## DA
 obsloc = ix_lam[1:-1]
+xobsloc = x_lam[1:-1]
 nobs = obsloc.size
-obsope = Obs('linear',sigo)
+obsope = Obs('linear',sigo,ix=ix_t)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
 obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
 var_gm = Var(obsope_gm, nx_gm, ix=ix_gm, bmat=B_gm)
@@ -195,6 +199,8 @@ while itrial < ntrial:
     axs[0].plot(x_lam, ua_lam, label='LAM,anl')
     #axs[0,2].plot(x_lam, u0_lam, label='LAM,bg')
     axs[0].plot(x_lam, ua_lam_nest, label='LAM_nest,anl')
+    axs[0].plot(xobsloc,yobs,c='b',marker='x',lw=0.0,label='obs')
+    axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
     width=0.1
     for ax in axs[1:]:
         ax.bar(wnum_t-1.5*width,np.abs(y_t),width=width,label='nature')
@@ -270,6 +276,7 @@ while itrial < ntrial:
     axs[0].plot(x_lam, errb_lam, label='LAM,bg\n'+f'rmse={rmseb:.3e}')
     axs[0].plot(x_lam, erra_lam, label='LAM,anl\n'+f'rmse={rmsea:.3e}')
     axs[0].plot(x_lam, erra_lam_nest, label='LAM_nest,anl\n'+f'rmse={rmsea_nest:.3e}')
+    axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
     #for ax in axs[1,]:
     axs[1].set_xlim(0,10)
     axs[1].set_xticks(np.arange(11))
@@ -299,7 +306,7 @@ while itrial < ntrial:
         fig.savefig(figdir/'err.pdf')
     plt.show(block=False)
     plt.close()
-
+if ntrial < 10: exit()
 fig, ax = plt.subplots(figsize=[10,6],constrained_layout=True)
 ax.plot(np.arange(1,ntrial+1),rmseb_list,c=cmap(0),marker='^',\
     label='LAM,bg\n'+f'mean={np.mean(rmseb_list):.3f}')
