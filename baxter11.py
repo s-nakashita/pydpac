@@ -8,10 +8,15 @@ from analysis.var import Var
 from analysis.var_nest import Var_nest
 from pathlib import Path
 plt.rcParams['font.size'] = 14
+cmap = plt.get_cmap('tab10')
 import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger(__name__)
+
+figdir_parent = Path('work/baxter11')
+if not figdir_parent.exists():
+    figdir_parent.mkdir(parents=True)
 
 ## Domain and step size definition
 L = 1.0
@@ -68,18 +73,20 @@ axs[1].plot(U_lam[:,::4])
 axs[1].set_title(r'$\mathbf{U}_\mathrm{LAM}$')
 plt.show()
 """
-fig, axs = plt.subplots(ncols=2,constrained_layout=True)
+fig, axs = plt.subplots(figsize=[6,4],ncols=2,constrained_layout=True)
 p0=axs[0].matshow(B_gm)
 fig.colorbar(p0,ax=axs[0],shrink=0.6)
 axs[0].set_title(r'$\mathbf{B}_\mathrm{GM}$')
 p1=axs[1].matshow(B_lam)
 fig.colorbar(p1,ax=axs[1],shrink=0.6)
 axs[1].set_title(r'$\mathbf{B}_\mathrm{LAM}$')
+fig.savefig(figdir_parent/'B.png',dpi=300)
+fig.savefig(figdir_parent/'B.pdf')
 #plt.show()
 plt.close()
 
 ## DA
-obsloc = ix_lam[1:-1:3]
+obsloc = ix_lam[1:-1]
 nobs = obsloc.size
 obsope = Obs('linear',sigo)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
@@ -92,9 +99,6 @@ var_nest = Var_nest(obsope_lam, ix_gm, ix_lam[1:-1], bmat=B_lam, bsqrt=U_lam, si
 rng = default_rng()
 
 ## start trials
-figdir_parent = Path('work/baxter11')
-if not figdir_parent.exists():
-    figdir_parent.mkdir(parents=True)
 ntrial = 30
 rmseb_list = []
 rmsea_list = []
@@ -164,7 +168,9 @@ while itrial < ntrial:
     axs[1].set_xticks(np.arange(21))
     axs[1].set_xticks(np.arange(41)/2.,minor=True)
     axs[1].legend()
-    if savefig: fig.savefig(figdir/'nature+bg.png',dpi=300)
+    if savefig:
+        fig.savefig(figdir/'nature+bg.png',dpi=300)
+        fig.savefig(figdir/'nature+bg.pdf')
     plt.show(block=False)
     plt.close()
 
@@ -224,7 +230,9 @@ while itrial < ntrial:
     axs[2].bar(wnum_lam+1.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
     for ax in axs.flatten():
         ax.legend()
-    if savefig: fig.savefig(figdir/'nature+lamanl.png',dpi=300)
+    if savefig:
+        fig.savefig(figdir/'nature+lamanl.png',dpi=300)
+        fig.savefig(figdir/'nature+lamanl.pdf')
     plt.show(block=False)
     plt.close()
 
@@ -286,26 +294,32 @@ while itrial < ntrial:
     axs[0].legend(bbox_to_anchor=(1.01,0.9))
     axs[1].set_ylim(0,0.2)
     fig.suptitle('error')
-    if savefig: fig.savefig(figdir/'err.png',dpi=300)
+    if savefig:
+        fig.savefig(figdir/'err.png',dpi=300)
+        fig.savefig(figdir/'err.pdf')
     plt.show(block=False)
     plt.close()
 
-cmap = plt.get_cmap('tab10')
-fig, ax = plt.subplots(figsize=[10,6])
-ax.plot(np.arange(1,ntrial+1),rmseb_list,c=cmap(0),label='LAM,bg')
-ax.plot(np.arange(1,ntrial+1),rmsea_list,c=cmap(1),label='LAM,anl')
-ax.plot(np.arange(1,ntrial+1),rmsea_nest_list,c=cmap(2),label='LAM_nest,anl')
+fig, ax = plt.subplots(figsize=[10,6],constrained_layout=True)
+ax.plot(np.arange(1,ntrial+1),rmseb_list,c=cmap(0),marker='^',\
+    label='LAM,bg\n'+f'mean={np.mean(rmseb_list):.3f}')
+ax.plot(np.arange(1,ntrial+1),rmsea_list,c=cmap(1),marker='^',\
+    label='LAM,anl\n'+f'mean={np.mean(rmsea_list):.3f}')
+ax.plot(np.arange(1,ntrial+1),rmsea_nest_list,c=cmap(2),marker='^',\
+    label='LAM_nest,anl\n'+f'mean={np.mean(rmsea_nest_list):.3f}')
 ax.hlines([np.mean(rmseb_list)],0,1,colors=cmap(0),ls='dashed',\
     transform=ax.get_yaxis_transform())
 ax.hlines([np.mean(rmsea_list)],0,1,colors=cmap(1),ls='dashed',\
     transform=ax.get_yaxis_transform())
 ax.hlines([np.mean(rmsea_nest_list)],0,1,colors=cmap(2),ls='dashed',\
     transform=ax.get_yaxis_transform())
-ax.legend()
+ax.legend(bbox_to_anchor=(1.01,0.9))
+ax.set_xlim(0,ntrial+1)
 ax.set_xlabel('trial')
 ax.set_ylabel('RMSE')
 ax.set_title(f'ntrial={ntrial} nobs={nobs}, 3DVar')
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}.png',dpi=300)
+fig.savefig(figdir_parent/f'rmse_nobs{nobs}.pdf')
 plt.show()
 
 fig, axs = plt.subplots(figsize=[10,6],nrows=2)
@@ -337,4 +351,5 @@ axs[1].legend()
 axs[1].set_xlabel('wave number k')
 fig.suptitle(f'ntrial={ntrial} nobs={nobs}, 3DVar')
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}.png',dpi=300)
+fig.savefig(figdir_parent/f'errspec_nobs{nobs}.pdf')
 plt.show()

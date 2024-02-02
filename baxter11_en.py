@@ -8,10 +8,15 @@ from analysis.envar import EnVAR
 from analysis.envar_nest import EnVAR_nest
 from pathlib import Path
 plt.rcParams['font.size'] = 14
+cmap = plt.get_cmap('tab10')
 import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger(__name__)
+
+figdir_parent = Path('work/baxter11_en')
+if not figdir_parent.exists():
+    figdir_parent.mkdir(parents=True)
 
 ## Domain and step size definition
 L = 1.0
@@ -80,7 +85,8 @@ plt.close()
 
 ## DA
 nmem = 120
-obsloc = ix_lam[1:-1:3]
+infl_parm = 1.05
+obsloc = ix_lam[1:-1]
 nobs = obsloc.size
 obsope = Obs('linear',sigo)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
@@ -93,9 +99,6 @@ envar_nest = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=
 rng = default_rng()
 
 ## start trials
-figdir_parent = Path('work/baxter11_en')
-if not figdir_parent.exists():
-    figdir_parent.mkdir(parents=True)
 ntrial = 30
 rmseb_list = []
 rmsea_list = []
@@ -108,7 +111,7 @@ while itrial < ntrial:
     itrial += 1
     logger.info(f"== trial {itrial} nobs={nobs} nmem={nmem} ==")
     savefig=False
-    if itrial <= 10:
+    if itrial <= 30:
         savefig=True
         figdir = figdir_parent / f'nobs{nobs}nmem{nmem}_test{itrial}'
         if not figdir.exists():
@@ -120,15 +123,17 @@ while itrial < ntrial:
     u0_lam = gm2lam(x_lam)
     
     ## ensemble
-    X0_gm = rng.standard_normal(size=(nx_gm,nmem))
+    X0_gm = rng.standard_normal(size=(nx_gm,nmem))*sigb*infl_parm
+    #X0_gm[-1,:] = 0.0
     X0_gm = X0_gm - np.mean(X0_gm,axis=1)[:,None]
-    u_gm = u0_gm[:,None] + U_gm @ X0_gm
-    X0_lam = rng.standard_normal(size=(nx_lam-2,nmem))
+    u_gm = u0_gm[:,None] + X0_gm
+    X0_lam = rng.standard_normal(size=(nx_lam,nmem))*sigb*infl_parm
     X0_lam = X0_lam - np.mean(X0_lam,axis=1)[:,None]
     u_lam = np.zeros((nx_lam,nmem))
-    u_lam[0,:] = u0_lam[0]
-    u_lam[-1,:] = u0_lam[-1]
-    u_lam[1:-1,:] = u0_lam[1:-1,None] + U_lam @ X0_lam
+    u_lam[:,:] = u0_lam[:,None] + X0_lam
+    #u_lam[0,:] = u0_lam[0]
+    #u_lam[-1,:] = u0_lam[-1]
+    #u_lam[1:-1,:] = u0_lam[1:-1,None] + X0_lam
     
     X0_gm = u_gm - np.mean(u_gm,axis=1)[:,None]
     Pf_gm = X0_gm @ X0_gm.transpose() / (nmem-1)
@@ -142,7 +147,9 @@ while itrial < ntrial:
     p1=axs[1].matshow(Pf_lam)
     fig.colorbar(p1,ax=axs[1],shrink=0.6)
     axs[1].set_title(r'$\mathbf{P}^f_\mathrm{LAM}$')
-    fig.savefig(figdir/'Pens.png',dpi=300)
+    if savefig:
+        fig.savefig(figdir/'Pens.png',dpi=300)
+        fig.savefig(figdir/'Pens.pdf')
     if itrial==1: plt.show()
     plt.close()
 
@@ -177,11 +184,13 @@ while itrial < ntrial:
 
     width=0.15
     fig, axs = plt.subplots(nrows=2,figsize=[8,6],constrained_layout=True)
-    axs[0].plot(x_t,u0_t,label='nature')
-    axs[0].plot(x_gm,np.mean(u_gm,axis=1),label='GM mean')
+    axs[0].plot(x_t,u0_t,c=cmap(0),label='nature')
+    axs[0].plot(x_gm,np.mean(u_gm,axis=1),c=cmap(1),label='GM mean')
+    axs[0].plot(x_gm,u_gm,lw=0.5,ls='dotted',c=cmap(1))
     #axs[0].plot(x_lam,u0_lam)
     #axs[0].plot(x_gm,up_gm)
-    axs[0].plot(x_lam,np.mean(up_lam,axis=1),label='LAM mean')
+    axs[0].plot(x_lam,np.mean(up_lam,axis=1),c=cmap(2),label='LAM mean')
+    axs[0].plot(x_lam,up_lam,lw=0.5,ls='dotted',c=cmap(2))
     axs[1].bar(wnum_t-width,np.abs(y_t),width=width,label='nature')
     axs[1].bar(wnum_gm,np.mean(np.abs(y_gm),axis=1),\
         yerr=np.std(np.abs(y_gm),axis=1),width=width,label='GM')
@@ -194,7 +203,9 @@ while itrial < ntrial:
     axs[1].set_xticks(np.arange(21))
     axs[1].set_xticks(np.arange(41)/2.,minor=True)
     axs[1].legend()
-    if savefig: fig.savefig(figdir/'nature+bg.png',dpi=300)
+    if savefig:
+        fig.savefig(figdir/'nature+bg.png',dpi=300)
+        fig.savefig(figdir/'nature+bg.pdf')
     plt.show(block=False)
     plt.close()
 
@@ -216,8 +227,10 @@ while itrial < ntrial:
     #axs[0,0].plot(x_gm, ua_gm, label='GM,anl')
     axs[0].plot(x_lam, np.mean(up_lam,axis=1), label='LAM,bg')
     axs[0].plot(x_lam, np.mean(ua_lam,axis=1), label='LAM,anl')
+    #axs[0].plot(x_lam, ua_lam, lw=0.5,ls='dotted',c=cmap(2))
     #axs[0,2].plot(x_lam, u0_lam, label='LAM,bg')
     axs[0].plot(x_lam, np.mean(ua_lam_nest,axis=1), label='LAM_nest,anl')
+    #axs[0].plot(x_lam, ua_lam_nest, lw=0.5,ls='dotted',c=cmap(3))
     width=0.1
     for ax in axs[1:]:
         ax.bar(wnum_t-1.5*width,np.abs(y_t),width=width,label='nature')
@@ -259,7 +272,9 @@ while itrial < ntrial:
         yerr=np.std(np.abs(ya_lam_nest),axis=1),width=width,label='LAM_nest,anl')
     for ax in axs.flatten():
         ax.legend()
-    if savefig: fig.savefig(figdir/'nature+lamanl.png',dpi=300)
+    if savefig:
+        fig.savefig(figdir/'nature+lamanl.png',dpi=300)
+        fig.savefig(figdir/'nature+lamanl.pdf')
     plt.show(block=False)
     plt.close()
 
@@ -321,26 +336,32 @@ while itrial < ntrial:
     axs[0].legend(bbox_to_anchor=(1.01,0.9))
     axs[1].set_ylim(0,0.2)
     fig.suptitle('error')
-    if savefig: fig.savefig(figdir/'err.png',dpi=300)
+    if savefig:
+        fig.savefig(figdir/'err.png',dpi=300)
+        fig.savefig(figdir/'err.pdf')
     plt.show(block=False)
     plt.close()
 
-cmap = plt.get_cmap('tab10')
-fig, ax = plt.subplots(figsize=[10,6])
-ax.plot(np.arange(1,ntrial+1),rmseb_list,c=cmap(0),label='LAM,bg')
-ax.plot(np.arange(1,ntrial+1),rmsea_list,c=cmap(1),label='LAM,anl')
-ax.plot(np.arange(1,ntrial+1),rmsea_nest_list,c=cmap(2),label='LAM_nest,anl')
+fig, ax = plt.subplots(figsize=[10,6],constrained_layout=True)
+ax.plot(np.arange(1,ntrial+1),rmseb_list,c=cmap(0),marker='^',\
+    label='LAM,bg\n'+f'mean={np.mean(rmseb_list):.3f}')
+ax.plot(np.arange(1,ntrial+1),rmsea_list,c=cmap(1),marker='^',\
+    label='LAM,anl\n'+f'mean={np.mean(rmsea_list):.3f}')
+ax.plot(np.arange(1,ntrial+1),rmsea_nest_list,c=cmap(2),marker='^',\
+    label='LAM_nest,anl\n'+f'mean={np.mean(rmsea_nest_list):.3f}')
 ax.hlines([np.mean(rmseb_list)],0,1,colors=cmap(0),ls='dashed',\
     transform=ax.get_yaxis_transform())
 ax.hlines([np.mean(rmsea_list)],0,1,colors=cmap(1),ls='dashed',\
     transform=ax.get_yaxis_transform())
 ax.hlines([np.mean(rmsea_nest_list)],0,1,colors=cmap(2),ls='dashed',\
     transform=ax.get_yaxis_transform())
-ax.legend()
+ax.legend(bbox_to_anchor=(1.01,0.9))
+ax.set_xlim(0,ntrial+1)
 ax.set_xlabel('trial')
 ax.set_ylabel('RMSE')
 ax.set_title(f'ntrial={ntrial} nobs={nobs} nmem={nmem}, EnVar')
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}nmem{nmem}.png',dpi=300)
+fig.savefig(figdir_parent/f'rmse_nobs{nobs}nmem{nmem}.pdf')
 plt.show()
 
 fig, axs = plt.subplots(figsize=[10,6],nrows=2)
@@ -372,4 +393,5 @@ axs[1].legend()
 axs[1].set_xlabel('wave number k')
 fig.suptitle(f'ntrial={ntrial} nobs={nobs} nmem={nmem}, EnVar')
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}nmem{nmem}.png',dpi=300)
+fig.savefig(figdir_parent/f'errspec_nobs{nobs}nmem{nmem}.pdf')
 plt.show()
