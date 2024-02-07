@@ -75,7 +75,7 @@ plt.show()
 """
 
 ## DA
-nmem = 40
+nmem = 120
 infl_parm = 1.0
 obsloc = ix_lam[1:-1]
 xobsloc = x_lam[1:-1]
