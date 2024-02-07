@@ -310,10 +310,10 @@ class EnVAR():
             zetak = []
             alphak = []
             if (r is None) or (rmat is None) or (rinv is None):
-                logger.info("set R")
+                logger.debug("set R")
                 r, rmat, rinv = self.obs.set_r(yloc)
             else:
-                logger.info("use input R")
+                logger.debug("use input R")
             logger.debug("r={}".format(r))
             logger.debug("r^[-1/2]={}".format(rmat))
             xf = xb.copy()
@@ -485,11 +485,11 @@ class EnVAR():
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
             d = y - self.obs.h_operator(yloc, xa_)
-            logger.info("zmat shape={}".format(zmat.shape))
-            logger.info("d shape={}".format(d.shape))
+            logger.debug("zmat shape={}".format(zmat.shape))
+            logger.debug("d shape={}".format(d.shape))
             innv, chi2 = chi2_test(zmat, d)
             ds = self.dfs(zmat)
-            logger.info("dfs={}".format(ds))
+            logger.debug("dfs={}".format(ds))
             dxa = dxf @ tmat * np.sqrt(nmem-1)
             if self.iloc is not None:
                 nmem2 = dxf.shape[1]
