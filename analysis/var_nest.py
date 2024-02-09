@@ -40,7 +40,7 @@ class Var_nest():
         self.i0 = i0 # GM first index within LAM domain
         self.i1 = i1 # GM last index within LAM domain
         #self.nv = self.i1 - self.i0 + 1
-        self.nv = self.ix_lam.size
+        #self.nv = self.ix_lam.size
         self.ioffset = ioffset # LAM index offset (for sponge)
         self.cyclic = cyclic
         # LAM background error covariance
@@ -64,6 +64,8 @@ class Var_nest():
         else:
             self.ntrunc = ntrunc # truncation number for GM error covariance
         self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,nghost=0)
+        self.ix_trunc = self.trunc_operator.ix_trunc
+        self.nv = self.ix_trunc.size
         self.corrfuncv = Corrfunc(self.lv,a=self.a_v)
         self.vmat = vmat # prescribed background error covariance
         if calc_dist1_gm is None:
@@ -140,7 +142,8 @@ class Var_nest():
                     for i in range(self.nv):
                         for j in range(self.nv):
                             #distg[i,j] = self.calc_dist1_gm(self.i0+i,self.ix_gm[self.i0+j])
-                            distg[i,j] = self.calc_dist1(i+self.ioffset,self.ix_lam[j])
+                            #distg[i,j] = self.calc_dist1(i+self.ioffset,self.ix_lam[j])
+                            distg[i,j] = 2.0*np.pi*abs(self.ix_trunc[i] - self.ix_trunc[j])
                         if self.functype == "gc5":
                             if self.cyclic:
                                 ctmp = self.corrfuncv(np.roll(distg[i,],-i)[:self.nv//2+1],ftype=self.functype)

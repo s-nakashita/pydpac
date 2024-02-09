@@ -126,8 +126,8 @@ params_lam["lb"]        = 26.5     # (For var & 4dvar) correlation length for ba
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 params_lam["a"]         = -0.2  # (For var & 4dvar) background error correlation function shape parameter
 params_lam["sigv"]      =  1.2     # (For var_nest) GM background error standard deviation in LAM space
-params_lam["lv"]        = 25.0     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
-params_lam["a_v"]       = -0.2  # (For var_nest) background error correlation function shape parameter
+params_lam["lv"]        = 23.5     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
+params_lam["a_v"]       = -0.1  # (For var_nest) background error correlation function shape parameter
 params_lam["ntrunc"]    = 12    # (For var_nest) truncation number for GM error covariance
 params_lam["crosscov"] = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 

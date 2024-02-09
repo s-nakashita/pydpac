@@ -44,6 +44,7 @@ print(f"H_gm2lam={H_gm2lam.shape}")
 #f = trunc_operator(np.arange(ix_lam.size),ix=ix_lam,ftmax=ftmax,first=True,cyclic=False)
 ntrunc = 12
 trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,nghost=0)
+ix_trunc = trunc_operator.ix_trunc
 
 xt2x = interp1d(ix_t, xt)
 xlim = 15.0
@@ -558,7 +559,7 @@ for pt in perts:
     wnum_c, csp48m24 = cpsd(ek48h,lam2gm(ix_gm[i0:i1+1]),ix_gm[i0:i1+1],ix_gm[i0:i1+1],axis=1,cyclic=False,nghost=0)
     sp_gm2lamlist.append(csp48m24)
     ## truncated GM into nominal LAM grid (H_1:GM=>LAM@truncation, H_2=truncation)
-    ixlist.append(ix_lam)
+    ixlist.append(ix_trunc)
     ### 12h - 6h
     x12hgm2lam = np.dot(x12hgm[ns:ne],H_gm2lam.T)
     x12hgm_trunc = trunc_operator(x12hgm2lam.T)
@@ -568,11 +569,11 @@ for pt in perts:
     B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V12m6)
     gm2lamlist.append(B12m6_gm2lam)
-    wnum, sp12m6_v = psd(ek12h,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum, sp12m6_v = psd(ek12h,ix_trunc,axis=1,cyclic=False,nghost=0)
     wnumlist.append(wnum)
     splist.append(sp12m6_v)
     x12m6_trunc = trunc_operator(x12m6_lam.T)
-    wnum_c, csp12m6 = cpsd(ek12h,x12m6_trunc.T,ix_lam,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp12m6 = cpsd(ek12h,x12m6_trunc.T,ix_trunc,ix_trunc,axis=1,cyclic=False,nghost=0)
     sp_gm2lamlist.append(csp12m6)
     ### 24h - 12h
     x24hgm2lam = np.dot(x24hgm[ns:ne],H_gm2lam.T)
@@ -583,10 +584,10 @@ for pt in perts:
     B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V24m12)
     gm2lamlist.append(B24m12_gm2lam)
-    wnum, sp24m12_v = psd(ek24h,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum, sp24m12_v = psd(ek24h,ix_trunc,axis=1,cyclic=False,nghost=0)
     splist.append(sp24m12_v)
     x24m12_trunc = trunc_operator(x24m12_lam.T)
-    wnum_c, csp24m12 = cpsd(ek24h,x24m12_trunc.T,ix_lam,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp24m12 = cpsd(ek24h,x24m12_trunc.T,ix_trunc,ix_trunc,axis=1,cyclic=False,nghost=0)
     sp_gm2lamlist.append(csp24m12)
     ### 48h - 24h
     x48hgm2lam = np.dot(x48hgm[ns:ne],H_gm2lam.T)
@@ -597,10 +598,10 @@ for pt in perts:
     B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V48m24)
     gm2lamlist.append(B48m24_gm2lam)
-    wnum, sp48m24_v = psd(ek48h,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum, sp48m24_v = psd(ek48h,ix_trunc,axis=1,cyclic=False,nghost=0)
     splist.append(sp48m24_v)
     x48m24_trunc = trunc_operator(x48m24_lam.T)
-    wnum_c, csp48m24 = cpsd(ek48h,x48m24_trunc.T,ix_lam,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp48m24 = cpsd(ek48h,x48m24_trunc.T,ix_trunc,ix_trunc,axis=1,cyclic=False,nghost=0)
     sp_gm2lamlist.append(csp48m24)
     ##gm2lam = interp1d(ix_gm,x12m6_gm,axis=1)
     #V12m6 = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_gm[:,i0:i1+1])/float(ne-ns+1)*0.5

@@ -13,6 +13,7 @@ import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger(__name__)
+import sys
 
 figdir_parent = Path('work/baxter11')
 if not figdir_parent.exists():
@@ -91,6 +92,10 @@ plt.close()
 ## DA
 obsloc = ix_lam[1:-1:4]
 xobsloc = x_lam[1:-1:4]
+if len(sys.argv)>1:
+    intobs = int(sys.argv[1])
+    obsloc = ix_lam[1:-1:intobs]
+    xobsloc = x_lam[1:-1:intobs]
 nobs = obsloc.size
 obsope = Obs('linear',sigo,ix=ix_t)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
@@ -328,6 +333,7 @@ ax.set_title(f'ntrial={ntrial} nobs={nobs}, 3DVar')
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}.png',dpi=300)
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}.pdf')
 plt.show()
+plt.close()
 
 # t-test
 #from scipy.stats import t
@@ -342,10 +348,10 @@ alpha_99 = 0.01 # 99 % significance
 #t_value = diff_mean / diff_std / np.sqrt(ntrial)
 t_value, p_value = ttest_ind(rmsea_list,rmsea_nest_list)
 outf.write("'#=== t-test for LAM - LAM_nest ===',\n")
-outf.write(" k, LAM, LAM_nest, t-value, p-value, 95 %, 99 %\n")
-outf.write(f" 0, {np.mean(rmsea_list):.4f}, {np.mean(rmsea_nest_list):.4f},"+\
-    f" {t_value:.4f}, {p_value:.4f},"+\
-    f" {p_value<alpha_95}, {p_value<alpha_99}\n")
+outf.write("k,LAM,LAM_nest,t-value,p-value,95%,99%\n")
+outf.write(f"0,{np.mean(rmsea_list):.4f},{np.mean(rmsea_nest_list):.4f},"+\
+    f"{t_value:.4f},{p_value:.4f},"+\
+    f"{p_value<alpha_95},{p_value<alpha_99}\n")
 #outf.write(f" , {t_value:.4f}, "+\
 #    f"{t.ppf(1-0.1/2,ntrial-1):.4f}, "+\
 #    f"{t.ppf(1-0.05/2,ntrial-1):.4f}, "+\
@@ -393,9 +399,9 @@ for ik in range(wnum_lam.size):
     #diff_std  = np.std(diff_spec,ddof=1)
     #t_value = diff_mean / diff_std / np.sqrt(ntrial)
     t_value, p_value = ttest_ind(errspeca[:,ik],errspeca_nest[:,ik])
-    outf.write(f"{int(k):2d}, {np.mean(errspeca[:,ik]):.4f}, {np.mean(errspeca_nest[:,ik]):.4f},"+\
-    f" {t_value:.4f}, {p_value:.4f},"+\
-    f" {p_value<alpha_95}, {p_value<alpha_99}\n")
+    outf.write(f"{int(k):2d},{np.mean(errspeca[:,ik]):.4f},{np.mean(errspeca_nest[:,ik]):.4f},"+\
+    f"{t_value:.4f},{p_value:.4f},"+\
+    f"{p_value<alpha_95},{p_value<alpha_99}\n")
     #outf.write(f"{int(k):2d}, "+\
     #f"{t_value:.4f}, "+\
     #f"{t.ppf(1-0.1/2,ntrial-1):.4f}, "+\

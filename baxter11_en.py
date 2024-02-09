@@ -13,6 +13,7 @@ import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger(__name__)
+import sys
 
 figdir_parent = Path('work/baxter11_en')
 if not figdir_parent.exists():
@@ -75,10 +76,16 @@ plt.show()
 """
 
 ## DA
-nmem = 160
+nmem = 640
 infl_parm = 1.0
-obsloc = ix_lam[1:-1:4]
-xobsloc = x_lam[1:-1:4]
+obsloc = ix_lam[1:-1:2]
+xobsloc = x_lam[1:-1:2]
+if len(sys.argv)>1:
+    nmem = int(sys.argv[1])
+if len(sys.argv)>2:
+    intobs = int(sys.argv[2])
+    obsloc = ix_lam[1:-1:intobs]
+    xobsloc = x_lam[1:-1:intobs]
 nobs = obsloc.size
 obsope = Obs('linear',sigo,ix=ix_t)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
@@ -364,7 +371,7 @@ ax.set_ylabel('RMSE')
 ax.set_title(f'ntrial={ntrial} nobs={nobs} nmem={nmem}, EnVar')
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}nmem{nmem}.png',dpi=300)
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}nmem{nmem}.pdf')
-plt.show()
+plt.show(block=False)
 
 # t-test
 from scipy.stats import t
@@ -379,10 +386,10 @@ alpha_99 = 0.01 # 99 % significance
 #t_value = diff_mean / diff_std / np.sqrt(ntrial)
 t_value, p_value = ttest_ind(rmsea_list,rmsea_nest_list)
 outf.write("'#=== t-test for LAM - LAM_nest ===',\n")
-outf.write(" k, LAM, LAM_nest, t-value, p-value, 95 %, 99 %\n")
-outf.write(f" 0, {np.mean(rmsea_list):.4f}, {np.mean(rmsea_nest_list):.4f},"+\
-    f" {t_value:.4f}, {p_value:.4f},"+\
-    f" {p_value<alpha_95}, {p_value<alpha_99}\n")
+outf.write("k,LAM,LAM_nest,t-value,p-value,95%,99%\n")
+outf.write(f"0,{np.mean(rmsea_list):.4f},{np.mean(rmsea_nest_list):.4f},"+\
+    f"{t_value:.4f},{p_value:.4f},"+\
+    f"{p_value<alpha_95},{p_value<alpha_99}\n")
 #logger.info("=== t-test for RMSE: LAM - LAM_nest ===")
 #logger.info("   T     90%     95%     99%  ")
 #logger.info(f" {t_value:.4f} "+\
@@ -420,7 +427,7 @@ axs[1].set_xlabel('wave number k')
 fig.suptitle(f'ntrial={ntrial} nobs={nobs} nmem={nmem}, EnVar')
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}nmem{nmem}.png',dpi=300)
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}nmem{nmem}.pdf')
-plt.show()
+plt.show(block=False)
 
 # t-test
 #outf.write("'#=== t-test for spectrum: LAM - LAM_nest ===',\n")
@@ -434,9 +441,9 @@ for ik in range(wnum_lam.size):
     #diff_std  = np.std(diff_spec,ddof=1)
     #t_value = diff_mean / diff_std / np.sqrt(ntrial)
     t_value, p_value = ttest_ind(errspeca[:,ik],errspeca_nest[:,ik])
-    outf.write(f"{int(k):2d}, {np.mean(errspeca[:,ik]):.4f}, {np.mean(errspeca_nest[:,ik]):.4f},"+\
-    f" {t_value:.4f}, {p_value:.4f},"+\
-    f" {p_value<alpha_95}, {p_value<alpha_99}\n")
+    outf.write(f"{int(k):2d},{np.mean(errspeca[:,ik]):.4f},{np.mean(errspeca_nest[:,ik]):.4f},"+\
+    f"{t_value:.4f},{p_value:.4f},"+\
+    f"{p_value<alpha_95},{p_value<alpha_99}\n")
     #logger.info(f"{int(k):2d} "+\
     #f"{t_value:.4f} "+\
     #f"{t.ppf(1-0.1/2,ntrial-1):.4f} "+\

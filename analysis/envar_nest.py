@@ -35,11 +35,19 @@ class EnVAR_nest():
         self.sig = obs.get_sig() # observation error standard deviation
         self.ix_gm = ix_gm # GM grid
         self.ix_lam = ix_lam # LAM grid
+        i0=np.argmin(np.abs(self.ix_gm-self.ix_lam[0]))
+        if self.ix_gm[i0]<self.ix_lam[0]: i0+=1
+        i1=np.argmin(np.abs(self.ix_gm-self.ix_lam[-1]))
+        if self.ix_gm[i1]>self.ix_lam[-1]: i1-=1
+        self.i0 = i0 # GM first index within LAM domain
+        self.i1 = i1 # GM last index within LAM domain
+        self.nv = self.i1 - self.i0 + 1
         if ntrunc is None:
             self.ntrunc = self.ix_lam.size // 2
         else:
             self.ntrunc = ntrunc # truncation number for GM analysis
         self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,nghost=0)
+        self.nv = min(self.nv,self.trunc_operator.ix_trunc.size)
         # optional parameters
         self.pt = pt # DA type 
         # for 2 or more variables
@@ -125,6 +133,7 @@ class EnVAR_nest():
             rho = 1.0 / self.infl_parm
         c = zmat.transpose() @ zmat + qmat.transpose() @ qmat
         lam, v = la.eigh(c)
+        logger.debug(f"lam={lam}")
         D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho*(nk-1)))))
         vt = v.transpose()
         tmat = v @ D @ vt
@@ -379,8 +388,16 @@ class EnVAR_nest():
                 np.save("{}_dk_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dk)
                 svmat = JH1XAA / np.sqrt(JH1XAA.shape[1]-1)
                 np.save("{}_svmat_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), svmat)
-            qmat = la.pinv(JH1XAA) @ JH2XB
-            dk = la.pinv(JH1XAA) @ dk
+            if JH1XAA.shape[0] >= JH1XAA.shape[1]:
+                vsqrtinv = la.pinv(JH1XAA)
+            else:
+                u, s, vt = la.svd(JH1XAA)
+                logger.debug(f"s={s[:self.nv]}")
+                logger.debug(f"u.shape={u[:,:self.nv].shape}")
+                vsqrtinv = np.diag(1.0/s[:self.nv]) @ u[:,:self.nv].transpose()
+            qmat = vsqrtinv @ JH2XB
+            dk = vsqrtinv @ dk
+            logger.info(f"qmat.shape={qmat.shape}")
             if self.iloc is not None:
                 logger.info("==localization==, lsig={}".format(self.lsig))
                 dxf_orig = dxf.copy()
