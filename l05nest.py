@@ -20,14 +20,16 @@ model = "l05nest"
 nx_true = 960
 nk_true = 32
 ## GM
-intgm = 1                    # grid interval
+gm_same_with_nature = False # DEBUG: Lorenz III used for GM
+intgm = 4                    # grid interval
+if gm_same_with_nature:
+    intgm = 1
 nx_gm = nx_true // intgm     # number of points
 nk_gm = nk_true // intgm     # advection length scale
 dt_gm = 0.05 / 36            # time step (=1/6 hour, Kretchmer et al. 2015)
 #dt_gm = 0.05 / 48            # time step (=1/8 hour, Yoon et al. 2012)
-gm_same_with_nature = True   # DEBUG: Lorenz III used for GM
 ## LAM
-nx_lam = 120                 # number of LAM points
+nx_lam = 240                 # number of LAM points
 ist_lam = 240                # first grid index
 nsp = 10                     # width of sponge region
 po = 1                       # order of relaxation function
@@ -119,13 +121,13 @@ params_gm["rseed"] = None # random seed
 params_gm["extfcst"] = False # extended forecast
 #
 params_lam = params_gm.copy()
-params_lam["lamstart"] = 0 # first cycle of LAM analysis and forecast
-params_lam["anlsp"] = True # True: analyzed in the sponge region
+params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
+params_lam["anlsp"]     = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  0.6     # (For var & 4dvar) background error standard deviation
 params_lam["lb"]        = 26.5     # (For var & 4dvar) correlation length for background error covariance in degree
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 params_lam["a"]         = -0.2  # (For var & 4dvar) background error correlation function shape parameter
-params_lam["sigv"]      =  1.2     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["sigv"]      =  0.4     # (For var_nest) GM background error standard deviation in LAM space
 params_lam["lv"]        = 23.5     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
 params_lam["a_v"]       = -0.1  # (For var_nest) background error correlation function shape parameter
 params_lam["ntrunc"]    = 12    # (For var_nest) truncation number for GM error covariance
@@ -423,6 +425,8 @@ if __name__ == "__main__":
         func.plot_initial(u_gm, u_lam, xt[0], method=pt)
     pf_gm = analysis_gm.calc_pf(u_gm, pa_gm, 0)
     pf_lam = analysis_lam.calc_pf(u_lam, pa_lam, 0)
+    pa_gm = pf_gm[:,:]
+    pa_lam = pf_lam[:,:]
     
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
@@ -434,9 +438,10 @@ if __name__ == "__main__":
     stda_lam = np.zeros(na)
     xdmean_lam = np.zeros(nx_lam)
     xsmean_lam = np.zeros(nx_lam)
-    innov = np.zeros((na,yobs.shape[1]*a_window))
+    innov_gm = np.zeros((na,yobs.shape[1]*a_window))
     chi_gm = np.zeros(na)
     dof_gm = np.zeros(na)
+    innov_lam = np.zeros((na,yobs.shape[1]*a_window))
     chi_lam = np.zeros(na)
     dof_lam = np.zeros(na)
     if params_gm["extfcst"]:
@@ -514,40 +519,42 @@ if __name__ == "__main__":
 #                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
         else:
             args_gm = (u_gm,pf_gm,y[0],yloc[0])
-        if params_lam["anlsp"]:
-            #if pt == "var_nest":
-            #    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)
-            #else:
-            args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
-        else:
-            #if pt == "var_nest":
-            #    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm) #,step.ix_lam[nsp:-nsp])
-            #else:
-            args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
-        u_gm, pa_gm, spa_gm, innv, chi2, ds = analysis_gm(*args_gm, \
+        u_gm, pa_gm, _, innv, chi2, ds = analysis_gm(*args_gm, \
                 save_hist=save_hist, save_dh=save_dh, icycle=i)
         #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
         #pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
         #os.rename(pafile,pafile_new)
         chi_gm[i:min(i+a_window,na)] = chi2
-        innov[i:min(i+a_window,na),:innv.size] = innv
         dof_gm[i:min(i+a_window,na)] = ds
+        innov_gm[i:min(i+a_window,na),:innv.size] = innv
         if i >= params_lam["lamstart"]:
             if params_lam["anlsp"]:
+                #if pt == "var_nest":
+                #    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)
+                #else:
+                args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
                 if pt == "var_nest" or pt == "envar_nest":
                     args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm)
-                u_lam, pa_lam, spa_lam, innv, chi2, ds = analysis_lam(*args_lam, \
+                u_lam, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
             else:
+                #if pt == "var_nest":
+                #    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm) #,step.ix_lam[nsp:-nsp])
+                #else:
+                args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
                 if pt == "var_nest" or pt == "envar_nest":
                     args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm)
-                u_lam[nsp:-nsp], pa_lam[nsp:-nsp,nsp:-nsp], spa_lam, innv, chi2, ds = analysis_lam(*args_lam, \
+                u_tmp, pa_tmp, _, innv, chi2, ds = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
+                u_lam[nsp:-nsp] = u_tmp[:,...]
+                pa_lam[nsp:-nsp,nsp:-nsp] = pa_tmp[:,:]
             #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
             #pafile_new=f"{model}_palam_{op}_{pt}_cycle{i}.npy"
             #os.rename(pafile,pafile_new)
             chi_lam[i:min(i+a_window,na)] = chi2
             dof_lam[i:min(i+a_window,na)] = ds
+            for ii in range(i,min(i+a_window,na)):
+                innov_lam[ii,iobs_lam[ii]==1.0] = innv[:]
         else:
             gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
             u_lam = gm2lam(step.ix_lam)
@@ -717,8 +724,8 @@ if __name__ == "__main__":
             e_lam[i] = np.sqrt(np.mean((xa_lam[i, :] - true2gm(step.ix_lam))**2))
             xdmean_gm += (xa_gm[i,:]-true2gm(step.ix_gm))**2
             xdmean_lam += (xa_lam[i,:]-true2gm(step.ix_lam))**2
-        stda_gm[i] = np.sqrt(np.trace(pa_gm)/nx_gm)
-        stda_lam[i] = np.sqrt(np.trace(pa_lam)/nx_lam)
+        stda_gm[i] = np.sqrt(np.trace(pa_gm)/pa_gm.shape[0])
+        stda_lam[i] = np.sqrt(np.trace(pa_lam)/pa_lam.shape[0])
         xsa_gm[i] = np.sqrt(np.diag(pa_gm))
         xsa_lam[i] = np.sqrt(np.diag(pa_lam))
         xsmean_gm += np.diag(pa_gm)
@@ -731,7 +738,8 @@ if __name__ == "__main__":
     np.save("{}_xflam_{}_{}.npy".format(model, op, pt), xf_lam)
     np.save("{}_xalam_{}_{}.npy".format(model, op, pt), xa_lam)
     np.save("{}_xsalam_{}_{}.npy".format(model, op, pt), xsa_lam)
-    np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
+    np.save("{}_innvgm_{}_{}.npy".format(model, op, pt), innov_gm)
+    np.save("{}_innvlam_{}_{}.npy".format(model, op, pt), innov_lam)
     
     if params_gm["extfcst"]:
         np.save("{}_xf12gm_{}_{}.npy".format(model, op, pt), xf12_gm)

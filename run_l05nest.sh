@@ -5,15 +5,15 @@ export OMP_NUM_THREADS=4
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar"
+perturbations="var var_nest envar envar_nest"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=300 # Number of assimilation cycle
+na=200 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=15 # observation volume
+nobs=80 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
@@ -24,10 +24,10 @@ opt=0
 functype=gc5
 #a=-0.1
 #exp="var+var_nest_${functype}nmctrunc_obs${nobs}"
-exp="envar+envar_nest_gmtrue_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var_vs_envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
-wdir=work/${model}_K15/${exp}
+wdir=work/${model}/${exp}
 rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
@@ -92,7 +92,7 @@ for op in ${operators}; do
     ##for nmc
     #gsed -i -e "6i \ \"extfcst\":True," config_gm.py
     start_time=$(date +"%s")
-    python ${cdir}/${model}.py ${opt} > ${model}_${op}_${pert}.log 2>&1
+    python ${cdir}/${model}.py ${opt} > ${model}_${op}_${pert}.log 2>&1 || exit 2
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
