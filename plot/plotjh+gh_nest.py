@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['font.size'] = 16
 from matplotlib.lines import Line2D
+import matplotlib.gridspec as gridspec
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -17,7 +18,12 @@ marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
-fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,6),constrained_layout=True)
+fig = plt.figure(figsize=(12,6),constrained_layout=True)
+gs0 = gridspec.GridSpec(2, 5, figure=fig)
+ax0 = fig.add_subplot(gs0[0,:4])
+ax1 = fig.add_subplot(gs0[1,:4])
+axl = fig.add_subplot(gs0[:, 4])
+ax = [ax0, ax1]
 fig2, ax2 = plt.subplots(nrows=2,ncols=2,figsize=(12,8),constrained_layout=True)
 i = 0
 vmax = 0.0
@@ -150,7 +156,7 @@ if lplot:
         ax1.set_xlim(-1,100)
     for ax1 in ax2[:,1]:
         ax1.set_xlim(-1,100)
-    ax[1].legend(lines,labels,loc='center left',bbox_to_anchor=(1.0,0.9))
+    axl.legend(lines,labels,loc='center')
     ax2[1,0].legend(lines2,labels2)
     fig.savefig("{}_jh_{}.png".format(model, op))
     fig2.savefig("{}_gh_{}.png".format(model, op))

@@ -63,7 +63,7 @@ class Var_nest():
             self.ntrunc = self.nv // 2
         else:
             self.ntrunc = ntrunc # truncation number for GM error covariance
-        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,nghost=0)
+        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,ttype='s',nghost=0)
         self.ix_trunc = self.trunc_operator.ix_trunc
         self.nv = self.ix_trunc.size
         self.corrfuncv = Corrfunc(self.lv,a=self.a_v)

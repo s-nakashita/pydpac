@@ -46,7 +46,7 @@ class EnVAR_nest():
             self.ntrunc = self.ix_lam.size // 2
         else:
             self.ntrunc = ntrunc # truncation number for GM analysis
-        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,nghost=0)
+        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,ttype='s',nghost=0)
         self.nv = min(self.nv,self.trunc_operator.ix_trunc.size)
         # optional parameters
         self.pt = pt # DA type 
