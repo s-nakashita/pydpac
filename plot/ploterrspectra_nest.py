@@ -55,7 +55,7 @@ Lx_lam = 2.0 * np.pi * nx_lam / nx_t
 #dx_lam = Lx_lam / (nx_lam + 2*nghost)
 figall = plt.figure(figsize=[10,10],constrained_layout=True)
 axgm = figall.add_subplot(211)
-axlam = figall.add_subplot(212)
+axlam = figall.add_subplot(212,sharex=axgm)
 for pt in perts:
     #GM
     f = "xagm_{}_{}.npy".format(op, pt)
@@ -186,9 +186,10 @@ for pt in perts:
     plt.show(block=False)
     plt.close(fig=fig)
 for ax in [axgm,axlam]:
-    ax.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
-    #ax.set_title("spectral space")
     ax.legend()
+    ax.grid()
+    #ax.set_title("spectral space")
+    ax.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
     #ax.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
     #ax.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
     ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,1]))
@@ -197,7 +198,6 @@ for ax in [axgm,axlam]:
     secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
     secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
     secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-    ax.grid()
 axgm.set_ylabel("GM power spectral density")
 axlam.set_ylabel("LAM power spectral density")
 figall.suptitle(f"{op}")
