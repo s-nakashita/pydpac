@@ -148,7 +148,7 @@ if lplot:
     ax2[1,0].set(xlabel="analysis cycles", ylabel=r"$\nabla$J",
         title=op+" LAM")
     ax2[1,1].set_ylabel('iteration number',color='red')
-    for ax1 in ax.flatten():
+    for ax1 in ax:
         ax1.set_yscale("log")
         ax1.set_xlim(-1,100)
     for ax1 in ax2[:,0]:
@@ -156,6 +156,7 @@ if lplot:
         ax1.set_xlim(-1,100)
     for ax1 in ax2[:,1]:
         ax1.set_xlim(-1,100)
+    axl.axis("off")
     axl.legend(lines,labels,loc='center')
     ax2[1,0].legend(lines2,labels2)
     fig.savefig("{}_jh_{}.png".format(model, op))

@@ -20,7 +20,7 @@ model = "l05nest"
 nx_true = 960
 nk_true = 32
 ## GM
-gm_same_with_nature = True # DEBUG: Lorenz III used for GM
+gm_same_with_nature = False # DEBUG: Lorenz III used for GM
 intgm = 4                    # grid interval
 if gm_same_with_nature:
     intgm = 1
