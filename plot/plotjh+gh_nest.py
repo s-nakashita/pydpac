@@ -150,7 +150,7 @@ if lplot:
         ax1.set_xlim(-1,100)
     for ax1 in ax2[:,1]:
         ax1.set_xlim(-1,100)
-    ax[1].legend(lines,labels,loc='upper left',bbox_to_anchor=(1.0,0.9))
+    ax[1].legend(lines,labels,loc='center left',bbox_to_anchor=(1.0,0.9))
     ax2[1,0].legend(lines2,labels2)
     fig.savefig("{}_jh_{}.png".format(model, op))
     fig2.savefig("{}_gh_{}.png".format(model, op))

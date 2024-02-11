@@ -34,26 +34,28 @@ class Trunc1d:
         else:
             self.ntrunc = ntrunc
         logger.info(f"Trunc1d: ntrunc={self.ntrunc} ftrunc={self.f[self.ntrunc]:.4f}")
-        self.ix_trunc = np.linspace(ix[0],ix[0]+nx*dx,\
-            min(self.ntrunc*2+1,nx),endpoint=False)
-        self.dx_trunc = self.ix_trunc[1] - self.ix_trunc[0]
-        #self.T = np.eye(self.F.shape[0])
-        #if self.ntrunc<self.f.size-self.ntrunc:
-        #    self.T[self.ntrunc:self.f.size-self.ntrunc,:] = 0.0
-        #    self.T[self.f.size-self.ntrunc,:] *= 2
+        self.ix_trunc = ix.copy()
+        self.dx_trunc = dx
+        self.T = np.eye(self.F.shape[0])
         if self.ntrunc<self.f.size-self.ntrunc:
-            self.T = np.zeros((self.ix_trunc.size,self.F.shape[0]))
-            i = 0
-            for j in range(self.ntrunc+1):
-                self.T[i,j] = dx / self.dx_trunc
-                i += 1
-            for j in range(self.f.size-self.ntrunc,self.T.shape[1]):
-                self.T[i,j] = dx / self.dx_trunc
-                #if j==self.f.size-self.ntrunc:
-                #    self.T[i,j] = 2 * dx / self.dx_trunc
-                i += 1
-        else:
-            self.T = np.eye(self.F.shape[0])
+            self.T[self.ntrunc:self.f.size-self.ntrunc,:] = 0.0
+            self.T[self.f.size-self.ntrunc,:] *= 2
+        #self.ix_trunc = np.linspace(ix[0],ix[0]+nx*dx,\
+        #    min(self.ntrunc*2+1,nx),endpoint=False)
+        #self.dx_trunc = self.ix_trunc[1] - self.ix_trunc[0]
+        #if self.ntrunc<self.f.size-self.ntrunc:
+        #    self.T = np.zeros((self.ix_trunc.size,self.F.shape[0]))
+        #    i = 0
+        #    for j in range(self.ntrunc+1):
+        #        self.T[i,j] = dx / self.dx_trunc
+        #        i += 1
+        #    for j in range(self.f.size-self.ntrunc,self.T.shape[1]):
+        #        self.T[i,j] = dx / self.dx_trunc
+        #        #if j==self.f.size-self.ntrunc:
+        #        #    self.T[i,j] = 2 * dx / self.dx_trunc
+        #        i += 1
+        #else:
+        #    self.T = np.eye(self.F.shape[0])
         logger.info(f"Trunc1d: T.shape={self.T.shape}")
         self.Fi = fft.ifft(np.eye(self.T.shape[0]),axis=0)
         logger.info(f"Trunc1d: Fi.shape={self.Fi.shape}")

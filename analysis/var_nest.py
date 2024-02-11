@@ -143,7 +143,7 @@ class Var_nest():
                         for j in range(self.nv):
                             #distg[i,j] = self.calc_dist1_gm(self.i0+i,self.ix_gm[self.i0+j])
                             #distg[i,j] = self.calc_dist1(i+self.ioffset,self.ix_lam[j])
-                            distg[i,j] = 2.0*np.pi*abs(self.ix_trunc[i] - self.ix_trunc[j])
+                            distg[i,j] = 2.0*np.pi*abs(self.ix_trunc[i] - self.ix_trunc[j])/(self.ix_gm[-1] - self.ix_gm[0] + 1)
                         if self.functype == "gc5":
                             if self.cyclic:
                                 ctmp = self.corrfuncv(np.roll(distg[i,],-i)[:self.nv//2+1],ftype=self.functype)

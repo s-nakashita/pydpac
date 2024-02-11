@@ -20,7 +20,7 @@ model = "l05nest"
 nx_true = 960
 nk_true = 32
 ## GM
-gm_same_with_nature = False # DEBUG: Lorenz III used for GM
+gm_same_with_nature = True # DEBUG: Lorenz III used for GM
 intgm = 4                    # grid interval
 if gm_same_with_nature:
     intgm = 1
@@ -502,7 +502,7 @@ if __name__ == "__main__":
             logger.info("observation location in LAM {} {}".format  (yloc_lam,yloc_lam.shape))
             logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
-        save_dh = i < 100
+        save_dh = i < a_time[-1]
         save_hist = True
         ##if a_window > 1:
         if pt[:2] == "4d":

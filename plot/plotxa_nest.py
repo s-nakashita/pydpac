@@ -7,6 +7,8 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.interpolate import interp1d
 plt.rcParams['font.size'] = 16
+sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
+from trunc1d import Trunc1d
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -30,6 +32,10 @@ t = np.arange(na)
 ix_t = np.loadtxt("ix_true.txt")
 ix_gm = np.loadtxt("ix_gm.txt")
 ix_lam = np.loadtxt("ix_lam.txt")
+ntrunc = 12
+trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,nghost=0)
+ix_trunc = trunc_operator.ix_trunc
+
 xt2x = interp1d(ix_t, xt)
 xlim = 15.0
 for pt in perts:
@@ -242,7 +248,7 @@ for pt in perts:
         f = "{}_lam_dk_{}_{}_cycle{}.npy".format(model,op,pt,icycle)
         if os.path.isfile(f):
             dk = np.load(f)
-            ax.plot(ix_lam,dk,label='dk')
+            ax.plot(ix_trunc,dk,label='dk')
         #else:
         #    ax.plot(ix_gm[i0:i1+1],xagm1[i0:i1+1]-JH2@xalam1,label='dk')
         ax.set_title(f't={t[icycle]}')
