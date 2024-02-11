@@ -74,7 +74,7 @@ class EnKF():
                 self.nmode = l_sqrt.shape[1]
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), self.l_mat)
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
         dxf = xf - np.mean(xf,axis=1)[:, None]
         pf = dxf @ dxf.transpose() / (self.nmem-1)
         return pf

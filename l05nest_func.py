@@ -138,7 +138,7 @@ class L05nest_func():
                 logger.info("entire observation")
                 obsloc = xloc.copy()
                 if self.anlsp:
-                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                    obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
                 else:
                     obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                 for k in range(self.na):
@@ -150,7 +150,7 @@ class L05nest_func():
                 intobs = self.nx_true // self.nobs
                 obsloc = xloc[::intobs]
                 if self.anlsp:
-                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                    obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
                 else:
                     obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                 for k in range(self.na):
@@ -164,7 +164,7 @@ class L05nest_func():
                     #obsloc = xloc[:self.nobs]
                     #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs)
                     if self.anlsp:
-                        obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                        obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
                     else:
                         obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                     yobs[k,:,0] = obsloc[:]
@@ -181,7 +181,7 @@ class L05nest_func():
             for k in range(self.na):
                 obsloc = yobs[k,:,0]
                 if self.anlsp:
-                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[0])&(obsloc<=self.step.ix_lam[-1]), 1, 0)
+                    obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
                 else:
                     obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                 iobs_lam[k,:] = obs_in_lam
@@ -250,8 +250,6 @@ class L05nest_func():
         xa_lam = np.zeros((self.na, self.nx_lam))
         xf_gm = np.zeros_like(xa_gm)
         xf_lam = np.zeros_like(xa_lam)
-        xsa_gm = np.zeros_like(xa_gm)
-        xsa_lam = np.zeros_like(xa_lam)
         if self.ft == "deterministic":
             u_gm, u_lam = self.init_ctl()
             xf_gm[0] = u_gm
@@ -268,13 +266,11 @@ class L05nest_func():
             else:
                 xf_gm[0] = np.mean(u_gm, axis=1)
                 xf_lam[0] = np.mean(u_lam, axis=1)
-        pa_gm  = np.zeros((self.nx_gm, self.nx_gm))
-        pa_lam  = np.zeros((self.nx_lam, self.nx_lam))
         #if self.pt == "mlef" or self.pt == "grad":
         #    savepa = np.zeros((self.na, self.nx, self.nmem-1))
         #else:
         #savepa = np.zeros((self.na, self.nx, self.nx))
-        return u_gm, xa_gm, xf_gm, pa_gm, xsa_gm, u_lam, xa_lam, xf_lam, pa_lam, xsa_lam #, savepa
+        return u_gm, xa_gm, xf_gm, u_lam, xa_lam, xf_lam #, savepa
 
     # forecast
     def forecast(self, u_gm, u_lam):

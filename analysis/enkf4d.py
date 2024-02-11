@@ -68,7 +68,7 @@ class EnKF4d():
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.da), self.l_mat)
         logger.info(f"nt={self.nt} a_window={self.a_window}")
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
         dxf = xf - np.mean(xf,axis=1)[:, None]
         pf = dxf @ dxf.transpose() / (self.nmem-1)
         return pf

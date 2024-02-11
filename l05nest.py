@@ -20,7 +20,7 @@ model = "l05nest"
 nx_true = 960
 nk_true = 32
 ## GM
-gm_same_with_nature = False # DEBUG: Lorenz III used for GM
+gm_same_with_nature = True # DEBUG: Lorenz III used for GM
 intgm = 4                    # grid interval
 if gm_same_with_nature:
     intgm = 1
@@ -177,8 +177,6 @@ else:
     obs_lam = Obs(op, sigo, ix=step.ix_lam[nsp:-nsp], icyclic=False) # analysis_lam (exclude sponge regions)
 
 # assimilation class
-state_gm = nx_gm
-state_lam = nx_lam
 if a_window < 1:
     if pt[:2] == "4d":
         a_window = 5
@@ -214,7 +212,15 @@ elif pt == "envar":
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model="l05nest_gm")
-    analysis_lam = EnVAR(nx_lam, params_lam["nmem"], obs_lam, \
+    if params_lam["anlsp"]:
+        analysis_lam = EnVAR(nx_lam, params_lam["nmem"], obs_lam, \
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            ss=params_lam["ss"], getkf=params_lam["getkf"], \
+            calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+    else:
+        analysis_lam = EnVAR(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
@@ -238,7 +244,7 @@ elif pt == "envar_nest":
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
     else:
-        analysis_lam = EnVAR_nest(nx_lam, params_lam["nmem"], obs_lam, \
+        analysis_lam = EnVAR_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
@@ -373,6 +379,10 @@ elif pt == "var_nest":
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model="l05nest_lam")
+else:
+    print("not implemented yet")
+    exit()
+"""
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
@@ -404,6 +414,7 @@ elif pt == "4dmlef":
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam, \
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+"""
 
 # functions load
 func = L05nest_func(step,obs,params_gm,params_lam)
@@ -416,28 +427,32 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs, iobs_lam = func.get_true_and_obs(obsloctype=params_gm["obsloctype"])
-    u_gm, xa_gm, xf_gm, pa_gm, xsa_gm, u_lam, xa_lam, xf_lam, pa_lam, xsa_lam = func.initialize(opt=opt)
+    u_gm, xa_gm, xf_gm, u_lam, xa_lam, xf_lam = func.initialize(opt=opt)
     logger.debug(u_gm.shape)
     logger.debug(u_lam.shape)
     if u_gm.ndim == 2:
         func.plot_initial(u_gm[:,0], u_lam[:,0], xt[0], uens_gm=u_gm[:,1:], uens_lam=u_lam[:,1:], method=pt)
     else:
         func.plot_initial(u_gm, u_lam, xt[0], method=pt)
-    pf_gm = analysis_gm.calc_pf(u_gm, pa_gm, 0)
-    pf_lam = analysis_lam.calc_pf(u_lam, pa_lam, 0)
-    pa_gm = pf_gm[:,:]
-    pa_lam = pf_lam[:,:]
-    
+    #pa_gm  = np.zeros((nx_gm, nx_gm))
+    #pa_lam  = np.zeros((nx_lam, nx_lam))
+    pf_gm = analysis_gm.calc_pf(u_gm, cycle=0)
+    pf_lam = analysis_lam.calc_pf(u_lam, cycle=0)
+    pa_gm = pf_gm.copy()
+    pa_lam = pf_lam.copy()
+    xsa_gm = np.zeros((xa_gm.shape[0],pa_gm.shape[0]))
+    xsa_lam = np.zeros((xa_lam.shape[0],pa_lam.shape[0]))
+
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e_gm = np.zeros(na)
     stda_gm = np.zeros(na)
     xdmean_gm = np.zeros(nx_gm)
-    xsmean_gm = np.zeros(nx_gm)
+    xsmean_gm = np.zeros(pa_gm.shape[0])
     e_lam = np.zeros(na)
     stda_lam = np.zeros(na)
     xdmean_lam = np.zeros(nx_lam)
-    xsmean_lam = np.zeros(nx_lam)
+    xsmean_lam = np.zeros(pa_lam.shape[0])
     innov_gm = np.zeros((na,yobs.shape[1]*a_window))
     chi_gm = np.zeros(na)
     dof_gm = np.zeros(na)
@@ -535,19 +550,22 @@ if __name__ == "__main__":
                 args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
                 if pt == "var_nest" or pt == "envar_nest":
                     args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm)
-                u_lam, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
+                u_tmp, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
+                u_lam = u_tmp[:,...]
             else:
                 #if pt == "var_nest":
                 #    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm) #,step.ix_lam[nsp:-nsp])
                 #else:
-                args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
+                args_lam = (u_lam[nsp:-nsp],pf_lam,y_lam,yloc_lam)
                 if pt == "var_nest" or pt == "envar_nest":
-                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm)
-                u_tmp, pa_tmp, _, innv, chi2, ds = analysis_lam(*args_lam, \
+                    args_lam = (u_lam[nsp:-nsp],pf_lam,y_lam,yloc_lam,u_gm)
+                u_tmp, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
                 u_lam[nsp:-nsp] = u_tmp[:,...]
-                pa_lam[nsp:-nsp,nsp:-nsp] = pa_tmp[:,:]
+                #pa_lam[nsp:-nsp,nsp:-nsp] = pa_tmp[:,:]
+            if ft=="ensemble":
+                pa_lam = analysis_lam.calc_pf(u_lam)
             #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
             #pafile_new=f"{model}_palam_{op}_{pt}_cycle{i}.npy"
             #os.rename(pafile,pafile_new)
@@ -558,7 +576,7 @@ if __name__ == "__main__":
         else:
             gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
             u_lam = gm2lam(step.ix_lam)
-            pa_lam = analysis_lam.calc_pf(u_lam, pa_lam, i)
+            pa_lam = analysis_lam.calc_pf(u_lam, pa=pa_lam, cycle=i)
         ## additive inflation
         #if linf:
         #    logger.info("==additive inflation==")
@@ -596,9 +614,9 @@ if __name__ == "__main__":
                             stda_gm[k] = np.sqrt(np.trace(pa_gm)/nx_gm)
                             stda_lam[k] = np.sqrt(np.trace(pa_lam)/nx_lam)
                         else:
-                            pa_gmtmp = analysis_gm.calc_pf(uf_gm[ii], pa_gm, k)
+                            pa_gmtmp = analysis_gm.calc_pf(uf_gm[ii], pa=pa_gm, cycle=k)
                             stda_gm[k] = np.sqrt(np.trace(pa_gmtmp)/nx_gm)
-                            pa_lamtmp = analysis_lam.calc_pf(uf_lam[ii], pa_lam, k)
+                            pa_lamtmp = analysis_lam.calc_pf(uf_lam[ii], pa=pa_lam, cycle=k)
                             stda_lam[k] = np.sqrt(np.trace(pa_lamtmp)/nx_lam)
                         ii += 1
                 else:
@@ -616,12 +634,12 @@ if __name__ == "__main__":
                     for k in range(i+1,na):
                         if pt=="4dvar":
                             stda_gm[k] = np.sqrt(np.trace(pa_gm)/nx_gm)
-                            stda_lam[k] = np.sqrt(np.trace(pa_lam)/nx_lam)
+                            stda_lam[k] = np.sqrt(np.trace(pa_lam)/pa_lam.shape[0])
                         else:
-                            pa_gmtmp = analysis_gm.calc_pf(uf_gm[ii], pa_gm, k)
+                            pa_gmtmp = analysis_gm.calc_pf(uf_gm[ii], pa=pa_gm, cycle=k)
                             stda_gm[k] = np.sqrt(np.trace(pa_gmtmp)/nx_gm)
-                            pa_lamtmp = analysis_lam.calc_pf(uf_lam[ii], pa_lam, k)
-                            stda_lam[k] = np.sqrt(np.trace(pa_lamtmp)/nx_lam)
+                            pa_lamtmp = analysis_lam.calc_pf(uf_lam[ii], pa=pa_lam, cycle=k)
+                            stda_lam[k] = np.sqrt(np.trace(pa_lamtmp)/pa_lam.shape[0])
                         ii += 1
                 u_gm = uf_gm[-1]
                 u_lam = uf_lam[-1]
@@ -638,8 +656,8 @@ if __name__ == "__main__":
             else:
                 xf_gm[i+1] = u_gm
                 xf_lam[i+1] = u_lam
-            pf_gm = analysis_gm.calc_pf(u_gm, pa_gm, i+1)
-            pf_lam = analysis_lam.calc_pf(u_lam, pa_lam, i+1)
+            pf_gm = analysis_gm.calc_pf(u_gm, pa=pa_gm, cycle=i+1)
+            pf_lam = analysis_lam.calc_pf(u_lam, pa=pa_lam, cycle=i+1)
             
             if params_gm["extfcst"]:
                 ## extended forecast
@@ -696,8 +714,8 @@ if __name__ == "__main__":
                     #else:
                     #    pf_gmlam = (u_gm[i0:i1+1,:]-u_gm[i0:i1+1,:].mean(axis=1).reshape(-1,1))@(utmp_lam2gm-utmp_lam2gm.mean(axis=1).reshape(-1,1)).T/(u_lam.shape[1]-1)
                     #np.save("{}_pfgmlam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf_gmlam)
-                    pf48_gm = analysis_gm.calc_pf(utmp_gm, pa_gm, i+1)
-                    pf48_lam = analysis_lam.calc_pf(utmp_lam, pa_lam, i+1)
+                    pf48_gm = analysis_gm.calc_pf(utmp_gm, pa=pa_gm, cycle=i+1)
+                    pf48_lam = analysis_lam.calc_pf(utmp_lam, pa=pa_lam, cycle=i+1)
                     np.save("{}_pf48gm_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_gm)
                     np.save("{}_pf48lam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_lam)
 

@@ -115,6 +115,10 @@ rmsea_nest_list = []
 errspecb_list = []
 errspeca_list = []
 errspeca_nest_list = []
+incr_list = []
+incr_nest_list = []
+incrspec_list = []
+incrspec_nest_list = []
 itrial = 0
 while itrial < ntrial:
     itrial += 1
@@ -244,6 +248,44 @@ while itrial < ntrial:
     if savefig:
         fig.savefig(figdir/'nature+lamanl.png',dpi=300)
         fig.savefig(figdir/'nature+lamanl.pdf')
+    plt.show(block=False)
+    plt.close()
+
+    ## increment
+    incr_lam = ua_lam - up_lam
+    incr_lam_nest = ua_lam_nest - up_lam
+    incr_list.append(incr_lam)
+    incr_nest_list.append(incr_lam_nest)
+    ya_lam = dst(incr_lam[1:-1],type=1)/(nx_lam-1)
+    ya_lam_nest = dst(incr_lam_nest[1:-1],type=1)/(nx_lam-1)
+    incrspec_list.append(np.abs(ya_lam))
+    incrspec_nest_list.append(np.abs(ya_lam_nest))
+    width=0.3
+    fig, axs = plt.subplots(nrows=3,figsize=[8,8],constrained_layout=True)
+    axs[0].plot(x_lam, incr_lam, label='LAM')
+    axs[0].plot(x_lam, incr_lam_nest, label='LAM_nest')
+    axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
+    #for ax in axs[1,]:
+    axs[1].set_xlim(0,10)
+    axs[1].set_xticks(np.arange(11))
+    axs[1].set_xticks(np.arange(21)/2.,minor=True)
+    axs[1].set_xlabel('wave number k')
+    #for ax in axs[2,]:
+    axs[2].set_xlim(9,20)
+    axs[2].set_xticks(np.arange(9,21))
+    axs[2].set_xticks(np.arange(18,41)/2.,minor=True)
+    axs[2].set_xlabel('wave number k')
+    axs[1].bar(wnum_lam-0.5*width,np.abs(ya_lam),width=width,label='LAM')
+    axs[1].bar(wnum_lam+0.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest')
+    axs[2].bar(wnum_lam-0.5*width,np.abs(ya_lam),width=width,label='LAM')
+    axs[2].bar(wnum_lam+0.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest')
+    #for ax in axs[2,:]:
+    axs[0].legend(bbox_to_anchor=(1.01,0.9))
+    axs[1].set_ylim(0,0.2)
+    fig.suptitle('incr')
+    if savefig:
+        fig.savefig(figdir/'incr.png',dpi=300)
+        fig.savefig(figdir/'incr.pdf')
     plt.show(block=False)
     plt.close()
 
@@ -388,6 +430,7 @@ fig.suptitle(f'ntrial={ntrial} nobs={nobs}, 3DVar')
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}.png',dpi=300)
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}.pdf')
 plt.show()
+plt.close()
 
 # t-test
 #outf.write("'#=== t-test for spectrum: LAM - LAM_nest ===',\n")
@@ -408,6 +451,42 @@ for ik in range(wnum_lam.size):
     #f"{t.ppf(1-0.05/2,ntrial-1):.4f}, "+\
     #f"{t.ppf(1-0.01/2,ntrial-1):.4f}\n")
 outf.close()
+
+fig, axs = plt.subplots(figsize=[10,8],nrows=3,constrained_layout=True)
+incr = np.array(incr_list)
+incr_mean = np.mean(incr,axis=0)
+incr_std  = np.std(incr,axis=0)
+incrspec = np.array(incrspec_list)
+incrspec_mean = np.mean(incrspec,axis=0)
+incrspec_std  = np.std(incrspec,axis=0)
+incr_nest = np.array(incr_nest_list)
+incr_nest_mean = np.mean(incr_nest,axis=0)
+incr_nest_std  = np.std(incr_nest,axis=0)
+incrspec_nest = np.array(incrspec_nest_list)
+incrspec_nest_mean = np.mean(incrspec_nest,axis=0)
+incrspec_nest_std  = np.std(incrspec_nest,axis=0)
+axs[0].errorbar(x_lam, incr_mean, yerr=incr_std, label='LAM')
+axs[0].errorbar(x_lam, incr_nest_mean, yerr=incr_nest_std, label='LAM_nest')
+axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
+axs[1].set_xlim(0,10)
+axs[1].set_xticks(np.arange(11))
+axs[1].set_xticks(np.arange(21)/2.,minor=True)
+axs[1].set_xlabel('wave number k')
+axs[2].set_xlim(9,20)
+axs[2].set_xticks(np.arange(9,21))
+axs[2].set_xticks(np.arange(18,41)/2.,minor=True)
+axs[2].set_xlabel('wave number k')
+axs[1].bar(wnum_lam-0.5*width,incrspec_mean,yerr=incrspec_std,width=width,label='LAM,anl')
+axs[1].bar(wnum_lam+0.5*width,incrspec_nest_mean,yerr=incrspec_nest_std,width=width,label='LAM_nest,anl')
+axs[2].bar(wnum_lam-0.5*width,incrspec_mean,yerr=incrspec_std,width=width,label='LAM,anl')
+axs[2].bar(wnum_lam+0.5*width,incrspec_nest_mean,yerr=incrspec_nest_std,width=width,label='LAM_nest,anl')
+axs[0].legend(bbox_to_anchor=(1.01,0.9))
+axs[1].set_ylim(0,0.2)
+fig.suptitle(f'ntrial={ntrial} nobs={nobs}, 3DVar, increment')
+fig.savefig(figdir_parent/f'incr_nobs{nobs}.png',dpi=300)
+fig.savefig(figdir_parent/f'incr_nobs{nobs}.pdf')
+plt.show()
+plt.close()
 
 import pandas as pd
 df = pd.read_csv(figdir_parent/outfile,comment='#')

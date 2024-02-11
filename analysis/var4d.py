@@ -32,8 +32,8 @@ class Var4d():
         from .var import Var
         self.var = Var(obs,sigb=self.sigb,lb=self.lb,model=self.model)
 
-    def calc_pf(self, xf, pa, cycle):
-        return self.var.calc_pf(xf,pa,cycle)
+    def calc_pf(self, xf, **kwargs):
+        return self.var.calc_pf(xf,**kwargs)
     
     def callback(self, xk, alpha=None):
         global zetak, alphak

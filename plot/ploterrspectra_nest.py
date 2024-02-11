@@ -18,6 +18,9 @@ na = int(sys.argv[3])
 perts = ["mlef", "envar", "envar_nest", "etkf", "po", "srf", "letkf", "kf", "var", "var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
+linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"envar_nest":'tab:green',"etkf":'tab:green', "po":'tab:red',\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
+        "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 if model == "z08":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     linestyle = {"mlef":"solid", "grad":"dashed",
@@ -50,6 +53,9 @@ Lx_lam = 2.0 * np.pi * nx_lam / nx_t
 #Lx_lam = 2.0 * np.pi * (nx_lam + 2*nghost) / nx_t
 #dx_gm = Lx_gm / nx_gm
 #dx_lam = Lx_lam / (nx_lam + 2*nghost)
+figall = plt.figure(figsize=[10,10],constrained_layout=True)
+axgm = figall.add_subplot(211)
+axlam = figall.add_subplot(212)
 for pt in perts:
     #GM
     f = "xagm_{}_{}.npy".format(op, pt)
@@ -128,6 +134,7 @@ for pt in perts:
     axs[1].semilogy(wnum,psdgm,c='tab:blue',marker='x')
     lines.append(Line2D([0],[0],color='tab:blue',lw=2))
     labels.append('GM,err')
+    axgm.semilogy(wnum,psdgm,c=linecolor[pt],marker='x',label=pt)
     #nx = xsagm.shape[1]
     #dx = 2.0 * np.pi / nx
     #freq = fftfreq(nx,dx)[:nx//2]
@@ -146,6 +153,7 @@ for pt in perts:
     axs[1].semilogy(wnum,psdlam,c='tab:orange',marker='x')
     lines.append(Line2D([0],[0],color='tab:orange',lw=2))
     labels.append('LAM,err')
+    axlam.semilogy(wnum,psdlam,c=linecolor[pt],marker='x',label=pt)
     #ax2 = axs[1].twinx()
     #espdiff = esp - espgm
     #ax2.plot(freq,espdiff,c='red')
@@ -175,4 +183,23 @@ for pt in perts:
 #    axs[0].plot(xs,xd2[0,],label='reconstructed')
     fig.suptitle(f"{op} {pt}")
     fig.savefig("{}_errspectra_{}_{}.png".format(model,op,pt))
-    plt.show()
+    plt.show(block=False)
+    plt.close(fig=fig)
+for ax in [axgm,axlam]:
+    ax.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
+    #ax.set_title("spectral space")
+    ax.legend()
+    #ax.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+    #ax.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+    ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,1]))
+    ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','1']))
+    secax = ax.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
+    secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+    secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+    secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+    ax.grid()
+axgm.set_ylabel("GM power spectral density")
+axlam.set_ylabel("LAM power spectral density")
+figall.suptitle(f"{op}")
+figall.savefig("{}_errspectra_{}_all.png".format(model,op))
+plt.show()

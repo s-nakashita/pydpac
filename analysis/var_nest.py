@@ -96,7 +96,8 @@ class Var_nest():
             dist = min(dist,self.nx-dist)
         return dist
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
+        cycle = kwargs['cycle']
         if cycle == 0:
             if self.bmat is None:
                 if self.lb < 0:

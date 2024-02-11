@@ -24,7 +24,7 @@ opt=0
 functype=gc5
 #a=-0.1
 #exp="var+var_nest_${functype}nmctrunc_obs${nobs}"
-exp="var_vs_envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var_vs_envar_perfectgm_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}/${exp}

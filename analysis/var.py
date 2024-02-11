@@ -55,7 +55,8 @@ class Var():
             dist = np.abs(self.nx/np.pi/2*np.sin(np.pi*(i-j)/self.nx/2))
         return dist
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
+        cycle = kwargs['cycle']
         if cycle == 0:
             if self.bmat is None:
                 if self.lb < 0:

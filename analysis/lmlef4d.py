@@ -59,7 +59,7 @@ class Lmlef4d():
         logger.info(f"R-localization type : {self.pt}")
         logger.info(f"nt={self.nt} a_window={self.a_window}")
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
         pf = spf @ spf.transpose()
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")

@@ -92,7 +92,7 @@ class EnVAR():
     def _calc_dist1(self, i, j):
         return min(abs(j-i),self.ndim-abs(j-i))
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
         dxf = xf[:, 1:] - np.mean(xf, axis=1)[:, None]
         pf = dxf @ dxf.transpose() / (self.nmem - 1)
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
