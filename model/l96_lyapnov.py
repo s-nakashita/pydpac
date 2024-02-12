@@ -7,6 +7,8 @@ from matplotlib.colors import Normalize
 from matplotlib.ticker import FixedLocator, FixedFormatter
 plt.rcParams['font.size'] = 16
 import scipy.optimize as opt 
+from scipy.interpolate import CubicSpline
+from scipy.signal import hilbert
 from lorenz import L96
 from lorenz2 import L05II
 from lorenz3 import L05III
@@ -39,7 +41,7 @@ if model=="l96":
     nx = 40
     dt = 0.05 / 6
     nt = 500 * 6
-    isave = 1
+    isave = 6
     step = L96(nx, dt, F)
     figname = f'nx{nx}F{int(F)}'
     figtitle = f'N={nx} F={F:.1f}'
@@ -50,7 +52,7 @@ elif model=="l05II":
         nk = int(sys.argv[3])
     dt = 0.05 / 6
     nt = 500 * 6
-    isave = 1
+    isave = 6
     step = L05II(nx, nk, dt, F)
     figname = f'nx{nx}nk{nk}F{int(F)}'
     figtitle = f'N={nx} K={nk} F={F:.1f}'
@@ -68,7 +70,7 @@ elif model=="l05III":
         c = float(sys.argv[5])
     dt = 0.05 / 6 / b
     nt = 500 * 6 * int(b)
-    isave = int(b)
+    isave = int(b) * 6
     step = L05III(nx,nk,ni,b,c,dt,F)
     figname = f'nx{nx}nk{nk}ni{ni}b{b:.1f}c{c:.1f}F{int(F)}'
     figtitle = f'N={nx} K={nk} I={ni}\nb={b:.1f} c={c:.1f} F={F:.1f}'
@@ -78,12 +80,9 @@ nsave = nt//isave+1
 ix = np.arange(nx) 
 ix_rad = ix * 2.0 * np.pi / nx
 x0 = random.normal(0, scale=1.0, size=nx)
-for j in range(500): # spin up
+for j in range(500*isave): # spin up
     x0 = step(x0)
 
-emean = np.zeros(nsave)
-if model=='l05III':
-    emean2 = np.zeros((2,nsave))
 sp = []
 xc = []
 time = []
@@ -133,48 +132,77 @@ secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'
 fig.savefig(figdir/f'{figname}.png',dpi=300)
 plt.close()
 
-x2 = np.zeros_like(x0)
-for j in range(50):
-    print(f"trial {j+1}")
-    x1 = xc[0]
-    x2[:] = x0 + random.normal(0, scale=1e-4, size=nx)
-
-    e = np.zeros(nsave)
-    e[0] = np.sqrt(np.mean((x2 - x1)**2))
-    if model=='l05III':
-        e2 = np.zeros((2,nsave))
-        x1l, x1s = step.decomp(x1)
-        x2l, x2s = step.decomp(x2)
-        e2[0,0] = np.sqrt(np.mean((x2l - x1l)**2))
-        e2[1,0] = np.sqrt(np.mean((x2s - x1s)**2))
-    i = 0
-    for k in range(nt):
+#x2 = np.zeros_like(x0)
+ntrial = 50
+alpha = 1.0e-4
+x1 = xc[0]
+x2 = np.zeros((nx,ntrial))
+x2 = x0[:,None] + random.normal(0, scale=alpha, size=(nx,ntrial))
+e = np.zeros((nsave,ntrial))
+e2 = np.zeros((2,nsave,ntrial))
+emean = np.zeros(nsave)
+if model=='l05III':
+    emean2 = np.zeros((2,nsave))
+#for j in range(50):
+#    print(f"trial {j+1}")
+#    x2[:] = x0 + random.normal(0, scale=1e-4, size=nx)
+#
+#    e = np.zeros(nsave)
+e[0,:] = np.sqrt(np.mean((x2 - x1[:,None])**2,axis=0))
+if model=='l05III':
+    x1l, x1s = step.decomp(x1)
+    x2l, x2s = step.decomp(x2)
+    e2[0,0,:] = np.sqrt(np.mean((x2l - x1l[:,None])**2,axis=0))
+    e2[1,0,:] = np.sqrt(np.mean((x2s - x1s[:,None])**2,axis=0))
+i = 0
+for k in range(nt):
         x2 = step(x2)
         if k%isave==0:
             i=i+1
+            print(f"t={time[i]}")
             x1 = xc[i]
-            e[i] = np.sqrt(np.mean((x2 - x1)**2))
+            e[i,:] = np.sqrt(np.mean((x2 - x1[:,None])**2,axis=0))
             if model=='l05III':
                 x1l, x1s = step.decomp(x1)
                 x2l, x2s = step.decomp(x2)
-                e2[0,i] = np.sqrt(np.mean((x2l - x1l)**2))
-                e2[1,i] = np.sqrt(np.mean((x2s - x1s)**2))
-    emean += e
-    if model == 'l05III':
-        emean2 += e2
+                e2[0,i,:] = np.sqrt(np.mean((x2l - x1l[:,None])**2,axis=0))
+                e2[1,i,:] = np.sqrt(np.mean((x2s - x1s[:,None])**2,axis=0))
+emean = np.mean(e,axis=1)
+if model == 'l05III':
+    emean2 = np.mean(e2,axis=2)
 
-emean = emean / 50
+time = np.array(time)
+days = time / 0.05 / 4.0
+n5d = np.argmin(np.abs(days - 5.0))
 fig, ax = plt.subplots(nrows=2,figsize=[12,12],constrained_layout=True)
-ax[0].plot(time, emean)
-ax[0].set_yscale("log")
+ax[0].scatter(days, emean)
+ax[0].set_yscale('log')
+cs = CubicSpline(days, np.log(emean))
+ts = np.linspace(days[0], days[-1], len(days)//10)
+ax[0].plot(ts, np.exp(cs(ts)), c='tab:orange', label='cubic spline')
+ax[0].plot(ts, np.exp(cs(ts,1)), c='tab:green', label="(cubic spline)'")
+#ax[0].plot(ts, np.exp(cs(ts,2)), c='tab:red', label="(cubic spline)''")
+#i = np.argmin(np.exp(cs(ts,2)))
+i = 1
+while(i<len(ts)):
+    ii = np.argmin(np.abs(days - ts[i]))
+    if emean[ii] >= 5.0 and np.abs(np.exp(cs(ts,1))[i] - 1.0) < 2.0e-1:
+        break
+    i+=1
+ii = min(ii,len(days))
+ax[0].plot(days[ii],emean[ii],'ro')
+##envelope
+#e1_env = np.abs(hilbert(np.exp(cs(ts,1))))
+#ax[0].plot(ts, e1_env, c='tab:red', label="envelope")
 ax[0].grid("both")
-ax[0].set_xlabel("time")
+ax[0].set_xlabel("days")
 ax[0].set_ylabel("RMSE")
 ax[0].set_title("error growth")
+ax[0].legend()
 print("final RMSE = {:.4f}".format(emean[-1]))
 
-y = np.log(emean[:nsave//5])
-t = np.array(time[:nsave//5])
+y = np.log(emean[:ii])
+t = time[:ii]
 popt, pcov = opt.curve_fit(fit_func, t, y)
 
 ly = fit_func(t, popt[0], popt[1])
@@ -183,13 +211,15 @@ ax[1].scatter(t, y/np.log(10))
 ax[1].plot(t, ly/np.log(10), color="tab:orange")
 ax[1].set_xlabel("time")
 ax[1].set_ylabel("RMSE(log10 scale)")
-ax[1].set_title("Leading Lyapnov exponent = {:.2e}".format(popt[0]))
+title = "Leading Lyapnov exponent = {:.2e}\n".format(popt[0]) \
+    + "6 hours = {:.3f}".format(np.log(2)/popt[0]/6)
+ax[1].set_title(title)
 
 fig.savefig(figdir/f"lyapnov_{figname}.png",dpi=300)
 print("doubling time = {:.4f}".format(np.log(2)/popt[0]))
+np.savetxt(figdir/f"egrowth_{figname}.txt",np.concatenate((time[:,np.newaxis],emean[:,np.newaxis]),axis=1))
 
 if model == 'l05III':
-    emean2 += e2 / 50
     fig, ax = plt.subplots(nrows=2,figsize=[12,12],constrained_layout=True)
     ax[0].plot(time, emean2[0,])
     ax[0].set_yscale("log")
@@ -206,3 +236,4 @@ if model == 'l05III':
     ax[1].set_title("small-scale error growth")
 
     fig.savefig(figdir/f"lyapnov_scale_{figname}.png",dpi=300)
+    np.savetxt(figdir/f"egrowth_scale_{figname}.txt",np.concatenate((time[:,np.newaxis],emean2.transpose()),axis=1))

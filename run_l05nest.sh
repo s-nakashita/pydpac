@@ -5,15 +5,15 @@ export OMP_NUM_THREADS=4
 model="l05nest"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var var_nest envar envar_nest"
+perturbations="envar_nest envar var_nest var"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
 na=240 # Number of assimilation cycle
-nmem=80 # ensemble size
-nobs=80 # observation volume
+nmem=120 # ensemble size
+nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
@@ -24,7 +24,7 @@ opt=0
 functype=gc5
 #a=-0.1
 #exp="var+var_nest_${functype}nmctrunc_obs${nobs}"
-exp="var_vs_envar_perfectgm_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var_vs_envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}/${exp}
@@ -84,9 +84,15 @@ for op in ${operators}; do
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ###
+    if [ $pert = var_nest ]; then
+      gsed -i -e "/pt/s/\"${pert}\"/\"var\"/" config_gm.py
+    fi
+    if [ $pert = envar_nest ]; then
+      gsed -i -e "/pt/s/\"${pert}\"/\"envar\"/" config_gm.py
+    fi
     cat config_gm.py
     cat config_lam.py
-    ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config_gm.py)
+    ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config_lam.py)
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     ##for nmc
@@ -101,12 +107,20 @@ for op in ${operators}; do
     mv ${model}_stda_gm_${op}_${pt}.txt stda_gm_${op}_${pert}.txt
     mv ${model}_xdmean_gm_${op}_${pt}.txt xdmean_gm_${op}_${pert}.txt
     mv ${model}_xsmean_gm_${op}_${pt}.txt xsmean_gm_${op}_${pert}.txt
+    mv ${model}_ef_gm_${op}_${pt}.txt ef_gm_${op}_${pert}.txt
+    mv ${model}_stdf_gm_${op}_${pt}.txt stdf_gm_${op}_${pert}.txt
+    mv ${model}_xdfmean_gm_${op}_${pt}.txt xdfmean_gm_${op}_${pert}.txt
+    mv ${model}_xsfmean_gm_${op}_${pt}.txt xsfmean_gm_${op}_${pert}.txt
     mv ${model}_xagm_${op}_${pt}.npy xagm_${op}_${pert}.npy
     mv ${model}_xsagm_${op}_${pt}.npy xsagm_${op}_${pert}.npy
     mv ${model}_e_lam_${op}_${pt}.txt e_lam_${op}_${pert}.txt
     mv ${model}_stda_lam_${op}_${pt}.txt stda_lam_${op}_${pert}.txt
     mv ${model}_xdmean_lam_${op}_${pt}.txt xdmean_lam_${op}_${pert}.txt
     mv ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam_${op}_${pert}.txt
+    mv ${model}_ef_lam_${op}_${pt}.txt ef_lam_${op}_${pert}.txt
+    mv ${model}_stdf_lam_${op}_${pt}.txt stdf_lam_${op}_${pert}.txt
+    mv ${model}_xdfmean_lam_${op}_${pt}.txt xdfmean_lam_${op}_${pert}.txt
+    mv ${model}_xsfmean_lam_${op}_${pt}.txt xsfmean_lam_${op}_${pert}.txt
     mv ${model}_xalam_${op}_${pt}.npy xalam_${op}_${pert}.npy
     mv ${model}_xsalam_${op}_${pt}.npy xsalam_${op}_${pert}.npy
     loctype=`echo $pert | cut -c5-5`

@@ -112,6 +112,6 @@ if vmat_exist:
     #axs[2].set_yticks(ix_lam[::(nx_lam//8)])
     axs[2].set_xticks(ix_trunc[::(nx_gmlam//8)])
     axs[2].set_yticks(ix_trunc[::(nx_gmlam//8)])
-    axs[2].set_title(r"$\mathrm{trace}(\mathbf{V})=$"+f"{np.mean(np.diag(vmat)):.3f}")
+    axs[2].set_title(r"$\mathrm{trace}(\mathbf{V})/N=$"+f"{np.mean(np.diag(vmat)):.3f}")
     fig.colorbar(mp2, ax=axs[2], pad=0.01, shrink=0.6) #orientation="horizontal")
 fig.savefig("{}_pf_{}_{}_cycle{}-{}.png".format(model,op,pt,scycle,ecycle))

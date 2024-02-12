@@ -22,6 +22,8 @@ x = np.arange(na) + 1
 y = np.ones(x.size) * sigma[op]
 fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
 fig2, ax2 = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
+figf, axf = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
+figf2, axf2 = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
 #ax2 = ax.twinx()
 i = 0
 f = "enda_{}.txt".format(op)
@@ -35,6 +37,7 @@ try:
 except OSError or FileNotFoundError:
     print("not exist {}".format(f))
 for pt in perts:
+    ## analysis
     #GM
     f = "e_gm_{}_{}.txt".format(op, pt)
     if not os.path.isfile(f):
@@ -44,7 +47,7 @@ for pt in perts:
     if np.isnan(e_gm).any():
         print("divergence in {}".format(pt))
     #    continue
-    print("{}, GM mean RMSE = {}".format(pt,np.mean(e_gm[int(na/3):])))
+    print("{}, GM analysis RMSE = {}".format(pt,np.mean(e_gm[int(na/3):])))
     f = "stda_gm_{}_{}.txt".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
@@ -59,7 +62,7 @@ for pt in perts:
     if np.isnan(e_lam).any():
         print("divergence in {}".format(pt))
     #    continue
-    print("{}, LAM mean RMSE = {}".format(pt,np.mean(e_lam[int(na/3):])))
+    print("{}, LAM analysis RMSE = {}".format(pt,np.mean(e_lam[int(na/3):])))
     f = "stda_lam_{}_{}.txt".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
@@ -81,6 +84,53 @@ for pt in perts:
         ax[1].plot(x, stda_lam, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
         ax2[0].plot(x, stda_gm/e_gm, marker=marker["4d"], color=linecolor[pt], label=pt)
         ax2[1].plot(x, stda_lam/e_lam, marker=marker["4d"], color=linecolor[pt], label=pt)
+    ## forecast
+    #GM
+    f = "ef_gm_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    ef_gm = np.loadtxt(f)
+    if np.isnan(ef_gm).any():
+        print("divergence in {}".format(pt))
+    #    continue
+    print("{}, GM forecast RMSE = {}".format(pt,np.mean(ef_gm[int(na/3):])))
+    f = "stdf_gm_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    stdf_gm = np.loadtxt(f)
+    #LAM
+    f = "ef_lam_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    ef_lam = np.loadtxt(f)
+    if np.isnan(ef_lam).any():
+        print("divergence in {}".format(pt))
+    #    continue
+    print("{}, LAM forecast RMSE = {}".format(pt,np.mean(ef_lam[int(na/3):])))
+    f = "stdf_lam_{}_{}.txt".format(op, pt)
+    if not os.path.isfile(f):
+        print("not exist {}".format(f))
+        continue
+    stdf_lam = np.loadtxt(f)
+    if pt[:2] != "4d":
+        axf[0].plot(x, ef_gm, linestyle="solid", marker=marker["3d"], color=linecolor[pt], label=pt)
+        axf[1].plot(x, ef_lam, linestyle="solid", marker=marker["3d"], color=linecolor[pt], label=pt)
+        #if pt != "kf" and pt != "var" and pt != "var_nest":
+        axf[0].plot(x, stdf_gm, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
+        axf[1].plot(x, stdf_lam, linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
+        axf2[0].plot(x, stdf_gm/ef_gm, marker=marker["3d"], color=linecolor[pt], label=pt)
+        axf2[1].plot(x, stdf_lam/ef_lam, marker=marker["3d"], color=linecolor[pt], label=pt)
+    else:
+        axf[0].plot(x, ef_gm, linestyle="solid", marker=marker["4d"], color=linecolor[pt], label=pt)
+        axf[1].plot(x, ef_lam, linestyle="solid", marker=marker["4d"], color=linecolor[pt], label=pt)
+        #if pt != "4dvar":
+        axf[0].plot(x, stdf_gm, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
+        axf[1].plot(x, stdf_lam, linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
+        axf2[0].plot(x, stdf_gm/ef_gm, marker=marker["4d"], color=linecolor[pt], label=pt)
+        axf2[1].plot(x, stdf_lam/ef_lam, marker=marker["4d"], color=linecolor[pt], label=pt)
 # observation error (loosely dashed)
 ax[0].plot(x, y, linestyle=(0, (5, 10)), color='black')
 ax[1].plot(x, y, linestyle=(0, (5, 10)), color='black')
@@ -109,3 +159,30 @@ for i in range(2):
 fig.savefig("{}_e_{}.png".format(model, op))
 fig2.savefig("{}_e+stda_{}.png".format(model, op))
 #fig.savefig("{}_e_{}+nodiff.pdf".format(model, op))
+# observation error (loosely dashed)
+axf[0].plot(x, y, linestyle=(0, (5, 10)), color='black')
+axf[1].plot(x, y, linestyle=(0, (5, 10)), color='black')
+axf[0].set(xlabel="forecast cycle", ylabel="RMSE or STDV",
+        title=op+" GM")
+axf[1].set(xlabel="forecast cycle", ylabel="RMSE or STDV",
+        title=op+" LAM")
+axf2[0].set(xlabel="forecast cycle", ylabel="STDV/RMSE",
+        title=op+" GM")
+axf2[1].set(xlabel="forecast cycle", ylabel="STDV/RMSE",
+        title=op+" LAM")
+for i in range(2):
+        if len(x) > 50:
+            axf[i].set_xticks(x[::len(x)//10])
+            axf[i].set_xticks(x[::len(x)//20], minor=True)
+            axf2[i].set_xticks(x[::len(x)//10])
+            axf2[i].set_xticks(x[::len(x)//20], minor=True)
+        else:
+            axf[i].set_xticks(x[::5])
+            axf[i].set_xticks(x, minor=True)
+            axf2[i].set_xticks(x[::5])
+            axf2[i].set_xticks(x, minor=True)
+        #ax2.set_yscale("log")
+        axf[i].legend()
+        axf2[i].legend()
+figf.savefig("{}_ef_{}.png".format(model, op))
+figf2.savefig("{}_ef+stdf_{}.png".format(model, op))

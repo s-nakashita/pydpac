@@ -104,9 +104,9 @@ class EnVAR():
         #is2r = 1 / (1 + s**2)
         nk = zmat.shape[1]
         rho = 1.0
-        if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
-            rho = 1.0 / self.infl_parm
+        #if self.linf:
+        #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
+        #    rho = 1.0 / self.infl_parm
         c = zmat.transpose() @ zmat
         lam, v = la.eigh(c)
         D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho*(nk-1)))))
@@ -321,10 +321,10 @@ class EnVAR():
             nmem = xf.shape[1]
             chi2_test = Chi(y.size, nmem, rmat)
             dxf = xf - xf_[:, None]
+            if self.linf:
+                logger.info("==inflation==, alpha={}".format(self.infl_parm))
+                dxf *= np.sqrt(self.infl_parm)
             pf = dxf / np.sqrt(nmem-1)
-            #if self.linf:
-            #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
-            #    pf *= self.infl_parm
             fpf = dxf @ dxf.T / (nmem-1)
             if save_dh:
                 np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)

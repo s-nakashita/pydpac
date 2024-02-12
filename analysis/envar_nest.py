@@ -122,16 +122,16 @@ class EnVAR_nest():
     def precondition(self,zmat,qmat):
         ## Z = R^{-1/2}HX^b
         ## Q = (H_1X^{AA})^\dag H_2X^b
-        ## Hess = (I + Z^T Z + Q^T Q)
+        ## Hess = ((K-1)I/infl_parm + Z^T Z + (K-1)Q^T Q/infl_parm)
         #u, s, vt = la.svd(zmat)
         #v = vt.transpose()
         #is2r = 1 / (1 + s**2)
         nk = zmat.shape[1]
         rho = 1.0
-        if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
-            rho = 1.0 / self.infl_parm
-        c = zmat.transpose() @ zmat + qmat.transpose() @ qmat
+        #if self.linf:
+        #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
+        #    rho = 1.0 / self.infl_parm
+        c = zmat.transpose() @ zmat + rho*(nk-1)*qmat.transpose() @ qmat
         lam, v = la.eigh(c)
         logger.debug(f"lam={lam}")
         D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho*(nk-1)))))
@@ -367,10 +367,10 @@ class EnVAR_nest():
             nmem = xf.shape[1]
             chi2_test = Chi(y.size, nmem, rmat)
             dxf = xf - xf_[:, None]
+            if self.linf:
+                logger.info("==inflation==, alpha={}".format(self.infl_parm))
+                dxf *= np.sqrt(self.infl_parm)
             pf = dxf / np.sqrt(nmem-1)
-            #if self.linf:
-            #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
-            #    pf *= self.infl_parm
             fpf = dxf @ dxf.T / (nmem-1)
             if save_dh:
                 np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
@@ -379,6 +379,9 @@ class EnVAR_nest():
             ## global analysis ensemble
             xg_ = np.mean(xg,axis=1)
             dxg = xg - xg_[:,None]
+            if self.linf:
+                logger.info("==inflation==, alpha={}".format(self.infl_parm))
+                dxg *= np.sqrt(self.infl_parm)
             x_gm2lam = interp1d(self.ix_gm,xg_)
             xens_gm2lam = interp1d(self.ix_gm,dxg,axis=0)
             dk = self.trunc_operator(x_gm2lam(self.ix_lam) - xf_)

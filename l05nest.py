@@ -20,7 +20,7 @@ model = "l05nest"
 nx_true = 960
 nk_true = 32
 ## GM
-gm_same_with_nature = True # DEBUG: Lorenz III used for GM
+gm_same_with_nature = False # DEBUG: Lorenz III used for GM
 intgm = 4                    # grid interval
 if gm_same_with_nature:
     intgm = 1
@@ -56,7 +56,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.02,"envar":1.1,"envar_nest":1.1,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
+infl_l = {"mlef":1.02,"envar":1.1,"envar_nest":1.2,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
@@ -146,13 +146,13 @@ try:
 except ImportError:
     pass
 global op, pt, sigo, ft
-op  = params_gm["op"]
-pt  = params_gm["pt"]
-sigo= params_gm["sigo"]
+op  = params_lam["op"]
+pt  = params_lam["pt"]
+sigo= params_lam["sigo"]
 ft  = ftype[pt]
 global na, a_window
-na = params_gm["na"]
-a_window = params_gm["a_window"]
+na = params_lam["na"]
+a_window = params_lam["a_window"]
 params_gm["ft"] = ft
 params_lam["ft"] = ft
 if params_gm["linf"] and params_gm["infl_parm"]==-1.0:
@@ -449,16 +449,28 @@ if __name__ == "__main__":
     stda_gm = np.zeros(na)
     xdmean_gm = np.zeros(nx_gm)
     xsmean_gm = np.zeros(pa_gm.shape[0])
+    ef_gm = np.zeros(na)
+    stdf_gm = np.zeros(na)
+    xdfmean_gm = np.zeros(nx_gm)
+    xsfmean_gm = np.zeros(pf_gm.shape[0])
     e_lam = np.zeros(na)
     stda_lam = np.zeros(na)
     xdmean_lam = np.zeros(nx_lam)
     xsmean_lam = np.zeros(pa_lam.shape[0])
+    ef_lam = np.zeros(na)
+    stdf_lam = np.zeros(na)
+    xdfmean_lam = np.zeros(nx_lam)
+    xsfmean_lam = np.zeros(pf_lam.shape[0])
     innov_gm = np.zeros((na,yobs.shape[1]*a_window))
     chi_gm = np.zeros(na)
     dof_gm = np.zeros(na)
     innov_lam = np.zeros((na,yobs.shape[1]*a_window))
     chi_lam = np.zeros(na)
     dof_lam = np.zeros(na)
+    stdf_gm[0] = np.sqrt(np.trace(pf_gm)/pf_gm.shape[0])
+    stdf_lam[0] = np.sqrt(np.trace(pf_lam)/pf_lam.shape[0])
+    xsfmean_gm += np.diag(pf_gm)
+    xsfmean_lam += np.diag(pf_lam)
     if params_gm["extfcst"]:
         ## extended forecast
         xf12_gm = np.zeros((na+1,nx_gm))
@@ -517,7 +529,7 @@ if __name__ == "__main__":
             logger.info("observation location in LAM {} {}".format  (yloc_lam,yloc_lam.shape))
             logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
-        save_dh = i < a_time[-1]
+        save_dh = i <= a_time[-1]
         save_hist = True
         ##if a_window > 1:
         if pt[:2] == "4d":
@@ -534,7 +546,7 @@ if __name__ == "__main__":
 #                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
         else:
             args_gm = (u_gm,pf_gm,y[0],yloc[0])
-        u_gm, pa_gm, _, innv, chi2, ds = analysis_gm(*args_gm, \
+        ua_gm, pa_gm, _, innv, chi2, ds = analysis_gm(*args_gm, \
                 save_hist=save_hist, save_dh=save_dh, icycle=i)
         #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
         #pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
@@ -574,9 +586,10 @@ if __name__ == "__main__":
             for ii in range(i,min(i+a_window,na)):
                 innov_lam[ii,iobs_lam[ii]==1.0] = innv[:]
         else:
-            gm2lam = interp1d(step.ix_gm,u_gm,axis=0)
+            gm2lam = interp1d(step.ix_gm,ua_gm,axis=0)
             u_lam = gm2lam(step.ix_lam)
             pa_lam = analysis_lam.calc_pf(u_lam, pa=pa_lam, cycle=i)
+        u_gm = ua_gm.copy()
         ## additive inflation
         #if linf:
         #    logger.info("==additive inflation==")
@@ -658,7 +671,11 @@ if __name__ == "__main__":
                 xf_lam[i+1] = u_lam
             pf_gm = analysis_gm.calc_pf(u_gm, pa=pa_gm, cycle=i+1)
             pf_lam = analysis_lam.calc_pf(u_lam, pa=pa_lam, cycle=i+1)
-            
+            stdf_gm[i+1] = np.sqrt(np.trace(pf_gm)/pf_gm.shape[0])
+            stdf_lam[i+1] = np.sqrt(np.trace(pf_lam)/pf_lam.shape[0])
+            xsfmean_gm += np.diag(pf_gm)
+            xsfmean_lam += np.diag(pf_lam)
+        
             if params_gm["extfcst"]:
                 ## extended forecast
                 utmp_gm = u_gm.copy()
@@ -722,10 +739,16 @@ if __name__ == "__main__":
         if np.isnan(u_gm).any() or np.isnan(u_lam).any():
             e_gm[i:] = np.nan
             e_lam[i:] = np.nan
+            ef_gm[i+1:] = np.nan
+            ef_lam[i+1:] = np.nan
             stda_gm[i:] = np.nan
             stda_lam[i:] = np.nan
+            stdf_gm[i+1:] = np.nan
+            stdf_lam[i+1:] = np.nan
             xa_gm[i:,:] = np.nan
             xa_lam[i:,:] = np.nan
+            xf_gm[i+1:,:] = np.nan
+            xf_lam[i+1:,:] = np.nan
             xsa_gm[i:,:] = np.nan
             xsa_lam[i:,:] = np.nan
             break
@@ -734,14 +757,22 @@ if __name__ == "__main__":
                 true2gm = interp1d(step.ix_true,xt[k])
                 e_gm[k] = np.sqrt(np.mean((xa_gm[k, :] - true2gm(step.ix_gm))**2))
                 e_lam[k] = np.sqrt(np.mean((xa_lam[k, :] - true2gm(step.ix_lam))**2))
+                ef_gm[k] = np.sqrt(np.mean((xf_gm[k, :] - true2gm(step.ix_gm))**2))
+                ef_lam[k] = np.sqrt(np.mean((xf_lam[k, :] - true2gm(step.ix_lam))**2))
                 xdmean_gm += (xa_gm[k,:]-true2gm(step.ix_gm))**2
                 xdmean_lam += (xa_lam[k,:]-true2gm(step.ix_lam))**2
+                xdfmean_gm += (xf_gm[k,:]-true2gm(step.ix_gm))**2
+                xdfmean_lam += (xf_lam[k,:]-true2gm(step.ix_lam))**2
         else:
             true2gm = interp1d(step.ix_true,xt[i])
             e_gm[i] = np.sqrt(np.mean((xa_gm[i, :] - true2gm(step.ix_gm))**2))
             e_lam[i] = np.sqrt(np.mean((xa_lam[i, :] - true2gm(step.ix_lam))**2))
+            ef_gm[i] = np.sqrt(np.mean((xf_gm[i, :] - true2gm(step.ix_gm))**2))
+            ef_lam[i] = np.sqrt(np.mean((xf_lam[i, :] - true2gm(step.ix_lam))**2))
             xdmean_gm += (xa_gm[i,:]-true2gm(step.ix_gm))**2
             xdmean_lam += (xa_lam[i,:]-true2gm(step.ix_lam))**2
+            xdfmean_gm += (xf_gm[i,:]-true2gm(step.ix_gm))**2
+            xdfmean_lam += (xf_lam[i,:]-true2gm(step.ix_lam))**2
         stda_gm[i] = np.sqrt(np.trace(pa_gm)/pa_gm.shape[0])
         stda_lam[i] = np.sqrt(np.trace(pa_lam)/pa_lam.shape[0])
         xsa_gm[i] = np.sqrt(np.diag(pa_gm))
@@ -769,10 +800,14 @@ if __name__ == "__main__":
 
     np.savetxt("{}_e_gm_{}_{}.txt".format(model, op, pt), e_gm)
     np.savetxt("{}_stda_gm_{}_{}.txt".format(model, op, pt), stda_gm)
+    np.savetxt("{}_ef_gm_{}_{}.txt".format(model, op, pt), ef_gm)
+    np.savetxt("{}_stdf_gm_{}_{}.txt".format(model, op, pt), stdf_gm)
     np.savetxt("{}_chi_gm_{}_{}.txt".format(model, op, pt), chi_gm)
     np.savetxt("{}_dof_gm_{}_{}.txt".format(model, op, pt), dof_gm)
     np.savetxt("{}_e_lam_{}_{}.txt".format(model, op, pt), e_lam)
     np.savetxt("{}_stda_lam_{}_{}.txt".format(model, op, pt), stda_lam)
+    np.savetxt("{}_ef_lam_{}_{}.txt".format(model, op, pt), ef_lam)
+    np.savetxt("{}_stdf_lam_{}_{}.txt".format(model, op, pt), stdf_lam)
     np.savetxt("{}_chi_lam_{}_{}.txt".format(model, op, pt), chi_lam)
     np.savetxt("{}_dof_lam_{}_{}.txt".format(model, op, pt), dof_lam)
 
@@ -784,4 +819,12 @@ if __name__ == "__main__":
     np.savetxt("{}_xsmean_gm_{}_{}.txt".format(model, op, pt), xsmean_gm)
     np.savetxt("{}_xdmean_lam_{}_{}.txt".format(model, op, pt), xdmean_lam)
     np.savetxt("{}_xsmean_lam_{}_{}.txt".format(model, op, pt), xsmean_lam)
+    xdfmean_gm = np.sqrt(xdfmean_gm/float(nanl))
+    xdfmean_lam = np.sqrt(xdfmean_lam/float(nanl))
+    xsfmean_gm = np.sqrt(xsfmean_gm/float(nanl))
+    xsfmean_lam = np.sqrt(xsfmean_lam/float(nanl))
+    np.savetxt("{}_xdfmean_gm_{}_{}.txt".format(model, op, pt), xdfmean_gm)
+    np.savetxt("{}_xsfmean_gm_{}_{}.txt".format(model, op, pt), xsfmean_gm)
+    np.savetxt("{}_xdfmean_lam_{}_{}.txt".format(model, op, pt), xdfmean_lam)
+    np.savetxt("{}_xsfmean_lam_{}_{}.txt".format(model, op, pt), xsfmean_lam)
     
