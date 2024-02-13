@@ -132,30 +132,40 @@ secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'
 fig.savefig(figdir/f'{figname}.png',dpi=300)
 plt.close()
 
-#x2 = np.zeros_like(x0)
-ntrial = 50
-alpha = 1.0e-4
-x1 = xc[0]
-x2 = np.zeros((nx,ntrial))
-x2 = x0[:,None] + random.normal(0, scale=alpha, size=(nx,ntrial))
-e = np.zeros((nsave,ntrial))
-e2 = np.zeros((2,nsave,ntrial))
-emean = np.zeros(nsave)
-if model=='l05III':
-    emean2 = np.zeros((2,nsave))
-#for j in range(50):
-#    print(f"trial {j+1}")
-#    x2[:] = x0 + random.normal(0, scale=1e-4, size=nx)
-#
-#    e = np.zeros(nsave)
-e[0,:] = np.sqrt(np.mean((x2 - x1[:,None])**2,axis=0))
-if model=='l05III':
-    x1l, x1s = step.decomp(x1)
-    x2l, x2s = step.decomp(x2)
-    e2[0,0,:] = np.sqrt(np.mean((x2l - x1l[:,None])**2,axis=0))
-    e2[1,0,:] = np.sqrt(np.mean((x2s - x1s[:,None])**2,axis=0))
-i = 0
-for k in range(nt):
+outf = figdir/f"egrowth_{figname}.txt"
+outf2 = figdir/f"egrowth_scale_{figname}.txt"
+try:
+    data = np.loadtxt(outf)
+    time = data[:,0]
+    emean = data[:,1]
+    if model=="l05III":
+        data2 = np.loadtxt(outf2)
+        emean2 = data2[:,1:].transpose()
+except FileNotFoundError:
+    #x2 = np.zeros_like(x0)
+    ntrial = 50
+    alpha = 1.0e-4
+    x1 = xc[0]
+    x2 = np.zeros((nx,ntrial))
+    x2 = x0[:,None] + random.normal(0, scale=alpha, size=(nx,ntrial))
+    e = np.zeros((nsave,ntrial))
+    e2 = np.zeros((2,nsave,ntrial))
+    emean = np.zeros(nsave)
+    if model=='l05III':
+        emean2 = np.zeros((2,nsave))
+    #for j in range(50):
+    #    print(f"trial {j+1}")
+    #    x2[:] = x0 + random.normal(0, scale=1e-4, size=nx)
+    #
+    #    e = np.zeros(nsave)
+    e[0,:] = np.sqrt(np.mean((x2 - x1[:,None])**2,axis=0))
+    if model=='l05III':
+        x1l, x1s = step.decomp(x1)
+        x2l, x2s = step.decomp(x2)
+        e2[0,0,:] = np.sqrt(np.mean((x2l - x1l[:,None])**2,axis=0))
+        e2[1,0,:] = np.sqrt(np.mean((x2s - x1s[:,None])**2,axis=0))
+    i = 0
+    for k in range(nt):
         x2 = step(x2)
         if k%isave==0:
             i=i+1
@@ -167,9 +177,9 @@ for k in range(nt):
                 x2l, x2s = step.decomp(x2)
                 e2[0,i,:] = np.sqrt(np.mean((x2l - x1l[:,None])**2,axis=0))
                 e2[1,i,:] = np.sqrt(np.mean((x2s - x1s[:,None])**2,axis=0))
-emean = np.mean(e,axis=1)
-if model == 'l05III':
-    emean2 = np.mean(e2,axis=2)
+    emean = np.mean(e,axis=1)
+    if model == 'l05III':
+        emean2 = np.mean(e2,axis=2)
 
 time = np.array(time)
 days = time / 0.05 / 4.0
@@ -186,7 +196,8 @@ ax[0].plot(ts, np.exp(cs(ts,1)), c='tab:green', label="(cubic spline)'")
 i = 1
 while(i<len(ts)):
     ii = np.argmin(np.abs(days - ts[i]))
-    if emean[ii] >= 5.0 and np.abs(np.exp(cs(ts,1))[i] - 1.0) < 2.0e-1:
+    if emean[ii] >= emean[-1]*0.1 \
+        and np.abs(np.exp(cs(ts,1))[i] - 1.0) < 5.0e-1:
         break
     i+=1
 ii = min(ii,len(days))
@@ -217,7 +228,8 @@ ax[1].set_title(title)
 
 fig.savefig(figdir/f"lyapnov_{figname}.png",dpi=300)
 print("doubling time = {:.4f}".format(np.log(2)/popt[0]))
-np.savetxt(figdir/f"egrowth_{figname}.txt",np.concatenate((time[:,np.newaxis],emean[:,np.newaxis]),axis=1))
+if not outf.exists():
+    np.savetxt(outf,np.concatenate((time[:,np.newaxis],emean[:,np.newaxis]),axis=1))
 
 if model == 'l05III':
     fig, ax = plt.subplots(nrows=2,figsize=[12,12],constrained_layout=True)
@@ -236,4 +248,5 @@ if model == 'l05III':
     ax[1].set_title("small-scale error growth")
 
     fig.savefig(figdir/f"lyapnov_scale_{figname}.png",dpi=300)
-    np.savetxt(figdir/f"egrowth_scale_{figname}.txt",np.concatenate((time[:,np.newaxis],emean2.transpose()),axis=1))
+    if not outf2.exists():
+        np.savetxt(outf2,np.concatenate((time[:,np.newaxis],emean2.transpose()),axis=1))
