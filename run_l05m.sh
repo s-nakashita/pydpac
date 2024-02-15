@@ -2,12 +2,12 @@
 # This is a run script for Lorenz05 experiment
 export OMP_NUM_THREADS=4
 #alias python=python3.9
-model="l05III"
+model="l05IIIm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
 perturbations="envar"
 na=1460 # Number of assimilation cycle
-nmem=240 # ensemble size
+nmem=80 # ensemble size
 nobs=15 # observation volume
 linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
@@ -60,7 +60,7 @@ for op in ${operators}; do
     pt=${ptline#\"*}; pt=${pt%\"*}
     echo $pt
     start_time=$(date +"%s")
-    python ${cdir}/l05.py ${model} > ${model}_${op}_${pert}.log 2>&1
+    python ${cdir}/l05m.py ${model} > ${model}_${op}_${pert}.log 2>&1
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer

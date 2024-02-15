@@ -84,9 +84,10 @@ if __name__ == "__main__":
     import sys
     sys.path.append('../plot')
     from nmc_tools import psd, wnum2wlen, wlen2wnum
+    from pathlib import Path
 
     nx = 240
-    nks = [2,4,8,16,32,64]
+    nks = [8,16,32,64]
     F = 15.0
     h = 0.05 / 36
     nt6h = int(0.05 / h)
@@ -143,3 +144,15 @@ if __name__ == "__main__":
     ax.set_title(f"Lorenz IIm, N={nx}\nK={'+'.join([str(n) for n in nks])}, F={F}")
     fig.savefig(f"lorenz/l05IIm_n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.png",dpi=300)
     plt.show()
+
+    nt1yr = nt6h * 4 * 365 # 1 year
+    ksave = nt6h # 6 hours
+    zsave = []
+    for k in range(nt1yr):
+        x0 = l2(x0)
+        if k%ksave==0:
+            zsave.append(x0)
+    datadir = Path('../data/l05IIm')
+    if not datadir.exists():
+        datadir.mkdir(parents=True)
+    np.save(datadir/'truth.npy',np.array(zsave))

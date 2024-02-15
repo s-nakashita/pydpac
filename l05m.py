@@ -5,40 +5,39 @@ from logging.config import fileConfig
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from model.lorenz import L96
 from analysis.obs import Obs
-from l05_func import L05_func
+from l05m_func import L05m_func
 
 logging.config.fileConfig("logging_config.ini")
 parent_dir = os.path.abspath(os.path.dirname(__file__))
 
-model = "l05II"
-global nx, nk, F, dt
+model = "l05IIm"
+global nx, nks, F, dt
 if len(sys.argv) > 1:
     model = sys.argv[1]
 dt6h=0.05 # model time step equivalent to 6 hours
-if model == "l05II":
-    from model.lorenz2 import L05II as L05
+if model == "l05IIm":
+    from model.lorenz2m import L05IIm as L05m
     # model parameter
-    nx = 240       # number of points
-    nk = 8         # advection length scale
-    F  = 10.0      # forcing
-    dt = dt6h / 6  # time step (=1 hour)
-    args = nx, nk, dt, F
-elif model == "l05III":
-    from model.lorenz3 import L05III as L05
+    nx  = 240       # number of points
+    nks = [64,32,16,8] # advection length scales
+    F   = 15.0      # forcing
+    dt  = dt6h / 6 / 6 # time step (=1/6 hour)
+    args = nx, nks, dt, F
+elif model == "l05IIIm":
+    from model.lorenz3m import L05IIIm as L05m
     global ni, b, c
     # model parameter
-    nx = 960       # number of points
-    nk = 32        # advection length scale
-    ni = 12        # spatial filter width
-    F  = 15.0      # forcing
-    b  = 10.0      # frequency of small-scale perturbation
-    c  = 0.6       # coupling factor
-    dt = dt6h / 6 / 6 # time step (=1/6 hour)
-    args = nx, nk, ni, b, c, dt, F
+    nx  = 960       # number of points
+    nks = [256,128,64,32] # advection length scales
+    ni  = 12        # spatial filter width
+    F   = 15.0      # forcing
+    b   = 10.0      # frequency of small-scale perturbation
+    c   = 0.6       # coupling factor
+    dt  = dt6h / 6 / 6 # time step (=1/6 hour)
+    args = nx, nks, ni, b, c, dt, F
 # forecast model forward operator
-step = L05(*args)
+step = L05m(*args)
 
 np.savetxt("ix.txt",np.arange(step.nx))
 
@@ -107,7 +106,7 @@ params["getkf"]      =  False   # (For model space localization) gain form resam
 params["ltlm"]       =  True    # flag for tangent linear observation operator
 params["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params["rseed"] = None # random seed
-params["extfcst"] = False # extended forecast
+params["extfcst"] = True # extended forecast
 ## update from configure file
 sys.path.append('./')
 from config import params as params_new
@@ -196,7 +195,7 @@ elif pt == "4dmlef":
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 
 # functions load
-func = L05_func(model,step,obs,params)
+func = L05m_func(model,step,obs,params)
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)

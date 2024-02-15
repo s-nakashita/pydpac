@@ -160,7 +160,7 @@ if __name__ == "__main__":
     from pathlib import Path
 
     nx = 960
-    nks = [8,16,32,64,128,256]
+    nks = [32,64,128,256]
     ni = 12
     F = 15.0
     b = 10.0
@@ -235,16 +235,15 @@ if __name__ == "__main__":
     fig.suptitle(f"Lorenz III, N={nx}, K={'+'.join([str(n) for n in nks])}\nI={ni}, F={F}, b={b}, c={c}")
     fig.savefig(f"lorenz/l05IIIm_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
     plt.show()
-"""
-    nt1yr = int(0.05 / h) * 4 * 365 # 1 year
-    ksave = int(0.05 / h) # 6 hours
+
+    nt1yr = nt6h * 4 * 365 # 1 year
+    ksave = nt6h # 6 hours
     zsave = []
     for k in range(nt1yr):
         z0 = l3(z0)
         if k%ksave==0:
             zsave.append(z0)
-    datadir = Path('../data/l05III')
+    datadir = Path('../data/l05IIIm')
     if not datadir.exists():
         datadir.mkdir(parents=True)
     np.save(datadir/'truth.npy',np.array(zsave))
-"""

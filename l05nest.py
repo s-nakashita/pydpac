@@ -467,6 +467,7 @@ if __name__ == "__main__":
     innov_lam = np.zeros((na,yobs.shape[1]*a_window))
     chi_lam = np.zeros(na)
     dof_lam = np.zeros(na)
+    
     stdf_gm[0] = np.sqrt(np.trace(pf_gm)/pf_gm.shape[0])
     stdf_lam[0] = np.sqrt(np.trace(pf_lam)/pf_lam.shape[0])
     xsfmean_gm += np.diag(pf_gm)

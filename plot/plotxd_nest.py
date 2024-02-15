@@ -26,7 +26,6 @@ fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
 fig2, ax2 = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
 i = 0
 vmax = 0.0
-vmax2 = 0.0
 for pt in perts:
     ## analysis
     #GM
@@ -107,9 +106,9 @@ for pt in perts:
     if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
         ax2[0].plot(ix_gm, xsfmean_gm, linestyle="dashed", color=linecolor[pt])
         ax2[1].plot(ix_lam, xsfmean_lam, linestyle="dashed", color=linecolor[pt])
-        vmax2 = max(np.max(xdfmean_gm),np.max(xdfmean_lam),np.max(xsfmean_gm),np.max(xsfmean_lam),vmax2)
+        vmax = max(np.max(xdfmean_gm),np.max(xdfmean_lam),np.max(xsfmean_gm),np.max(xsfmean_lam),vmax)
     else:
-        vmax2 = max(np.max(xdfmean_gm),np.max(xdfmean_lam),vmax2)
+        vmax = max(np.max(xdfmean_gm),np.max(xdfmean_lam),vmax)
 # observation error (loosely dashed)
 ax[0].plot(ix_gm, y_gm, linestyle=(0, (5, 10)), color='black')
 ax[1].plot(ix_lam, y_lam, linestyle=(0, (5, 10)), color='black')
@@ -136,12 +135,12 @@ ax2[0].set(xlabel="state", ylabel="RMSE or SPREAD",
         title=op+" GM forecast")
 ax2[1].set(xlabel="state", ylabel="RMSE or SPREAD",
         title=op+" LAM forecast")
-vmax2 = max(vmax2,np.max(y_gm))
+#vmax2 = max(vmax2,np.max(y_gm))
 #ax[0].set_xticks(ix_gm[::(ix_gm.size//8)])
 #ax[1].set_xticks(ix_gm[::(ix_lam.size//8)])
 for i in range(2):
     ax2[i].set_xlim(ix_gm[0],ix_gm[-1])
     ax2[i].set_xticks(ix_gm[::(ix_gm.size//8)])
     ax2[i].legend()
-    ax2[i].set_ylim(0.0,vmax2)
+    ax2[i].set_ylim(0.0,vmax)
 fig2.savefig("{}_xdf_{}.png".format(model, op))

@@ -12,6 +12,8 @@ from scipy.signal import hilbert
 from lorenz import L96
 from lorenz2 import L05II
 from lorenz3 import L05III
+from lorenz2m import L05IIm
+from lorenz3m import L05IIIm
 import sys
 sys.path.append('../plot')
 from nmc_tools import psd, wnum2wlen, wlen2wnum
@@ -29,6 +31,10 @@ if len(sys.argv)>1:
         model="l05II"
     elif imodel==3:
         model="l05III"
+    elif imodel==4:
+        model="l05IIm"
+    elif imodel==5:
+        model="l05IIIm"
 figdir = Path(f'lorenz/{model}')
 if not figdir.exists():
     figdir.mkdir(parents=True)
@@ -74,6 +80,31 @@ elif model=="l05III":
     step = L05III(nx,nk,ni,b,c,dt,F)
     figname = f'nx{nx}nk{nk}ni{ni}b{b:.1f}c{c:.1f}F{int(F)}'
     figtitle = f'N={nx} K={nk} I={ni}\nb={b:.1f} c={c:.1f} F={F:.1f}'
+elif model=="l05IIm":
+    nx = 240
+    nks = [64,32,16,8]
+    dt = 0.05 / 36
+    nt = 500 * 36
+    isave = 36
+    step = L05IIm(nx, nks, dt, F)
+    figname = f'nx{nx}nk{"+".join([str(n) for n in nks])}F{int(F)}'
+    figtitle = f'N={nx} K={"+".join([str(n) for n in nks])} F={F:.1f}'
+elif model=="l05IIIm":
+    nx = 960
+    nks = [256,128,64,32]
+    ni = 12
+    b = 10.0
+    if len(sys.argv)>4:
+        b = float(sys.argv[4])
+    c = 0.6
+    if len(sys.argv)>5:
+        c = float(sys.argv[5])
+    dt = 0.05 / 36
+    nt = 500 * 36
+    isave = 36
+    step = L05IIIm(nx,nks,ni,b,c,dt,F)
+    figname = f'nx{nx}nk{"+".join([str(n) for n in nks])}ni{ni}b{b:.1f}c{c:.1f}F{int(F)}'
+    figtitle = f'N={nx} K={"+".join([str(n) for n in nks])}\nI={ni} b={b:.1f} c={c:.1f} F={F:.1f}'
 print(f"model={model}, F={F}")
 nsave = nt//isave+1
 
@@ -138,7 +169,7 @@ try:
     data = np.loadtxt(outf)
     time = data[:,0]
     emean = data[:,1]
-    if model=="l05III":
+    if model=="l05III" or model=="l05IIIm":
         data2 = np.loadtxt(outf2)
         emean2 = data2[:,1:].transpose()
 except FileNotFoundError:
@@ -151,7 +182,7 @@ except FileNotFoundError:
     e = np.zeros((nsave,ntrial))
     e2 = np.zeros((2,nsave,ntrial))
     emean = np.zeros(nsave)
-    if model=='l05III':
+    if model=='l05III' or model=="l05IIIm":
         emean2 = np.zeros((2,nsave))
     #for j in range(50):
     #    print(f"trial {j+1}")
@@ -159,7 +190,7 @@ except FileNotFoundError:
     #
     #    e = np.zeros(nsave)
     e[0,:] = np.sqrt(np.mean((x2 - x1[:,None])**2,axis=0))
-    if model=='l05III':
+    if model=='l05III' or model=="l05IIIm":
         x1l, x1s = step.decomp(x1)
         x2l, x2s = step.decomp(x2)
         e2[0,0,:] = np.sqrt(np.mean((x2l - x1l[:,None])**2,axis=0))
@@ -172,13 +203,13 @@ except FileNotFoundError:
             print(f"t={time[i]}")
             x1 = xc[i]
             e[i,:] = np.sqrt(np.mean((x2 - x1[:,None])**2,axis=0))
-            if model=='l05III':
+            if model=='l05III' or model=="l05IIIm":
                 x1l, x1s = step.decomp(x1)
                 x2l, x2s = step.decomp(x2)
                 e2[0,i,:] = np.sqrt(np.mean((x2l - x1l[:,None])**2,axis=0))
                 e2[1,i,:] = np.sqrt(np.mean((x2s - x1s[:,None])**2,axis=0))
     emean = np.mean(e,axis=1)
-    if model == 'l05III':
+    if model == 'l05III' or model=="l05IIIm":
         emean2 = np.mean(e2,axis=2)
 
 time = np.array(time)
@@ -231,7 +262,7 @@ print("doubling time = {:.4f}".format(np.log(2)/popt[0]))
 if not outf.exists():
     np.savetxt(outf,np.concatenate((time[:,np.newaxis],emean[:,np.newaxis]),axis=1))
 
-if model == 'l05III':
+if model == 'l05III' or model=="l05IIIm":
     fig, ax = plt.subplots(nrows=2,figsize=[12,12],constrained_layout=True)
     ax[0].plot(time, emean2[0,])
     ax[0].set_yscale("log")

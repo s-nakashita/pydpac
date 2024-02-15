@@ -8,7 +8,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FixedLocator, FixedFormatter
 plt.rcParams['font.size'] = 16
-from nmc_tools import psd, wnum2len, wlen2wnum
+from nmc_tools import psd, wnum2wlen, wlen2wnum
 
 op = sys.argv[1]
 model = sys.argv[2]
