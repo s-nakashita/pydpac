@@ -1,16 +1,16 @@
 import numpy as np 
 try:
-    from .lorenz2 import L05II
-    from .lorenz3 import L05III
+    from .lorenz2m import L05IIm
+    from .lorenz3m import L05IIIm
 except ImportError:
-    from lorenz2 import L05II
-    from lorenz3 import L05III
+    from lorenz2m import L05IIm
+    from lorenz3m import L05IIIm
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
-# nesting Lorenz system
+# nesting Lorenz system with multiple advection length scales
 # Reference : Lorenz (2005, JAS), Yoon et al. (2012, Tellus A), Kretschmer et al. (2015, Tellus A)
-class L05nest():
-    def __init__(self, nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
+class L05nestm():
+    def __init__(self, nx_true, nx_gm, nx_lam, nks_gm, nks_lam, \
         ni, b, c, dt, F, intgm, ist_lam, nsp, \
         lamstep=1, po=1, intrlx=None, gm_same_with_nature=False, debug=False):
         self.dt6h = 0.05
@@ -21,9 +21,9 @@ class L05nest():
         # Limited-area model (LAM)
         print("LAM")
         self.nx_lam = nx_lam
-        self.nk_lam = nk_lam
+        self.nks_lam = nks_lam
         self.ni = ni
-        self.ghost = max(int(np.ceil(5*self.nk_lam/2)),2*self.ni)
+        self.ghost = max(int(np.ceil(5*np.max(self.nks_lam)/2)),2*self.ni)
         print(f"ghost point={self.ghost}")
         self.b = b
         self.c = c
@@ -35,25 +35,35 @@ class L05nest():
         self.F = F
         self.ix_lam = np.arange(ist_lam,ist_lam+self.nx_lam,dtype=np.int32)
         self.xaxis_lam = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam / self.nx_true)
-        self.ix_lam_ext = np.arange(ist_lam-self.ghost,ist_lam+self.nx_lam+self.ghost,dtype=np.int32) # including xaxis lateral boundaries
+        if self.ghost > ist_lam:
+            self.lghost = ist_lam
+            self.rghost = self.nx_true - (ist_lam+self.nx_lam)
+            self.ix_lam_ext = self.ix_true.copy()
+        else:
+            self.lghost = self.ghost
+            self.rghost = self.ghost
+            self.ix_lam_ext = np.arange(ist_lam-self.ghost,ist_lam+self.nx_lam+self.ghost,dtype=np.int32) # including xaxis lateral boundaries
         self.xaxis_lam_ext = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam_ext / self.nx_true)
-        self.lam = L05III(self.nx_lam, self.nk_lam, self.ni, \
+        cyclic = False
+        self.lam = L05IIIm(self.nx_lam, self.nks_lam, self.ni, \
             self.b, self.c, self.dt_lam, self.F,\
-            ghost=self.ghost, debug=debug, cyclic=False)
+            lghost=self.lghost, rghost=self.rghost, debug=debug, cyclic=cyclic)
         # Global model (GM)
         print("GM")
         self.intgm = intgm # grid interval of GM relative to LAM
         self.nx_gm = nx_gm
-        self.nk_gm = nk_gm
+        self.nks_gm = nks_gm
         self.ix_gm = np.arange(0,self.nx_gm*self.intgm,self.intgm,dtype=np.int32)
         self.xaxis_gm = self.nx_true / np.pi * np.sin(np.pi * self.ix_gm / self.nx_true)
         self.gm_same_with_nature = gm_same_with_nature
         if self.gm_same_with_nature:
             self.ni_gm = self.ni // intgm
-            self.gm = L05III(self.nx_gm, self.nk_gm, self.ni_gm, \
+            self.gm = L05IIIm(self.nx_gm, self.nks_gm, self.ni_gm, \
                 self.b, self.c, self.dt_lam, self.F)
         else:
-            self.gm = L05II(self.nx_gm, self.nk_gm, self.dt_gm, self.F)
+            self.gm = L05IIm(self.nx_gm, self.nks_gm, self.dt_gm, self.F)
+        # Interpolation matrix
+        self.itplmat()
         # Boundary condition
         self.nsp = nsp # sponge region width
         self.intrlx = intrlx # time interval for boundary relaxation
@@ -74,7 +84,7 @@ class L05nest():
             plt.xlim(0,self.nsp-1)
             plt.grid()
             plt.legend()
-            plt.savefig(f'lorenz/l05nest/rlx_nsp{self.nsp}p{self.po}.png',dpi=300)
+            #plt.savefig(f'lorenz/l05nestm/rlx_nsp{self.nsp}p{self.po}.png',dpi=300)
             plt.show()
             plt.close()
 #            print(f"xaxis_true={self.xaxis_true}")
@@ -92,12 +102,29 @@ class L05nest():
     def get_params(self):
         return self.gm.get_params(), self.lam.get_params(), self.lamstep, self.nsp
 
+    def itplmat(self):
+        from math import floor
+        self.gm2lamext = np.zeros((self.ix_lam_ext.size,self.ix_gm.size))
+        dx_gm = float(self.ix_gm[1] - self.ix_gm[0])
+        for i in range(self.ix_lam_ext.size):
+            ri = float(self.ix_lam_ext[i])
+            ii = floor(ri)
+            ig = np.argmin(np.abs(self.ix_gm - ii))
+            if self.ix_gm[ig] > ii: ig -= 1
+            ai = (ri - float(self.ix_gm[ig]))/dx_gm
+            if ig < self.ix_gm.size - 1:
+                self.gm2lamext[i,ig] = 1.0 - ai
+                self.gm2lamext[i,ig+1] = ai
+            else:
+                self.gm2lamext[i,ig] = 1.0 - ai
+                self.gm2lamext[i,0] = ai
+
     def __call__(self,x_gm,x_lam):
         ## boundary conditions from previous step
-        gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
-        x0_gm2lamext = gm2lam0(self.ix_lam_ext)
-        x_lam_ext = gm2lam0(self.ix_lam_ext)
-        x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam
+        #gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
+        x0_gm2lamext = np.dot(self.gm2lamext,x_gm)
+        x_lam_ext = np.dot(self.gm2lamext,x_gm)
+        x_lam_ext[self.lghost:-self.rghost] = x_lam
         #print(x_lam_ext.shape)
         #if self.nsp>0:
         #    # Davies relaxation
@@ -108,11 +135,11 @@ class L05nest():
             #GM
             xf_gm = self.gm(x_gm)
             ## boundary conditions from previous step
-            gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
+            #gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
+            x0_gm2lamext = np.dot(self.gm2lamext,x_gm)
             ## boundary conditions from next step
-            gm2lam1 = interp1d(self.ix_gm, xf_gm, axis=0)
-            x0_gm2lamext = gm2lam0(self.ix_lam_ext)
-            x1_gm2lamext = gm2lam1(self.ix_lam_ext)
+            #gm2lam1 = interp1d(self.ix_gm, xf_gm, axis=0)
+            x1_gm2lamext = np.dot(self.gm2lamext,xf_gm)
             #LAM
             if self.nsp>0 and k%self.intrlx==0:
                 # Davies relaxation
@@ -127,8 +154,8 @@ class L05nest():
                 #    # Davies relaxation
                 #    self.bound_rlx(x_lam_ext,t_wgt,x0_gm2lamext,x1_gm2lamext)
                 ## boundary conditions
-                x_lam_ext[:self.ghost] = (1.0-t_wgt)*x0_gm2lamext[:self.ghost] + t_wgt*x1_gm2lamext[:self.ghost]
-                x_lam_ext[self.ghost+self.nx_lam:] = (1.0-t_wgt)*x0_gm2lamext[self.ghost+self.nx_lam:] + t_wgt*x1_gm2lamext[self.ghost+self.nx_lam:]
+                x_lam_ext[:self.lghost] = (1.0-t_wgt)*x0_gm2lamext[:self.lghost] + t_wgt*x1_gm2lamext[:self.lghost]
+                x_lam_ext[-self.rghost:] = (1.0-t_wgt)*x0_gm2lamext[-self.rghost:] + t_wgt*x1_gm2lamext[-self.rghost:]
             x_gm = xf_gm.copy()
             #xl_lam_ext, xs_lam_ext = self.lam.decomp(x_lam_ext)
             #x0l_gm2lamext, x0s_gm2lamext = self.lam.decomp(x0_gm2lamext)
@@ -139,7 +166,7 @@ class L05nest():
             #xs_lam_ext[-self.ghost:] = 0.0
             #x_lam_ext = xl_lam_ext + xs_lam_ext
             #x_lam = self.lam(x_lam_ext)
-        xf_lam = x_lam_ext[self.ghost:self.ghost+self.nx_lam]
+        xf_lam = x_lam_ext[self.lghost:-self.rghost]
         return xf_gm, xf_lam
 
     # Davies relaxation
@@ -152,28 +179,28 @@ class L05nest():
         #x0l_gm2lam = x0l_gm2lamext[self.ghost:self.ghost+self.nx_lam]
         #x1l_gm2lam = x1l_gm2lamext[self.ghost:self.ghost+self.nx_lam]
         if x_lam_ext.ndim==2:
-            x_lam = x_lam_ext[self.ghost:self.ghost+self.nx_lam,:].copy()
-            x0_gm2lam = x0_gm2lamext[self.ghost:self.ghost+self.nx_lam,:].copy()
-            x1_gm2lam = x1_gm2lamext[self.ghost:self.ghost+self.nx_lam,:].copy()
-            x_lam_ext[self.ghost:self.ghost+self.nsp,:] = x_lam[:self.nsp,:]*self.rlx[:,None] + ((1.0-t_wgt)*x0_gm2lam[:self.nsp,:]+t_wgt*x1_gm2lam[:self.nsp,:])*(1.0-self.rlx[:,None])
+            x_lam = x_lam_ext[self.lghost:-self.rghost,:].copy()
+            x0_gm2lam = x0_gm2lamext[self.lghost:-self.rghost,:].copy()
+            x1_gm2lam = x1_gm2lamext[self.lghost:-self.rghost,:].copy()
+            x_lam_ext[self.lghost:self.lghost+self.nsp,:] = x_lam[:self.nsp,:]*self.rlx[:,None] + ((1.0-t_wgt)*x0_gm2lam[:self.nsp,:]+t_wgt*x1_gm2lam[:self.nsp,:])*(1.0-self.rlx[:,None])
             #xl_lam[:self.nsp] = xl_lam[:self.nsp]*self.rlx[:,None] + ((1.0-t_wgt)*x0l_gm2lam[:self.nsp]+t_wgt*x1l_gm2lam[:self.nsp])*(1.0-self.rlx[:,None])
             #xs_lam[:self.nsp] = xs_lam[:self.nsp]*self.rlx[:,None]
-            x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam,:] = x_lam[-self.nsp:,:]*self.rrlx[:,None] + ((1.0-t_wgt)*x0_gm2lam[-self.nsp:,:]+t_wgt*x1_gm2lam[-self.nsp:,:])*(1.0-self.rrlx[:,None])
+            x_lam_ext[-self.rghost-self.nsp:-self.rghost,:] = x_lam[-self.nsp:,:]*self.rrlx[:,None] + ((1.0-t_wgt)*x0_gm2lam[-self.nsp:,:]+t_wgt*x1_gm2lam[-self.nsp:,:])*(1.0-self.rrlx[:,None])
             #xl_lam[-self.nsp:] = xl_lam[-self.nsp:]*self.rlx[::-1,None] + ((1.0-t_wgt)*x0l_gm2lam[-self.nsp:]+t_wgt*x1l_gm2lam[-self.nsp:])*(1.0-self.rlx[::-1,None])
             #xs_lam[-self.nsp:] = xs_lam[-self.nsp:]*self.rlx[::-1,None]
         else:
-            x_lam = x_lam_ext[self.ghost:self.ghost+self.nx_lam].copy()
-            x0_gm2lam = x0_gm2lamext[self.ghost:self.ghost+self.nx_lam].copy()
-            x1_gm2lam = x1_gm2lamext[self.ghost:self.ghost+self.nx_lam].copy()
+            x_lam = x_lam_ext[self.lghost:-self.rghost].copy()
+            x0_gm2lam = x0_gm2lamext[self.lghost:-self.rghost].copy()
+            x1_gm2lam = x1_gm2lamext[self.lghost:-self.rghost].copy()
             x_gm2lam=(1.0-t_wgt)*x0_gm2lam+t_wgt*x1_gm2lam
             #print(self.rlx)
-            x_lam_ext[self.ghost:self.ghost+self.nsp] = x_lam[:self.nsp]*self.rlx + x_gm2lam[:self.nsp]*(1.0-self.rlx)
+            x_lam_ext[self.lghost:self.lghost+self.nsp] = x_lam[:self.nsp]*self.rlx + x_gm2lam[:self.nsp]*(1.0-self.rlx)
             #xl_lam[:self.nsp] = xl_lam[:self.nsp]*self.rlx[:] + ((1.0-t_wgt)*x0l_gm2lam[:self.nsp]+t_wgt*x1l_gm2lam[:self.nsp])*(1.0-self.rlx[:])
             #xs_lam[:self.nsp] = xs_lam[:self.nsp]*self.rlx[:]
             #print(f'rlx={self.rrlx}')
             #print(f'LAM={x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam]}')
             #print(f'GM={x_gm2lam[self.nx_lam-self.nsp:]}')
-            x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam] = x_lam[self.nx_lam-self.nsp:]*self.rrlx + x_gm2lam[self.nx_lam-self.nsp:]*(1.0-self.rrlx)
+            x_lam_ext[-self.rghost-self.nsp:-self.rghost] = x_lam[self.nx_lam-self.nsp:]*self.rrlx + x_gm2lam[self.nx_lam-self.nsp:]*(1.0-self.rrlx)
             #print(f'LAM={x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam]}')
             #xl_lam[-self.nsp:] = xl_lam[-self.nsp:]*self.rlx[::-1] + ((1.0-t_wgt)*x0l_gm2lam[-self.nsp:]+t_wgt*x1l_gm2lam[-self.nsp:])*(1.0-self.rlx[::-1])
             #xs_lam[-self.nsp:] = xs_lam[-self.nsp:]*self.rlx[::-1]
@@ -213,11 +240,11 @@ if __name__ == "__main__":
     plt.rcParams['font.size'] = 16
     from pathlib import Path
     nx_true = 960
-    nx_lam  = 480
+    nx_lam  = 240
     nx_gm   = 240
     intgm   = 4
-    nk_lam  = 32
-    nk_gm   = 8
+    nks_lam = [256,128, 64, 32]
+    nks_gm  = [ 64, 32, 16,  8]
     ni = 12
     b = 10.0
     c = 0.6
@@ -228,11 +255,7 @@ if __name__ == "__main__":
     nsp = 10
     po = 1
     intrlx = 1
-    step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni, b, c, dt, F, intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx, debug=True)
-
-    figdir = Path(f'lorenz/l05nest/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}i{ni}/nsp{nsp}p{step.po}intrlx{step.intrlx}')
-    if not figdir.exists():
-        figdir.mkdir(parents=True)
+    step = L05nestm(nx_true, nx_gm, nx_lam, nks_gm, nks_lam, ni, b, c, dt, F, intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx, debug=True)
 
     lamtest = np.arange(step.ix_lam_ext.size)/step.ix_lam_ext.size
     gmtest = np.ones(step.ix_lam_ext.size)*0.5
@@ -243,7 +266,13 @@ if __name__ == "__main__":
     plt.vlines([step.ix_lam[0],step.ix_lam[-1]],0,1,colors='k',ls='dotted')
     plt.show()
     plt.close()
-    #exit()
+    exit()
+
+    snks_gm = f"{'+'.join([str(n) for n in nks_gm])}"
+    snks_lam = f"{'+'.join([str(n) for n in nks_lam])}"
+    figdir = Path(f'lorenz/l05nestm/ng{nx_gm}nl{nx_lam}kg{snks_gm}kl{snks_lam}i{ni}/nsp{nsp}p{step.po}intrlx{step.intrlx}')
+    if not figdir.exists():
+        figdir.mkdir(parents=True)
 
     x0_gm = np.ones(nx_gm)*F
     x0_gm[nx_gm//2-1] += 0.001*F
@@ -257,11 +286,11 @@ if __name__ == "__main__":
         ## boundary
         if (k+1)%2==0:
             figb,axsb=plt.subplots(ncols=2,figsize=[12,6],constrained_layout=True)
-            gm2lam = interp1d(step.ix_gm,x0_gm)
-            x0_lam_ext = gm2lam(step.ix_lam_ext)
-            x0_lam_ext[step.ghost:step.ghost+step.nx_lam] = x0_lam[:]
+            #gm2lam = interp1d(step.ix_gm,x0_gm)
+            x0_lam_ext = np.dot(step.gm2lamext,x0_gm)
+            x0_lam_ext[step.lghost:-step.rghost] = x0_lam[:]
             x0l_lam_ext, x0s_lam_ext = step.lam.decomp(x0_lam_ext)
-            x0_gm2lamext = gm2lam(step.ix_lam_ext)
+            x0_gm2lamext = np.dot(step.gm2lamext,x0_gm)
             for ax in axsb:
                     ax.plot(step.ix_lam,x0_lam,c='magenta',lw=3.0,label='LAM')
                     ax.plot(step.ix_lam_ext,x0l_lam_ext,c='tab:blue',label='LAM, large')
@@ -289,9 +318,9 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     ax.plot(step.ix_gm,x0_gm,lw=2.0)
     ax.plot(step.ix_lam,x0_lam,lw=1.0)
-    gm2lam = interp1d(step.ix_gm,x0_gm)
-    x0_lam_ext = gm2lam(step.ix_lam_ext)
-    x0_lam_ext[step.ghost:step.ghost+step.nx_lam] = x0_lam[:]
+    #gm2lam = interp1d(step.ix_gm,x0_gm)
+    x0_lam_ext = np.dot(step.gm2lamext,x0_gm)
+    x0_lam_ext[step.lghost:-step.rghost] = x0_lam[:]
     plt.plot(step.ix_lam_ext,x0_lam_ext,ls='dashed')
     plt.show(block=False)
     plt.close()
@@ -313,15 +342,15 @@ if __name__ == "__main__":
     icol=0
     for k in range(20,nt+20):
         x0_gm, x0_lam = step(x0_gm,x0_lam)
-        gm2lam = interp1d(step.ix_gm, x0_gm)
-        x0_lam_ext = gm2lam(step.ix_lam_ext)
-        x0_lam_ext[step.ghost:step.ghost+step.nx_lam] = x0_lam[:]
+        #gm2lam = interp1d(step.ix_gm, x0_gm)
+        x0_lam_ext = np.dot(step.gm2lamext,x0_gm)
+        x0_lam_ext[step.lghost:-step.rghost] = x0_lam[:]
         x0l_lam_ext, x0s_lam_ext = step.lam.decomp(x0_lam_ext)
         if (k+1)%4==0:
             axs[0].plot(step.ix_gm,x0_gm+ydiff,lw=2.0,c=cmap(icol))
             axs[1].plot(step.ix_lam,x0_lam+ydiff,lw=2.0,alpha=0.6,c=cmap(icol))
-            x0l_lam = x0l_lam_ext[step.ghost:step.ghost+step.nx_lam]
-            x0s_lam = x0s_lam_ext[step.ghost:step.ghost+step.nx_lam]
+            x0l_lam = x0l_lam_ext[step.lghost:-step.rghost]
+            x0s_lam = x0s_lam_ext[step.lghost:-step.rghost]
             axs[1].plot(step.ix_lam,x0l_lam+ydiff,lw=1.0,ls='dashed',c=cmap(icol))
             axs[1].plot(step.ix_lam,x0s_lam+ydiff,lw=1.0,c=cmap(icol))
             yticks.append(ydiff)
@@ -331,7 +360,7 @@ if __name__ == "__main__":
         if (k+1)%2==0:
             ## boundary
             figb,axsb=plt.subplots(ncols=2,figsize=[12,6],constrained_layout=True)
-            x0_gm2lamext = gm2lam(step.ix_lam_ext)
+            x0_gm2lamext = np.dot(step.gm2lamext,x0_gm)
             for ax in axsb:
                 ax.plot(step.ix_lam,x0_lam,c='magenta',lw=3.0,label='LAM')
                 ax.plot(step.ix_lam_ext,x0l_lam_ext,c='tab:blue',label='LAM, large')
@@ -345,10 +374,10 @@ if __name__ == "__main__":
                 ax.vlines([step.ix_lam[0],step.ix_lam[-1]],0,1,ls='dashdot',colors='k',transform=ax.get_xaxis_transform())
                 ax.hlines([0],0,1,colors='gray',alpha=0.7,transform=ax.get_yaxis_transform())
                 ax.set_xticks(step.ix_lam_ext[::10])
-            axsb[0].set_xlim(step.ix_lam_ext[0],step.ix_lam_ext[step.ghost+max(20,step.nsp*2)])
+            axsb[0].set_xlim(step.ix_lam_ext[0],step.ix_lam_ext[step.lghost+max(20,step.nsp*2)])
             axsb[0].fill_between(step.ix_lam_ext, 0, 1, where=step.ix_lam_ext < step.ix_lam[nsp],
                         color='gray', alpha=0.3, transform=axsb[0].get_xaxis_transform())
-            axsb[1].set_xlim(step.ix_lam_ext[-step.ghost-max(20,step.nsp*2)-1],step.ix_lam_ext[-1])
+            axsb[1].set_xlim(step.ix_lam_ext[-step.rghost-max(20,step.nsp*2)-1],step.ix_lam_ext[-1])
             axsb[1].fill_between(step.ix_lam_ext, 0, 1, where=step.ix_lam_ext > step.ix_lam[-nsp-1],
                         color='gray', alpha=0.3, transform=axsb[1].get_xaxis_transform())
             axsb[0].legend()
@@ -374,8 +403,8 @@ if __name__ == "__main__":
     axs[1].grid(True)
     axs[0].set_title('GM')
     axs[1].set_title('LAM')
-    fig.suptitle(f"Nesting Lorenz, N_gm={nx_gm}, K_gm={nk_gm}"\
-        +f"\n N_lam={nx_lam}, K_lam={nk_lam}, I={ni}, F={F}, c={c}, intrlx={step.intrlx}")
+    fig.suptitle(f"Nesting Lorenz, N_gm={nx_gm}, K_gm={snks_gm}"\
+        +f"\n N_lam={nx_lam}, K_lam={snks_lam}, I={ni}\n F={F}, b={b}, c={c}, intrlx={step.intrlx}")
     fig.savefig(figdir/f"F{int(F)}b{int(b)}c{c:.1f}.png",dpi=300)
     plt.show()
     plt.close()

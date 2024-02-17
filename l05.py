@@ -5,7 +5,6 @@ from logging.config import fileConfig
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from model.lorenz import L96
 from analysis.obs import Obs
 from l05_func import L05_func
 
@@ -25,6 +24,14 @@ if model == "l05II":
     F  = 10.0      # forcing
     dt = dt6h / 6  # time step (=1 hour)
     args = nx, nk, dt, F
+elif model == "l05IIm":
+    from model.lorenz2m import L05IIm as L05
+    # model parameter
+    nx = 240           # number of points
+    nk = [64,32,16,8]  # advection length scales
+    F  = 15.0          # forcing
+    dt = dt6h / 36     # time step (=1/6 hour)
+    args = nx, nk, dt, F
 elif model == "l05III":
     from model.lorenz3 import L05III as L05
     global ni, b, c
@@ -36,6 +43,18 @@ elif model == "l05III":
     b  = 10.0      # frequency of small-scale perturbation
     c  = 0.6       # coupling factor
     dt = dt6h / 6 / 6 # time step (=1/6 hour)
+    args = nx, nk, ni, b, c, dt, F
+elif model == "l05IIIm":
+    from model.lorenz3m import L05IIIm as L05
+    global ni, b, c 
+    # model parameter
+    nx = 960             # number of points
+    nk = [256,128,64,32] # advection length scales
+    ni = 12              # spatial filter width
+    F  = 15.0            # forcing
+    b  = 10.0            # frequency of small-scale perturbation
+    c  = 0.6             # coupling factor
+    dt = dt6h / 36       # time step (=1/6 hour)
     args = nx, nk, ni, b, c, dt, F
 # forecast model forward operator
 step = L05(*args)

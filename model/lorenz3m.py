@@ -6,10 +6,11 @@ except ImportError:
 # Lorenz III model with multiple wave lengths
 # Reference : Lorenz (2005, JAS) Section 4
 class L05IIIm():
-    def __init__(self, nx, nks, ni, b, c, dt, F, cyclic=True, ghost=0, debug=False):
+    def __init__(self, nx, nks, ni, b, c, dt, F, cyclic=True, lghost=0, rghost=0, debug=False):
         self.nx = nx
-        self.ghost = ghost
-        self.nx_gho = self.nx + 2*self.ghost
+        self.lghost = lghost
+        self.rghost = rghost
+        self.nx_gho = self.nx + self.lghost + self.rghost
         self.nks = nks
         self.ni = ni
         i2 = self.ni*self.ni
