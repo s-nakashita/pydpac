@@ -1,4 +1,5 @@
 import numpy as np 
+import logging
 try:
     from lorenz2 import L05II
 except ImportError:
@@ -19,7 +20,7 @@ class L05III():
         self.be = (2.0*i2+1.0)/(i4+2.0*i2)
         #self.al = 1.0 / self.ni
         #self.be = 1.0 / i2
-        print(f"ni={self.ni} alpha={self.al:.3f} beta={self.be:.3f}")
+        logging.info(f"ni={self.ni} alpha={self.al:.3f} beta={self.be:.3f}")
         #filtering matrix
         self.cyclic = cyclic
         if self.cyclic:
@@ -68,9 +69,9 @@ class L05III():
         self.dt = dt
         self.F = F
         self.l2 = L05II(self.nx_gho,self.nk,self.dt,self.F)
-        print(f"b={self.b} c={self.c}")
+        logging.info(f"b={self.b} c={self.c}")
         if debug:
-            print(self.filmat.max(),self.filmat.min())
+            logging.debug(self.filmat.max(),self.filmat.min())
             import matplotlib.pyplot as plt
             #plt.plot(self.filmat[self.nx_gho//2,:])
             plt.matshow(self.filmat)

@@ -1,4 +1,5 @@
 import numpy as np 
+import logging
 # Lorenz II model
 # Reference : Lorenz (2005, JAS) Section 3
 class L05II():
@@ -7,8 +8,8 @@ class L05II():
         self.nk = nk
         self.dt = dt
         self.F = F
-        print(f"nx={self.nx} nk={self.nk}")
-        print(f"F={self.F} dt={self.dt:.3e}")
+        logging.info(f"nx={self.nx} nk={self.nk}")
+        logging.info(f"F={self.F} dt={self.dt:.3e}")
 
     def get_params(self):
         return self.nx, self.nk, self.dt, self.F

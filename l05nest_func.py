@@ -78,10 +78,15 @@ class L05nest_func():
     
     # generate truth
     def gen_true(self):
-        from model.lorenz3 import L05III
         # true model
-        self.step_true = L05III(self.nx_true,self.nk_lam, self.ni_lam, \
-            self.b, self.c, self.dt_lam, self.F_lam)
+        if self.step.model == "l05nest":
+            from model.lorenz3 import L05III
+            self.step_true = L05III(self.nx_true,self.nk_lam, self.ni_lam, \
+                self.b, self.c, self.dt_lam, self.F_lam)
+        elif self.step.model == "l05nestm":
+            from model.lorenz3m import L05IIIm
+            self.step_true = L05IIIm(self.nx_true,self.nk_lam, self.ni_lam, \
+                self.b, self.c, self.dt_lam, self.F_lam)
         xt = np.zeros((self.na, self.nx_true))
         #x = np.ones(self.nx)*self.F
         #x[self.nx//2 - 1] += 0.001*self.F

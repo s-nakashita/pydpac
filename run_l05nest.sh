@@ -2,17 +2,17 @@
 # This is a run script for Nesting Lorenz experiment
 export OMP_NUM_THREADS=4
 #alias python=python3.9
-model="l05nest"
+model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar_nest envar var_nest var"
+perturbations="envar"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=240 # Number of assimilation cycle
-nmem=120 # ensemble size
+na=1460 # Number of assimilation cycle
+nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
@@ -24,7 +24,7 @@ opt=0
 functype=gc5
 #a=-0.1
 #exp="var+var_nest_${functype}nmctrunc_obs${nobs}"
-exp="var_vs_envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}/${exp}
@@ -32,7 +32,11 @@ rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
 cp ${cdir}/logging_config.ini .
+if [ ${model} = l05nest ]; then
 ln -fs ${cdir}/data/l05III/truth.npy .
+elif [ ${model} = l05nestm ]; then
+ln -fs ${cdir}/data/l05IIIm/truth.npy .
+fi
 rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
@@ -98,7 +102,7 @@ for op in ${operators}; do
     ##for nmc
     #gsed -i -e "6i \ \"extfcst\":True," config_gm.py
     start_time=$(date +"%s")
-    python ${cdir}/${model}.py ${opt} > ${model}_${op}_${pert}.log 2>&1 || exit 2
+    python ${cdir}/l05nest.py ${model} ${opt} > ${model}_${op}_${pert}.log 2>&1 || exit 2
     wait
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
@@ -154,7 +158,7 @@ for op in ${operators}; do
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
-#  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
+  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na}
   rm ${model}_*_jh_${op}_*_cycle*.txt ${model}_*_alpha_${op}_*_cycle*.txt ${model}_*_gh_${op}_*_cycle*.txt
   #rm obs*.npy

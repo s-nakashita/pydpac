@@ -1,4 +1,5 @@
 import numpy as np 
+import logging
 # Lorenz II model with multiple wave lengths
 # Reference : Lorenz (2005, JAS) Section 3
 class L05IIm():
@@ -7,8 +8,8 @@ class L05IIm():
         self.nks = nks
         self.dt = dt
         self.F = F
-        print(f"nx={self.nx} F={self.F} dt={self.dt:.3e}")
-        print(f"nks={self.nks}")
+        logging.info(f"nx={self.nx} F={self.F} dt={self.dt:.3e}")
+        logging.info(f"nks={self.nks}")
 
     def get_params(self):
         return self.nx, self.nks, self.dt, self.F

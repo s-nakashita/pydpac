@@ -1,4 +1,5 @@
 import numpy as np 
+import logging
 try:
     from .lorenz2 import L05II
     from .lorenz3 import L05III
@@ -13,18 +14,19 @@ class L05nest():
     def __init__(self, nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
         ni, b, c, dt, F, intgm, ist_lam, nsp, \
         lamstep=1, po=1, intrlx=None, gm_same_with_nature=False, debug=False):
+        self.model = "l05nest"
         self.dt6h = 0.05
         # Actual grid
         self.nx_true = nx_true
         self.ix_true = np.arange(self.nx_true,dtype=np.int32)
         self.xaxis_true = self.nx_true / np.pi * np.sin(np.pi * np.arange(self.nx_true) / self.nx_true)
         # Limited-area model (LAM)
-        print("LAM")
+        logging.info("LAM")
         self.nx_lam = nx_lam
         self.nk_lam = nk_lam
         self.ni = ni
         self.ghost = max(int(np.ceil(5*self.nk_lam/2)),2*self.ni)
-        print(f"ghost point={self.ghost}")
+        logging.info(f"ghost point={self.ghost}")
         self.b = b
         self.c = c
         self.lamstep = lamstep
@@ -41,7 +43,7 @@ class L05nest():
             self.b, self.c, self.dt_lam, self.F,\
             ghost=self.ghost, debug=debug, cyclic=False)
         # Global model (GM)
-        print("GM")
+        logging.info("GM")
         self.intgm = intgm # grid interval of GM relative to LAM
         self.nx_gm = nx_gm
         self.nk_gm = nk_gm
@@ -63,7 +65,7 @@ class L05nest():
         self.po = po
         self.rlx = np.ones(self.nsp) - (np.abs(np.arange(self.nsp)-self.nsp)/(self.nsp))**self.po
         self.rrlx = self.rlx[::-1]
-        print(f"sponge width={self.nsp}")
+        logging.info(f"sponge width={self.nsp}")
         ## debug
         if debug:
             plt.plot(np.arange(self.nsp),self.rlx,label='rlx')
@@ -77,13 +79,13 @@ class L05nest():
             plt.savefig(f'lorenz/l05nest/rlx_nsp{self.nsp}p{self.po}.png',dpi=300)
             plt.show()
             plt.close()
-#            print(f"xaxis_true={self.xaxis_true}")
+#            logging.debug(f"xaxis_true={self.xaxis_true}")
 #            plt.plot(np.arange(self.nx_true),self.xaxis_true,lw=4.0,label='nature')
-#            print(f"xaxis_gm={self.xaxis_gm}")
+#            logging.debug(f"xaxis_gm={self.xaxis_gm}")
 #            plt.plot(self.ix_gm,self.xaxis_gm,lw=0.0,marker='.',label='GM')
-#            print(f"xaxis_lam={self.xaxis_lam}")
+#            logging.debug(f"xaxis_lam={self.xaxis_lam}")
 #            plt.plot(self.ix_lam,self.xaxis_lam,lw=2.0,ls='dashed',label='LAM')
-#            print(f"xaxis_lam_ext={self.xaxis_lam_ext}")
+#            logging.debug(f"xaxis_lam_ext={self.xaxis_lam_ext}")
 #            plt.plot(self.ix_lam_ext,self.xaxis_lam_ext,lw=2.0,ls='dashdot',label='LAM_ext')
 #            plt.legend()
 #            plt.show()
@@ -98,7 +100,7 @@ class L05nest():
         x0_gm2lamext = gm2lam0(self.ix_lam_ext)
         x_lam_ext = gm2lam0(self.ix_lam_ext)
         x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam
-        #print(x_lam_ext.shape)
+        #logging.info(x_lam_ext.shape)
         #if self.nsp>0:
         #    # Davies relaxation
         #    t_wgt = 0.0
@@ -166,15 +168,15 @@ class L05nest():
             x0_gm2lam = x0_gm2lamext[self.ghost:self.ghost+self.nx_lam].copy()
             x1_gm2lam = x1_gm2lamext[self.ghost:self.ghost+self.nx_lam].copy()
             x_gm2lam=(1.0-t_wgt)*x0_gm2lam+t_wgt*x1_gm2lam
-            #print(self.rlx)
+            #logging.debug(self.rlx)
             x_lam_ext[self.ghost:self.ghost+self.nsp] = x_lam[:self.nsp]*self.rlx + x_gm2lam[:self.nsp]*(1.0-self.rlx)
             #xl_lam[:self.nsp] = xl_lam[:self.nsp]*self.rlx[:] + ((1.0-t_wgt)*x0l_gm2lam[:self.nsp]+t_wgt*x1l_gm2lam[:self.nsp])*(1.0-self.rlx[:])
             #xs_lam[:self.nsp] = xs_lam[:self.nsp]*self.rlx[:]
-            #print(f'rlx={self.rrlx}')
-            #print(f'LAM={x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam]}')
-            #print(f'GM={x_gm2lam[self.nx_lam-self.nsp:]}')
+            #logging.debug(f'rlx={self.rrlx}')
+            #logging.debug(f'LAM={x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam]}')
+            #logging.debug(f'GM={x_gm2lam[self.nx_lam-self.nsp:]}')
             x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam] = x_lam[self.nx_lam-self.nsp:]*self.rrlx + x_gm2lam[self.nx_lam-self.nsp:]*(1.0-self.rrlx)
-            #print(f'LAM={x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam]}')
+            #logging.debug(f'LAM={x_lam_ext[self.ghost+self.nx_lam-self.nsp:self.ghost+self.nx_lam]}')
             #xl_lam[-self.nsp:] = xl_lam[-self.nsp:]*self.rlx[::-1] + ((1.0-t_wgt)*x0l_gm2lam[-self.nsp:]+t_wgt*x1l_gm2lam[-self.nsp:])*(1.0-self.rlx[::-1])
             #xs_lam[-self.nsp:] = xs_lam[-self.nsp:]*self.rlx[::-1]
         #x_lam_ext[self.ghost:self.ghost+self.nx_lam] = x_lam[:]

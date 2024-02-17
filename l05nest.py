@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from model.lorenz_nest import L05nest
+from model.lorenz_nestm import L05nestm
 from analysis.obs import Obs
 from l05nest_func import L05nest_func
 
@@ -14,11 +15,13 @@ parent_dir = os.path.abspath(os.path.dirname(__file__))
 
 global nx_true, nx_gm, nx_lam, step
 
-model = "l05nest"
+#model = "l05nest"
+model = sys.argv[1]
 # model parameter
 ## true
 nx_true = 960
 nk_true = 32
+nks_true = [256,128,64,32]
 ## GM
 gm_same_with_nature = False # DEBUG: Lorenz III used for GM
 intgm = 4                    # grid interval
@@ -26,6 +29,7 @@ if gm_same_with_nature:
     intgm = 1
 nx_gm = nx_true // intgm     # number of points
 nk_gm = nk_true // intgm     # advection length scale
+nks_gm = np.array(nks_true) // intgm     # advection length scales
 dt_gm = 0.05 / 36            # time step (=1/6 hour, Kretchmer et al. 2015)
 #dt_gm = 0.05 / 48            # time step (=1/8 hour, Yoon et al. 2012)
 ## LAM
@@ -37,15 +41,21 @@ intrlx = 1                   # interval of boundary relaxation (K15)
 #intrlx = 48                   # interval of boundary relaxation (Y12)
 lamstep = 1                  # time steps relative to 1 step of GM
 nk_lam = 32                  # advection length
+nks_lam = nks_true           # advection lengths
 ni = 12                      # spatial filter width
 b = 10.0                     # frequency of small-scale perturbation
 c = 0.6                      # coupling factor
 F = 15.0                     # forcing
 
 # forecast model forward operator
-step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
-    ni, b, c, dt_gm, F, intgm, ist_lam, nsp, \
-    lamstep=lamstep, intrlx=intrlx, po=po, gm_same_with_nature=gm_same_with_nature)
+if model == "l05nest":
+    step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, \
+        ni, b, c, dt_gm, F, intgm, ist_lam, nsp, \
+        lamstep=lamstep, intrlx=intrlx, po=po, gm_same_with_nature=gm_same_with_nature)
+elif model == "l05nestm":
+    step = L05nestm(nx_true, nx_gm, nx_lam, nks_gm, nks_lam, \
+        ni, b, c, dt_gm, F, intgm, ist_lam, nsp, \
+        lamstep=lamstep, intrlx=intrlx, po=po, gm_same_with_nature=gm_same_with_nature)
 
 np.savetxt("ix_true.txt",step.ix_true)
 np.savetxt("ix_gm.txt",step.ix_gm)
@@ -117,8 +127,8 @@ params_gm["ss"]         =  False   # (For model space localization) statistical 
 params_gm["getkf"]      =  False   # (For model space localization) gain form resampling flag
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
-params_gm["rseed"] = None # random seed
-params_gm["extfcst"] = False # extended forecast
+params_gm["rseed"]      = None # random seed
+params_gm["extfcst"]    = True # extended forecast
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
@@ -131,7 +141,7 @@ params_lam["sigv"]      =  0.4     # (For var_nest) GM background error standard
 params_lam["lv"]        = 23.5     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
 params_lam["a_v"]       = -0.1  # (For var_nest) background error correlation function shape parameter
 params_lam["ntrunc"]    = 12    # (For var_nest) truncation number for GM error covariance
-params_lam["crosscov"] = False     # (For var_nest) whether correlation between GM and LAM is considered or not
+params_lam["crosscov"]  = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 
 ## update from configure file
 sys.path.append('./')
@@ -422,8 +432,8 @@ func = L05nest_func(step,obs,params_gm,params_lam)
 if __name__ == "__main__":
     from scipy.interpolate import interp1d
     opt=0
-    if len(sys.argv)>1:
-        opt=int(sys.argv[1])
+    if len(sys.argv)>2:
+        opt=int(sys.argv[2])
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs, iobs_lam = func.get_true_and_obs(obsloctype=params_gm["obsloctype"])
