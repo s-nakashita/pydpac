@@ -15,8 +15,9 @@ parent_dir = os.path.abspath(os.path.dirname(__file__))
 
 global nx_true, nx_gm, nx_lam, step
 
-#model = "l05nest"
-model = sys.argv[1]
+model = "l05nest"
+if len(sys.argv)>1:
+    model = sys.argv[1]
 # model parameter
 ## true
 nx_true = 960
@@ -115,9 +116,13 @@ params_gm["pt"]         = "mlef"   # assimilation method
 params_gm["nmem"]       =  40      # ensemble size (include control run)
 params_gm["a_window"]   =  0       # assimilation window length
 params_gm["sigb"]       =  0.4     # (For var & 4dvar) background error standard deviation
-params_gm["lb"]         = 24.6    # (For var & 4dvar) correlation length for background error covariance in degree
 params_gm["functype"]   = "gc5"  # (For var & 4dvar) background error correlation function
-params_gm["a"]          = -0.2  # (For var & 4dvar) background error correlation function shape parameter
+if model=="l05nest":
+    params_gm["lb"]     = 24.6    # (For var & 4dvar) correlation length for background error covariance in degree
+    params_gm["a"]      = -0.2  # (For var & 4dvar) background error correlation function shape parameter
+else:
+    params_gm["lb"]     = 23.62
+    params_gm["a"]      = -0.04
 params_gm["linf"]       =  False   # inflation flag
 params_gm["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params_gm["lloc"]       =  False   # localization flag
@@ -128,18 +133,24 @@ params_gm["getkf"]      =  False   # (For model space localization) gain form re
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params_gm["rseed"]      = None # random seed
-params_gm["extfcst"]    = True # extended forecast
+params_gm["extfcst"]    = False # extended forecast
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  0.6     # (For var & 4dvar) background error standard deviation
-params_lam["lb"]        = 26.5     # (For var & 4dvar) correlation length for background error covariance in degree
-params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
-params_lam["a"]         = -0.2  # (For var & 4dvar) background error correlation function shape parameter
 params_lam["sigv"]      =  0.4     # (For var_nest) GM background error standard deviation in LAM space
-params_lam["lv"]        = 23.5     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
-params_lam["a_v"]       = -0.1  # (For var_nest) background error correlation function shape parameter
+params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
+if model=="l05nest":
+    params_lam["lb"]    = 26.5     # (For var & 4dvar) correlation length for background error covariance in degree
+    params_lam["a"]     = -0.2  # (For var & 4dvar) background error correlation function shape parameter
+    params_lam["lv"]    = 23.5     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
+    params_lam["a_v"]   = -0.1  # (For var_nest) background error correlation function shape parameter
+else:
+    params_lam["lb"]    = 28.07
+    params_lam["a"]     = -0.09
+    params_lam["lv"]    = 14.82
+    params_lam["a_v"]   = 0.15
 params_lam["ntrunc"]    = 12    # (For var_nest) truncation number for GM error covariance
 params_lam["crosscov"]  = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 
@@ -162,6 +173,7 @@ sigo= params_lam["sigo"]
 ft  = ftype[pt]
 global na, a_window
 na = params_lam["na"]
+nspinup = na // 5
 a_window = params_lam["a_window"]
 params_gm["ft"] = ft
 params_lam["ft"] = ft
@@ -182,7 +194,7 @@ params_lam["lv"] = params_lam["lv"] * np.pi / 180.0 # degree => radian
 obs = Obs(op, sigo) # for make observations
 obs_gm = Obs(op, sigo, ix=step.ix_gm) # for analysis_gm
 if params_lam["anlsp"]:
-    obs_lam = Obs(op, sigo, ix=step.ix_lam, icyclic=False) # analysis_lam
+    obs_lam = Obs(op, sigo, ix=step.ix_lam[1:-1], icyclic=False) # analysis_lam
 else:
     obs_lam = Obs(op, sigo, ix=step.ix_lam[nsp:-nsp], icyclic=False) # analysis_lam (exclude sponge regions)
 
@@ -199,7 +211,7 @@ if pt == "mlef":
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
-            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model="l05nest_gm")
+            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
 #    if params_gm["iloc"] is not None and params_gm["iloc"]>0:
 #        rhofile=f"{model}_rho_{op}_{pt}.npy"
 #        rhofile_new=f"{model}_rhogm_{op}_{pt}.npy"
@@ -209,7 +221,7 @@ if pt == "mlef":
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
 #    if params_lam["iloc"] is not None and params_lam["iloc"]>0:
 #        rhofile=f"{model}_rho_{op}_{pt}.npy"
 #        rhofile_new=f"{model}_rholam_{op}_{pt}.npy"
@@ -221,21 +233,21 @@ elif pt == "envar":
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
-            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model="l05nest_gm")
+            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     if params_lam["anlsp"]:
-        analysis_lam = EnVAR(nx_lam, params_lam["nmem"], obs_lam, \
+        analysis_lam = EnVAR(nx_lam-2, params_lam["nmem"], obs_lam, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
     else:
         analysis_lam = EnVAR(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
 elif pt == "envar_nest":
     from analysis.envar import EnVAR
     from analysis.envar_nest import EnVAR_nest
@@ -244,15 +256,15 @@ elif pt == "envar_nest":
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
-            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model="l05nest_gm")
+            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     if params_lam["anlsp"]:
-        analysis_lam = EnVAR_nest(nx_lam, params_lam["nmem"], obs_lam, \
-            step.ix_gm, step.ix_lam, ntrunc=params_lam["ntrunc"],\
+        analysis_lam = EnVAR_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
+            step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
     else:
         analysis_lam = EnVAR_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
@@ -260,7 +272,7 @@ elif pt == "envar_nest":
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis_gm = EnKF(pt, nx_gm, params_gm["nmem"], obs_gm, \
@@ -268,21 +280,21 @@ elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
         iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
         ss=params_gm["ss"], getkf=params_gm["getkf"], \
         ltlm=params_gm["ltlm"], \
-        calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm, model="l05nest_gm")
+        calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm, model=model+"_gm")
     analysis_lam = EnKF(pt, nx_lam, params_lam["nmem"], obs_lam, \
         linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
         iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
         ss=params_lam["ss"], getkf=params_lam["getkf"], \
         ltlm=params_lam["ltlm"], \
-        calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam, model="l05nest_lam")
+        calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam, model=model+"_lam")
 elif pt == "kf":
     from analysis.kf import Kf
     analysis_gm = Kf(obs_gm, 
     infl=params_gm["infl_parm"], linf=params_gm["linf"], 
-    step=step.gm, nt=params_gm["nt"], model="l05nest_gm")
+    step=step.gm, nt=params_gm["nt"], model=model+"_gm")
     analysis_lam = Kf(obs_lam, 
     infl=params_lam["infl_parm"], linf=params_lam["linf"], 
-    step=step.lam, nt=params_lam["nt"], model="l05nest_lam")
+    step=step.lam, nt=params_lam["nt"], model=model+"_lam")
 elif pt == "var":
     from analysis.var import Var
     #bmatdir = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
@@ -297,7 +309,7 @@ elif pt == "var":
     bmat_gm = None
     analysis_gm = Var(obs_gm, nx_gm, ix=step.ix_gm,  
     sigb=params_gm["sigb"], lb=params_gm["lb"], functype=params_gm["functype"], a=params_gm["a"], bmat=bmat_gm, cyclic=True, \
-    calc_dist1=step.calc_dist1_gm, model="l05nest_gm")
+    calc_dist1=step.calc_dist1_gm, model=model+"_gm")
     #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
 #    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
 #    try:
@@ -308,13 +320,13 @@ elif pt == "var":
 #        bmat_lam = None
     bmat_lam = None
     if params_lam["anlsp"]:
-        analysis_lam = Var(obs_lam, nx_lam, ix=step.ix_lam, 
+        analysis_lam = Var(obs_lam, nx_lam-2, ix=step.ix_lam[1:-1], ioffset=1,
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, \
-        calc_dist1=step.calc_dist1_lam, model="l05nest_lam")
+        calc_dist1=step.calc_dist1_lam, model=model+"_lam")
     else:
         analysis_lam = Var(obs_lam, nx_lam-2*nsp, ix=step.ix_lam[nsp:-nsp], ioffset=nsp, 
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, \
-        calc_dist1=step.calc_dist1_lam, model="l05nest_lam")
+        calc_dist1=step.calc_dist1_lam, model=model+"_lam")
 elif pt == "var_nest":
     from analysis.var_nest import Var_nest
     from analysis.var import Var
@@ -330,7 +342,7 @@ elif pt == "var_nest":
     bmat_gm = None
     analysis_gm = Var(obs_gm, nx_gm, pt="var_nest", ix=step.ix_gm, 
     sigb=params_gm["sigb"], lb=params_gm["lb"], functype=params_gm["functype"], a=params_gm["a"], bmat=bmat_gm, cyclic=True, \
-    calc_dist1=step.calc_dist1_gm, model="l05nest_gm")
+    calc_dist1=step.calc_dist1_gm, model=model+"_gm")
     #f = os.path.join(parent_dir,bmatdir,"B_lam.npy")
 #    f = os.path.join(parent_dir,bmatdir,"l05nest_B48m24_lam.npy")
 #    try:
@@ -376,19 +388,19 @@ elif pt == "var_nest":
         ebkmat=None
         ekbmat=None
     if params_lam["anlsp"]:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam,
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1],
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
         sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
-        model="l05nest_lam")
+        model=model+"_lam")
     else:
         analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp,
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
         sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
-        model="l05nest_lam")
+        model=model+"_lam")
 else:
     print("not implemented yet")
     exit()
@@ -398,32 +410,32 @@ elif pt == "4dvar":
     #a_window = 5
     sigb_gm = params_gm["sigb"] * np.sqrt(float(a_window))
     analysis_gm = Var4d(obs_gm, step.gm, params_gm["nt"], a_window,
-    sigb=sigb_gm, lb=params_gm["lb"], model="l05nest_gm")
+    sigb=sigb_gm, lb=params_gm["lb"], model=model+"_gm")
     sigb_lam = params_lam["sigb"] * np.sqrt(float(a_window))
     analysis_lam = Var4d(obs_lam, step.lam, params_lam["nt"], a_window,
-    sigb=sigb_lam, lb=params_lam["lb"], model="l05nest_lam")
+    sigb=sigb_lam, lb=params_lam["lb"], model=model+"_lam")
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enkf4d import EnKF4d
     #a_window = 5
     analysis_gm = EnKF4d(pt, nx_gm, params_gm["nmem"], obs_gm, step.gm, params_gm["nt"], a_window, \
         linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], 
         iloc=params_gm["iloc"], lsig=params_gm["lsig"], calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm, \
-        ltlm=params_gm["ltlm"], model="l05nest_gm")
+        ltlm=params_gm["ltlm"], model=model+"_gm")
     analysis_lam = EnKF4d(pt, nx_lam, params_lam["nmem"], obs_lam, step.lam, params_lam["nt"], a_window, \
         linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], 
         iloc=params_lam["iloc"], lsig=params_lam["lsig"], calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam, \
-        ltlm=params_lam["ltlm"], model="l05nest_lam")
+        ltlm=params_lam["ltlm"], model=model+"_lam")
 elif pt == "4dmlef":
     #a_window = 5
     from analysis.mlef4d import Mlef4d
     analysis_gm = Mlef4d(nx_gm, params_gm["nmem"], obs_gm, step.gm, params_gm["nt"], a_window, \
             linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm, \
-            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model="l05nest_gm")
+            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     analysis_lam = Mlef4d(nx_lam, params_lam["nmem"], obs_lam, step.lam, params_lam["nt"], a_window, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam, \
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model="l05nest_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
 """
 
 # functions load
@@ -480,8 +492,9 @@ if __name__ == "__main__":
     
     stdf_gm[0] = np.sqrt(np.trace(pf_gm)/pf_gm.shape[0])
     stdf_lam[0] = np.sqrt(np.trace(pf_lam)/pf_lam.shape[0])
-    xsfmean_gm += np.diag(pf_gm)
-    xsfmean_lam += np.diag(pf_lam)
+    if nspinup <= 0:
+        xsfmean_gm += np.diag(pf_gm)
+        xsfmean_lam += np.diag(pf_lam)
     if params_gm["extfcst"]:
         ## extended forecast
         xf12_gm = np.zeros((na+1,nx_gm))
@@ -570,12 +583,12 @@ if __name__ == "__main__":
                 #if pt == "var_nest":
                 #    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)
                 #else:
-                args_lam = (u_lam,pf_lam,y_lam,yloc_lam)
+                args_lam = (u_lam[1:-1],pf_lam,y_lam,yloc_lam)
                 if pt == "var_nest" or pt == "envar_nest":
-                    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm)
+                    args_lam = (u_lam[1:-1],pf_lam,y_lam,yloc_lam,u_gm)
                 u_tmp, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
-                u_lam = u_tmp[:,...]
+                u_lam[1:-1] = u_tmp[:,...]
             else:
                 #if pt == "var_nest":
                 #    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm) #,step.ix_lam[nsp:-nsp])
@@ -684,8 +697,9 @@ if __name__ == "__main__":
             pf_lam = analysis_lam.calc_pf(u_lam, pa=pa_lam, cycle=i+1)
             stdf_gm[i+1] = np.sqrt(np.trace(pf_gm)/pf_gm.shape[0])
             stdf_lam[i+1] = np.sqrt(np.trace(pf_lam)/pf_lam.shape[0])
-            xsfmean_gm += np.diag(pf_gm)
-            xsfmean_lam += np.diag(pf_lam)
+            if i>=nspinup:
+                xsfmean_gm += np.diag(pf_gm)
+                xsfmean_lam += np.diag(pf_lam)
         
             if params_gm["extfcst"]:
                 ## extended forecast
@@ -770,27 +784,31 @@ if __name__ == "__main__":
                 e_lam[k] = np.sqrt(np.mean((xa_lam[k, :] - true2gm(step.ix_lam))**2))
                 ef_gm[k] = np.sqrt(np.mean((xf_gm[k, :] - true2gm(step.ix_gm))**2))
                 ef_lam[k] = np.sqrt(np.mean((xf_lam[k, :] - true2gm(step.ix_lam))**2))
-                xdmean_gm += (xa_gm[k,:]-true2gm(step.ix_gm))**2
-                xdmean_lam += (xa_lam[k,:]-true2gm(step.ix_lam))**2
-                xdfmean_gm += (xf_gm[k,:]-true2gm(step.ix_gm))**2
-                xdfmean_lam += (xf_lam[k,:]-true2gm(step.ix_lam))**2
+                if k>=nspinup:
+                    xdmean_gm += (xa_gm[k,:]-true2gm(step.ix_gm))**2
+                    xdmean_lam += (xa_lam[k,:]-true2gm(step.ix_lam))**2
+                    xdfmean_gm += (xf_gm[k,:]-true2gm(step.ix_gm))**2
+                    xdfmean_lam += (xf_lam[k,:]-true2gm(step.ix_lam))**2
+                    nanl += 1
         else:
             true2gm = interp1d(step.ix_true,xt[i])
             e_gm[i] = np.sqrt(np.mean((xa_gm[i, :] - true2gm(step.ix_gm))**2))
             e_lam[i] = np.sqrt(np.mean((xa_lam[i, :] - true2gm(step.ix_lam))**2))
             ef_gm[i] = np.sqrt(np.mean((xf_gm[i, :] - true2gm(step.ix_gm))**2))
             ef_lam[i] = np.sqrt(np.mean((xf_lam[i, :] - true2gm(step.ix_lam))**2))
-            xdmean_gm += (xa_gm[i,:]-true2gm(step.ix_gm))**2
-            xdmean_lam += (xa_lam[i,:]-true2gm(step.ix_lam))**2
-            xdfmean_gm += (xf_gm[i,:]-true2gm(step.ix_gm))**2
-            xdfmean_lam += (xf_lam[i,:]-true2gm(step.ix_lam))**2
+            if i>=nspinup:
+                xdmean_gm += (xa_gm[i,:]-true2gm(step.ix_gm))**2
+                xdmean_lam += (xa_lam[i,:]-true2gm(step.ix_lam))**2
+                xdfmean_gm += (xf_gm[i,:]-true2gm(step.ix_gm))**2
+                xdfmean_lam += (xf_lam[i,:]-true2gm(step.ix_lam))**2
+                nanl += 1
         stda_gm[i] = np.sqrt(np.trace(pa_gm)/pa_gm.shape[0])
         stda_lam[i] = np.sqrt(np.trace(pa_lam)/pa_lam.shape[0])
         xsa_gm[i] = np.sqrt(np.diag(pa_gm))
         xsa_lam[i] = np.sqrt(np.diag(pa_lam))
-        xsmean_gm += np.diag(pa_gm)
-        xsmean_lam += np.diag(pa_lam)
-        nanl += 1
+        if i>=nspinup:
+            xsmean_gm += np.diag(pa_gm)
+            xsmean_lam += np.diag(pa_lam)
 
     np.save("{}_xfgm_{}_{}.npy".format(model, op, pt), xf_gm)
     np.save("{}_xagm_{}_{}.npy".format(model, op, pt), xa_gm)

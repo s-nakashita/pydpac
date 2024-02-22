@@ -5,13 +5,13 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar"
+perturbations="envar envar_nest var var_nest"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=1460 # Number of assimilation cycle
+na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -23,8 +23,8 @@ ltlm=False # True:Use tangent linear approximation False:Not use
 opt=0
 functype=gc5
 #a=-0.1
-#exp="var+var_nest_${functype}nmctrunc_obs${nobs}"
-exp="envar_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+#exp="var+var_nest_${functype}nmc_obs${nobs}"
+exp="var_vs_envar_wobc_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}/${exp}
@@ -152,6 +152,7 @@ for op in ${operators}; do
     #done
   done
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}
+  python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} F
   python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log

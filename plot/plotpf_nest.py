@@ -24,7 +24,7 @@ elif model == "l96":
 #ix = np.arange(nx)
 ix_gm = np.loadtxt("ix_gm.txt")
 nx_gm = ix_gm.size
-ix_lam = np.loadtxt("ix_lam.txt")
+ix_lam = np.loadtxt("ix_lam.txt")[1:-1]
 nx_lam = ix_lam.size
 #i0=np.argmin(np.abs(ix_gm-ix_lam[0]))
 #if ix_gm[i0]<ix_lam[0]: i0+=1
@@ -48,6 +48,15 @@ for icycle in range(scycle,ecycle+1):
             pfgm = pftmp
         else:
             pfgm = pfgm + pftmp
+    else:
+        f = "data/{}_gm_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
+        if os.path.isfile(f):
+            spftmp = np.load(f)
+            pftmp = spftmp @ spftmp.T
+            if ncycle==0:
+                pfgm = pftmp
+            else:
+                pfgm = pfgm + pftmp
     f = "{}_lam_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
     if os.path.isfile(f):
         spftmp = np.load(f)
@@ -57,6 +66,16 @@ for icycle in range(scycle,ecycle+1):
         else:
             pflam = pflam + pftmp
         ncycle += 1
+    else:
+        f = "data/{}_lam_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
+        if os.path.isfile(f):
+            spftmp = np.load(f)
+            pftmp = spftmp @ spftmp.T
+            if ncycle==0:
+                pflam = pftmp
+            else:
+                pflam = pflam + pftmp
+            ncycle += 1
     f = "{}_lam_svmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
     if os.path.isfile(f):
         svtmp = np.load(f)
@@ -66,6 +85,16 @@ for icycle in range(scycle,ecycle+1):
         else:
             vmat = vmat + vtmp
         vmat_exist=True
+    else:
+        f = "data/{}_lam_svmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
+        if os.path.isfile(f):
+            svtmp = np.load(f)
+            vtmp = svtmp @ svtmp.T
+            if not vmat_exist:
+                vmat = vtmp
+            else:
+                vmat = vmat + vtmp
+            vmat_exist=True
 #    pa = None  
 #    f = "{}_pa_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
 #    if os.path.isfile(f):
@@ -75,9 +104,9 @@ pfgm = pfgm / float(ncycle)
 pflam = pflam / float(ncycle)
 if vmat_exist:
     vmat = vmat / float(ncycle)
-    fig, axs = plt.subplots(ncols=3,figsize=[12,6],constrained_layout=True)
+    fig, axs = plt.subplots(ncols=3,figsize=[12,4],constrained_layout=True)
 else:
-    fig, axs = plt.subplots(ncols=2,figsize=[8,6],constrained_layout=True)
+    fig, axs = plt.subplots(ncols=2,figsize=[8,4],constrained_layout=True)
 ymax = np.max(pfgm)
 ymin = np.min(pfgm)
 ylim = max(ymax, np.abs(ymin))
@@ -114,4 +143,5 @@ if vmat_exist:
     axs[2].set_yticks(ix_trunc[::(nx_gmlam//8)])
     axs[2].set_title(r"$\mathrm{trace}(\mathbf{V})/N=$"+f"{np.mean(np.diag(vmat)):.3f}")
     fig.colorbar(mp2, ax=axs[2], pad=0.01, shrink=0.6) #orientation="horizontal")
+fig.suptitle(f"{pt}, cycle={scycle}-{ecycle}")
 fig.savefig("{}_pf_{}_{}_cycle{}-{}.png".format(model,op,pt,scycle,ecycle))

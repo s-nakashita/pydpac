@@ -13,10 +13,14 @@ sys.path.append('../')
 from l05nest import nx_true, nx_gm, nk_gm, nx_lam, nsp, po, nk_lam, ni, b, c, F
 sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
 from trunc1d import Trunc1d
-nobs=15
-nmem=240
-figdir1 = Path(f'{parent_dir}/data/l05III/nmc_obs{nobs}')
-figdir2 = Path(f'{parent_dir}/data/l05nest/nmc_obs{nobs}')
+model1="l05IIIm"
+nobs1=15
+nmem1=80
+figdir1 = Path(f'{parent_dir}/data/{model1}/nmc_obs{nobs1}')
+model2="l05nestm"
+nobs2=30
+nmem2=80
+figdir2 = Path(f'{parent_dir}/data/{model2}/nmc_obs{nobs2}')
 if not figdir1.exists():
     figdir1.mkdir(parents=True)
 if not figdir2.exists():
@@ -37,34 +41,34 @@ if functype == "gc5":
 ##bmatdir = f"model/lorenz/n{nx_true}k{nk_lam}i{ni}F{int(F)}b{b:.1f}c{c:.1f}"
 ##f = os.path.join(parent_dir,bmatdir,"B.npy")
 #bmatdir = f"work/l05III/var_obs{nobs}"
-bmatdir = f"work/l05III/envar_mem{nmem}obs{nobs}"
+bmatdir = f"work/{model1}/envar_mem{nmem1}obs{nobs1}"
 f = os.path.join(parent_dir,bmatdir,"ix.txt")
 ix_true = np.loadtxt(f)
-f = os.path.join(parent_dir,bmatdir,"l05III_B48m24.npy")
+f = os.path.join(parent_dir,bmatdir,f"{model1}_B48m24.npy")
 shutil.copy2(Path(f),figdir1)
 bmat = np.load(f)
 # GM & LAM
 ##bmatdir_nest = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
 #bmatdir_nest = f"work/l05nest/var_obs{nobs}"
-bmatdir_nest = f"work/l05nest_K15/envar_m{nmem}obs{nobs}"
+bmatdir_nest = f"work/{model2}/envar_m{nmem2}obs{nobs2}"
 f = os.path.join(parent_dir,bmatdir_nest,"ix_gm.txt")
 ix_gm = np.loadtxt(f)
 f = os.path.join(parent_dir,bmatdir_nest,"ix_lam.txt")
 ix_lam = np.loadtxt(f)
 #f = os.path.join(parent_dir,bmatdir_nest,"B_gmfull.npy")
-f = os.path.join(parent_dir,bmatdir_nest,"l05nest_B48m24_gm.npy")
+f = os.path.join(parent_dir,bmatdir_nest,f"{model2}_B48m24_gm.npy")
 shutil.copy2(Path(f),figdir2)
 bmat_gm = np.load(f)
 #f = os.path.join(parent_dir,bmatdir_nest,"B_lam.npy")
-f = os.path.join(parent_dir,bmatdir_nest,"l05nest_B48m24_lam.npy")
+f = os.path.join(parent_dir,bmatdir_nest,f"{model2}_B48m24_lam.npy")
 shutil.copy2(Path(f),figdir2)
 bmat_lam = np.load(f)
 #f = os.path.join(parent_dir,bmatdir_nest,"B_gm.npy")
-f = os.path.join(parent_dir,bmatdir_nest,"l05nest_V48m24_trunc.npy")
+f = os.path.join(parent_dir,bmatdir_nest,f"{model2}_V48m24_trunc.npy")
 shutil.copy2(Path(f),figdir2)
 bmat_gm2lam = np.load(f)
 #f = os.path.join(parent_dir,bmatdir_nest,"E_lg.npy")
-f = os.path.join(parent_dir,bmatdir_nest,"l05nest_B48m24_gm2lam_trunc.npy")
+f = os.path.join(parent_dir,bmatdir_nest,f"{model2}_B48m24_gm2lam_trunc.npy")
 shutil.copy2(Path(f),figdir2)
 ebkmat = np.load(f)
 #f = os.path.join(parent_dir,bmatdir_nest,"E_gl.npy")
@@ -135,7 +139,7 @@ for label in matrices.keys():
     mp2=axs[1,0].matshow(mat2)
     fig.colorbar(mp2,ax=axs[1,0],pad=0.01,shrink=0.6)
     #axs[1,0].set_title(r"$($"+title+r"$)_+$")
-    axs[1,0].set_title(r"$($"+title+r"$)_{0.99}}$")
+    axs[1,0].set_title(r"$($"+title+r"$)_{0.99}$")
     mp3=axs[1,1].matshow(mat-mat2)
     #tmp = np.dot(eivec[:,:npos], np.diag(1.0/eival[:npos]))
     #mat2inv = np.dot(eivec[:,:npos], tmp.T)
@@ -257,11 +261,11 @@ for label in matrices.keys():
             a1 = -0.2
             c0 = Corrfunc(c,a=a1)
             c1 = c0(r,ftype='gc5')
-            ax.plot(np.rad2deg(x_latent),c1,ls='dashdot',lw=2.0,label=f'GC5, a={a1:.1f}, c[deg]={np.rad2deg(c):.1f}')
+            ax.plot(np.rad2deg(x_latent),c1,ls='dashdot',lw=2.0,label=f'GC5, a={a1:.2f}, c[deg]={np.rad2deg(c):.2f}')
             a2 = -0.1
             c0 = Corrfunc(c,a=a2)
             c2 = c0(r,ftype='gc5')
-            ax.plot(np.rad2deg(x_latent),c2,ls='dashdot',lw=2.0,label=f'GC5, a={a2:.1f}, c[deg]={np.rad2deg(c):.1f}')
+            ax.plot(np.rad2deg(x_latent),c2,ls='dashdot',lw=2.0,label=f'GC5, a={a2:.2f}, c[deg]={np.rad2deg(c):.2f}')
             # optimization
             args = (r,corrmean)
             minimize = Minimize(2,calc_j,args=args,method='Nelder-Mead')
@@ -269,7 +273,7 @@ for label in matrices.keys():
             popt, flg = minimize(p0)
             c0 = Corrfunc(popt[1],a=popt[0])
             copt = c0(r,ftype='gc5')
-            ax.plot(np.rad2deg(x_latent),copt,ls='dashdot',lw=3.0,label=f'GC5opt, a={popt[0]:.1f}, c[deg]={np.rad2deg(popt[1]):.1f}')
+            ax.plot(np.rad2deg(x_latent),copt,ls='dashdot',lw=3.0,label=f'GC5opt, a={popt[0]:.2f}, c[deg]={np.rad2deg(popt[1]):.2f}')
         ax.set_xlabel("distance [degree]")
         ax.legend()
         fig.savefig(f"{figdir}/{label}_corr{functype}.png",dpi=300)

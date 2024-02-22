@@ -34,7 +34,7 @@ ix_gm = np.loadtxt("ix_gm.txt")
 ix_lam = np.loadtxt("ix_lam.txt")
 ntrunc = 12
 trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,nghost=0)
-ix_trunc = trunc_operator.ix_trunc
+ix_trunc = trunc_operator.ix_trunc[1:-1]
 
 xt2x = interp1d(ix_t, xt)
 xlim = 15.0
@@ -196,7 +196,10 @@ for pt in perts:
     ax01.set_title("error")
     for ax in [ax00,ax01]:
         ax.set_xlim(ix_lam[0],ix_lam[-1])
-    #if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
+    if pt == "var" or pt == "var_nest" or pt == "4dvar":
+        ix = ix_lam[1:-1]
+    else:
+        ix = ix_lam.copy()
     if dscl:
         f = "xsadscl_{}_{}.npy".format(op, pt)
     else:
@@ -209,13 +212,13 @@ for pt in perts:
     gs01 = gs0[1].subgridspec(5, 1)
     ax10 = fig2.add_subplot(gs01[1:, :])
     ax11 = fig2.add_subplot(gs01[0, :])
-    mp3 = ax10.pcolormesh(ix_lam, t, xsalam, shading='auto')
-    ax10.set_xticks(ix_lam[::(nx//8)])
+    mp3 = ax10.pcolormesh(ix, t, xsalam, shading='auto')
+    ax10.set_xticks(ix[::(ix.size//8)])
     ax10.set_yticks(t[::max(1,na//8)])
     ax10.set_xlabel("site")
     p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
-    ax11.plot(ix_lam,np.nanmean(xsalam,axis=0))
-    ax11.set_xticks(ix_lam[::(nx//8)])
+    ax11.plot(ix,np.nanmean(xsalam,axis=0))
+    ax11.set_xticks(ix[::(ix.size//8)])
     ax11.set_xticklabels([])
     for ax in [ax10,ax11]:
         ax.set_xlim(ix_lam[0],ix_lam[-1])
