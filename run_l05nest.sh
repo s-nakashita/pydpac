@@ -5,13 +5,14 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar envar_nest var var_nest"
+#perturbations="envar envar_nest var var_nest"
+perturbations="var"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=240 # Number of assimilation cycle
+na=480 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -24,7 +25,8 @@ opt=0
 functype=gc5
 #a=-0.1
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
-exp="var_vs_envar_wobc_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+#exp="var_vs_envar_wobc_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var_nmc1_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}/${exp}
@@ -41,6 +43,7 @@ rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
 touch timer
+rseed=`date +%s | cut -c5-10`
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
@@ -48,7 +51,7 @@ for op in ${operators}; do
     gsed -i -e "2i \ \"op\":\"${op}\"," config.py
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
-    gsed -i -e "2i \ \"rseed\":517," config.py
+    gsed -i -e "2i \ \"rseed\":${rseed}," config.py
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
     if [ $linf = True ];then
     gsed -i -e '/linf/s/False/True/' config.py
@@ -73,10 +76,13 @@ for op in ${operators}; do
     if [ ! -z $llsig ]; then
     gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
     fi
-    ### diagonal B
-    #gsed -i -e "6i \ \"lb\":-1," config_gm.py
-    #gsed -i -e "6i \ \"lb\":-1," config_lam.py
-    ###
+    ## diagonal B
+    gsed -i -e "6i \ \"lb\":-1," config_gm.py
+    gsed -i -e "6i \ \"lb\":-1," config_lam.py
+    ##
+    gsed -i -e "6i \ \"sigb\":1.0," config_gm.py
+    gsed -i -e "6i \ \"sigb\":1.0," config_lam.py
+    ##
     gsed -i -e "6i \ \"functype\":\"${functype}\"," config_gm.py
     gsed -i -e "6i \ \"functype\":\"${functype}\"," config_lam.py
 #    gsed -i -e "6i \ \"a\":${a}," config_gm.py
@@ -159,7 +165,9 @@ for op in ${operators}; do
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
-  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}; fi
+  #if [ ${na} -gt 1000 ]; then 
+  python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}
+  #fi
   python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na}
   rm ${model}_*_jh_${op}_*_cycle*.txt ${model}_*_alpha_${op}_*_cycle*.txt ${model}_*_gh_${op}_*_cycle*.txt
   #rm obs*.npy

@@ -58,6 +58,7 @@ class Var():
     def calc_pf(self, xf, **kwargs):
         cycle = kwargs['cycle']
         if cycle == 0:
+            dist=None
             if self.bmat is None:
                 if self.lb < 0:
                     self.bmat = self.sigb**2*np.eye(self.nx)
@@ -114,11 +115,14 @@ class Var():
                 ax[1].set_title(r"$\mathbf{B}^{-1}$")
                 ax[1].invert_yaxis()
                 ax[1].set_aspect("equal")
-                mappable = ax[2].pcolor(xaxis, xaxis, dist, cmap='viridis')
-                fig.colorbar(mappable, ax=ax[2],shrink=0.4,pad=0.01)
-                ax[2].set_title(r"$d$")
-                ax[2].invert_yaxis()
-                ax[2].set_aspect("equal")
+                if dist is None:
+                    ax[2].remove()
+                else:
+                    mappable = ax[2].pcolor(xaxis, xaxis, dist, cmap='viridis')
+                    fig.colorbar(mappable, ax=ax[2],shrink=0.4,pad=0.01)
+                    ax[2].set_title(r"$d$")
+                    ax[2].invert_yaxis()
+                    ax[2].set_aspect("equal")
                 fig.savefig("Bv{:.1f}l{:.3f}_{}.png".format(self.sigb,self.lb,self.model))
                 plt.close()
         return self.bmat

@@ -36,7 +36,7 @@ nx_gm = nx_true // intgm
 nk_gm = nk_true // intgm
 nks_gm = np.array(nks_true,dtype=np.int64) // intgm
 ## LAM
-nx_lam = 480
+nx_lam = 240
 ist_lam = 240
 lamstep = 1
 nsp = 10
@@ -242,10 +242,16 @@ sp_lam = np.array(sp_lam).mean(axis=0)
 fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
 #wnum_t = fft.rfftfreq(x0_t.size,d=dx_t) * 2.0 * np.pi
 ax.plot(wnum_t,sp_t,label='nature')
+mmax = np.argmin(np.abs(wnum_t - 30)) + 1
+ax.plot(wnum_t[:mmax],sp_t[:mmax],c='tab:blue',marker='x',lw=0.0)
 #wnum_gm = fft.rfftfreq(x0_gm.size,d=dx_gm) * 2.0 * np.pi
 ax.plot(wnum_gm,sp_gm,label='GM')
+mmax = np.argmin(np.abs(wnum_gm - 30)) + 1
+ax.plot(wnum_gm[:mmax],sp_gm[:mmax],c='tab:orange',marker='x',lw=0.0)
 #wnum_lam = fft.rfftfreq(x0_lam_ext.size,d=dx_lam)[:sp_lam.size] * 2.0 * np.pi
 ax.plot(wnum_lam,sp_lam,label='LAM')
+mmax = np.argmin(np.abs(wnum_lam - 30)) + 1
+ax.plot(wnum_lam[:mmax],sp_lam[:mmax],c='tab:green',marker='x',lw=0.0)
 ax.set_title("time averaged power spectrum")
 ax.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
 ax.set_xscale('log')

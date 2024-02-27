@@ -133,7 +133,7 @@ params_gm["getkf"]      =  False   # (For model space localization) gain form re
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params_gm["rseed"]      = None # random seed
-params_gm["extfcst"]    = False # extended forecast
+params_gm["extfcst"]    = True # extended forecast
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
@@ -388,7 +388,7 @@ elif pt == "var_nest":
         ebkmat=None
         ekbmat=None
     if params_lam["anlsp"]:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1],
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1,
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
         sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
         crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,

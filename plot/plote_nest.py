@@ -86,8 +86,12 @@ for pt in perts:
         #if pt != "kf" and pt != "var" and pt != "var_nest":
         #ax[0].plot(x, stda_gm[ns:], linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
         #ax[1].plot(x, stda_lam[ns:], linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
-        ax2[0].plot(x, stda_gm[ns:]/e_gm[ns:], marker=marker["3d"], color=linecolor[pt], label=pt)
-        ax2[1].plot(x, stda_lam[ns:]/e_lam[ns:], marker=marker["3d"], color=linecolor[pt], label=pt)
+        r_gm = stda_gm[ns:]/e_gm[ns:]
+        r_lam = stda_lam[ns:]/e_lam[ns:]
+        ax2[0].plot(x, r_gm, marker=marker["3d"], color=linecolor[pt], \
+            label=pt+f', mean={np.mean(r_gm):.4f}')
+        ax2[1].plot(x, r_lam, marker=marker["3d"], color=linecolor[pt], \
+            label=pt+f', mean={np.mean(r_lam):.4f}')
     else:
         ax[0].plot(x, e_gm[ns:], \
             linestyle="solid", marker=marker["4d"], \
@@ -98,8 +102,12 @@ for pt in perts:
         #if pt != "4dvar":
         #ax[0].plot(x, stda_gm[ns:], linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
         #ax[1].plot(x, stda_lam[ns:], linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
-        ax2[0].plot(x, stda_gm[ns:]/e_gm[ns:], marker=marker["4d"], color=linecolor[pt], label=pt)
-        ax2[1].plot(x, stda_lam[ns:]/e_lam[ns:], marker=marker["4d"], color=linecolor[pt], label=pt)
+        r_gm = stda_gm[ns:]/e_gm[ns:]
+        r_lam = stda_lam[ns:]/e_lam[ns:]
+        ax2[0].plot(x, r_gm, marker=marker["4d"], color=linecolor[pt], \
+            label=pt+f', mean={np.mean(r_gm):.4f}')
+        ax2[1].plot(x, r_lam, marker=marker["4d"], color=linecolor[pt], \
+            label=pt+f', mean={np.mean(r_lam):.4f}')
     ## forecast
     #GM
     f = "ef_gm_{}_{}.txt".format(op, pt)
@@ -141,8 +149,12 @@ for pt in perts:
         #if pt != "kf" and pt != "var" and pt != "var_nest":
         #axf[0].plot(x, stdf_gm[ns:], linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
         #axf[1].plot(x, stdf_lam[ns:], linestyle="dashed", marker=marker["3ds"], color=linecolor[pt])
-        axf2[0].plot(x, stdf_gm[ns:]/ef_gm[ns:], marker=marker["3d"], color=linecolor[pt], label=pt)
-        axf2[1].plot(x, stdf_lam[ns:]/ef_lam[ns:], marker=marker["3d"], color=linecolor[pt], label=pt)
+        r_gm = stdf_gm[ns:]/ef_gm[ns:]
+        r_lam = stdf_lam[ns:]/ef_lam[ns:]
+        axf2[0].plot(x, r_gm, marker=marker["3d"], color=linecolor[pt], \
+            label=pt+f', mean={np.mean(r_gm):.4f}')
+        axf2[1].plot(x, r_lam, marker=marker["3d"], color=linecolor[pt], \
+            label=pt+f', mean={np.mean(r_lam):.4f}')
     else:
         axf[0].plot(x, ef_gm[ns:], \
             linestyle="solid", marker=marker["4d"], \
@@ -153,8 +165,12 @@ for pt in perts:
         #if pt != "4dvar":
         #axf[0].plot(x, stdf_gm[ns:], linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
         #axf[1].plot(x, stdf_lam[ns:], linestyle="dashed", marker=marker["4ds"], color=linecolor[pt])
-        axf2[0].plot(x, stdf_gm[ns:]/ef_gm[ns:], marker=marker["4d"], color=linecolor[pt], label=pt)
-        axf2[1].plot(x, stdf_lam[ns:]/ef_lam[ns:], marker=marker["4d"], color=linecolor[pt], label=pt)
+        r_gm = stdf_gm[ns:]/ef_gm[ns:]
+        r_lam = stdf_lam[ns:]/ef_lam[ns:]
+        axf2[0].plot(x, r_gm, marker=marker["4d"], color=linecolor[pt], \
+            label=pt+f', mean={np.mean(r_gm):.4f}')
+        axf2[1].plot(x, r_lam, marker=marker["4d"], color=linecolor[pt], \
+            label=pt+f', mean={np.mean(r_lam):.4f}')
 # observation error (loosely dashed)
 ax[0].plot(x, y, linestyle=(0, (5, 10)), color='black')
 ax[1].plot(x, y, linestyle=(0, (5, 10)), color='black')

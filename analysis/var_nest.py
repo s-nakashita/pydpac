@@ -99,6 +99,8 @@ class Var_nest():
     def calc_pf(self, xf, **kwargs):
         cycle = kwargs['cycle']
         if cycle == 0:
+            dist=None
+            distg=None
             if self.bmat is None:
                 if self.lb < 0:
                     self.bmat = self.sigb**2*np.eye(self.nx)
@@ -188,11 +190,14 @@ class Var_nest():
                 ax[0,1].set_title(r"$\mathbf{B}^{-1}$")
                 ax[0,1].invert_yaxis()
                 ax[0,1].set_aspect("equal")
-                mappable = ax[0,2].pcolor(xaxis, xaxis, dist, cmap='viridis')
-                fig.colorbar(mappable, ax=ax[0,2],shrink=0.6,pad=0.01)
-                ax[0,2].set_title(r"$d$")
-                ax[0,2].invert_yaxis()
-                ax[0,2].set_aspect("equal")
+                if dist is None:
+                    ax[0,2].remove()
+                else:
+                    mappable = ax[0,2].pcolor(xaxis, xaxis, dist, cmap='viridis')
+                    fig.colorbar(mappable, ax=ax[0,2],shrink=0.6,pad=0.01)
+                    ax[0,2].set_title(r"$d$")
+                    ax[0,2].invert_yaxis()
+                    ax[0,2].set_aspect("equal")
                 xaxis = np.arange(self.nv+1)
                 mappable = ax[1,0].pcolor(xaxis, xaxis, self.vmat, cmap='Blues')
                 fig.colorbar(mappable, ax=ax[1,0],shrink=0.6,pad=0.01)
@@ -205,11 +210,14 @@ class Var_nest():
                 ax[1,1].set_title(r"$\mathbf{V}^{-1}$")
                 ax[1,1].invert_yaxis()
                 ax[1,1].set_aspect("equal")
-                mappable = ax[1,2].pcolor(xaxis, xaxis, distg, cmap='viridis')
-                fig.colorbar(mappable, ax=ax[1,2],shrink=0.6,pad=0.01)
-                ax[1,2].set_title(r"$d$")
-                ax[1,2].invert_yaxis()
-                ax[1,2].set_aspect("equal")
+                if distg is None:
+                    ax[1,2].remove()
+                else:
+                    mappable = ax[1,2].pcolor(xaxis, xaxis, distg, cmap='viridis')
+                    fig.colorbar(mappable, ax=ax[1,2],shrink=0.6,pad=0.01)
+                    ax[1,2].set_title(r"$d$")
+                    ax[1,2].invert_yaxis()
+                    ax[1,2].set_aspect("equal")
                 fig.savefig("Bv{:.1f}l{:.3f}+Vv{:.1f}l{:.3f}_{}.png".format(self.sigb,self.lb,self.sigv,self.lv,self.model))
                 plt.close()
         return self.bmat

@@ -130,7 +130,7 @@ fig.savefig("{}_xd_{}.png".format(model, op))
 # observation error (loosely dashed)
 ax2[0].plot(ix_gm, y_gm, linestyle=(0, (5, 10)), color='black')
 ax2[1].plot(ix_lam, y_lam, linestyle=(0, (5, 10)), color='black')
-ax2[0].vlines([ix_lam[0],ix_lam[-1]],0,1,colors='gray',alpha=0.5,transform=ax[0].get_xaxis_transform())
+ax2[0].vlines([ix_lam[0],ix_lam[-1]],0,1,colors='gray',alpha=0.5,transform=ax2[0].get_xaxis_transform())
 ax2[0].set(xlabel="state", ylabel="RMSE or SPREAD",
         title=op+" GM forecast")
 ax2[1].set(xlabel="state", ylabel="RMSE or SPREAD",
