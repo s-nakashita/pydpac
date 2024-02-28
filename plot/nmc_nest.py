@@ -200,17 +200,17 @@ for pt in perts:
         "24h - 12h",
         "48h - 24h"
     ]
-    bp0=ax10.boxplot(data, vert=True, sym='+')
-    ax10.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
-    ax10.set_xticks(np.arange(1,len(data)+1))
-    ax10.set_xticklabels(labels)
-    ax10.set(axisbelow=True,title=r"$\sigma$")
+    bp0=ax12.boxplot(data, vert=True, sym='+')
+    ax12.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+    ax12.set_xticks(np.arange(1,len(data)+1))
+    ax12.set_xticklabels(labels)
+    ax12.set(axisbelow=True,title=r"$\sigma$")
     for i in range(len(data)):
         med = bp0['medians'][i]
-        ax10.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+        ax12.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
         s = str(round(np.average(data[i]),3))
-        ax10.text(np.average(med.get_xdata()),.95,s,
-        transform=ax10.get_xaxis_transform(),ha='center',c='r')
+        ax12.text(np.average(med.get_xdata()),.95,s,
+        transform=ax12.get_xaxis_transform(),ha='center',c='r')
     ### correlation length scale
     L12m6_gm  = corrscale(ix_gm,B12m6_gm,cyclic=True)
     L24m12_gm = corrscale(ix_gm,B24m12_gm,cyclic=True)
@@ -232,22 +232,22 @@ for pt in perts:
         ax11.text(np.average(med.get_xdata()),.95,s,
         transform=ax11.get_xaxis_transform(),ha='center',c='r')
     ### variance spectra
-    ax12.plot(wnum,sp12m6_gm,label='12h - 6h')
-    ax12.plot(wnum,sp24m12_gm,label='24h - 12h')
-    ax12.plot(wnum,sp48m24_gm,label='48h - 24h')
-    ax12.set_yscale("log")
-    ax12.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
-    ax12.set_xscale('log')
-    #ax12.xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
-    #ax12.xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
-    ax12.xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
-    ax12.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
-    #ax12.set_xlim(0.5/np.pi,wnum[-1])
-    secax = ax12.secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
+    ax10.plot(wnum,sp12m6_gm,label='12h - 6h')
+    ax10.plot(wnum,sp24m12_gm,label='24h - 12h')
+    ax10.plot(wnum,sp48m24_gm,label='48h - 24h')
+    ax10.set_yscale("log")
+    ax10.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
+    ax10.set_xscale('log')
+    #ax10.xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
+    #ax10.xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
+    ax10.xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
+    ax10.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
+    #ax10.set_xlim(0.5/np.pi,wnum[-1])
+    secax = ax10.secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
     secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
     secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi,np.pi/4,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
     secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\pi$',r'$\frac{\pi}{4}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-    ax12.legend()
+    ax10.legend()
     fig.suptitle("NMC in GM : "+pt+" "+op)
     if dscl:
         fig.savefig("{}_nmcgmonly_{}_{}.png".format(model,op,pt))
@@ -406,17 +406,17 @@ for pt in perts:
         "24h - 12h",
         "48h - 24h"
     ]
-    bp0=ax10.boxplot(data, vert=True, sym='+')
-    ax10.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
-    ax10.set_xticks(np.arange(1,len(data)+1))
-    ax10.set_xticklabels(labels)
-    ax10.set(axisbelow=True,title=r"$\sigma$")
+    bp0=ax12.boxplot(data, vert=True, sym='+')
+    ax12.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+    ax12.set_xticks(np.arange(1,len(data)+1))
+    ax12.set_xticklabels(labels)
+    ax12.set(axisbelow=True,title=r"$\sigma$")
     for i in range(len(data)):
         med = bp0['medians'][i]
-        ax10.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+        ax12.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
         s = str(round(np.average(data[i]),3))
-        ax10.text(np.average(med.get_xdata()),.95,s,
-        transform=ax10.get_xaxis_transform(),ha='center',c='r')
+        ax12.text(np.average(med.get_xdata()),.95,s,
+        transform=ax12.get_xaxis_transform(),ha='center',c='r')
     ### correlation length scale
     L12m6_lam  = corrscale(ix_lam,B12m6_lam,cyclic=False)
     L24m12_lam = corrscale(ix_lam,B24m12_lam,cyclic=False)
@@ -438,22 +438,22 @@ for pt in perts:
         ax11.text(np.average(med.get_xdata()),.95,s,
         transform=ax11.get_xaxis_transform(),ha='center',c='r')
     ### variance spectra
-    ax12.plot(wnum,sp12m6_lam,label='12h - 6h')
-    ax12.plot(wnum,sp24m12_lam,label='24h - 12h')
-    ax12.plot(wnum,sp48m24_lam,label='48h - 24h')
-    ax12.set_yscale("log")
-    ax12.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
-    ax12.set_xscale('log')
-    #ax12.xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
-    #ax12.xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
-    ax12.xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
-    ax12.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
-    #ax12.set_xlim(0.5/np.pi,wnum[-1])
-    secax = ax12.secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
+    ax10.plot(wnum,sp12m6_lam,label='12h - 6h')
+    ax10.plot(wnum,sp24m12_lam,label='24h - 12h')
+    ax10.plot(wnum,sp48m24_lam,label='48h - 24h')
+    ax10.set_yscale("log")
+    ax10.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
+    ax10.set_xscale('log')
+    #ax10.xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
+    #ax10.xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
+    ax10.xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
+    ax10.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
+    #ax10.set_xlim(0.5/np.pi,wnum[-1])
+    secax = ax10.secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
     secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
     secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi,np.pi/4,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
     secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\pi$',r'$\frac{\pi}{4}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-    ax12.legend()
+    ax10.legend()
     fig.suptitle("NMC in LAM : "+pt+" "+op)
     if dscl:
         fig.savefig("{}_nmcdscl_{}_{}.png".format(model,op,pt))
@@ -686,17 +686,17 @@ for pt in perts:
             "24h - 12h",
             "48h - 24h"
         ]
-        bp0=ax10.boxplot(data, vert=True, sym='+')
-        ax10.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
-        ax10.set_xticks(np.arange(1,len(data)+1))
-        ax10.set_xticklabels(labels)
-        ax10.set(axisbelow=True,title=r"$\sigma$")
+        bp0=ax12.boxplot(data, vert=True, sym='+')
+        ax12.yaxis.grid(True, linestyle='-', which='major', color='lightgray', alpha=0.5)
+        ax12.set_xticks(np.arange(1,len(data)+1))
+        ax12.set_xticklabels(labels)
+        ax12.set(axisbelow=True,title=r"$\sigma$")
         for i in range(len(data)):
             med = bp0['medians'][i]
-            ax10.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
+            ax12.plot(np.average(med.get_xdata()),np.average(data[i]),color='r',marker='*',markeredgecolor='k')
             s = str(round(np.average(data[i]),3))
-            ax10.text(np.average(med.get_xdata()),.95,s,
-            transform=ax10.get_xaxis_transform(),ha='center',c='r')
+            ax12.text(np.average(med.get_xdata()),.95,s,
+            transform=ax12.get_xaxis_transform(),ha='center',c='r')
         ### correlation length scale
         L12m6_v  = corrscale(ixtmp,V12m6,cyclic=False)
         L24m12_v = corrscale(ixtmp,V24m12,cyclic=False)
@@ -718,22 +718,22 @@ for pt in perts:
             ax11.text(np.average(med.get_xdata()),.95,s,
             transform=ax11.get_xaxis_transform(),ha='center',c='r')
         ### variance spectra
-        ax12.plot(wnum,sp12m6,label='12h - 6h')
-        ax12.plot(wnum,sp24m12,label='24h - 12h')
-        ax12.plot(wnum,sp48m24,label='48h - 24h')
-        ax12.set_yscale("log")
-        ax12.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
-        ax12.set_xscale('log')
-        #ax12.xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
-        #ax12.xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
-        ax12.xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
-        ax12.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
-        #ax12.set_xlim(0.5/np.pi,wnum[-1])
-        secax = ax12.secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
+        ax10.plot(wnum,sp12m6,label='12h - 6h')
+        ax10.plot(wnum,sp24m12,label='24h - 12h')
+        ax10.plot(wnum,sp48m24,label='48h - 24h')
+        ax10.set_yscale("log")
+        ax10.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
+        ax10.set_xscale('log')
+        #ax10.xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
+        #ax10.xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
+        ax10.xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
+        ax10.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
+        #ax10.set_xlim(0.5/np.pi,wnum[-1])
+        secax = ax10.secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
         secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
         secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi,np.pi/4,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
         secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\pi$',r'$\frac{\pi}{4}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-        ax12.legend()
+        ax10.legend()
         fig.suptitle(f"NMC for {title} : "+pt+" "+op)
         fig.savefig("{}_nmcv_{}_{}_{}.png".format(model,fname,op,pt))
         plt.show(block=False)

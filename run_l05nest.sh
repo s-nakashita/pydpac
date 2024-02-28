@@ -5,28 +5,30 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-#perturbations="envar envar_nest var var_nest"
-perturbations="var"
+perturbations="envar_nest var_nest"
+#perturbations="var"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=480 # Number of assimilation cycle
+na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
+extfcst=False # for NMC
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
 opt=0
 functype=gc5
 #a=-0.1
+ntrunc=6
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
-#exp="var_vs_envar_wobc_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
-exp="var_nmc1_obs${nobs}"
+exp="var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+#exp="var_nmc6_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}/${exp}
@@ -44,6 +46,9 @@ rm -rf *.log
 rm -rf timer
 touch timer
 rseed=`date +%s | cut -c5-10`
+rseed=`expr $rseed + 0`
+rseed=92863
+cp ../var_vs_envar_wobc_m${nmem}obs${nobs}/obs*.npy .
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
@@ -76,24 +81,26 @@ for op in ${operators}; do
     if [ ! -z $llsig ]; then
     gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
     fi
-    ## diagonal B
-    gsed -i -e "6i \ \"lb\":-1," config_gm.py
-    gsed -i -e "6i \ \"lb\":-1," config_lam.py
-    ##
-    gsed -i -e "6i \ \"sigb\":1.0," config_gm.py
-    gsed -i -e "6i \ \"sigb\":1.0," config_lam.py
+    ### diagonal B
+    #gsed -i -e "6i \ \"lb\":17.07," config_gm.py
+    #gsed -i -e "6i \ \"lb\":33.48," config_lam.py
+    #gsed -i -e "6i \ \"a\":0.21," config_gm.py
+    #gsed -i -e "6i \ \"a\":-0.14," config_lam.py
+    ###
+    #gsed -i -e "6i \ \"sigb\":0.8," config_gm.py
+    #gsed -i -e "6i \ \"sigb\":0.8," config_lam.py
     ##
     gsed -i -e "6i \ \"functype\":\"${functype}\"," config_gm.py
     gsed -i -e "6i \ \"functype\":\"${functype}\"," config_lam.py
-#    gsed -i -e "6i \ \"a\":${a}," config_gm.py
-#    gsed -i -e "6i \ \"a\":${a}," config_lam.py
 #    if [ $pert = var_nest ]; then
 #    gsed -i -e "6i \ \"a_v\":${a}," config_lam.py
 #    #gsed -i -e "6i \ \"lb\":4," config_lam.py
 #    fi
+    gsed -i -e "6i \ \"ntrunc\":${ntrunc}," config_lam.py
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ###
+    gsed -i -e "3i \ \"extfcst\":${extfcst}," config_gm.py
     if [ $pert = var_nest ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"var\"/" config_gm.py
     fi
@@ -165,9 +172,9 @@ for op in ${operators}; do
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
-  #if [ ${na} -gt 1000 ]; then 
+  if [ ${extfcst} = True ]; then 
   python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}
-  #fi
+  fi
   python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na}
   rm ${model}_*_jh_${op}_*_cycle*.txt ${model}_*_alpha_${op}_*_cycle*.txt ${model}_*_gh_${op}_*_cycle*.txt
   #rm obs*.npy

@@ -176,9 +176,9 @@ ax[0].plot(x, y, linestyle=(0, (5, 10)), color='black')
 ax[1].plot(x, y, linestyle=(0, (5, 10)), color='black')
 ax2[0].hlines([1],0,1,colors='gray',transform=ax2[0].get_yaxis_transform(),zorder=0)
 ax2[1].hlines([1],0,1,colors='gray',transform=ax2[1].get_yaxis_transform(),zorder=0)
-ax[0].set(xlabel="analysis cycle", ylabel="RMSE or STDV",
+ax[0].set(xlabel="analysis cycle", ylabel="RMSE",
         title=op+" GM")
-ax[1].set(xlabel="analysis cycle", ylabel="RMSE or STDV",
+ax[1].set(xlabel="analysis cycle", ylabel="RMSE",
         title=op+" LAM")
 ax2[0].set(xlabel="analysis cycle", ylabel="STDV/RMSE",
         title=op+" GM")
@@ -210,9 +210,9 @@ axf[0].plot(x, y, linestyle=(0, (5, 10)), color='black')
 axf[1].plot(x, y, linestyle=(0, (5, 10)), color='black')
 axf2[0].hlines([1],0,1,colors='gray',transform=axf2[0].get_yaxis_transform(),zorder=0)
 axf2[1].hlines([1],0,1,colors='gray',transform=axf2[1].get_yaxis_transform(),zorder=0)
-axf[0].set(xlabel="forecast cycle", ylabel="RMSE or STDV",
+axf[0].set(xlabel="forecast cycle", ylabel="RMSE",
         title=op+" GM")
-axf[1].set(xlabel="forecast cycle", ylabel="RMSE or STDV",
+axf[1].set(xlabel="forecast cycle", ylabel="RMSE",
         title=op+" LAM")
 axf2[0].set(xlabel="forecast cycle", ylabel="STDV/RMSE",
         title=op+" GM")

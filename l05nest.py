@@ -115,14 +115,14 @@ params_gm["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 params_gm["pt"]         = "mlef"   # assimilation method
 params_gm["nmem"]       =  40      # ensemble size (include control run)
 params_gm["a_window"]   =  0       # assimilation window length
-params_gm["sigb"]       =  0.4     # (For var & 4dvar) background error standard deviation
+params_gm["sigb"]       =  0.8     # (For var & 4dvar) background error standard deviation
 params_gm["functype"]   = "gc5"  # (For var & 4dvar) background error correlation function
 if model=="l05nest":
     params_gm["lb"]     = 24.6    # (For var & 4dvar) correlation length for background error covariance in degree
     params_gm["a"]      = -0.2  # (For var & 4dvar) background error correlation function shape parameter
 else:
-    params_gm["lb"]     = 23.62
-    params_gm["a"]      = -0.04
+    params_gm["lb"]     = 16.93
+    params_gm["a"]      = 0.22
 params_gm["linf"]       =  False   # inflation flag
 params_gm["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params_gm["lloc"]       =  False   # localization flag
@@ -133,13 +133,13 @@ params_gm["getkf"]      =  False   # (For model space localization) gain form re
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params_gm["rseed"]      = None # random seed
-params_gm["extfcst"]    = True # extended forecast
+params_gm["extfcst"]    = False # extended forecast
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
-params_lam["sigb"]      =  0.6     # (For var & 4dvar) background error standard deviation
-params_lam["sigv"]      =  0.4     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["sigb"]      =  0.8     # (For var & 4dvar) background error standard deviation
+params_lam["sigv"]      =  0.8     # (For var_nest) GM background error standard deviation in LAM space
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 if model=="l05nest":
     params_lam["lb"]    = 26.5     # (For var & 4dvar) correlation length for background error covariance in degree
@@ -147,10 +147,10 @@ if model=="l05nest":
     params_lam["lv"]    = 23.5     # (For var_nest) GM correlation length for background error covariance in LAM space in degree
     params_lam["a_v"]   = -0.1  # (For var_nest) background error correlation function shape parameter
 else:
-    params_lam["lb"]    = 28.07
-    params_lam["a"]     = -0.09
-    params_lam["lv"]    = 14.82
-    params_lam["a_v"]   = 0.15
+    params_lam["lb"]    = 28.77
+    params_lam["a"]     = -0.11
+    params_lam["lv"]    = 12.03
+    params_lam["a_v"]   = 0.12
 params_lam["ntrunc"]    = 12    # (For var_nest) truncation number for GM error covariance
 params_lam["crosscov"]  = False     # (For var_nest) whether correlation between GM and LAM is considered or not
 

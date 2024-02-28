@@ -20,7 +20,7 @@ figdir1 = Path(f'{parent_dir}/data/{model1}/nmc_obs{nobs1}')
 model2="l05nestm"
 nobs2=30
 nmem2=80
-figdir2 = Path(f'{parent_dir}/data/{model2}/nmc_obs{nobs2}')
+figdir2 = Path(f'{parent_dir}/data/{model2}/nmc6_obs{nobs2}')
 if not figdir1.exists():
     figdir1.mkdir(parents=True)
 if not figdir2.exists():
@@ -49,12 +49,12 @@ shutil.copy2(Path(f),figdir1)
 bmat = np.load(f)
 # GM & LAM
 ##bmatdir_nest = f"model/lorenz/ng{nx_gm}nl{nx_lam}kg{nk_gm}kl{nk_lam}nsp{nsp}p{po}F{int(F)}b{b:.1f}c{c:.1f}"
-#bmatdir_nest = f"work/l05nest/var_obs{nobs}"
-bmatdir_nest = f"work/{model2}/envar_m{nmem2}obs{nobs2}"
+bmatdir_nest = f"work/{model2}/var_nmc6_obs{nobs2}"
+#bmatdir_nest = f"work/{model2}/envar_m{nmem2}obs{nobs2}"
 f = os.path.join(parent_dir,bmatdir_nest,"ix_gm.txt")
 ix_gm = np.loadtxt(f)
 f = os.path.join(parent_dir,bmatdir_nest,"ix_lam.txt")
-ix_lam = np.loadtxt(f)
+ix_lam = np.loadtxt(f) #[1:-1]
 #f = os.path.join(parent_dir,bmatdir_nest,"B_gmfull.npy")
 f = os.path.join(parent_dir,bmatdir_nest,f"{model2}_B48m24_gm.npy")
 shutil.copy2(Path(f),figdir2)
@@ -87,8 +87,8 @@ ix_gm2lam = trunc_operator.ix_trunc
 #figdir = '.'
 #figdir = os.path.join(parent_dir,bmatdir_nest)
 
-matrices = {"bmat":bmat,"bmat_gm":bmat_gm,"bmat_lam":bmat_lam,"bmat_gm2lam":bmat_gm2lam}
-    #,"ebkmat":ebkmat,"ekbmat":ekbmat}
+matrices = {"bmat_gm":bmat_gm,"bmat_lam":bmat_lam,"bmat_gm2lam":bmat_gm2lam}
+    #,"bmat":bmat,"ebkmat":ebkmat,"ekbmat":ekbmat}
 titles = {"bmat":"$\mathbf{B}_\mathrm{hres}$","bmat_gm":"$\mathbf{B}_\mathrm{GM}$","bmat_lam":"$\mathbf{B}_\mathrm{LAM}$","bmat_gm2lam":"$\mathbf{V}$","ebkmat":"$\mathbf{E}_\mathrm{bk}$","ekbmat":"$\mathbf{E}_\mathrm{kb}$"}
 figdirs = {"bmat":figdir1,"bmat_gm":figdir2,"bmat_lam":figdir2,"bmat_gm2lam":figdir2}
 cyclics = {"bmat":True,"bmat_gm":True,"bmat_lam":False,"bmat_gm2lam":False}
