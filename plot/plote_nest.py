@@ -1,6 +1,7 @@
 import sys
 import os
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 plt.rcParams['font.size'] = 16
 
@@ -44,6 +45,8 @@ try:
         ax.plot(x, e[ns:], linestyle='dotted', color='gray', label='NoDA')
 except OSError or FileNotFoundError:
     print("not exist {}".format(f))
+errors_gm = {}
+errors_lam = {}
 for pt in perts:
     ## analysis
     #GM
@@ -108,6 +111,8 @@ for pt in perts:
             label=pt+f', mean={np.mean(r_gm):.4f}')
         ax2[1].plot(x, r_lam, marker=marker["4d"], color=linecolor[pt], \
             label=pt+f', mean={np.mean(r_lam):.4f}')
+    errors_gm[pt] = e_gm[ns:]
+    errors_lam[pt] = e_lam[ns:]
     ## forecast
     #GM
     f = "ef_gm_{}_{}.txt".format(op, pt)
@@ -238,3 +243,76 @@ if not spinup:
 else:
     figf.savefig("{}_ef_{}.png".format(model, op))
     figf2.savefig("{}_ef+stdf_{}.png".format(model, op))
+plt.close(fig=fig)
+plt.close(fig=fig2)
+plt.close(fig=figf)
+plt.close(fig=figf2)
+
+# t-test
+from scipy import stats
+from plot_heatmap import heatmap, annotate_heatmap
+methods = errors_gm.keys()
+nmethod = len(methods)
+pmatrix = np.eye(nmethod)
+tmatrix = np.eye(nmethod)
+print("")
+print("t-test for GM")
+for i,m1 in enumerate(methods):
+    for j,m2 in enumerate(methods):
+        if m1==m2:
+            tmatrix[i,j] = np.nan
+            pmatrix[i,j] = np.nan
+            continue
+        e1 = errors_gm[m1]
+        e2 = errors_gm[m2]
+        res_ttest = stats.ttest_rel(e1,e2)
+        print(f"{m1},{m2} t-stat:{res_ttest.statistic:.3f} pvalue:{res_ttest.pvalue:.3e}")
+        tmatrix[i,j] = res_ttest.statistic
+        pmatrix[i,j] = res_ttest.pvalue
+print("")
+fig, ax = plt.subplots(figsize=[8,6])
+norm = mpl.colors.BoundaryNorm(np.linspace(-0.11,0.11,12),11)
+im, _ = heatmap(pmatrix,methods,methods,ax=ax,\
+    cmap=plt.get_cmap("PiYG").resampled(11), norm=norm,\
+    cbar_kw=dict(ticks=np.linspace(-0.1,0.1,11),format="{x:.2f}"),\
+        cbarlabel="p-value")
+annotate_heatmap(im,data=tmatrix,valfmt="{x:.2f}",fontweight="bold",\
+    threshold=0,textcolors=("blue","red"))
+ax.set_title(f"t-test for GM {op}: RMSE row-col")
+fig.tight_layout()
+if not spinup:
+    fig.savefig("{}_e_t-test_for_gm_{}_nospinup.png".format(model, op))
+else:
+    fig.savefig("{}_e_t-test_for_gm_{}.png".format(model, op))
+plt.show()
+
+methods = errors_lam.keys()
+print("t-test for LAM")
+for i,m1 in enumerate(methods):
+    for j,m2 in enumerate(methods):
+        if m1==m2:
+            tmatrix[i,j] = np.nan
+            pmatrix[i,j] = np.nan
+            continue
+        e1 = errors_lam[m1]
+        e2 = errors_lam[m2]
+        res_ttest = stats.ttest_rel(e1,e2)
+        print(f"{m1},{m2} t-stat:{res_ttest.statistic:.3f} pvalue:{res_ttest.pvalue:.3e}")
+        tmatrix[i,j] = res_ttest.statistic
+        pmatrix[i,j] = res_ttest.pvalue
+print("")
+fig, ax = plt.subplots(figsize=[8,6])
+norm = mpl.colors.BoundaryNorm(np.linspace(-0.11,0.11,12),11)
+im, _ = heatmap(pmatrix,methods,methods,ax=ax,\
+    cmap=plt.get_cmap("PiYG").resampled(11), norm=norm,\
+    cbar_kw=dict(ticks=np.linspace(-0.1,0.1,11),format="{x:.2f}"),\
+        cbarlabel="p-value")
+annotate_heatmap(im,data=tmatrix,valfmt="{x:.2f}",fontweight="bold",\
+    threshold=0,textcolors=("blue","red"))
+ax.set_title(f"t-test for LAM {op}: RMSE row-col")
+fig.tight_layout()
+if not spinup:
+    fig.savefig("{}_e_t-test_for_lam_{}_nospinup.png".format(model, op))
+else:
+    fig.savefig("{}_e_t-test_for_lam_{}.png".format(model, op))
+plt.show()

@@ -56,6 +56,8 @@ Lx_lam = 2.0 * np.pi * nx_lam / nx_t
 figall = plt.figure(figsize=[10,10],constrained_layout=True)
 axgm = figall.add_subplot(211)
 axlam = figall.add_subplot(212,sharex=axgm)
+psdgm_dict = {}
+psdlam_dict = {}
 for pt in perts:
     #GM
     f = "xagm_{}_{}.npy".format(op, pt)
@@ -128,13 +130,15 @@ for pt in perts:
     #wnum = fftfreq(nx_gm,dx_gm)[:nx_gm//2]
     ##freq = np.arange(0,nx//2)
     #psdgm = 2.0*np.mean(np.abs(espgm)**2,axis=0)*dx_gm*dx_gm/Lx_gm
-    wnum, psdgm = psd(xdgm,ix_gm_rad,axis=1)
+    wnum_gm, psdgm = psd(xdgm,ix_gm_rad,axis=1,average=False)
+    psdgm_dict[pt] = psdgm
+    psdgm = psdgm.mean(axis=0)
     print(f"psdgm.shape={psdgm.shape}")
-    print(f"wnum_gm={wnum}")
-    axs[1].semilogy(wnum,psdgm,c='tab:blue',marker='x')
+    print(f"wnum_gm={wnum_gm}")
+    axs[1].semilogy(wnum_gm,psdgm,c='tab:blue',marker='x')
     lines.append(Line2D([0],[0],color='tab:blue',lw=2))
     labels.append('GM,err')
-    axgm.semilogy(wnum,psdgm,c=linecolor[pt],marker='x',label=pt)
+    axgm.semilogy(wnum_gm,psdgm,c=linecolor[pt],marker='x',label=pt)
     #nx = xsagm.shape[1]
     #dx = 2.0 * np.pi / nx
     #freq = fftfreq(nx,dx)[:nx//2]
@@ -147,13 +151,15 @@ for pt in perts:
     #wnum = fftfreq(nx,dx_lam)[:nx_lam//2]
     ##freq = np.arange(0,nx//2)
     #psd = 2.0*np.mean(np.abs(esp)**2,axis=0)*dx_lam*dx_lam/Lx_lam
-    wnum, psdlam = psd(xdlam,ix_lam_rad,axis=1,cyclic=False,nghost=0)
+    wnum_lam, psdlam = psd(xdlam,ix_lam_rad,axis=1,cyclic=False,nghost=0,average=False)
+    psdlam_dict[pt] = psdlam
+    psdlam = psdlam.mean(axis=0)
     print(f"psdlam.shape={psdlam.shape}")
-    print(f"wnum_lam={wnum}")
-    axs[1].semilogy(wnum,psdlam,c='tab:orange',marker='x')
+    print(f"wnum_lam={wnum_lam}")
+    axs[1].semilogy(wnum_lam,psdlam,c='tab:orange',marker='x')
     lines.append(Line2D([0],[0],color='tab:orange',lw=2))
     labels.append('LAM,err')
-    axlam.semilogy(wnum,psdlam,c=linecolor[pt],marker='x',label=pt)
+    axlam.semilogy(wnum_lam,psdlam,c=linecolor[pt],marker='x',label=pt)
     #ax2 = axs[1].twinx()
     #espdiff = esp - espgm
     #ax2.plot(freq,espdiff,c='red')
@@ -186,7 +192,6 @@ for pt in perts:
     plt.show(block=False)
     plt.close(fig=fig)
 for ax in [axgm,axlam]:
-    ax.legend()
     ax.grid()
     #ax.set_title("spectral space")
     ax.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
@@ -198,8 +203,95 @@ for ax in [axgm,axlam]:
     secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
     secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
     secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+axgm.legend()
 axgm.set_ylabel("GM power spectral density")
 axlam.set_ylabel("LAM power spectral density")
 figall.suptitle(f"{op}")
 figall.savefig("{}_errspectra_{}_all.png".format(model,op))
-plt.show()
+plt.show(block=False)
+plt.close(fig=figall)
+
+#t-test
+from scipy import stats
+##GM
+methods = psdgm_dict.keys()
+for i,m1 in enumerate(methods):
+    for j,m2 in enumerate(methods):
+        if j<=i: continue
+        print(f"{m1}-{m2}")
+        psd1 = psdgm_dict[m1]
+        psd2 = psdgm_dict[m2]
+        res = stats.ttest_rel(psd1,psd2,axis=0)
+        t_stat = res.statistic
+        if np.isnan(t_stat).all(): continue
+        pvalue = res.pvalue
+        t_conf = res.confidence_interval(confidence_level=0.95)
+        dmean = (t_conf.high + t_conf.low)/2.
+        fig,axs = plt.subplots(figsize=[6,9],nrows=3,sharex=True)
+        axs[0].fill_between(wnum_gm,t_conf.high,t_conf.low,color='tab:blue',alpha=0.5)
+        axs[0].set_ylabel("95% interval")
+        axs[1].plot(wnum_gm,t_stat,lw=2.0)
+        axs[1].set_ylabel("t-statistic")
+        ymin, ymax = axs[1].get_ylim()
+        if ymin*ymax < 0.0:
+            axs[1].hlines([0.0],0,1,colors='r',transform=axs[1].get_yaxis_transform(),zorder=1)
+        axs[2].plot(wnum_gm,pvalue,marker='^',lw=1.0)
+        axs[2].hlines([0.05],0,1,colors='r',transform=axs[2].get_yaxis_transform(),zorder=1)
+        axs[2].set_ylabel("p-value")
+        axs[2].set_ylim(0.,0.1)
+        for ax in axs:
+            ax.grid(zorder=0)
+        axs[2].set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
+        #ax.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+        #ax.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+        axs[2].xaxis.set_major_locator(FixedLocator([480,240,120,60,30,1]))
+        axs[2].xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','1']))
+        secax = axs[0].secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
+        secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+        secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+        secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+        fig.suptitle(f"GM {op}: {m1} - {m2}")
+        fig.tight_layout()
+        fig.savefig("{}_errspectra_gm_t-test_{}_{}-{}.png".format(model,op,m1,m2))
+        plt.show()
+##LAM
+methods = psdlam_dict.keys()
+for i,m1 in enumerate(methods):
+    for j,m2 in enumerate(methods):
+        if j<=i: continue
+        print(f"{m1}-{m2}")
+        psd1 = psdlam_dict[m1]
+        psd2 = psdlam_dict[m2]
+        res = stats.ttest_rel(psd1,psd2,axis=0)
+        t_stat = res.statistic
+        if np.isnan(t_stat).all(): continue
+        pvalue = res.pvalue
+        t_conf = res.confidence_interval(confidence_level=0.95)
+        dmean = (t_conf.high + t_conf.low)/2.
+        fig,axs = plt.subplots(figsize=[6,9],nrows=3,sharex=True)
+        axs[0].fill_between(wnum_lam,t_conf.high,t_conf.low,color='tab:blue',alpha=0.5)
+        axs[0].set_ylabel("95% interval")
+        axs[1].plot(wnum_lam,t_stat,lw=2.0)
+        axs[1].set_ylabel("t-statistic")
+        ymin, ymax = axs[1].get_ylim()
+        if ymin*ymax < 0.0:
+            axs[1].hlines([0.0],0,1,colors='r',transform=axs[1].get_yaxis_transform(),zorder=1)
+        axs[2].plot(wnum_lam,pvalue,marker='^',lw=1.0)
+        axs[2].hlines([0.05],0,1,colors='r',transform=axs[2].get_yaxis_transform(),zorder=1)
+        axs[2].set_ylabel("p-value")
+        axs[2].set_ylim(0.,0.1)
+        for ax in axs:
+            ax.grid(zorder=0)
+        axs[2].set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
+        #ax.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+        #ax.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+        axs[2].xaxis.set_major_locator(FixedLocator([480,240,120,60,30,1]))
+        axs[2].xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','1']))
+        secax = axs[0].secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
+        secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+        secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+        secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+        fig.suptitle(f"LAM {op}: {m1} - {m2}")
+        fig.tight_layout()
+        fig.savefig("{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2))
+        plt.show()

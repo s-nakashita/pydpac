@@ -88,7 +88,7 @@ Lx_lam = 2.0 * np.pi * (nx_lam + 2*nghost) / nx_true
 dx_t = Lx_t / nx_true
 dx_gm = Lx_gm / nx_gm
 dx_lam = Lx_lam / (nx_lam + 2*nghost)
-for i in range(30*4):
+for i in range(60*4):
     for j in range(36*lamstep):
         x0_t = nature_step(x0_t)
     x0_gm, x0_lam = nest_step(x0_gm, x0_lam)
@@ -97,27 +97,6 @@ for i in range(30*4):
     x_t.append(x0_t)
     x_gm.append(x0_gm)
     x_lam.append(x0_lam)
-    # fft
-    #y0_t = fft.rfft(x0_t)
-    #sp0_t = np.abs(y0_t)**2
-    #sp0_t *= dx_t**2 / Lx_t
-    wnum_t, sp0_t = psd(x0_t,ix_t_rad)
-    sp_t.append(sp0_t)
-    #y0_gm = fft.rfft(x0_gm)
-    #sp0_gm = np.abs(y0_gm)**2
-    #sp0_gm *= dx_gm**2 / Lx_gm
-    wnum_gm, sp0_gm = psd(x0_gm,ix_gm_rad)
-    sp_gm.append(sp0_gm)
-    #x0_lam_ext = np.zeros(nx_lam + 2*nghost)
-    #x0_lam_ext[nghost:nghost+nx_lam] = x0_lam[:]
-    #x0_lam_ext[0:nghost] = x0_lam[0] * dwindow[::-1]
-    #x0_lam_ext[nghost+nx_lam:] = x0_lam[-1] * dwindow
-    #ix_lam_ext = nest_step.ix_true[ist_lam-nghost:ist_lam+nx_lam+nghost]
-    #y0_lam_ext = fft.rfft(x0_lam_ext)
-    #sp0_lam = np.abs(y0_lam_ext[:nx_lam//2+1])**2
-    #sp0_lam *= dx_lam**2 / Lx_lam
-    wnum_lam, sp0_lam = psd(x0_lam,ix_lam_rad)
-    sp_lam.append(sp0_lam)
     if i%20==0:
         plt.plot(nest_step.ix_true,x0_t,label='nature')
         plt.plot(nest_step.ix_gm,x0_gm,label='GM')
@@ -128,20 +107,43 @@ for i in range(30*4):
         plt.savefig(figdir/f'test_nest_t{int(i/4)}.png',dpi=300)
         plt.show(block=False)
         plt.close()
-        #wnum_t = fft.rfftfreq(x0_t.size,d=dx_t) * 2.0 * np.pi
-        plt.plot(wnum_t,sp0_t,label='nature')
-        #wnum_gm = fft.rfftfreq(x0_gm.size,d=dx_gm) * 2.0 * np.pi
-        plt.plot(wnum_gm,sp0_gm,label='GM')
-        #wnum_lam = fft.rfftfreq(x0_lam_ext.size,d=dx_lam)[:sp0_lam.size] * 2.0 * np.pi
-        plt.plot(wnum_lam,sp0_lam,label='LAM')
-        plt.title(f"t={i/4.:.1f}d, power spectrum")
-        plt.xlabel("wave number")
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.legend()
-        plt.savefig(figdir/f'test_nest_psd_t{int(i/4)}.png',dpi=300)
-        plt.show(block=False)
-        plt.close()
+    if i>=30*4:
+        # fft
+        #y0_t = fft.rfft(x0_t)
+        #sp0_t = np.abs(y0_t)**2
+        #sp0_t *= dx_t**2 / Lx_t
+        wnum_t, sp0_t = psd(x0_t,ix_t_rad)
+        sp_t.append(sp0_t)
+        #y0_gm = fft.rfft(x0_gm)
+        #sp0_gm = np.abs(y0_gm)**2
+        #sp0_gm *= dx_gm**2 / Lx_gm
+        wnum_gm, sp0_gm = psd(x0_gm,ix_gm_rad)
+        sp_gm.append(sp0_gm)
+        #x0_lam_ext = np.zeros(nx_lam + 2*nghost)
+        #x0_lam_ext[nghost:nghost+nx_lam] = x0_lam[:]
+        #x0_lam_ext[0:nghost] = x0_lam[0] * dwindow[::-1]
+        #x0_lam_ext[nghost+nx_lam:] = x0_lam[-1] * dwindow
+        #ix_lam_ext = nest_step.ix_true[ist_lam-nghost:ist_lam+nx_lam+nghost]
+        #y0_lam_ext = fft.rfft(x0_lam_ext)
+        #sp0_lam = np.abs(y0_lam_ext[:nx_lam//2+1])**2
+        #sp0_lam *= dx_lam**2 / Lx_lam
+        wnum_lam, sp0_lam = psd(x0_lam,ix_lam_rad)
+        sp_lam.append(sp0_lam)
+        if i%20==0:
+            #wnum_t = fft.rfftfreq(x0_t.size,d=dx_t) * 2.0 * np.pi
+            plt.plot(wnum_t,sp0_t,label='nature')
+            #wnum_gm = fft.rfftfreq(x0_gm.size,d=dx_gm) * 2.0 * np.pi
+            plt.plot(wnum_gm,sp0_gm,label='GM')
+            #wnum_lam = fft.rfftfreq(x0_lam_ext.size,d=dx_lam)[:sp0_lam.size] * 2.0 * np.pi
+            plt.plot(wnum_lam,sp0_lam,label='LAM')
+            plt.title(f"t={i/4.:.1f}d, power spectrum")
+            plt.xlabel("wave number")
+            plt.xscale("log")
+            plt.yscale("log")
+            plt.legend()
+            plt.savefig(figdir/f'test_nest_psd_t{int(i/4)}.png',dpi=300)
+            plt.show(block=False)
+            plt.close()
 plt.plot(nest_step.ix_true,x0_t,label='nature')
 plt.plot(nest_step.ix_gm,x0_gm,label='GM')
 plt.plot(nest_step.ix_lam,x0_lam,ls='dashed',label='LAM')
@@ -235,36 +237,48 @@ fig.savefig(figdir/f'test_nest_err_lamstep{lamstep}.png',dpi=300)
 plt.show()
 plt.close()
 
+np.savetxt(figdir/'ix_t.txt',nest_step.ix_true)
+np.savetxt(figdir/'ix_gm.txt',nest_step.ix_gm)
+np.savetxt(figdir/'ix_lam.txt',nest_step.ix_lam)
+np.save(figdir/'x_t.npy',x_t)
+np.save(figdir/'x_gm.npy',x_gm)
+np.save(figdir/'x_lam.npy',x_lam)
+
 ## power spectrum
 sp_t = np.array(sp_t).mean(axis=0)
 sp_gm = np.array(sp_gm).mean(axis=0)
 sp_lam = np.array(sp_lam).mean(axis=0)
 fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
 #wnum_t = fft.rfftfreq(x0_t.size,d=dx_t) * 2.0 * np.pi
-ax.plot(wnum_t,sp_t,label='nature')
-mmax = np.argmin(np.abs(wnum_t - 30)) + 1
-ax.plot(wnum_t[:mmax],sp_t[:mmax],c='tab:blue',marker='x',lw=0.0)
+ax.plot(wnum_t,sp_t,c='b',marker='x',label='nature')
+#mmax = np.argmin(np.abs(wnum_t - 30)) + 1
+#ax.plot(wnum_t[:mmax],sp_t[:mmax],c='tab:blue',marker='x',lw=0.0)
 #wnum_gm = fft.rfftfreq(x0_gm.size,d=dx_gm) * 2.0 * np.pi
-ax.plot(wnum_gm,sp_gm,label='GM')
-mmax = np.argmin(np.abs(wnum_gm - 30)) + 1
-ax.plot(wnum_gm[:mmax],sp_gm[:mmax],c='tab:orange',marker='x',lw=0.0)
+ax.plot(wnum_gm,sp_gm,c='orange',marker='x',label='GM')
+#mmax = np.argmin(np.abs(wnum_gm - 30)) + 1
+#ax.plot(wnum_gm[:mmax],sp_gm[:mmax],c='tab:orange',marker='x',lw=0.0)
 #wnum_lam = fft.rfftfreq(x0_lam_ext.size,d=dx_lam)[:sp_lam.size] * 2.0 * np.pi
-ax.plot(wnum_lam,sp_lam,label='LAM')
-mmax = np.argmin(np.abs(wnum_lam - 30)) + 1
-ax.plot(wnum_lam[:mmax],sp_lam[:mmax],c='tab:green',marker='x',lw=0.0)
+ax.plot(wnum_lam,sp_lam,c='r',marker='x',label='LAM')
+#mmax = np.argmin(np.abs(wnum_lam - 30)) + 1
+#ax.plot(wnum_lam[:mmax],sp_lam[:mmax],c='tab:green',marker='x',lw=0.0)
 ax.set_title("time averaged power spectrum")
 ax.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
-ax.set_xscale('log')
 #ax.xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
 #ax.xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
-ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
-ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
 #ax.set_xlim(0.5/np.pi,wnum[-1])
 secax = ax.secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
 secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
-secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi,np.pi/4,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
-secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\pi$',r'$\frac{\pi}{4}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+#ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,8,2,1]))
+#ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
+#secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi,np.pi/4,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+#secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\pi$',r'$\frac{\pi}{4}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,1]))
+ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','1']))
+secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+#ax.set_xscale('log')
 ax.set_yscale("log")
+ax.vlines([12],0,1,colors='gray',alpha=0.5,transform=ax.get_xaxis_transform())
 ax.legend()
 fig.savefig(figdir/f'test_nest_psd.png',dpi=300)
 plt.show()

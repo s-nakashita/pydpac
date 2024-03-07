@@ -27,7 +27,7 @@ def corrscale(ix,bmat,cyclic=True):
     return np.where(l2>=0.0, np.sqrt(l2), 0.)
 
 # grid variance => power spectral density
-def psd(x,ix,axis=0,cyclic=True,nghost=None):
+def psd(x,ix,axis=0,cyclic=True,nghost=None,average=True):
     nx = x.shape[axis]
     dx = ix[1] - ix[0]
     Lx = ix[-1] - ix[0]
@@ -60,7 +60,7 @@ def psd(x,ix,axis=0,cyclic=True,nghost=None):
             xtmp = x.copy()
     sp = fft.rfft(xtmp,axis=axis)
     wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi
-    if x.ndim==2:
+    if average and x.ndim==2:
         if axis==0:
             psd = 2.0*np.mean(np.abs(sp)**2,axis=1)*dx*dx/Lx
         else:

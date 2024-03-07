@@ -134,7 +134,7 @@ for op in ${operators}; do
         python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
         wait
         end_time=$(date +"%s")
-        cputime=`echo "scale=3; ${end_time}-${start_time}/1000" | bc`
+        cputime=`echo "scale=3; (${end_time}-${start_time})/1000" | bc`
         echo "${op} ${pert} ${count} ${cputime}" >> timer
         mv ${model}_e_gm_${op}_${pt}.txt e_gm${ptmp}_${op}_${pt}_${count}.txt
         mv ${model}_stda_gm_${op}_${pt}.txt stda_gm${ptmp}_${op}_${pt}_${count}.txt
