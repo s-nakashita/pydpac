@@ -103,7 +103,7 @@ params_gm = dict()
 ### experiment settings
 htype = {"operator": "linear", "perturbation": "mlef"}
 params_gm["t0off"]      =  step.nt6h_gm * 4          # initial offset between adjacent members
-params_gm["t0c"]        =  step.nt6h_gm * 4 * 600    # t0 for control
+params_gm["t0c"]        =  step.nt6h_gm * 4 * 60     # t0 for control
 params_gm["nobs"]       =  15       # observation number (nobs<=nx_true)
 params_gm["obsloctype"] = "regular" # observation location type
 params_gm["op"]         = "linear" # observation operator type
@@ -553,8 +553,10 @@ if __name__ == "__main__":
             logger.info("observation location in LAM {} {}".format  (yloc_lam,yloc_lam.shape))
             logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
-        save_dh = i <= a_time[-1]
-        save_hist = True
+        #save_dh = i <= a_time[-1]
+        #save_hist = True
+        save_dh = False
+        save_hist = False
         ##if a_window > 1:
         if pt[:2] == "4d":
             args_gm = (u_gm,pf_gm,y,yloc)

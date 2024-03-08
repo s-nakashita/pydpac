@@ -1,33 +1,37 @@
 #!/bin/sh
 # This is a run script for Nesting Lorenz experiment
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=8
 alias python=python3.9
-model="l05nest"
+model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
 perturbations="envar envar_nest"
-na=300 # Number of assimilation cycle
+na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=15 # observation volume
+nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-ptype=sigo
+ptype=infl
 functype=gc5
 #lgsig=110
 #llsig=70
 #exp="letkf_K15_${ptype}_mem${nmem}obs${nobs}"
-exp="envar+envar_nest_${ptype}_mem${nmem}obs${nobs}"
+exp="envar_${ptype}_mem${nmem}obs${nobs}"
 #exp="var_${functype}nmc_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-wdir=work/${model}_K15/${exp}
-rm -rf ${wdir}
+wdir=work/${model}/${exp}
+#rm -rf ${wdir}
 mkdir -p ${wdir}
 cd ${wdir}
 cp ${cdir}/logging_config.ini .
+if [ $model = l05nest ]; then
 ln -fs ${cdir}/data/l05III/truth.npy .
+elif [ $model = l05nestm ]; then
+ln -fs ${cdir}/data/l05IIIm/truth.npy .
+fi
 rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
@@ -36,7 +40,7 @@ nmemlist="40 80 120 160 200 240"
 lsiglist="20 30 40 50 60 70 80 90 100"
 nobslist="480 240 120 60 30 15"
 sigolist="1.0 0.5 0.3 0.1 0.05 0.03"
-infllist="1.0 1.01 1.02 1.03 1.04 1.05"
+infllist="1.15 1.2 1.25"
 sigblist="0.1 0.2 0.4 0.6 0.8 1.0"
 #sigblist="0.8 1.2 1.6 2.0 2.4 2.8"
 lblist="2.0 4.0 6.0 8.0 10.0 12.0"
@@ -52,12 +56,12 @@ for op in ${operators}; do
   #for nobs in ${nobslist}; do
   #  echo $nobs >> params.txt
   #  ptmp=$nobs
-  for sigo in ${sigolist}; do
-    echo $sigo >> params.txt
-    ptmp=$sigo
-  #for infl in ${infllist}; do
-  #  echo $infl >> params.txt
-  #  ptmp=$infl
+  #for sigo in ${sigolist}; do
+  #  echo $sigo >> params.txt
+  #  ptmp=$sigo
+  for infl in ${infllist}; do
+    echo $infl >> params.txt
+    ptmp=$infl
   #for gsigb in ${sigblist}; do
   #for lsigb in ${sigblist}; do
   #  echo $gsigb $lsigb >> params.txt
@@ -91,14 +95,18 @@ for op in ${operators}; do
 #      if [ $ptype = loc ]; then
 #        gsed -i -e "6i \ \"lsig\":${lsig}," config.py
 #      fi
-      if [ $ptype = infl ]; then
-        gsed -i -e "8i \ \"infl_parm\":${infl}," config.py
-      fi
+#      if [ $ptype = infl ]; then
+#        gsed -i -e "8i \ \"infl_parm\":${infl}," config.py
+#      fi
       ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
       pt=${ptline#\"*}; pt=${pt%\"*}
       echo $pt
       mv config.py config_gm.py
       cp config_gm.py config_lam.py
+      if [ $ptype = infl ]; then
+        gsed -i -e "8i \ \"infl_parm\":1.1," config_gm.py
+        gsed -i -e "8i \ \"infl_parm\":${infl}," config_lam.py
+      fi
       if [ ! -z $lgsig ]; then
         gsed -i -e "8i \ \"lsig\":${lgsig}," config_gm.py
       elif [ $ptype = loc ]; then
@@ -131,7 +139,7 @@ for op in ${operators}; do
         echo $count
         rm -f ${model}_*_${op}_${pt}.txt
         start_time=$(date +"%s")
-        python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+        python ${cdir}/l05nest.py ${model} > ${model}_${op}_${pert}.log 2>&1
         wait
         end_time=$(date +"%s")
         cputime=`echo "scale=3; (${end_time}-${start_time})/1000" | bc`

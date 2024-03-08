@@ -28,8 +28,8 @@ c_true = 0.6
 F_true = 15.0
 lamstep = 1
 dt_true = 0.05 / 36 / lamstep
-#nature_step = L05III(nx_true,nk_true,ni_true,b_true,c_true,dt_true,F_true)
-nature_step = L05IIIm(nx_true,nks_true,ni_true,b_true,c_true,dt_true,F_true)
+nature_step = L05III(nx_true,nk_true,ni_true,b_true,c_true,dt_true,F_true)
+#nature_step = L05IIIm(nx_true,nks_true,ni_true,b_true,c_true,dt_true,F_true)
 ## GM
 intgm = 4
 nx_gm = nx_true // intgm
@@ -49,12 +49,12 @@ b_lam = b_true
 c_lam = c_true
 F = F_true
 dt = dt_true * lamstep
-#nest_step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni_lam, b_lam, c_lam, dt, F, \
-#    intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx)
-nest_step = L05nestm(nx_true, nx_gm, nx_lam, nks_gm, nks_lam, ni_lam, b_lam, c_lam, dt, F, \
+nest_step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni_lam, b_lam, c_lam, dt, F, \
     intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx)
-#figdir = Path(f'nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
-figdir = Path(f'm{"+".join([str(n) for n in nks_gm])}/nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
+#nest_step = L05nestm(nx_true, nx_gm, nx_lam, nks_gm, nks_lam, ni_lam, b_lam, c_lam, dt, F, \
+#    intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx)
+figdir = Path(f'nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
+#figdir = Path(f'm{"+".join([str(n) for n in nks_gm])}/nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
 if not figdir.exists(): figdir.mkdir(parents=True)
 ## spinup for 10 days
 x0_t = np.random.randn(nx_true)
