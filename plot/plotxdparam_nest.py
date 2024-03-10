@@ -41,11 +41,12 @@ try:
         while(True):
             tmp=f.readline()[:-1]
             if tmp=='': break
-            if ptype=="infl" or ptype=="sigo":
+            if ptype=="infl" or ptype=="sigo" \
+                or ptype=="sigb" or ptype=="sigv":
                 var.append(float(tmp))
-            elif ptype=="sigb":
-                tmp2 = tmp.split()
-                var.append(f"g{tmp2[0]}l{tmp2[1]}")
+            #elif ptype=="sigb":
+            #    tmp2 = tmp.split()
+            #    var.append(f"g{tmp2[0]}l{tmp2[1]}")
             else:
                 var.append(int(tmp))
 except FileNotFoundError:
@@ -153,7 +154,10 @@ for ivar, ax in zip(var,axs.flatten()):
         ns_lam = nsuccess_lam[pt][ivar]
         if xd_lam is not None or xs_lam is not None:
             ax.plot(ix_lam,xd_lam[0,],lw=2.0,c=linecolor[pt],label=pt)
-            ax.plot(ix_lam,xs_lam[0,],ls='dashed',c=linecolor[pt])
+            if pt=="var" or pt=="var_nest":
+                ax.plot(ix_lam[1:-1],xs_lam[0,],ls='dashed',c=linecolor[pt])
+            else:
+                ax.plot(ix_lam,xs_lam[0,],ls='dashed',c=linecolor[pt])
             ymax=max(ymax,np.max(xd_lam[0,]),np.max(xs_lam[0,]))
     ax.plot(ix_lam,np.ones(ix_lam.size)*sigma[op],c='k',ls='dotted')
     ax.set_title(f"{ptype}={ivar} : #{int(ns_lam):d}")

@@ -115,7 +115,7 @@ params_gm["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 params_gm["pt"]         = "mlef"   # assimilation method
 params_gm["nmem"]       =  40      # ensemble size (include control run)
 params_gm["a_window"]   =  0       # assimilation window length
-params_gm["sigb"]       =  0.8     # (For var & 4dvar) background error standard deviation
+params_gm["sigb"]       =  1.0     # (For var & 4dvar) background error standard deviation
 params_gm["functype"]   = "gc5"  # (For var & 4dvar) background error correlation function
 if model=="l05nest":
     params_gm["lb"]     = 24.6    # (For var & 4dvar) correlation length for background error covariance in degree
@@ -138,7 +138,7 @@ params_gm["extfcst"]    = False # extended forecast
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
-params_lam["sigb"]      =  0.8     # (For var & 4dvar) background error standard deviation
+params_lam["sigb"]      =  0.6     # (For var & 4dvar) background error standard deviation
 params_lam["sigv"]      =  0.8     # (For var_nest) GM background error standard deviation in LAM space
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 if model=="l05nest":
@@ -553,10 +553,10 @@ if __name__ == "__main__":
             logger.info("observation location in LAM {} {}".format  (yloc_lam,yloc_lam.shape))
             logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
-        #save_dh = i <= a_time[-1]
-        #save_hist = True
-        save_dh = False
-        save_hist = False
+        save_dh = i <= a_time[-1]
+        save_hist = True
+        #save_dh = False
+        #save_hist = False
         ##if a_window > 1:
         if pt[:2] == "4d":
             args_gm = (u_gm,pf_gm,y,yloc)

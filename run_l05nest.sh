@@ -5,7 +5,7 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar_nest var_nest"
+perturbations="envar envar_nest var var_nest"
 #perturbations="var"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
@@ -25,7 +25,7 @@ extfcst=False # for NMC
 opt=0
 functype=gc5
 #a=-0.1
-ntrunc=20
+ntrunc=12
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 exp="var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
@@ -47,8 +47,8 @@ rm -rf timer
 touch timer
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
-rseed=92863
-cp ../var_vs_envar_wobc_m${nmem}obs${nobs}/obs*.npy .
+#rseed=92863
+#cp ../var_vs_envar_wobc_m${nmem}obs${nobs}/obs*.npy .
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert

@@ -18,11 +18,11 @@ if model == "z08" or model == "z05":
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 else:
-    perts = ["mlef", "envar", "envar_nest", "etkf", "po", "srf", "letkf", "kf", "var",\
+    perts = ["mlef", "envar", "envar_nest", "etkf", "po", "srf", "letkf", "kf", "var", "var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"envar_nest":'tab:green',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
     marker = {"3d":"o","4d":"x"}
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -56,11 +56,12 @@ try:
         while(True):
             tmp=f.readline()[:-1]
             if tmp=='': break
-            if ptype=="infl" or ptype=="sigo":
+            if ptype=="infl" or ptype=="sigo"\
+                 or ptype=="sigb" or ptype=="sigv":
                 var.append(float(tmp))
-            elif ptype=="sigb":
-                tmp2 = tmp.split()
-                var.append(f"g{tmp2[0]}l{tmp2[1]}")
+            #elif ptype=="sigb":
+            #    tmp2 = tmp.split()
+            #    var.append(f"g{tmp2[0]}l{tmp2[1]}")
             else:
                 var.append(int(tmp))
 except FileNotFoundError:
