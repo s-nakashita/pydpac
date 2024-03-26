@@ -18,7 +18,7 @@ perts = ["mlef", "envar", "envar_nest",\
 linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"envar_nest":'tab:green',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
-marker = {"3d":"o","4d":"s","3ds":"x","4ds":"^"}
+marker = {"3d":"","4d":"s","3ds":"x","4ds":"^"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
@@ -269,15 +269,60 @@ for i,m1 in enumerate(methods):
         print(f"{m1},{m2} t-stat:{res_ttest.statistic:.3f} pvalue:{res_ttest.pvalue:.3e}")
         tmatrix[i,j] = res_ttest.statistic
         pmatrix[i,j] = res_ttest.pvalue
+        if tmatrix[i,j]>0.0:
+            if pmatrix[i,j] < 1e-16:
+                pmatrix[i,j] = 1e-16
+            pmatrix[i,j] = pmatrix[i,j] * -1.0
 print("")
 fig, ax = plt.subplots(figsize=[8,6])
-norm = mpl.colors.BoundaryNorm(np.linspace(-0.11,0.11,12),11)
+cmap=plt.get_cmap("PiYG_r")
+cl0 = cmap(cmap.N//2)
+cl1 = cmap(cmap.N//4*3)
+cl2a = cmap(cmap.N-1)
+cl2b = cmap(0)
+cl3 = cmap(cmap.N//4)
+cl4 = cmap(cmap.N//2-1)
+cdict = {
+    'red':(
+        (0.0, cl0[0], cl0[0]),
+        (0.25, cl1[0], cl1[0]),
+        (0.5, cl2a[0], cl2b[0]),
+        (0.75, cl3[0], cl3[0]),
+        (1.0, cl4[0], cl4[0]),
+    ),
+    'green':(
+        (0.0, cl0[1], cl0[1]),
+        (0.25, cl1[1], cl1[1]),
+        (0.5, cl2a[1], cl2b[1]),
+        (0.75, cl3[1], cl3[1]),
+        (1.0, cl4[1], cl4[1]),
+    ),
+    'blue':(
+        (0.0, cl0[2], cl0[2]),
+        (0.25, cl1[2], cl1[2]),
+        (0.5, cl2a[2], cl2b[2]),
+        (0.75, cl3[2], cl3[2]),
+        (1.0, cl4[2], cl4[2]),
+    ),
+    'alpha':(
+        (0.0, cl0[3], cl0[3]),
+        (0.25, cl1[3], cl1[3]),
+        (0.5, cl2a[3], cl2b[3]),
+        (0.75, cl3[3], cl3[3]),
+        (1.0, cl4[3], cl4[3]),
+    ),
+}
+mycmap = mpl.colors.LinearSegmentedColormap('GrPi',cdict)
+norm = mpl.colors.BoundaryNorm([-0.1,-0.05,-0.01,0.0,0.01,0.05,0.1],8,extend="both")
+sigrates = ['<90%','>90%','>95%','>99%','>99%','>95%','>90%','<90%']
+fmt = mpl.ticker.FuncFormatter(lambda x, pos: sigrates[norm(x)])
 im, _ = heatmap(pmatrix,methods,methods,ax=ax,\
-    cmap=plt.get_cmap("PiYG").resampled(11), norm=norm,\
-    cbar_kw=dict(ticks=np.linspace(-0.1,0.1,11),format="{x:.2f}"),\
-        cbarlabel="p-value")
-annotate_heatmap(im,data=tmatrix,valfmt="{x:.2f}",fontweight="bold",\
-    threshold=0,textcolors=("blue","red"))
+    cmap=mycmap.resampled(8), norm=norm,\
+    cbar_kw=dict(ticks=[-0.075,-0.03,-0.005,0.005,0.03,0.075],format=fmt,extend="both"),\
+    cbarlabel="significance")
+annotate_heatmap(im,data=tmatrix,thdata=np.abs(pmatrix),\
+    valfmt="{x:.2f}",fontweight="bold",\
+    threshold=0.05,textcolors=("white","black"))
 ax.set_title(f"t-test for GM {op}: RMSE row-col")
 fig.tight_layout()
 if not spinup:
@@ -300,15 +345,22 @@ for i,m1 in enumerate(methods):
         print(f"{m1},{m2} t-stat:{res_ttest.statistic:.3f} pvalue:{res_ttest.pvalue:.3e}")
         tmatrix[i,j] = res_ttest.statistic
         pmatrix[i,j] = res_ttest.pvalue
+        if tmatrix[i,j]>0.0:
+            if pmatrix[i,j] < 1e-16:
+                pmatrix[i,j] = 1e-16
+            pmatrix[i,j] = pmatrix[i,j] * -1.0
 print("")
 fig, ax = plt.subplots(figsize=[8,6])
-norm = mpl.colors.BoundaryNorm(np.linspace(-0.11,0.11,12),11)
+norm = mpl.colors.BoundaryNorm([-0.1,-0.05,-0.01,0.0,0.01,0.05,0.1],8,extend="both")
+sigrates = ['<90%','>90%','>95%','>99%','>99%','>95%','>90%','<90%']
+fmt = mpl.ticker.FuncFormatter(lambda x, pos: sigrates[norm(x)])
 im, _ = heatmap(pmatrix,methods,methods,ax=ax,\
-    cmap=plt.get_cmap("PiYG").resampled(11), norm=norm,\
-    cbar_kw=dict(ticks=np.linspace(-0.1,0.1,11),format="{x:.2f}"),\
-        cbarlabel="p-value")
-annotate_heatmap(im,data=tmatrix,valfmt="{x:.2f}",fontweight="bold",\
-    threshold=0,textcolors=("blue","red"))
+    cmap=mycmap.resampled(8), norm=norm,\
+    cbar_kw=dict(ticks=[-0.075,-0.03,-0.005,0.005,0.03,0.075],format=fmt,extend="both"),\
+    cbarlabel="significance")
+annotate_heatmap(im,data=tmatrix,thdata=np.abs(pmatrix),\
+    valfmt="{x:.2f}",fontweight="bold",\
+    threshold=0.05,textcolors=("white","black"))
 ax.set_title(f"t-test for LAM {op}: RMSE row-col")
 fig.tight_layout()
 if not spinup:

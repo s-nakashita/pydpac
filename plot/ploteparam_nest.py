@@ -141,6 +141,7 @@ for pt in methods:
     ns_lam = nsuccess_lam[i]
     el_lam = mean_lam[i]
     es_lam = std_lam[i]
+    print(f"{pt} min:{np.min(el_lam)} {ptype}={var[np.argmin(el_lam)]}")
     if pt[:2] == "4d":
         mark=marker["4d"]; color=linecolor[pt[2:]]
     else:

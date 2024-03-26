@@ -102,26 +102,31 @@ class Var():
                 self.bmat = np.diag(np.full(cmat.shape[0],self.sigb)) @ cmat @ np.diag(np.full(cmat.shape[0],self.sigb))
             if self.verbose:
                 import matplotlib.pyplot as plt
+                from matplotlib.colors import Normalize
                 fig, ax = plt.subplots(figsize=(10,4),ncols=3,constrained_layout=True)
                 xaxis = np.arange(self.nx+1)
-                mappable = ax[0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
+                vlim = max(np.max(self.bmat),-np.min(self.bmat))
+                mappable = ax[0].pcolormesh(self.ix, self.ix, self.bmat, shading='auto',\
+                    cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
                 fig.colorbar(mappable, ax=ax[0],shrink=0.4,pad=0.01)
                 ax[0].set_title(r"$\mathrm{cond}(\mathbf{B})=$"+f"{la.cond(self.bmat):.3e}")
-                ax[0].invert_yaxis()
+                #ax[0].invert_yaxis()
                 ax[0].set_aspect("equal")
                 binv = la.inv(self.bmat)
-                mappable = ax[1].pcolor(xaxis, xaxis, binv, cmap='Blues')
+                vlim = max(np.max(binv),-np.min(binv))
+                mappable = ax[1].pcolormesh(self.ix, self.ix, binv, shading='auto',\
+                    cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
                 fig.colorbar(mappable, ax=ax[1],shrink=0.4,pad=0.01)
                 ax[1].set_title(r"$\mathbf{B}^{-1}$")
-                ax[1].invert_yaxis()
+                #ax[1].invert_yaxis()
                 ax[1].set_aspect("equal")
                 if dist is None:
                     ax[2].remove()
                 else:
-                    mappable = ax[2].pcolor(xaxis, xaxis, dist, cmap='viridis')
+                    mappable = ax[2].pcolormesh(self.ix, self.ix, dist, shading='auto', cmap='viridis')
                     fig.colorbar(mappable, ax=ax[2],shrink=0.4,pad=0.01)
                     ax[2].set_title(r"$d$")
-                    ax[2].invert_yaxis()
+                    #ax[2].invert_yaxis()
                     ax[2].set_aspect("equal")
                 fig.savefig("Bv{:.1f}l{:.3f}_{}.png".format(self.sigb,self.lb,self.model))
                 plt.close()

@@ -66,8 +66,9 @@ def heatmap(data, row_labels, col_labels, ax=None,
     return im, cbar
 
 
-def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
+def annotate_heatmap(im, data=None, thdata=None, valfmt="{x:.2f}",
                      textcolors=("black", "white"),
+                     textweights=("regular", "regular"),
                      threshold=None, **textkw):
     """
     A function to annotate a heatmap.
@@ -78,12 +79,17 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
         The AxesImage to be labeled.
     data
         Data used to annotate.  If None, the image's data is used.  Optional.
+    thdata
+        Data used to determine threshold.  If None, the image's data is used.  Optional.
     valfmt
         The format of the annotations inside the heatmap.  This should either
         use the string format method, e.g. "$ {x:.2f}", or be a
         `matplotlib.ticker.Formatter`.  Optional.
     textcolors
         A pair of colors.  The first is used for values below a threshold,
+        the second for those above.  Optional.
+    textweights
+        A pair of font weights.  The first is used for values below a threshold,
         the second for those above.  Optional.
     threshold
         Value in data units according to which the colors from textcolors are
@@ -96,6 +102,9 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
 
     if not isinstance(data, (list, np.ndarray)):
         data = im.get_array()
+    
+    if not isinstance(thdata, (list, np.ndarray)):
+        thdata = data.copy()
 
     # Normalize the threshold to the images color range.
     if threshold is not None:
@@ -118,7 +127,8 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     texts = []
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
-            kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
+            kw.update(color=textcolors[int(im.norm(thdata[i, j]) > threshold)])
+            #kw.update(weight=textweights[int(im.norm(thdata[i, j]) > threshold)])
             text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
             texts.append(text)
 

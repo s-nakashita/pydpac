@@ -15,6 +15,9 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+detrend = False
+if len(sys.argv)>4:
+    detrend = sys.argv[4]=='T'
 perts = ["mlef", "envar", "envar_nest", "etkf", "po", "srf", "letkf", "kf", "var", "var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
@@ -122,7 +125,6 @@ for pt in perts:
     #else:
     axs[0].set_ylabel("RMSE")
     axs[0].set_title("state space")
-    axs[0].legend()
     axs[0].grid()
     lines = []
     labels = []
@@ -151,7 +153,12 @@ for pt in perts:
     #wnum = fftfreq(nx,dx_lam)[:nx_lam//2]
     ##freq = np.arange(0,nx//2)
     #psd = 2.0*np.mean(np.abs(esp)**2,axis=0)*dx_lam*dx_lam/Lx_lam
-    wnum_lam, psdlam = psd(xdlam,ix_lam_rad,axis=1,cyclic=False,nghost=0,average=False)
+    if detrend:
+        wnum_lam, psdlam, xdlam_detrend = psd(xdlam,ix_lam_rad,axis=1,cyclic=False,nghost=0,average=False,detrend=detrend)
+        axs[0].plot(ix_lam,np.sqrt(np.mean(xdlam_detrend**2,axis=0)),c='tab:orange',ls='dashed',label='LAM,err,detrend')
+    else:
+        wnum_lam, psdlam = psd(xdlam,ix_lam_rad,axis=1,cyclic=False,nghost=0,average=False,detrend=detrend)
+    axs[0].legend()
     psdlam_dict[pt] = psdlam
     psdlam = psdlam.mean(axis=0)
     print(f"psdlam.shape={psdlam.shape}")
@@ -188,7 +195,10 @@ for pt in perts:
 #    xd2 = ifft(esp,axis=1)
 #    axs[0].plot(xs,xd2[0,],label='reconstructed')
     fig.suptitle(f"{op} {pt}")
-    fig.savefig("{}_errspectra_{}_{}.png".format(model,op,pt))
+    if detrend:
+        fig.savefig("{}_errspectra_{}_{}_detrend.png".format(model,op,pt),dpi=300)
+    else:
+        fig.savefig("{}_errspectra_{}_{}.png".format(model,op,pt),dpi=300)
     plt.show(block=False)
     plt.close(fig=fig)
 for ax in [axgm,axlam]:
@@ -207,7 +217,10 @@ axgm.legend()
 axgm.set_ylabel("GM power spectral density")
 axlam.set_ylabel("LAM power spectral density")
 figall.suptitle(f"{op}")
-figall.savefig("{}_errspectra_{}_all.png".format(model,op))
+if detrend:
+    figall.savefig("{}_errspectra_{}_all_detrend.png".format(model,op),dpi=300)
+else:
+    figall.savefig("{}_errspectra_{}_all.png".format(model,op),dpi=300)
 plt.show(block=False)
 plt.close(fig=figall)
 
@@ -252,7 +265,7 @@ for i,m1 in enumerate(methods):
         secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
         fig.suptitle(f"GM {op}: {m1} - {m2}")
         fig.tight_layout()
-        fig.savefig("{}_errspectra_gm_t-test_{}_{}-{}.png".format(model,op,m1,m2))
+        fig.savefig("{}_errspectra_gm_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
         plt.show()
 ##LAM
 methods = psdlam_dict.keys()
@@ -293,5 +306,8 @@ for i,m1 in enumerate(methods):
         secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
         fig.suptitle(f"LAM {op}: {m1} - {m2}")
         fig.tight_layout()
-        fig.savefig("{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2))
+        if detrend:
+            fig.savefig("{}_errspectra_lam_t-test_{}_{}-{}_detrend.png".format(model,op,m1,m2),dpi=300)
+        else:
+            fig.savefig("{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
         plt.show()

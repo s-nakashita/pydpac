@@ -67,30 +67,19 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.02,"envar":1.1,"envar_nest":1.2,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
+infl_gm_l = {"mlef":1.02,"envar":1.1,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
-infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var_nest":None,
+dict_infl_gm = {"linear": infl_gm_l}
+infl_lam_l = {"mlef":1.02,"envar":1.05,"envar_nest":1.2,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
-infl_c = {"mlef":1.2,"etkf":1.5,"po":1.1,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"var_nest":None,"4dvar":None}
-infl_qd = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,"var_nest":None,"4dvar":None}
-infl_cd = {"mlef":1.2,"etkf":1.5,"po":1.0,"srf":1.8,"letkf":1.3,"kf":1.3,"var":None,"var_nest":None,"4dvar":None}
-infl_t = {"mlef":1.2,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"var_nest":None,"4dvar":None}
-infl_h = {"mlef":1.3,"etkf":1.1,"po":1.0,"srf":1.1,"letkf":1.0,"kf":1.2,"var":None,"var_nest":None,"4dvar":None}
-dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
-    "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
-        "test": infl_t, "abs": infl_l, "hint": infl_h}
+dict_infl_lam = {"linear": infl_lam_l}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":11.0,"envar":11.0,"envar_nest":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
+sig_gm_l = {"mlef":11.0,"envar":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
-sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var_nest":None,
-        "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}
-sig_c = {"mlef":4.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":6.0,"kf":None,"var":None,"var_nest":None,"4dvar":None}
-sig_qd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,"var_nest":None,"4dvar":None}
-sig_cd = {"mlef":6.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":10.0,"kf":None,"var":None,"var_nest":None,"4dvar":None}
-sig_t = {"mlef":8.0,"etkf":8.0,"po":14.0,"srf":14.0,"letkf":15.0,"kf":None,"var":None,"var_nest":None,"4dvar":None}
-dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
-    "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, \
-    "test":sig_t, "abs":sig_l, "hint": sig_l}
+dict_sig_gm = {"linear": sig_gm_l}
+sig_lam_l = {"mlef":11.0,"envar":11.0,"envar_nest":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
+        "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
+dict_sig_lam = {"linear": sig_lam_l}
 # forecast type (ensemble or deterministic)
 ftype = {"mlef":"ensemble","envar":"ensemble","envar_nest":"ensemble",\
     "etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
@@ -133,12 +122,15 @@ params_gm["getkf"]      =  False   # (For model space localization) gain form re
 params_gm["ltlm"]       =  True    # flag for tangent linear observation operator
 params_gm["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params_gm["rseed"]      = None # random seed
+params_gm["roseed"]     = None # random seed for synthetic observation
 params_gm["extfcst"]    = False # extended forecast
+params_gm["save_dh"]    = True  # save intermediate files
+params_gm["save_hist"]  = True  # save hist files
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
-params_lam["sigb"]      =  0.6     # (For var & 4dvar) background error standard deviation
+params_lam["sigb"]      =  0.8     # (For var & 4dvar) background error standard deviation
 params_lam["sigv"]      =  0.8     # (For var_nest) GM background error standard deviation in LAM space
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 if model=="l05nest":
@@ -178,20 +170,20 @@ a_window = params_lam["a_window"]
 params_gm["ft"] = ft
 params_lam["ft"] = ft
 if params_gm["linf"] and params_gm["infl_parm"]==-1.0:
-    params_gm["infl_parm"] = dict_infl[params_gm["op"]][params_gm["pt"]]
+    params_gm["infl_parm"] = dict_infl_gm[params_gm["op"]][params_gm["pt"]]
 if params_gm["lloc"] and params_gm["lsig"]==-1.0:
-    params_gm["lsig"] = dict_sig[params_gm["op"]][params_gm["pt"]]
+    params_gm["lsig"] = dict_sig_gm[params_gm["op"]][params_gm["pt"]]
 if params_lam["linf"] and params_lam["infl_parm"]==-1.0:
-    params_lam["infl_parm"] = dict_infl[params_lam["op"]][params_lam["pt"]]
+    params_lam["infl_parm"] = dict_infl_lam[params_lam["op"]][params_lam["pt"]]
 if params_lam["lloc"] and params_lam["lsig"]==-1.0:
-    params_lam["lsig"] = dict_sig[params_lam["op"]][params_lam["pt"]]
+    params_lam["lsig"] = dict_sig_lam[params_lam["op"]][params_lam["pt"]]
 params_lam["nt"] = params_lam["nt"] * step.lamstep
 params_gm["lb"] = params_gm["lb"] * np.pi / 180.0 # degree => radian
 params_lam["lb"] = params_lam["lb"] * np.pi / 180.0 # degree => radian
 params_lam["lv"] = params_lam["lv"] * np.pi / 180.0 # degree => radian
 
 # observation operator
-obs = Obs(op, sigo) # for make observations
+obs = Obs(op, sigo, seed=params_gm["roseed"]) # for make observations
 obs_gm = Obs(op, sigo, ix=step.ix_gm) # for analysis_gm
 if params_lam["anlsp"]:
     obs_lam = Obs(op, sigo, ix=step.ix_lam[1:-1], icyclic=False) # analysis_lam
@@ -553,10 +545,8 @@ if __name__ == "__main__":
             logger.info("observation location in LAM {} {}".format  (yloc_lam,yloc_lam.shape))
             logger.info("obs in LAM={} {}".format(y_lam,y_lam.shape))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
-        save_dh = i <= a_time[-1]
-        save_hist = True
-        #save_dh = False
-        #save_hist = False
+        save_dh = params_gm["save_dh"]
+        save_hist = params_gm["save_hist"]
         ##if a_window > 1:
         if pt[:2] == "4d":
             args_gm = (u_gm,pf_gm,y,yloc)

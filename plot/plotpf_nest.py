@@ -39,7 +39,6 @@ nx_gmlam = ix_trunc.size
 ncycle = 0
 vmat_exist=False
 for icycle in range(scycle,ecycle+1):
-    cmap = "coolwarm"
     f = "{}_gm_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
     if os.path.isfile(f):
         spftmp = np.load(f)
@@ -67,7 +66,7 @@ for icycle in range(scycle,ecycle+1):
             pflam = pflam + pftmp
         ncycle += 1
     else:
-        f = "data/{}_lam_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
+        f = "data/{1}/{0}_lam_spf_{1}_{2}_cycle{}.npy".format(model, op, pt, icycle)
         if os.path.isfile(f):
             spftmp = np.load(f)
             pftmp = spftmp @ spftmp.T
@@ -86,7 +85,7 @@ for icycle in range(scycle,ecycle+1):
             vmat = vmat + vtmp
         vmat_exist=True
     else:
-        f = "data/{}_lam_svmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
+        f = "data/{1}/{0}_lam_svmat_{1}_{2}_cycle{}.npy".format(model, op, pt, icycle)
         if os.path.isfile(f):
             svtmp = np.load(f)
             vtmp = svtmp @ svtmp.T
@@ -102,6 +101,7 @@ for icycle in range(scycle,ecycle+1):
 if ncycle==0: exit()
 pfgm = pfgm / float(ncycle)
 pflam = pflam / float(ncycle)
+cmap = "coolwarm"
 if vmat_exist:
     vmat = vmat / float(ncycle)
     fig, axs = plt.subplots(ncols=3,figsize=[12,4],constrained_layout=True)

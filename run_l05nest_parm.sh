@@ -12,6 +12,7 @@ nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
+ntest=10
 ptype=sigv
 functype=gc5
 #lgsig=110
@@ -23,7 +24,7 @@ exp="var_nest_${functype}nmc_${ptype}_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}/${exp}
-#rm -rf ${wdir}
+rm -rf ${wdir}
 mkdir -p ${wdir}
 cd ${wdir}
 cp ${cdir}/logging_config.ini .
@@ -43,9 +44,19 @@ sigolist="1.0 0.5 0.3 0.1 0.05 0.03"
 infllist="1.15 1.2 1.25"
 sigblist="0.4 0.6 0.8 1.0 1.2 1.6"
 sigvlist="0.4 0.6 0.8 1.0 1.2 1.6"
-#sigblist="0.8 1.2 1.6 2.0 2.4 2.8"
+#sigblist="0.8 1.0 1.2 1.6"
 lblist="2.0 4.0 6.0 8.0 10.0 12.0"
+## create seeds
+touch seeds.txt
+rseed=`date +%s | cut -c5-10`
+for i in $(seq 1 $ntest);do
+rseed1=`expr $rseed + \( 2 \* $i \)`
+rseed2=`expr $rseed + \( 2 \* $i + 1 \)`
+echo $rseed1 $rseed2 >> seeds.txt
+done
+##
 touch params.txt
+set -e
 for op in ${operators}; do
   echo $ptype > params.txt
   #for nmem in ${nmemlist}; do
@@ -149,8 +160,16 @@ for op in ${operators}; do
       ###
       cat config_gm.py
       cat config_lam.py
-      for count in $(seq 1 10); do
+      gsed -i -e "2i \ \"save_hist\":False," config_gm.py
+      gsed -i -e "2i \ \"save_dh\":False," config_gm.py
+      cp config_gm.py config_gm_orig.py
+      for count in $(seq 1 $ntest); do
         echo $count
+        rseed1=`awk '(NR=='$count'){print $1}' seeds.txt`
+        rseed2=`awk '(NR=='$count'){print $2}' seeds.txt`
+        cp config_gm_orig.py config_gm.py
+        gsed -i -e "2i \ \"rseed\":${rseed1}," config_gm.py
+        gsed -i -e "2i \ \"roseed\":${rseed2}," config_gm.py
         rm -f ${model}_*_${op}_${pt}.txt
         start_time=$(date +"%s")
         python ${cdir}/l05nest.py ${model} > ${model}_${op}_${pert}.log 2>&1

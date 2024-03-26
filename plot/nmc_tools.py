@@ -27,7 +27,7 @@ def corrscale(ix,bmat,cyclic=True):
     return np.where(l2>=0.0, np.sqrt(l2), 0.)
 
 # grid variance => power spectral density
-def psd(x,ix,axis=0,cyclic=True,nghost=None,average=True):
+def psd(x,ix,axis=0,cyclic=True,nghost=None,average=True,detrend=False):
     nx = x.shape[axis]
     dx = ix[1] - ix[0]
     Lx = ix[-1] - ix[0]
@@ -57,7 +57,21 @@ def psd(x,ix,axis=0,cyclic=True,nghost=None,average=True):
                 x[0:nghost] = x[0] * dwindow[::-1]
                 x[nghost+nx:] = x[-1] * dwindow[:-1]
         else:
-            xtmp = x.copy()
+            if detrend:
+                ## remove linear trend (Errico 1985, MWR)
+                if x.ndim==2:
+                    if axis==1:
+                        trend = (x[:,-1] - x[:,0])/(nx - 1)
+                        xtrend = 0.5 * (2*np.arange(nx)[None,:] - nx)*trend[:,None]
+                    else:
+                        trend = (x[-1,] - x[0,])/(nx - 1)
+                        xtrend = 0.5 * (2*np.arange(nx)[:,None] - nx)*trend[None,:]
+                else:
+                    trend = (x[-1] - x[0])/(nx - 1)
+                    xtrend = 0.5 * (2*np.arange(nx) - nx)*trend
+                xtmp = x - xtrend
+            else:
+                xtmp = x.copy()
     sp = fft.rfft(xtmp,axis=axis)
     wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi
     if average and x.ndim==2:
@@ -67,10 +81,13 @@ def psd(x,ix,axis=0,cyclic=True,nghost=None,average=True):
             psd = 2.0*np.mean(np.abs(sp)**2,axis=0)*dx*dx/Lx
     else:
         psd = 2.0*np.abs(sp)**2*dx*dx/Lx
-    return wnum, psd
+    if not cyclic and detrend:
+        return wnum, psd, xtmp
+    else:
+        return wnum, psd
 
 # cross power spectral density
-def cpsd(x,y,ix,iy,axis=0,cyclic=True,nghost=None):
+def cpsd(x,y,ix,iy,axis=0,cyclic=True,nghost=None,detrend=False):
     nx = x.shape[axis]
     dx = ix[1] - ix[0]
     Lx = ix[-1] - ix[0]
@@ -126,8 +143,33 @@ def cpsd(x,y,ix,iy,axis=0,cyclic=True,nghost=None):
                 ytmp[0:nghost_y] = y[0] * dwindow_y[::-1]
                 ytmp[nghost_y+ny:] = y[-1] * dwindow_y[:-1]
         else:
-            xtmp = x.copy()
-            ytmp = y.copy()
+            if detrend:
+                ## remove linear trend (Errico 1985, MWR)
+                if x.ndim==2:
+                    if axis==1:
+                        trend = (x[:,-1] - x[:,0])/(nx - 1)
+                        xtrend = 0.5 * (2*np.arange(nx) - nx)*trend
+                        xtmp = x - xtrend[None,:]
+                        trend = (y[:,-1] - y[:,0])/(nx - 1)
+                        ytrend = 0.5 * (2*np.arange(nx) - nx)*trend
+                        ytmp = y - ytrend[None,:]
+                    else:
+                        trend = (x[-1] - x[0])/(nx - 1)
+                        xtrend = 0.5 * (2*np.arange(nx) - nx)*trend
+                        xtmp = x - xtrend[:,None]
+                        trend = (y[-1] - y[0])/(nx - 1)
+                        ytrend = 0.5 * (2*np.arange(nx) - nx)*trend
+                        ytmp = y - ytrend[:,None]
+                else:
+                    trend = (x[-1] - x[0])/(nx - 1)
+                    xtrend = 0.5 * (2*np.arange(nx) - nx)*trend
+                    xtmp = x - xtrend
+                    trend = (y[-1] - y[0])/(nx - 1)
+                    ytrend = 0.5 * (2*np.arange(nx) - nx)*trend
+                    ytmp = y - ytrend
+            else:
+                xtmp = x.copy()
+                ytmp = y.copy()
     sp_x = fft.rfft(xtmp,axis=axis)
     sp_y = fft.rfft(ytmp,axis=axis)
     wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi

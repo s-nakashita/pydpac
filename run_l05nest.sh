@@ -12,7 +12,7 @@ perturbations="envar envar_nest var var_nest"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=240 # Number of assimilation cycle
+na=1460 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -49,6 +49,7 @@ rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
 #cp ../var_vs_envar_wobc_m${nmem}obs${nobs}/obs*.npy .
+mkdir -p data
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
@@ -163,6 +164,10 @@ for op in ${operators}; do
     python ${cdir}/plot/plotpf_nest.py ${op} ${model} ${na} ${pert} 1 100
     #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
+    mkdir -p data/${pt}
+    for vname in d dh dx pa pf spf ua uf; do
+      mv ${model}_*_${vname}_${op}_${pt}_cycle*.npy data/${pt}
+    done
   done
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} F
@@ -176,10 +181,10 @@ for op in ${operators}; do
   python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}
   fi
   python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na}
-  rm ${model}_*_jh_${op}_*_cycle*.txt ${model}_*_alpha_${op}_*_cycle*.txt ${model}_*_gh_${op}_*_cycle*.txt
+  rm ${model}_*_jh_${op}_*_cycle*.txt 
+  rm ${model}_*_alpha_${op}_*_cycle*.txt 
+  rm ${model}_*_gh_${op}_*_cycle*.txt
   #rm obs*.npy
 done
 #rm ${model}*.txt 
 #rm ${model}_*_cycle*.npy 
-mkdir -p data
-mv ${model}_*_cycle*.npy data/

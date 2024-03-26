@@ -177,46 +177,55 @@ class Var_nest():
                     self.vmat = np.diag(np.full(self.nv,self.sigv)) @ self.vmat @ np.diag(np.full(self.nv,self.sigv))
             if self.verbose:
                 import matplotlib.pyplot as plt
+                from matplotlib.colors import Normalize
                 fig, ax = plt.subplots(figsize=(10,8),nrows=2,ncols=3,constrained_layout=True)
-                xaxis = np.arange(self.nx+1)
-                mappable = ax[0,0].pcolor(xaxis, xaxis, self.bmat, cmap='Blues')
+                xaxis = self.ix_lam
+                vlim = max(np.max(self.bmat),-np.min(self.bmat))
+                mappable = ax[0,0].pcolormesh(xaxis, xaxis, self.bmat, \
+                    shading='auto',cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
                 fig.colorbar(mappable, ax=ax[0,0],shrink=0.6,pad=0.01)
                 ax[0,0].set_title(r"$\mathrm{cond}(\mathbf{B})=$"+f"{la.cond(self.bmat):.3e}")
-                ax[0,0].invert_yaxis()
+                #ax[0,0].invert_yaxis()
                 ax[0,0].set_aspect("equal")
                 binv = la.inv(self.bmat)
-                mappable = ax[0,1].pcolor(xaxis, xaxis, binv, cmap='Blues')
+                vlim = max(np.max(binv),-np.min(binv))
+                mappable = ax[0,1].pcolormesh(xaxis, xaxis, binv, \
+                    shading='auto',cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
                 fig.colorbar(mappable, ax=ax[0,1],shrink=0.6,pad=0.01)
                 ax[0,1].set_title(r"$\mathbf{B}^{-1}$")
-                ax[0,1].invert_yaxis()
+                #ax[0,1].invert_yaxis()
                 ax[0,1].set_aspect("equal")
                 if dist is None:
                     ax[0,2].remove()
                 else:
-                    mappable = ax[0,2].pcolor(xaxis, xaxis, dist, cmap='viridis')
+                    mappable = ax[0,2].pcolormesh(xaxis, xaxis, dist, shading='auto',cmap='viridis')
                     fig.colorbar(mappable, ax=ax[0,2],shrink=0.6,pad=0.01)
                     ax[0,2].set_title(r"$d$")
-                    ax[0,2].invert_yaxis()
+                    #ax[0,2].invert_yaxis()
                     ax[0,2].set_aspect("equal")
-                xaxis = np.arange(self.nv+1)
-                mappable = ax[1,0].pcolor(xaxis, xaxis, self.vmat, cmap='Blues')
+                xaxis = self.ix_trunc
+                vlim = max(np.max(self.vmat),-np.min(self.vmat))
+                mappable = ax[1,0].pcolormesh(xaxis, xaxis, self.vmat, \
+                    shading='auto',cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
                 fig.colorbar(mappable, ax=ax[1,0],shrink=0.6,pad=0.01)
                 ax[1,0].set_title(r"$\mathrm{cond}(\mathbf{V})=$"+f"{la.cond(self.vmat):.3e}")
-                ax[1,0].invert_yaxis()
+                #ax[1,0].invert_yaxis()
                 ax[1,0].set_aspect("equal")
                 vinv = la.inv(self.vmat)
-                mappable = ax[1,1].pcolor(xaxis, xaxis, vinv, cmap='Blues')
+                vlim = max(np.max(vinv),-np.min(vinv))
+                mappable = ax[1,1].pcolormesh(xaxis, xaxis, vinv, \
+                    shading='auto',cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
                 fig.colorbar(mappable, ax=ax[1,1],shrink=0.6,pad=0.01)
                 ax[1,1].set_title(r"$\mathbf{V}^{-1}$")
-                ax[1,1].invert_yaxis()
+                #ax[1,1].invert_yaxis()
                 ax[1,1].set_aspect("equal")
                 if distg is None:
                     ax[1,2].remove()
                 else:
-                    mappable = ax[1,2].pcolor(xaxis, xaxis, distg, cmap='viridis')
+                    mappable = ax[1,2].pcolormesh(xaxis, xaxis, distg, shading='auto',cmap='viridis')
                     fig.colorbar(mappable, ax=ax[1,2],shrink=0.6,pad=0.01)
                     ax[1,2].set_title(r"$d$")
-                    ax[1,2].invert_yaxis()
+                    #ax[1,2].invert_yaxis()
                     ax[1,2].set_aspect("equal")
                 fig.savefig("Bv{:.1f}l{:.3f}+Vv{:.1f}l{:.3f}_{}.png".format(self.sigb,self.lb,self.sigv,self.lv,self.model))
                 plt.close()
