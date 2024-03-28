@@ -89,8 +89,12 @@ if __name__ == "__main__":
     l2 = L05II(nx, nk, h, F)
     x0 = np.ones(nx)*F
     x0[nx//2-1] += 0.001*F
+    print(x0)
     for k in range(nt):
         x0 = l2(x0)
+        if k==0: print(x0)
+    print(x0)
+    exit()
     fig, ax = plt.subplots(figsize=[6,12],constrained_layout=True)
     cmap = plt.get_cmap('tab10')
     xaxis = np.arange(nx)
