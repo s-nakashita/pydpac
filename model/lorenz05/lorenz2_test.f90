@@ -18,12 +18,12 @@ program lorenz2_test
   dt = 0.05
   F = 15.0
   tmax = 20.0
-  nt = int(tmax/dt)
+  nt = ceiling(tmax/dt)
   allocate(xsave(nt+1,nx))
 
   call l2%init(nx,nk,dt,F)
   l2%x(:) = F 
-  l2%x(nx/2) = F*1.001d0
+  l2%x(nx/2) = F*1.0001d0
   print *, 'initial'
   print *, l2%x
   xsave(1,:) = real(l2%x,kind=sp)
@@ -40,8 +40,8 @@ program lorenz2_test
 
   write(fname,'(a,i3,a,i1,a,i2,a)') &
   & "l05II_n",nx,"k",nk,"F",int(F),".grd"
-  open(21,file=fname,access='direct',form='unformatted',recl=4*nx)
-  do k=1, size(xsave,1)
+  open(21,file=fname,access='direct',convert='big_endian',form='unformatted',recl=4*nx)
+  do k=1, nt+1
     write(21,rec=k) xsave(k,:)
   end do
   close(21)

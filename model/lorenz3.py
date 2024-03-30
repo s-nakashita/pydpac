@@ -70,7 +70,8 @@ class L05III():
         self.F = F
         self.l2 = L05II(self.nx_gho,self.nk,self.dt,self.F)
         logging.info(f"b={self.b} c={self.c}")
-        if debug:
+        self.debug = debug
+        if self.debug:
             logging.debug(self.filmat.max(),self.filmat.min())
             import matplotlib.pyplot as plt
             #plt.plot(self.filmat[self.nx_gho//2,:])
@@ -161,21 +162,35 @@ if __name__ == "__main__":
     c = 0.6
     h = 0.05 / b
     #for ni in [20,40,80]:
-    l3 = L05III(nx,nk,ni,b,c,h,F,debug=True)
+    l3 = L05III(nx,nk,ni,b,c,h,F) #,debug=True)
     #exit()
+    figdir=Path('lorenz/l05III')
+    if not figdir.exists():
+        figdir.mkdir(parents=True)
 
-    #z0 = np.sin(np.arange(nx)*2.0*np.pi/30.0)
     tmax = 5.0
-    nt = int(tmax/h) + 1
+    nt = int(tmax/h)
+    print(nt)
+    z = []
+    #z0 = np.sin(np.arange(nx)*2.0*np.pi/30.0)
     z0 = np.random.rand(nx)
+    z0.astype('<d').tofile(figdir/f'z0_n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.npy')
+    z.append(z0)
     for k in range(nt):
         z0 = l3(z0)
-    x0, y0 = l3.decomp(z0)
-    plt.plot(z0)
-    plt.plot(x0)
-    plt.plot(y0)
-    plt.show()
-    #exit()
+        if (k+1)%int(b)==0:
+            z.append(z0)
+    if l3.debug:
+        x0, y0 = l3.decomp(z0)
+        plt.plot(z0)
+        plt.plot(x0)
+        plt.plot(y0)
+        plt.show()
+
+    z = np.array(z)
+    print(z.shape)
+    np.save(figdir/f'n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.npy',z)
+    exit()
 
     fig, axs = plt.subplots(ncols=2,figsize=[12,12],sharey=True,constrained_layout=True)
     cmap = plt.get_cmap('tab10')
@@ -198,7 +213,7 @@ if __name__ == "__main__":
     axs[0].set_title("Z")
     axs[1].set_title(r"X+Y($\times$4)")
     fig.suptitle(f"Lorenz III, N={nx}, K={nk}, I={ni}, F={F}, b={b}, c={c}")
-    fig.savefig(f"lorenz/l05III_n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.png",dpi=300)
+    fig.savefig(figdir/f"n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.png",dpi=300)
     plt.show()
 
     nt1yr = int(0.05 / h) * 4 * 365 # 1 year
