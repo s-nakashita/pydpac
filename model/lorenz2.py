@@ -82,18 +82,23 @@ if __name__ == "__main__":
     nk = 8
     F = 15.0
     h = 0.05
-    tmax = 200.0
-    nt = int(tmax/h) + 1
+    tmax = 20.0
+    nt = int(tmax/h)
     xaxis = np.arange(nx)
 
     l2 = L05II(nx, nk, h, F)
     x0 = np.ones(nx)*F
     x0[nx//2-1] += 0.001*F
     print(x0)
+    x=[x0]
     for k in range(nt):
         x0 = l2(x0)
+        x.append(x0)
         if k==0: print(x0)
     print(x0)
+    x = np.array(x)
+    print(x.shape)
+    np.save(f"lorenz/l05II_n{nx}k{nk}F{int(F)}.npy",x)
     exit()
     fig, ax = plt.subplots(figsize=[6,12],constrained_layout=True)
     cmap = plt.get_cmap('tab10')
