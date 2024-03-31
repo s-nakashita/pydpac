@@ -96,20 +96,32 @@ if __name__ == "__main__":
     xaxis = np.arange(nx)
     ix_rad = 2.0 * np.pi * xaxis / nx
 
+    figdir = Path('lorenz/l05IIm')
+    if not figdir.exists():
+        figdir.mkdir(parents=True)
+
     l2 = L05IIm(nx, nks, h, F)
     x0 = np.ones(nx)*F
     x0[nx//2-1] += 0.001*F
     t = []
+    x = [x0]
     en = []
     sp = []
     for k in range(nt):
         print(f'{k/nt*100:.2f}%')
         x0 = l2(x0)
-        if k>nt//10:
-            t.append(k*h)
-            en.append(np.mean(x0**2)/2.)
-            wnum, sp1 = psd(x0,ix_rad)
-            sp.append(sp1)
+        if (k+1)%nt6h == 0:
+            x.append(x0)
+        #if k>nt//10:
+        #    t.append(k*h)
+        #    en.append(np.mean(x0**2)/2.)
+        #    wnum, sp1 = psd(x0,ix_rad)
+        #    sp.append(sp1)
+    x = np.array(x)
+    print(x.shape)
+    np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.npy",x)
+    exit()
+
     fig2, axs = plt.subplots(nrows=2,figsize=[6,12],constrained_layout=True)
     days = np.array(t) / 0.05 / 4
     axs[0].plot(days,en)
@@ -127,7 +139,7 @@ if __name__ == "__main__":
     secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
     secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
     secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-    fig2.savefig(f"lorenz/l05IIm_en+psd_n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.png",dpi=300)
+    fig2.savefig(figdir/f"en+psd_n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.png",dpi=300)
     
     fig, ax = plt.subplots(figsize=[6,12],constrained_layout=True)
     cmap = plt.get_cmap('tab10')
@@ -143,8 +155,9 @@ if __name__ == "__main__":
             icol += 1
     ax.set_xlim(0.0,nx-1)
     ax.set_title(f"Lorenz IIm, N={nx}\nK={'+'.join([str(n) for n in nks])}, F={F}")
-    fig.savefig(f"lorenz/l05IIm_n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.png",dpi=300)
+    fig.savefig(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.png",dpi=300)
     plt.show()
+    exit()
 
     nt1yr = nt6h * 4 * 365 # 1 year
     ksave = nt6h # 6 hours

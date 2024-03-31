@@ -2,6 +2,7 @@ module lorenz3_module
 
   use kind_module
   use lorenz2_module, only: advection
+!$ use omp_lib
 
   implicit none
   private

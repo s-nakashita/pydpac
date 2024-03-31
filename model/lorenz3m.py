@@ -170,15 +170,21 @@ if __name__ == "__main__":
     h = 0.05 / 36 / b
     nt6h = int(0.05 / h)
     #for ni in [20,40,80]:
-    l3 = L05IIIm(nx,nks,ni,b,c,h,F,debug=True)
+    l3 = L05IIIm(nx,nks,ni,b,c,h,F) #,debug=True)
     #exit()
     xaxis = np.arange(nx)
     ix_rad = 2.0 * np.pi * xaxis / nx
 
+    figdir = Path('lorenz/l05IIIm')
+    if not figdir.exists():
+        figdir.mkdir(parents=True)
+
     #z0 = np.sin(np.arange(nx)*2.0*np.pi/30.0)
     nt = 100 * 4 * nt6h
     z0 = np.random.rand(nx)
+    z0.astype('<d').tofile(figdir/f"z0_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy")
     t = []
+    z = [z0]
     en = []
     sp = []
     for k in range(nt):
@@ -189,6 +195,12 @@ if __name__ == "__main__":
             en.append(np.mean(z0**2)/2.)
             wnum, sp1 = psd(z0,ix_rad)
             sp.append(sp1)
+        if (k+1)%nt6h==0:
+            z.append(z0)
+    z = np.array(z)
+    print(z.shape)
+    np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy",z)
+    exit()
     x0, y0 = l3.decomp(z0)
     plt.plot(z0)
     plt.plot(x0)
@@ -213,7 +225,7 @@ if __name__ == "__main__":
     secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
     secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
     secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-    fig2.savefig(f"lorenz/l05IIIm_en+psd_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
+    fig2.savefig(figdir/f"en+psd_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
 
     fig, axs = plt.subplots(ncols=2,figsize=[12,12],sharey=True,constrained_layout=True)
     cmap = plt.get_cmap('tab10')
@@ -235,8 +247,9 @@ if __name__ == "__main__":
     axs[0].set_title("Z")
     axs[1].set_title(r"X+Y($\times$4)")
     fig.suptitle(f"Lorenz III, N={nx}, K={'+'.join([str(n) for n in nks])}\nI={ni}, F={F}, b={b}, c={c}")
-    fig.savefig(f"lorenz/l05IIIm_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
+    fig.savefig(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
     plt.show()
+    exit()
 
     nt1yr = nt6h * 4 * 365 # 1 year
     ksave = nt6h # 6 hours
