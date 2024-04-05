@@ -57,7 +57,8 @@ try:
             tmp=f.readline()[:-1]
             if tmp=='': break
             if ptype=="infl" or ptype=="sigo"\
-                 or ptype=="sigb" or ptype=="sigv":
+                or ptype=="sigb" or ptype=="sigv"\
+                or ptype=="infl_lrg":
                 var.append(float(tmp))
             #elif ptype=="sigb":
             #    tmp2 = tmp.split()

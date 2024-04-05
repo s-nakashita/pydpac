@@ -70,9 +70,11 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
 infl_gm_l = {"mlef":1.02,"envar":1.1,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_gm = {"linear": infl_gm_l}
-infl_lam_l = {"mlef":1.02,"envar":1.05,"envar_nest":1.2,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
+infl_lam_l = {"mlef":1.02,"envar":1.05,"envar_nest":1.25,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_lam = {"linear": infl_lam_l}
+infl_lrg_l = {"envar_nest":1.25,"var_nest":None}
+dict_infl_lrg = {"linear":infl_lrg_l}
 # localization parameter (dictionary for each observation type)
 sig_gm_l = {"mlef":11.0,"envar":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
@@ -131,7 +133,7 @@ params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  0.8     # (For var & 4dvar) background error standard deviation
-params_lam["sigv"]      =  0.8     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["sigv"]      =  1.8     # (For var_nest) GM background error standard deviation in LAM space
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 if model=="l05nest":
     params_lam["lb"]    = 26.5     # (For var & 4dvar) correlation length for background error covariance in degree
@@ -143,8 +145,9 @@ else:
     params_lam["a"]     = -0.11
     params_lam["lv"]    = 12.03
     params_lam["a_v"]   = 0.12
-params_lam["ntrunc"]    = 12    # (For var_nest) truncation number for GM error covariance
-params_lam["crosscov"]  = False     # (For var_nest) whether correlation between GM and LAM is considered or not
+params_lam["ntrunc"]    = 12    # (For var_nest & envar_nest) truncation number for GM error covariance
+params_lam["infl_parm_lrg"] = -1.0  # (For envar_nest) inflation parameter for GM error covariance
+params_lam["crosscov"]  = False     # (For var_nest & envar_nest) whether correlation between GM and LAM is considered or not
 
 ## update from configure file
 sys.path.append('./')
@@ -177,6 +180,8 @@ if params_lam["linf"] and params_lam["infl_parm"]==-1.0:
     params_lam["infl_parm"] = dict_infl_lam[params_lam["op"]][params_lam["pt"]]
 if params_lam["lloc"] and params_lam["lsig"]==-1.0:
     params_lam["lsig"] = dict_sig_lam[params_lam["op"]][params_lam["pt"]]
+if params_lam["pt"]=="envar_nest" and params_lam["linf"] and params_lam["infl_parm_lrg"]==-1.0:
+    params_lam["infl_parm_lrg"] = dict_infl_lrg[params_lam["op"]][params_lam["pt"]]
 params_lam["nt"] = params_lam["nt"] * step.lamstep
 params_gm["lb"] = params_gm["lb"] * np.pi / 180.0 # degree => radian
 params_lam["lb"] = params_lam["lb"] * np.pi / 180.0 # degree => radian
@@ -252,7 +257,7 @@ elif pt == "envar_nest":
     if params_lam["anlsp"]:
         analysis_lam = EnVAR_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
@@ -260,7 +265,7 @@ elif pt == "envar_nest":
     else:
         analysis_lam = EnVAR_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\

@@ -22,7 +22,7 @@ class EnVAR_nest():
     def __init__(self, state_size, nmem, obs, ix_gm, ix_lam,
         pt="envar_nest", ntrunc=None, cyclic=False, 
         nvars=1, ndims=1, 
-        linf=False, infl_parm=1.0, 
+        linf=False, infl_parm=1.0, infl_parm_lrg=1.0,
         iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
@@ -57,6 +57,7 @@ class EnVAR_nest():
         # inflation
         self.linf = linf # True->Apply inflation False->Not apply
         self.infl_parm = infl_parm # inflation parameter
+        self.infl_parm_lrg = infl_parm_lrg # inflation parameter for large-scale error cov.
         # localization
         self.iloc = iloc # iloc = None->No localization
                          #      <=0   ->R-localization (TODO: implement)
@@ -84,7 +85,7 @@ class EnVAR_nest():
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
-        logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
+        logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig} infl_parm_lrg={self.infl_parm_lrg}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         if self.iloc is not None:
           #if self.iloc <= 0:
@@ -380,8 +381,8 @@ class EnVAR_nest():
             xg_ = np.mean(xg,axis=1)
             dxg = xg - xg_[:,None]
             if self.linf:
-                logger.info("==inflation==, alpha={}".format(self.infl_parm))
-                dxg *= np.sqrt(self.infl_parm)
+                logger.info("==inflation==, alpha={}".format(self.infl_parm_lrg))
+                dxg *= np.sqrt(self.infl_parm_lrg)
             x_gm2lam = interp1d(self.ix_gm,xg_)
             xens_gm2lam = interp1d(self.ix_gm,dxg,axis=0)
             dk = self.trunc_operator(x_gm2lam(self.ix_lam) - xf_)

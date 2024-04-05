@@ -12,7 +12,7 @@ perturbations="envar envar_nest var var_nest"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=1460 # Number of assimilation cycle
+na=1000 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -27,7 +27,7 @@ functype=gc5
 #a=-0.1
 ntrunc=12
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
-exp="var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
@@ -168,6 +168,11 @@ for op in ${operators}; do
     for vname in d dh dx pa pf spf ua uf; do
       mv ${model}_*_${vname}_${op}_${pt}_cycle*.npy data/${pt}
     done
+    if [ $pt = var_nest ] || [ $pt = envar_nest ]; then
+      for vname in dk svmat;do
+        mv ${model}_*_${vname}_${op}_${pt}_cycle*.npy data/${pt}
+      done
+    fi
   done
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} F
