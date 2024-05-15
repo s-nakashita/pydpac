@@ -5,7 +5,7 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar envar_nest var var_nest"
+perturbations="var envar"
 #perturbations="var"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
@@ -27,10 +27,13 @@ functype=gc5
 #a=-0.1
 ntrunc=12
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
-exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
+exp="var_vs_envar_dscl_m${nmem}obs${nobs}"
+#exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
+preGMda="envar"
+preGMdir="${cdir}/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}/data/${preGMda}"
 wdir=work/${model}/${exp}
 rm -rf $wdir
 mkdir -p $wdir
@@ -98,8 +101,6 @@ for op in ${operators}; do
 #    #gsed -i -e "6i \ \"lb\":4," config_lam.py
 #    fi
     gsed -i -e "6i \ \"ntrunc\":${ntrunc}," config_lam.py
-    ### gmonly
-    #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ###
     gsed -i -e "3i \ \"extfcst\":${extfcst}," config_gm.py
     if [ $pert = var_nest ]; then
@@ -108,6 +109,14 @@ for op in ${operators}; do
     if [ $pert = envar_nest ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"envar\"/" config_gm.py
     fi
+    ## gmonly
+    gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
+    ### precomputed GM
+    #gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup
+    #gsed -i -e "6i \ \"preGM\":True," config_lam.py
+    #gsed -i -e "6i \ \"preGMdir\":\"${preGMdir}\"," config_lam.py
+    #gsed -i -e "6i \ \"preGMda\":\"${preGMda}\"," config_lam.py
+    ###
     cat config_gm.py
     cat config_lam.py
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config_lam.py)
@@ -193,3 +202,5 @@ for op in ${operators}; do
 done
 #rm ${model}*.txt 
 #rm ${model}_*_cycle*.npy 
+mkdir -p data
+mv ${model}_*_cycle*.npy data/

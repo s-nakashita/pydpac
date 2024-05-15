@@ -14,7 +14,8 @@ logger = logging.getLogger('param')
 
 class L05nest_func():
 
-    def __init__(self, step, obs, params_gm, params_lam):
+    def __init__(self, step, obs, params_gm, params_lam, model="l05nest"):
+        self.model = model
         self.step = step
         self.nx_true = step.nx_true
         if self.step.gm_same_with_nature:
@@ -75,6 +76,12 @@ class L05nest_func():
             self.rng = np.random.default_rng(seed=self.rseed)
         else:
             self.rng = np.random.default_rng()
+        self.preGM = params_lam["preGM"]
+        self.preGMdir = Path(params_lam["preGMdir"])
+        self.preGMda = params_lam["preGMda"]
+        logger.info("precomputed GM={}".format(self.preGM))
+        if self.preGM:
+            logger.info(f"precomputed pt={self.preGMda}")
     
     # generate truth
     def gen_true(self):
@@ -198,9 +205,14 @@ class L05nest_func():
         #X0c[self.nx//2 - 1] += 0.001*self.F
         X0c = self.rng.normal(0, scale=1.0, size=self.nx_true)
         xt2gm = interp1d(self.step.ix_true,X0c)
-        X0c_gm = xt2gm(self.step.ix_gm)
-        for j in range(self.t0c):
-            X0c_gm = self.step.gm(X0c_gm)
+        if not self.preGM:
+            X0c_gm = xt2gm(self.step.ix_gm)
+            for j in range(self.t0c):
+                X0c_gm = self.step.gm(X0c_gm)
+        else:
+            X0c_gm = np.load(self.preGMdir/f"{self.model}_gm_uf_{self.op}_{self.preGMda}_cycle0.npy")
+            if X0c_gm.ndim == 2:
+                X0c_gm = np.mean(X0c_gm, axis=1)
         gm2lam = interp1d(self.step.ix_gm,X0c_gm,axis=0)
         X0c_lam = gm2lam(self.step.ix_lam)
         return X0c_gm, X0c_lam
@@ -215,36 +227,39 @@ class L05nest_func():
             t0m = [self.t0c + self.t0off//2 + self.t0off * i for i in range(-(self.nmem-1)//2, (self.nmem-1)//2)]
             t0f = [self.t0c] + t0m
         maxiter = np.max(np.array(t0f))+1
-        if(opt==0): # random
-            logger.info("spin up max = {}".format(self.t0c))
-            X0c_gm, X0c_lam = self.init_ctl()
-            logger.debug("X0c_gm={}".format(X0c_gm))
-            logger.debug("X0c_lam={}".format(X0c_lam))
-            X0_gm = np.zeros((self.nx_gm, len(t0f)))
-            X0_gm[:, :] = self.rng.normal(0.0,scale=1.0,size=(self.nx_gm,len(t0f))) + X0c_gm[:, None]
-            for j in range(self.t0c):
-                X0_gm = self.step.gm(X0_gm)
-        elif(opt==1): # lagged forecast
-            logger.info("t0f={}".format(t0f))
-            logger.info("spin up max = {}".format(maxiter))
-            X0_gm = np.zeros((self.nx_gm,len(t0f)))
-            tmp = np.ones(self.nx_gm)*self.F_gm
-            tmp[self.nx_gm//2 - 1] += 0.001*self.F_gm
-            #ix = np.arange(self.nx_gm)/self.nx_gm
-            #nk = 2.0
-            #tmp = np.cos(2.0*np.pi*ix*nk)*self.F_gm
-            for j in range(maxiter):
-                tmp = self.step.gm(tmp)
-                if j in t0f:
-                    X0_gm[:,t0f.index(j)] = tmp
-        else: # read initial ensemble in true geometry
-            x0file = "l05III_x0.npy"
-            if not os.path.isfile(x0file):
-                print("not exist {}".format(x0file))
-                exit()
-            X0 = np.load(x0file)
-            xt2gm = interp1d(self.step.ix_true,X0,axis=0)
-            X0_gm = xt2gm(self.step.ix_gm)
+        if self.preGM:
+            X0_gm = np.load(self.preGMdir/f"{self.model}_gm_uf_{self.op}_{self.preGMda}_cycle0.npy")
+        else:
+            if(opt==0): # random
+                logger.info("spin up max = {}".format(self.t0c))
+                X0c_gm, X0c_lam = self.init_ctl()
+                logger.debug("X0c_gm={}".format(X0c_gm))
+                logger.debug("X0c_lam={}".format(X0c_lam))
+                X0_gm = np.zeros((self.nx_gm, len(t0f)))
+                X0_gm[:, :] = self.rng.normal(0.0,scale=1.0,size=(self.nx_gm,len(t0f))) + X0c_gm[:, None]
+                for j in range(self.t0c):
+                    X0_gm = self.step.gm(X0_gm)
+            elif(opt==1): # lagged forecast
+                logger.info("t0f={}".format(t0f))
+                logger.info("spin up max = {}".format(maxiter))
+                X0_gm = np.zeros((self.nx_gm,len(t0f)))
+                tmp = np.ones(self.nx_gm)*self.F_gm
+                tmp[self.nx_gm//2 - 1] += 0.001*self.F_gm
+                #ix = np.arange(self.nx_gm)/self.nx_gm
+                #nk = 2.0
+                #tmp = np.cos(2.0*np.pi*ix*nk)*self.F_gm
+                for j in range(maxiter):
+                    tmp = self.step.gm(tmp)
+                    if j in t0f:
+                        X0_gm[:,t0f.index(j)] = tmp
+            else: # read initial ensemble in true geometry
+                x0file = "l05III_x0.npy"
+                if not os.path.isfile(x0file):
+                    print("not exist {}".format(x0file))
+                    exit()
+                X0 = np.load(x0file)
+                xt2gm = interp1d(self.step.ix_true,X0,axis=0)
+                X0_gm = xt2gm(self.step.ix_gm)
         gm2lam = interp1d(self.step.ix_gm, X0_gm, axis=0)
         X0_lam = gm2lam(self.step.ix_lam)
         return X0_gm, X0_lam
@@ -278,7 +293,7 @@ class L05nest_func():
         return u_gm, xa_gm, xf_gm, u_lam, xa_lam, xf_lam #, savepa
 
     # forecast
-    def forecast(self, u_gm, u_lam):
+    def forecast(self, u_gm, u_lam, u_gm_pre=None):
         if self.ft == "ensemble":
             uf_gm = np.zeros((self.a_window, u_gm.shape[0], u_gm.shape[1]))
             uf_lam = np.zeros((self.a_window, u_lam.shape[0], u_lam.shape[1]))
@@ -287,7 +302,10 @@ class L05nest_func():
             uf_lam = np.zeros((self.a_window, u_lam.size))
         for l in range(self.a_window):
             for k in range(self.nt):
-                u_gm,u_lam = self.step(u_gm,u_lam)
+                if self.preGM:
+                    u_gm,u_lam = self.step(u_gm,u_lam,xf_gm_pre=u_gm_pre)
+                else:
+                    u_gm,u_lam = self.step(u_gm,u_lam)
             uf_gm[l] = u_gm
             uf_lam[l] = u_lam
         

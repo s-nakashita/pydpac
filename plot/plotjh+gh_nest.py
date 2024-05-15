@@ -62,10 +62,13 @@ for pt in perts:
         g_lam = np.loadtxt(f)
         f = "{}_lam_niter_{}_{}.txt".format(model, op, pt)
         niter_lam = np.loadtxt(f)
-        cycles = np.arange(j_gm.shape[0])
+        cycles_gm = np.arange(j_gm.shape[0])
+        nspinup = j_gm.shape[0] - j_lam.shape[0]
+        cycles_lam = np.arange(nspinup,j_lam.shape[0]+nspinup)
         lplot=True
     else:
-        cycles = []
+        cycles_gm = []
+        cycles_lam = []
         j_gm = []
         g_gm = []
         j_lam = []
@@ -90,6 +93,7 @@ for pt in perts:
             else:
                 g_gm.append(g)
                 niter_gm.append(1)
+            cycles_gm.append(icycle)
             #LAM
             f = "{}_lam_jh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
             if not os.path.isfile(f): continue
@@ -107,9 +111,10 @@ for pt in perts:
             else:
                 g_lam.append(g)
                 niter_lam.append(1)
+            cycles_lam.append(icycle)
             #
-            cycles.append(icycle)
-        if len(cycles) == 0:
+            #cycles.append(icycle)
+        if len(cycles_gm) == 0 and len(cycles_lam) == 0:
             print("not exist {}".format(pt))
             continue
         lplot=True
@@ -129,31 +134,33 @@ for pt in perts:
     print("{}, GM mean dJ = {}".format(pt,np.mean(g_gm)))
     print("{}, LAM mean J = {}".format(pt,np.mean(j_lam.sum(axis=1))))
     print("{}, LAM mean dJ = {}".format(pt,np.mean(g_lam)))
-    ax[0].plot(cycles, np.sum(j_gm,axis=1), linestyle="solid", color=linecolor[pt]) #, label=pt+",Jb")
+    ax[0].plot(cycles_gm, np.sum(j_gm,axis=1), linestyle="solid", color=linecolor[pt]) #, label=pt+",Jb")
     lines0.append(Line2D([0],[0],color=linecolor[pt]))
     labels0.append(pt+f",{np.mean(np.sum(j_gm,axis=1)):.3e}") #+",Jb")
-    axe0_gm.plot(cycles, j_gm[:,0], color=linecolor[pt], label=pt)
-    axe1_gm.plot(cycles, j_gm[:,1], color=linecolor[pt]) #, label=pt+",Jo")
+    axe0_gm.plot(cycles_gm, j_gm[:,0], color=linecolor[pt], label=pt)
+    axe1_gm.plot(cycles_gm, j_gm[:,1], color=linecolor[pt]) #, label=pt+",Jo")
     #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashed"))
     #labels.append(pt+",Jo")
-    ax[1].plot(cycles, np.sum(j_lam,axis=1), linestyle="solid", color=linecolor[pt]) #, label=pt+",Jb")
-    lines1.append(Line2D([0],[0],color=linecolor[pt]))
-    labels1.append(pt+f",{np.mean(np.sum(j_lam,axis=1)):.3e}")
-    axe0_lam.plot(cycles, j_lam[:,0], color=linecolor[pt], label=pt)
-    axe1_lam.plot(cycles, j_lam[:,1], color=linecolor[pt]) #, label=pt+",Jo")
-    lines3.append(Line2D([0],[0],color=linecolor[pt]))
-    labels3.append(pt)
-    if pt=="var_nest" or pt=="envar_nest":
-        plot_Jk=True
-        axe2_lam.plot(cycles, j_lam[:,2], color=linecolor[pt]) #, label=pt+",Jk")
-        #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dotted"))
-        #labels.append(pt+",Jk")
-    ax2[0,0].plot(cycles, g_gm, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
+    if j_lam.size > 0:
+        ax[1].plot(cycles_lam, np.sum(j_lam,axis=1), linestyle="solid", color=linecolor[pt]) #, label=pt+",Jb")
+        lines1.append(Line2D([0],[0],color=linecolor[pt]))
+        labels1.append(pt+f",{np.mean(np.sum(j_lam,axis=1)):.3e}")
+        axe0_lam.plot(cycles_lam, j_lam[:,0], color=linecolor[pt], label=pt)
+        axe1_lam.plot(cycles_lam, j_lam[:,1], color=linecolor[pt]) #, label=pt+",Jo")
+        lines3.append(Line2D([0],[0],color=linecolor[pt]))
+        labels3.append(pt)
+        if pt=="var_nest" or pt=="envar_nest":
+            plot_Jk=True
+            axe2_lam.plot(cycles_lam, j_lam[:,2], color=linecolor[pt]) #, label=pt+",Jk")
+            #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dotted"))
+            #labels.append(pt+",Jk")
+    ax2[0,0].plot(cycles_gm, g_gm, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
     lines2.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashdot"))
     labels2.append(pt+r",$\nabla$J")
-    ax2[0,1].bar(cycles, niter_gm, color=linecolor[pt], alpha=0.5)
-    ax2[1,0].plot(cycles, g_lam, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
-    ax2[1,1].bar(cycles, niter_lam, color=linecolor[pt], alpha=0.5)
+    ax2[0,1].bar(cycles_gm, niter_gm, color=linecolor[pt], alpha=0.5)
+    if g_lam.size > 0:
+        ax2[1,0].plot(cycles_lam, g_lam, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
+        ax2[1,1].bar(cycles_lam, niter_lam, color=linecolor[pt], alpha=0.5)
     #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashdot"))
     #labels.append(pt+r",$\nabla$J")
 if lplot:

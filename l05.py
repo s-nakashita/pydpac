@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from analysis.obs import Obs
 from l05_func import L05_func
+from scipy.interpolate import interp1d
 
 logging.config.fileConfig("logging_config.ini")
 parent_dir = os.path.abspath(os.path.dirname(__file__))
@@ -34,7 +35,7 @@ elif model == "l05IIm":
     args = nx, nk, dt, F
 elif model == "l05III":
     from model.lorenz3 import L05III as L05
-    global ni, b, c
+    #global ni, b, c
     # model parameter
     nx = 960       # number of points
     nk = 32        # advection length scale
@@ -46,7 +47,7 @@ elif model == "l05III":
     args = nx, nk, ni, b, c, dt, F
 elif model == "l05IIIm":
     from model.lorenz3m import L05IIIm as L05
-    global ni, b, c 
+    #global ni, b, c 
     # model parameter
     nx = 960             # number of points
     nk = [256,128,64,32] # advection length scales
@@ -66,7 +67,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.05,"envar":1.05,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
+infl_l = {"mlef":1.05,"envar":1.1,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
@@ -112,10 +113,14 @@ params["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 params["pt"]         = "mlef"   # assimilation method
 params["nmem"]       =  40      # ensemble size (include control run)
 params["a_window"]   =  0       # assimilation window length
-params["sigb"]       =  2.0     # (For var & 4dvar) background error standard deviation
-params["lb"]         =  6.0     # (For var & 4dvar) correlation length for background error covariance in degree
+params["sigb"]       =  1.0     # (For var & 4dvar) background error standard deviation
 params["functype"]   = "gc5"    # (For var & 4dvar) background error correlation function type
-params["a"]          =  0.5     # (For var & 4dvar) background error correlation function shape parameter
+if model[-1] == "m":
+    params["lb"]     = 16.93
+    parmas["a"]      = 0.22
+else:
+    params["lb"]     = 24.6     # (For var & 4dvar) correlation length for background error covariance in degree
+    params["a"]      = -0.2     # (For var & 4dvar) background error correlation function shape parameter
 params["linf"]       =  False   # inflation flag
 params["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params["lloc"]       =  False   # localization flag
@@ -127,6 +132,7 @@ params["ltlm"]       =  True    # flag for tangent linear observation operator
 params["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params["rseed"] = None # random seed
 params["extfcst"] = False # extended forecast
+params["model_error"] = False # valid for l05II, True: perfect model experiment, False: inperfect model experiment
 ## update from configure file
 sys.path.append('./')
 from config import params as params_new
@@ -144,9 +150,16 @@ if params["linf"] and params["infl_parm"] == -1.0:
 if params["lloc"] and params["lsig"] == -1.0:
     params["lsig"] = dict_sig[params["op"]][params["pt"]]
 params["lb"] = params["lb"] * np.pi / 180.0 # degree => radian
+if params["model_error"] and model[:5] == 'l05II':
+    params["nx_true"] = 960
+else:
+    params["nx_true"] = nx
+intmod = params["nx_true"]//nx
+ix = np.arange(0,params["nx_true"],intmod)
 
 # observation operator
 obs = Obs(op, sigma[op])
+obs_mod = Obs(op, sigma[op], ix=ix)
 
 # assimilation class
 state_size = nx
@@ -157,28 +170,28 @@ if a_window < 1:
         a_window = 1
 if pt == "mlef":
     from analysis.mlef import Mlef
-    analysis = Mlef(state_size, params["nmem"], obs, \
+    analysis = Mlef(state_size, params["nmem"], obs_mod, \
             linf=params["linf"], infl_parm=params["infl_parm"], \
             iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 elif pt == "envar":
     from analysis.envar import EnVAR
-    analysis = EnVAR(state_size, params["nmem"], obs, \
+    analysis = EnVAR(state_size, params["nmem"], obs_mod, \
             linf=params["linf"], infl_parm=params["infl_parm"], \
             iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, state_size, params["nmem"], obs, \
+    analysis = EnKF(pt, state_size, params["nmem"], obs_mod, \
         linf=params["linf"], infl_parm=params["infl_parm"], \
         iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
         ltlm=params["ltlm"], \
         calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(obs, 
+    analysis = Kf(obs_mod, 
     infl=params["infl_parm"], linf=params["linf"], 
     step=step, nt=params["nt"], model=model)
 elif pt == "var":
@@ -190,26 +203,26 @@ elif pt == "var":
 #    except FileNotFoundError or OSError:
 #        bmat = None
     bmat = None
-    analysis = Var(obs, nx, 
+    analysis = Var(obs_mod, nx, ix=ix,
     sigb=params["sigb"], lb=params["lb"], functype=params["functype"], a=params["a"], bmat=bmat, \
     calc_dist1=step.calc_dist1, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
     sigb = params["sigb"] * np.sqrt(float(a_window))
-    analysis = Var4d(obs, step, params["nt"], a_window,
+    analysis = Var4d(obs_mod, step, params["nt"], a_window,
     sigb=sigb, lb=params["lb"], model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enkf4d import EnKF4d
     #a_window = 5
-    analysis = EnKF4d(pt, state_size, params["nmem"], obs, step, params["nt"], a_window, \
+    analysis = EnKF4d(pt, state_size, params["nmem"], obs_mod, step, params["nt"], a_window, \
         linf=params["linf"], infl_parm=params["infl_parm"], 
         iloc=params["iloc"], lsig=params["lsig"], calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
         ltlm=params["ltlm"], model=model)
 elif pt == "4dmlef":
     #a_window = 5
     from analysis.mlef4d import Mlef4d
-    analysis = Mlef4d(state_size, params["nmem"], obs, step, params["nt"], a_window, \
+    analysis = Mlef4d(state_size, params["nmem"], obs_mod, step, params["nt"], a_window, \
             linf=params["linf"], infl_parm=params["infl_parm"], \
             iloc=params["iloc"], lsig=params["lsig"], calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
@@ -420,15 +433,17 @@ if __name__ == "__main__":
             break
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
-                e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
-                ef[k] = np.sqrt(np.mean((xf[k, :] - xt[k, :])**2))
-                xdmean += (xa[k,:] - xt[k,:])**2
-                xdfmean += (xf[k,:] - xt[k,:])**2
+                xt2mod = interp1d(np.arange(xt.shape[1]),xt[k])
+                e[k] = np.sqrt(np.mean((xa[k, :] - xt2mod(ix))**2))
+                ef[k] = np.sqrt(np.mean((xf[k, :] - xt2mod(ix))**2))
+                xdmean += (xa[k,:] - xt2mod(ix))**2
+                xdfmean += (xf[k,:] - xt2mod(ix))**2
         else:
-            e[i] = np.sqrt(np.mean((xa[i, :] - xt[i, :])**2))
-            ef[i] = np.sqrt(np.mean((xf[i, :] - xt[i, :])**2))
-            xdmean += (xa[i,:] - xt[i,:])**2
-            xdfmean += (xf[i,:] - xt[i,:])**2
+            xt2mod = interp1d(np.arange(xt.shape[1]),xt[i])
+            e[i] = np.sqrt(np.mean((xa[i, :] - xt2mod(ix))**2))
+            ef[i] = np.sqrt(np.mean((xf[i, :] - xt2mod(ix))**2))
+            xdmean += (xa[i,:] - xt2mod(ix))**2
+            xdfmean += (xf[i,:] - xt2mod(ix))**2
         stda[i] = np.sqrt(np.trace(pa)/nx)
         xsa[i] = np.sqrt(np.diag(pa))
         xsmean += np.diag(pa)

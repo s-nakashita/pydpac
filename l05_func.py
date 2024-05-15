@@ -24,6 +24,8 @@ class L05_func():
             self.nx, self.nk, self.ni, self.b, self.c, self.dt, self.F = model_params
             logger.info("nx={} nk={} ni={}".format(self.nx, self.nk, self.ni))
             logger.info("b={:.1f} c={:.1f} F={} dt={:7.3e}".format(self.b, self.c, self.F, self.dt))
+        self.nx_true = params["nx_true"]
+        logger.info("nx_true={}".format(self.nx_true))
         self.obs = obs
         self.nobs = params["nobs"]
         self.nmem = params["nmem"]
@@ -56,10 +58,10 @@ class L05_func():
     
     # generate truth
     def gen_true(self):
-        xt = np.zeros((self.na, self.nx))
+        xt = np.zeros((self.na, self.nx_true))
         #x = np.ones(self.nx)*self.F
         #x[self.nx//2 - 1] += 0.001*self.F
-        x = np.random.randn(self.nx)
+        x = np.random.randn(self.nx_true)
         #tmp = x.copy()
         # spin up for 1 years
         logger.debug(self.namax*self.nt)
@@ -96,14 +98,14 @@ class L05_func():
                 xt = xtfull[:self.na]
         #logger.debug("xt={}".format(xt))
 
-        xloc = np.arange(self.nx)
+        xloc = np.arange(self.nx_true)
         obs_s = self.obs.get_sig()
         oberr = int(obs_s*1e4)
         obsfile="obs_{}_{}.npy".format(self.op, oberr)
         if not os.path.isfile(obsfile):
             logger.info("create obs")
             yobs = np.zeros((self.na,self.nobs,2)) # location and value
-            if self.nobs == self.nx:
+            if self.nobs == self.nx_true:
                 logger.info("entire observation")
                 obsloc = xloc.copy()
                 for k in range(self.na):
@@ -112,7 +114,7 @@ class L05_func():
                 yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
             elif obsloctype=="regular":
                 logger.info("regular observation: nobs={}".format(self.nobs))
-                intobs = self.nx // self.nobs
+                intobs = self.nx_true // self.nobs
                 obsloc = xloc[::intobs]
                 for k in range(self.na):
                     yobs[k,:,0] = obsloc[:]
@@ -228,6 +230,8 @@ class L05_func():
         fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
         x = np.arange(ut.size)
         ax.plot(x, ut, label="true")
+        intmod = ut.size // uc.size
+        x = np.arange(0,ut.size,intmod)
         ax.plot(x, uc, label="control")
         if uens is not None:
             for i in range(0,uens.shape[1],uens.shape[1]//5):

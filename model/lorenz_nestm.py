@@ -121,7 +121,7 @@ class L05nestm():
                 self.gm2lamext[i,ig] = 1.0 - ai
                 self.gm2lamext[i,0] = ai
 
-    def __call__(self,x_gm,x_lam):
+    def __call__(self,x_gm,x_lam,xf_gm_pre=None):
         ## boundary conditions from previous step
         #gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
         x0_gm2lamext = np.dot(self.gm2lamext,x_gm)
@@ -133,9 +133,15 @@ class L05nestm():
         #    t_wgt = 0.0
         #    self.bound_rlx(x_lam_ext,t_wgt,x0_gm2lamext,x0_gm2lamext)
         ## integration for 6 hours
+        x0_gm = x_gm.copy()
         for k in range(self.nt6h_gm):
             #GM
-            xf_gm = self.gm(x_gm)
+            if xf_gm_pre is None:
+                xf_gm = self.gm(x_gm)
+            else:
+                # precomputed 6-hourly GM analysis
+                t_wgt = float(k+1) / float(self.nt6h_gm)
+                xf_gm = (1.0 - t_wgt) * x0_gm + t_wgt * xf_gm_pre
             ## boundary conditions from previous step
             #gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
             x0_gm2lamext = np.dot(self.gm2lamext,x_gm)
@@ -284,7 +290,13 @@ if __name__ == "__main__":
     gm2lam = interp1d(step.ix_gm,x0_gm)
     x0_lam = gm2lam(step.ix_lam)
     for k in range(20):
-        x0_gm, x0_lam = step(x0_gm,x0_lam)
+        #x0_gm, x0_lam = step(x0_gm,x0_lam)
+        x_gm = x0_gm.copy()
+        for i in range(step.nt6h_gm):
+            x_gm = step.gm(x_gm)
+        _, x_lam = step(x0_gm,x0_lam,xf_gm_pre=x_gm)
+        x0_gm = x_gm.copy()
+        x0_lam = x_lam.copy()
         ## boundary
         if (k+1)%2==0:
             figb,axsb=plt.subplots(ncols=2,figsize=[12,6],constrained_layout=True)
@@ -343,7 +355,13 @@ if __name__ == "__main__":
     nt = int( 10 * 4 ) #* 0.05 / dt )
     icol=0
     for k in range(20,nt+20):
-        x0_gm, x0_lam = step(x0_gm,x0_lam)
+        #x0_gm, x0_lam = step(x0_gm,x0_lam)
+        x_gm = x0_gm.copy()
+        for i in range(step.nt6h_gm):
+            x_gm = step.gm(x_gm)
+        _, x_lam = step(x0_gm,x0_lam,xf_gm_pre=x_gm)
+        x0_gm = x_gm.copy()
+        x0_lam = x_lam.copy()
         #gm2lam = interp1d(step.ix_gm, x0_gm)
         x0_lam_ext = np.dot(step.gm2lamext,x0_gm)
         x0_lam_ext[step.lghost:-step.rghost] = x0_lam[:]

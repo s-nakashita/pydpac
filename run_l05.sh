@@ -2,34 +2,48 @@
 # This is a run script for Lorenz05 experiment
 export OMP_NUM_THREADS=4
 #alias python=python3.9
-model="l05III"
+model="l05II"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar"
-na=1460 # Number of assimilation cycle
-nmem=240 # ensemble size
-nobs=15 # observation volume
-linf=False # True:Apply inflation False:Not apply
+perturbations="var envar"
+na=240 # Number of assimilation cycle
+nmem=480 # ensemble size
+nobs=30 # observation volume
+linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
+model_error=True
 #L="-1.0 0.5 1.0 2.0"
 #lsig=120
 functype=gc5
 a=-0.2
 #exp="var_${functype}a${a}_obs${nobs}"
-exp="envar_mem${nmem}obs${nobs}"
+exp="var+envar_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-rm -rf work/${model}/${exp}
-mkdir -p work/${model}/${exp}
-cd work/${model}/${exp}
+if [ $model_error = True ]; then
+wdir=work/${model}_inperfect/${exp}
+else
+wdir=work/${model}/${exp}
+fi
+rm -rf $wdir
+mkdir -p $wdir
+cd $wdir
 cp ${cdir}/logging_config.ini .
 rm -rf *.npy
 rm -rf *.log
 rm -rf timer
 touch timer
+if [ $model_error = True ]; then
+if [ $model = l05II ]; then
+ln -fs ${cdir}/data/l05III/truth.npy .
+elif [ $model = l05IIm ]; then
+ln -fs ${cdir}/data/l05IIIm/truth.npy .
+fi
+else
 ln -fs ${cdir}/data/${model}/truth.npy .
+fi
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
@@ -53,8 +67,9 @@ for op in ${operators}; do
     if [ ! -z $lsig ]; then
       gsed -i -e "6i \ \"lsig\":${lsig}," config.py
     fi
-    gsed -i -e "6i \ \"functype\":\"${functype}\"," config.py
-    gsed -i -e "6i \ \"a\":${a}," config.py
+    #gsed -i -e "6i \ \"functype\":\"${functype}\"," config.py
+    #gsed -i -e "6i \ \"a\":${a}," config.py
+    gsed -i -e "6i \ \"model_error\":${model_error}," config.py
     cat config.py
     ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
     pt=${ptline#\"*}; pt=${pt%\"*}
@@ -106,9 +121,9 @@ for op in ${operators}; do
   python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-  python ${cdir}/plot/plotxa.py ${op} ${model} ${na}
+  python ${cdir}/plot/plotxa.py ${op} ${model} ${na} ${model_error}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
-  python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na}
+  python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na} ${model_error}
   if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh.py ${op} ${model} ${na}
   rm ${model}_jh_${op}_*_cycle*.txt ${model}_gh_${op}_*_cycle*.txt ${model}_alpha_${op}_*_cycle*.txt

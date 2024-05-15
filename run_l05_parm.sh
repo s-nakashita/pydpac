@@ -1,37 +1,49 @@
 #!/bin/sh
 # This is a run script for Lorenz05 experiment
 export OMP_NUM_THREADS=4
-alias python=python3.9
-model="l05III"
+#alias python=python3.9
+model="l05II"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var"
-na=100 # Number of assimilation cycle
-nmem=80 # ensemble size
+perturbations="envar"
+na=240 # Number of assimilation cycle
+nmem=240 # ensemble size
 nobs=15 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
+model_error=True
 #L="-1.0 0.5 1.0 2.0"
-ptype=lb
+ptype=infl
 functype=gc5
 a=-0.2
-exp="var_${functype}a${a}_${ptype}_obs${nobs}"
+#exp="var_${functype}a${a}_${ptype}_obs${nobs}"
+exp="envar_obs${nobs}mem${nmem}_${ptype}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-#rm -rf work/${model}/${exp}
-mkdir -p work/${model}/${exp}
-cd work/${model}/${exp}
+wdir=work/${model}_inperfect/${exp}
+#rm -rf $wdir
+mkdir -p $wdir
+cd $wdir
 cp ${cdir}/logging_config.ini .
+if [ $model_error = True ]; then
+if [ $model = l05II ]; then
 ln -fs ${cdir}/data/l05III/truth.npy .
+else
+ln -fs ${cdir}/data/l05IIIm/truth.npy .
+fi
+else
+ln -fs ${cdir}/data/${model}/truth.npy .
+fi
 rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
 touch timer
-nmemlist="40 80 120 160 200"
+nmemlist="40 80 120 160 200 240"
 lsiglist="20 40 60 80 100 120 140 160"
 nobslist="480 240 120 60 30 15"
+infllist="1.0 1.05 1.1 1.15 1.2 1.25"
 sigblist="0.2 0.4 0.6 0.8 1.0 1.2"
 sigblist="1.6 2.0 2.4 2.8 3.2 3.6"
 lblist="2.0 4.0 6.0 8.0 10.0 12.0"
@@ -47,12 +59,15 @@ for op in ${operators}; do
   #for nobs in ${nobslist}; do
   #  echo $nobs >> params.txt
   #  ptmp=$nobs
+  for infl in ${infllist}; do
+    echo $infl >> params.txt
+    ptmp=$infl
   #for sigb in ${sigblist}; do
   #  echo $sigb >> params.txt
   #  ptmp=$sigb
-  for lb in ${lblist}; do
-    echo $lb >> params.txt
-    ptmp=$lb
+  #for lb in ${lblist}; do
+  #  echo $lb >> params.txt
+  #  ptmp=$lb
     for pert in ${perturbations}; do
       echo $pert
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
@@ -75,6 +90,9 @@ for op in ${operators}; do
       if [ $ptype = loc ]; then
         gsed -i -e "6i \ \"lsig\":${lsig}," config.py
       fi
+      if [ $ptype = infl ]; then
+        gsed -i -e "6i \ \"infl_parm\":${infl}," config.py
+      fi
       if [ $ptype = sigb ]; then
         gsed -i -e "6i \ \"sigb\":${sigb}," config.py
       fi
@@ -85,6 +103,7 @@ for op in ${operators}; do
         gsed -i -e "6i \ \"functype\":\"${functype}\"," config.py
         gsed -i -e "6i \ \"a\":${a}," config.py
       fi
+      gsed -i -e "6i \ \"model_error\":${model_error}," config.py
       cat config.py
       ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
       pt=${ptline#\"*}; pt=${pt%\"*}
@@ -121,6 +140,7 @@ for op in ${operators}; do
   cat params.txt
   python ${cdir}/plot/ploteparam.py ${op} ${model} ${na} $ptype
   python ${cdir}/plot/plotxdparam.py ${op} ${model} ${na} $ptype
+  rm ${model}*cycle*.npy ${model}*cycle*.txt
   #rm obs*.npy
 done #op
 #rm ${model}*.txt 

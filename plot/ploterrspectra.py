@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.fft import fft, fftfreq, ifft
+from scipy.interpolate import interp1d
 import matplotlib.gridspec as gridspec
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
@@ -13,6 +14,9 @@ from nmc_tools import psd, wnum2wlen, wlen2wnum
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+model_error = False
+if len(sys.argv)>4:
+    model_error = (sys.argv[4]=='True')
 perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
@@ -28,11 +32,12 @@ if not os.path.isfile(f):
     exit
 xt = np.load(f)[:na,]
 print(xt.shape)
-nx = xt.shape[1]
+nx_t = xt.shape[1]
 t = np.arange(na)
-xs = np.arange(nx)
-dx = 2.0 * np.pi / nx
-xs_rad = xs * dx
+xs_t = np.arange(nx_t)
+dx_t = 2.0 * np.pi / nx_t
+xs_t_rad = xs_t * dx_t
+xt2mod = interp1d(xs_t,xt,axis=1)
 xlim = 15.0
 for pt in perts:
     f = "{}_xa_{}_{}.npy".format(model, op, pt)
@@ -47,7 +52,11 @@ for pt in perts:
         continue
     xsa = np.load(f)
     print(xsa.shape)
-    xd = xa - xt
+    nx = xa.shape[1]
+    intmod = nx_t // nx
+    xs = np.arange(0,nx_t,intmod)
+    xs_rad = xs * dx_t
+    xd = xa - xt2mod(xs)
     fig, axs = plt.subplots(nrows=2,figsize=[10,10],constrained_layout=True)
     axs[0].plot(xs,np.sqrt(np.mean(xd**2,axis=0)),label='err')
     if pt != "kf" and pt != "var" and pt != "4dvar":

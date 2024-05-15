@@ -159,7 +159,7 @@ if __name__ == "__main__":
     ni = 12
     F = 15.0
     b = 10.0
-    c = 0.6
+    c = 3.0
     h = 0.05 / b
     #for ni in [20,40,80]:
     l3 = L05III(nx,nk,ni,b,c,h,F) #,debug=True)
@@ -187,10 +187,10 @@ if __name__ == "__main__":
         plt.plot(y0)
         plt.show()
 
-    z = np.array(z)
-    print(z.shape)
-    np.save(figdir/f'n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.npy',z)
-    exit()
+    #z = np.array(z)
+    #print(z.shape)
+    #np.save(figdir/f'n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.npy',z)
+    #exit()
 
     fig, axs = plt.subplots(ncols=2,figsize=[12,12],sharey=True,constrained_layout=True)
     cmap = plt.get_cmap('tab10')
@@ -226,4 +226,4 @@ if __name__ == "__main__":
     datadir = Path('../data/l05III')
     if not datadir.exists():
         datadir.mkdir(parents=True)
-    np.save(datadir/'truth.npy',np.array(zsave))
+    np.save(datadir/f'truth_n{nx}k{nk}i{ni}F{int(F)}b{int(b)}c{c:.1f}.npy',np.array(zsave))

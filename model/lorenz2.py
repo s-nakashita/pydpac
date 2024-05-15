@@ -79,10 +79,11 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from pathlib import Path
     plt.rcParams['font.size'] = 16
-    nx = 240
-    nk = 8
+    nx = 960
+    nk = 32
     F = 15.0
-    h = 0.05
+    h = 0.001
+    nt6h = int(0.05 / h)
     tmax = 20.0
     nt = int(tmax/h)
     xaxis = np.arange(nx)
@@ -93,17 +94,17 @@ if __name__ == "__main__":
     l2 = L05II(nx, nk, h, F)
     x0 = np.ones(nx)*F
     x0[nx//2-1] += 0.0001*F
-    print(x0)
+    #print(x0)
     x=[x0]
     for k in range(nt):
         x0 = l2(x0)
         x.append(x0)
-        if k==0: print(x0)
-    print(x0)
+        #if k==0: print(x0)
+    #print(x0)
     x = np.array(x)
-    print(x.shape)
-    np.save(figdir/f"n{nx}k{nk}F{int(F)}.npy",x)
-    exit()
+    #print(x.shape)
+    #np.save(figdir/f"n{nx}k{nk}F{int(F)}.npy",x)
+    #exit()
     fig, ax = plt.subplots(figsize=[6,12],constrained_layout=True)
     cmap = plt.get_cmap('tab10')
     xaxis = np.arange(nx)
@@ -138,3 +139,15 @@ if __name__ == "__main__":
     #print(x0)
     fig.savefig(figdir/f"n{nx}F{int(F)}.png",dpi=300)
     plt.show()
+
+    nt1yr = nt6h * 4 * 365 # 1 year
+    ksave = nt6h # 6 hours
+    zsave = []
+    for k in range(nt1yr):
+        x0 = l2(x0)
+        if k%ksave==0:
+            zsave.append(x0)
+    datadir = Path('../data/l05II')
+    if not datadir.exists():
+        datadir.mkdir(parents=True)
+    np.save(datadir/f'truth_n{nx}k{nk}F{int(F)}.npy',np.array(zsave))

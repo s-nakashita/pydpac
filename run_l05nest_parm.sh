@@ -232,6 +232,7 @@ for op in ${operators}; do
   python ${cdir}/plot/ploteparam_nest.py ${op} ${model} ${na} $ptype
   python ${cdir}/plot/plotxdparam_nest.py ${op} ${model} ${na} $ptype
 #  fi
+  rm ${model}*cycle*.npy ${model}*cycle*.txt
   #rm obs*.npy
 done #op
 #rm ${model}*.txt 

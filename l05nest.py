@@ -128,6 +128,7 @@ params_gm["roseed"]     = None # random seed for synthetic observation
 params_gm["extfcst"]    = False # extended forecast
 params_gm["save_dh"]    = True  # save intermediate files
 params_gm["save_hist"]  = True  # save hist files
+params_gm["saveGM"]     = False # preparing precomputed GM forecasts for LBC of LAM
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
@@ -148,6 +149,9 @@ else:
 params_lam["ntrunc"]    = 12    # (For var_nest & envar_nest) truncation number for GM error covariance
 params_lam["infl_parm_lrg"] = -1.0  # (For envar_nest) inflation parameter for GM error covariance
 params_lam["crosscov"]  = False     # (For var_nest & envar_nest) whether correlation between GM and LAM is considered or not
+params_lam["preGM"]     = False # using precomputed GM forecasts as LBC
+params_lam["preGMdir"]  = './'
+params_lam["preGMda"]   = "mlef"
 
 ## update from configure file
 sys.path.append('./')
@@ -436,7 +440,7 @@ elif pt == "4dmlef":
 """
 
 # functions load
-func = L05nest_func(step,obs,params_gm,params_lam)
+func = L05nest_func(step,obs,params_gm,params_lam,model=model)
 
 if __name__ == "__main__":
     from scipy.interpolate import interp1d
@@ -447,6 +451,10 @@ if __name__ == "__main__":
     logger.info("==initialize==")
     xt, yobs, iobs_lam = func.get_true_and_obs(obsloctype=params_gm["obsloctype"])
     u_gm, xa_gm, xf_gm, u_lam, xa_lam, xf_lam = func.initialize(opt=opt)
+    if params_gm["saveGM"]:
+        np.save("u0c_gm.npy",xf_gm[0])
+        if ft=="ensemble":
+            np.save("u0_gm.npy",u_gm)
     logger.debug(u_gm.shape)
     logger.debug(u_lam.shape)
     if u_gm.ndim == 2:
@@ -552,9 +560,17 @@ if __name__ == "__main__":
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
         save_dh = params_gm["save_dh"]
         save_hist = params_gm["save_hist"]
-        ##if a_window > 1:
-        if pt[:2] == "4d":
-            args_gm = (u_gm,pf_gm,y,yloc)
+        if params_lam["preGM"]:
+            u_gm  = np.load(func.preGMdir/f"{model}_gm_uf_{op}_{func.preGMda}_cycle{i}.npy")
+            ua_gm = np.load(func.preGMdir/f"{model}_gm_ua_{op}_{func.preGMda}_cycle{i}.npy")
+            if ft=="deterministic":
+                u_gm  = np.mean(u_gm, axis=1)
+                ua_gm = np.mean(ua_gm,axis=1)
+            pa_gm = analysis_gm.calc_pf(ua_gm, pa=pa_gm, cycle=i+1)
+        else:
+            ##if a_window > 1:
+            if pt[:2] == "4d":
+                args_gm = (u_gm,pf_gm,y,yloc)
 #            if params_lam["anlsp"]:
 #                if pt == "var_nest":
 #                    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm,step.ix_lam)
@@ -565,16 +581,16 @@ if __name__ == "__main__":
 #                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm,step.ix_lam[nsp:-nsp])
 #                else:
 #                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
-        else:
-            args_gm = (u_gm,pf_gm,y[0],yloc[0])
-        ua_gm, pa_gm, _, innv, chi2, ds = analysis_gm(*args_gm, \
+            else:
+                args_gm = (u_gm,pf_gm,y[0],yloc[0])
+            ua_gm, pa_gm, _, innv, chi2, ds = analysis_gm(*args_gm, \
                 save_hist=save_hist, save_dh=save_dh, icycle=i)
-        #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
-        #pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
-        #os.rename(pafile,pafile_new)
-        chi_gm[i:min(i+a_window,na)] = chi2
-        dof_gm[i:min(i+a_window,na)] = ds
-        innov_gm[i:min(i+a_window,na),:innv.size] = innv
+            #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
+            #pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
+            #os.rename(pafile,pafile_new)
+            chi_gm[i:min(i+a_window,na)] = chi2
+            dof_gm[i:min(i+a_window,na)] = ds
+            innov_gm[i:min(i+a_window,na),:innv.size] = innv
         if i >= params_lam["lamstart"]:
             if params_lam["anlsp"]:
                 #if pt == "var_nest":
@@ -630,7 +646,13 @@ if __name__ == "__main__":
             xa_lam[i] = u_lam
         if i < na-1:
             if a_window > 1:
-                uf_gm, uf_lam = func.forecast(u_gm,u_lam)
+                if params_lam["preGM"]:
+                    uf_gm = np.load(func.preGMdir/f"{model}_gm_uf_{op}_{func.preGMda}_cycle{i+1}.npy")
+                    if ft=="deterministic":
+                        uf_gm = np.mean(uf_gm, axis=1)
+                    uf_gm, uf_lam = func.forecast(u_gm,u_lam,u_gm_pre=uf_gm)
+                else:
+                    uf_gm, uf_lam = func.forecast(u_gm,u_lam)
                 if (i+1+a_window <= na):
                     if ft=="ensemble":
                         xa_gm[i+1:i+1+a_window] = np.mean(uf_gm, axis=2)
@@ -678,7 +700,13 @@ if __name__ == "__main__":
                 u_gm = uf_gm[-1]
                 u_lam = uf_lam[-1]
             else:
-                u_gm, u_lam = func.forecast(u_gm,u_lam)
+                if params_lam["preGM"]:
+                    uf_gm = np.load(func.preGMdir/f"{model}_gm_uf_{op}_{func.preGMda}_cycle{i+1}.npy")
+                    if ft=="deterministic":
+                        uf_gm = np.mean(uf_gm, axis=1)
+                    u_gm, u_lam = func.forecast(u_gm,u_lam,u_gm_pre=uf_gm)
+                else:
+                    u_gm, u_lam = func.forecast(u_gm,u_lam)
             
             if ft=="ensemble":
                 if pt == "mlef" or pt == "4dmlef":
@@ -697,6 +725,12 @@ if __name__ == "__main__":
             if i>=nspinup:
                 xsfmean_gm += np.diag(pf_gm)
                 xsfmean_lam += np.diag(pf_lam)
+            if params_gm["saveGM"]:
+                np.save(f"ua{i}c_gm.npy",xa_gm[i])
+                np.save(f"u{i+1}c_gm.npy",xf_gm[i+1])
+                if ft=="ensemble":
+                    np.save(f"ua{i}_gm.npy",ua_gm)
+                    np.save(f"u{i+1}_gm.npy",u_gm)
         
             if params_gm["extfcst"]:
                 ## extended forecast
@@ -757,7 +791,7 @@ if __name__ == "__main__":
                     pf48_lam = analysis_lam.calc_pf(utmp_lam, pa=pa_lam, cycle=i+1)
                     np.save("{}_pf48gm_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_gm)
                     np.save("{}_pf48lam_{}_{}_cycle{}.npy".format(model, op, pt, i), pf48_lam)
-
+        
         if np.isnan(u_gm).any() or np.isnan(u_lam).any():
             e_gm[i:] = np.nan
             e_lam[i:] = np.nan
@@ -806,6 +840,10 @@ if __name__ == "__main__":
         if i>=nspinup:
             xsmean_gm += np.diag(pa_gm)
             xsmean_lam += np.diag(pa_lam)
+    if params_gm["saveGM"]:
+        np.save(f"ua{i}c_gm.npy",xa_gm[i])
+        if ft=="ensemble":
+            np.save(f"ua{i}_gm.npy",ua_gm)
 
     np.save("{}_xfgm_{}_{}.npy".format(model, op, pt), xf_gm)
     np.save("{}_xagm_{}_{}.npy".format(model, op, pt), xa_gm)
