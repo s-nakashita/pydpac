@@ -62,25 +62,28 @@ def psd(x,ix,axis=0,cyclic=True,nghost=None,average=True,detrend=False):
                 if x.ndim==2:
                     if axis==1:
                         trend = (x[:,-1] - x[:,0])/(nx - 1)
-                        xtrend = 0.5 * (2*np.arange(nx)[None,:] - nx)*trend[:,None]
+                        xtrend = 0.5 * (2*np.arange(nx)[None,:] - nx + 1)*trend[:,None]
                     else:
                         trend = (x[-1,] - x[0,])/(nx - 1)
-                        xtrend = 0.5 * (2*np.arange(nx)[:,None] - nx)*trend[None,:]
+                        xtrend = 0.5 * (2*np.arange(nx)[:,None] - nx + 1)*trend[None,:]
                 else:
                     trend = (x[-1] - x[0])/(nx - 1)
-                    xtrend = 0.5 * (2*np.arange(nx) - nx)*trend
+                    xtrend = 0.5 * (2*np.arange(nx) - nx + 1)*trend
                 xtmp = x - xtrend
             else:
                 xtmp = x.copy()
-    sp = fft.rfft(xtmp,axis=axis)
+    sp = fft.rfft(xtmp,axis=axis,norm='forward')
     wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi
+    wgt = np.ones(wnum.size) * Lx / 2.0 / np.pi
+    wgt[0] *= 0.5
+    wgt[-1] *= 0.5
     if average and x.ndim==2:
         if axis==0:
-            psd = 2.0*np.mean(np.abs(sp)**2,axis=1)*dx*dx/Lx
+            psd = np.mean(np.abs(sp)**2*wgt[:,None],axis=1)
         else:
-            psd = 2.0*np.mean(np.abs(sp)**2,axis=0)*dx*dx/Lx
+            psd = np.mean(np.abs(sp)**2*wgt[None,:],axis=0)
     else:
-        psd = 2.0*np.abs(sp)**2*dx*dx/Lx
+        psd = np.abs(sp)**2*wgt
     if not cyclic and detrend:
         return wnum, psd, xtmp
     else:

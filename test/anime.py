@@ -33,8 +33,8 @@ b_lam = b_true
 c_lam = c_true
 F = F_true
 dt = dt_true * lamstep
-#figdir = Path(f'nsp{nsp}p{po}intrlx{intrlx}')
-figdir = Path(f'm{"+".join([str(n) for n in nks_gm])}/nsp{nsp}p{po}intrlx{intrlx}')
+figdir = Path(f'nsp{nsp}p{po}intrlx{intrlx}')
+#figdir = Path(f'm{"+".join([str(n) for n in nks_gm])}/nsp{nsp}p{po}intrlx{intrlx}')
 
 ix_t = np.loadtxt(figdir/'ix_t.txt')
 ix_gm = np.loadtxt(figdir/'ix_gm.txt')

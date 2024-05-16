@@ -36,45 +36,50 @@ trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,nghost=0)
 ix_trunc = trunc_operator.ix_trunc
 nx_gmlam = ix_trunc.size
 
-ncycle = 0
+ncycle_gm = 0
+ncycle_lam = 0
 vmat_exist=False
+pfgm = None
+pflam = None
 for icycle in range(scycle,ecycle+1):
     f = "{}_gm_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
     if os.path.isfile(f):
         spftmp = np.load(f)
         pftmp = spftmp @ spftmp.T
-        if ncycle==0:
+        if ncycle_gm==0:
             pfgm = pftmp
         else:
             pfgm = pfgm + pftmp
+        ncycle_gm += 1
     else:
         f = "data/{2}/{0}_gm_spf_{1}_{2}_cycle{3}.npy".format(model, op, pt, icycle)
         if os.path.isfile(f):
             spftmp = np.load(f)
             pftmp = spftmp @ spftmp.T
-            if ncycle==0:
+            if ncycle_gm==0:
                 pfgm = pftmp
             else:
                 pfgm = pfgm + pftmp
+        ncycle_gm += 1
     f = "{}_lam_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
     if os.path.isfile(f):
         spftmp = np.load(f)
         pftmp = spftmp @ spftmp.T
-        if ncycle==0:
+        if ncycle_lam==0:
             pflam = pftmp
         else:
             pflam = pflam + pftmp
-        ncycle += 1
+        ncycle_lam += 1
     else:
         f = "data/{2}/{0}_lam_spf_{1}_{2}_cycle{3}.npy".format(model, op, pt, icycle)
         if os.path.isfile(f):
             spftmp = np.load(f)
             pftmp = spftmp @ spftmp.T
-            if ncycle==0:
+            if ncycle_lam==0:
                 pflam = pftmp
             else:
                 pflam = pflam + pftmp
-            ncycle += 1
+            ncycle_lam += 1
     f = "{}_lam_svmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
     if os.path.isfile(f):
         svtmp = np.load(f)
@@ -98,35 +103,43 @@ for icycle in range(scycle,ecycle+1):
 #    f = "{}_pa_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
 #    if os.path.isfile(f):
 #        pa = np.load(f)
-if ncycle==0: exit()
-pfgm = pfgm / float(ncycle)
-pflam = pflam / float(ncycle)
+if ncycle_gm==0 and ncycle_lam==0: exit()
+if pfgm is not None: pfgm = pfgm / float(ncycle_gm)
+if pflam is not None: pflam = pflam / float(ncycle_lam)
 cmap = "coolwarm"
 if vmat_exist:
-    vmat = vmat / float(ncycle)
+    vmat = vmat / float(ncycle_lam)
     fig, axs = plt.subplots(ncols=3,figsize=[12,4],constrained_layout=True)
 else:
     fig, axs = plt.subplots(ncols=2,figsize=[8,4],constrained_layout=True)
-ymax = np.max(pfgm)
-ymin = np.min(pfgm)
-ylim = max(ymax, np.abs(ymin))
-mp0=axs[0].pcolormesh(ix_gm,ix_gm,pfgm,shading='auto',\
+if pfgm is not None:
+    ymax = np.max(pfgm)
+    ymin = np.min(pfgm)
+    ylim = max(ymax, np.abs(ymin))
+    mp0=axs[0].pcolormesh(ix_gm,ix_gm,pfgm,shading='auto',\
         cmap=cmap,norm=Normalize(vmin=-ylim, vmax=ylim))
-axs[0].set_aspect("equal")
-axs[0].set_xticks(ix_gm[::(nx_gm//8)])
-axs[0].set_yticks(ix_gm[::(nx_gm//8)])
-axs[0].set_title(r"$\mathrm{trace}(\mathbf{P}^\mathrm{f}_\mathrm{GM})/N=$"+f"{np.mean(np.diag(pfgm)):.3f}")
-fig.colorbar(mp0, ax=axs[0], pad=0.01, shrink=0.6) #orientation="horizontal")
-ymax = np.max(pflam)
-ymin = np.min(pflam)
-ylim = max(ymax, np.abs(ymin))
-mp1=axs[1].pcolormesh(ix_lam,ix_lam,pflam,shading='auto',\
+    axs[0].set_aspect("equal")
+    axs[0].set_xticks(ix_gm[::(nx_gm//8)])
+    axs[0].set_yticks(ix_gm[::(nx_gm//8)])
+    axs[0].set_title(r"$\mathrm{trace}(\mathbf{P}^\mathrm{f}_\mathrm{GM})/N=$"+f"{np.mean(np.diag(pfgm)):.3f}")
+    fig.colorbar(mp0, ax=axs[0], pad=0.01, shrink=0.6) #orientation="horizontal")
+else:
+    axs[0].remove()
+
+if pflam is not None:
+    ymax = np.max(pflam)
+    ymin = np.min(pflam)
+    ylim = max(ymax, np.abs(ymin))
+    mp1=axs[1].pcolormesh(ix_lam,ix_lam,pflam,shading='auto',\
         cmap=cmap,norm=Normalize(vmin=-ylim, vmax=ylim))
-axs[1].set_aspect("equal")
-axs[1].set_xticks(ix_lam[::(nx_lam//8)])
-axs[1].set_yticks(ix_lam[::(nx_lam//8)])
-axs[1].set_title(r"$\mathrm{trace}(\mathbf{P}^\mathrm{f}_\mathrm{LAM})/N=$"+f"{np.mean(np.diag(pflam)):.3f}")
-fig.colorbar(mp1, ax=axs[1], pad=0.01, shrink=0.6) #orientation="horizontal")
+    axs[1].set_aspect("equal")
+    axs[1].set_xticks(ix_lam[::(nx_lam//8)])
+    axs[1].set_yticks(ix_lam[::(nx_lam//8)])
+    axs[1].set_title(r"$\mathrm{trace}(\mathbf{P}^\mathrm{f}_\mathrm{LAM})/N=$"+f"{np.mean(np.diag(pflam)):.3f}")
+    fig.colorbar(mp1, ax=axs[1], pad=0.01, shrink=0.6) #orientation="horizontal")
+else:
+    axs[1].remove()
+
 if vmat_exist:
     ymax = np.max(vmat)
     ymin = np.min(vmat)

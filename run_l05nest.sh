@@ -5,8 +5,8 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var envar"
-#perturbations="var"
+perturbations="var var_nest envar envar_nest"
+#perturbations="envar"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
@@ -27,13 +27,16 @@ functype=gc5
 #a=-0.1
 ntrunc=12
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
-exp="var_vs_envar_dscl_m${nmem}obs${nobs}"
+exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
+#exp="envar_dscl_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
+preGM=True
 preGMda="envar"
-preGMdir="${cdir}/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}/data/${preGMda}"
+preGMdir="${cdir}/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}"
+#preGMdir="${cdir}/work/${model}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
 wdir=work/${model}/${exp}
 rm -rf $wdir
 mkdir -p $wdir
@@ -48,6 +51,9 @@ rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
 touch timer
+if [ $preGM = True ]; then
+  cp ${preGMdir}/obs*.npy .
+fi
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
@@ -109,13 +115,15 @@ for op in ${operators}; do
     if [ $pert = envar_nest ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"envar\"/" config_gm.py
     fi
-    ## gmonly
-    gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
+    ### gmonly
+    #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ### precomputed GM
-    #gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup
-    #gsed -i -e "6i \ \"preGM\":True," config_lam.py
-    #gsed -i -e "6i \ \"preGMdir\":\"${preGMdir}\"," config_lam.py
-    #gsed -i -e "6i \ \"preGMda\":\"${preGMda}\"," config_lam.py
+    if [ $preGM = True ]; then
+      gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup
+      gsed -i -e "6i \ \"preGM\":${preGM}," config_lam.py
+      gsed -i -e "6i \ \"preGMdir\":\"${preGMdir}/data/${preGMda}\"," config_lam.py
+      gsed -i -e "6i \ \"preGMda\":\"${preGMda}\"," config_lam.py
+    fi
     ###
     cat config_gm.py
     cat config_lam.py
