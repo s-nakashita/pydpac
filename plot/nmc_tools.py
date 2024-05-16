@@ -72,6 +72,7 @@ def psd(x,ix,axis=0,cyclic=True,nghost=None,average=True,detrend=False):
                 xtmp = x - xtrend
             else:
                 xtmp = x.copy()
+    ## Durran et al. (2017, MWR)
     sp = fft.rfft(xtmp,axis=axis,norm='forward')
     wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi
     wgt = np.ones(wnum.size) * Lx / 2.0 / np.pi
@@ -230,3 +231,73 @@ def trunc_operator(x,ix=None,ftmax=None,first=False,cyclic=True,nghost=None):
             Ei = np.zeros((ix.size,nx))
             Ei[:,nghost:nghost+ix.size] = np.eye(ix.size)[:,:]
     return np.dot(Ei,np.dot(Fi,np.dot(T,np.dot(F,np.dot(E,x))))).real
+
+# scale decomposition using FFT
+def scale_decomp(x,ix=None,kthres=[],axis=0,cyclic=True,nghost=0,average=True):
+    if (type(kthres) == 'list' and len(kthres) == 0) or \
+        (hasattr(kthres,'size') and kthres.size == 0):
+        print("provide wavenumber thresholds for decomposition")
+        return
+    nx = x.shape[axis]
+    dx = ix[1] - ix[0]
+    Lx = ix[-1] - ix[0]
+    if cyclic:
+        Lx+=dx
+        xtmp = x.copy()
+    else:
+        if nghost>0:
+            Lx += 2*nghost*dx
+            dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
+            if x.ndim==2:
+                if axis==0:
+                    xtmp = np.zeros((nx+2*nghost-1,x.shape[1]))
+                    xtmp[nghost:nghost+nx,:] = x[:,:]
+                    xtmp[0:nghost,:] = x[0,:].reshape(1,-1) * dwindow[::-1,None]
+                    xtmp[nghost+nx:,:] = x[-1,:].reshape(1,-1) * dwindow[:-1,None]
+                else:
+                    xtmp = np.zeros((x.shape[0],nx+2*nghost-1))
+                    xtmp[:,nghost:nghost+nx] = x[:,:]
+                    xtmp[:,0:nghost] = x[:,0].reshape(-1,1) * dwindow[None,::-1]
+                    xtmp[:,nghost+nx:] = x[:,-1].reshape(-1,1) * dwindow[None,:-1]
+            else:
+                xtmp = np.zeros(nx+2*nghost-1)
+                xtmp[nghost:nghost+nx] = x[:]
+                x[0:nghost] = x[0] * dwindow[::-1]
+                x[nghost+nx:] = x[-1] * dwindow[:-1]
+        else:
+            ## remove linear trend (Errico 1985, MWR)
+            if x.ndim==2:
+                if axis==1:
+                    trend = (x[:,-1] - x[:,0])/(nx - 1)
+                    xtrend = 0.5 * (2*np.arange(nx)[None,:] - nx + 1)*trend[:,None]
+                else:
+                    trend = (x[-1,] - x[0,])/(nx - 1)
+                    xtrend = 0.5 * (2*np.arange(nx)[:,None] - nx + 1)*trend[None,:]
+            else:
+                trend = (x[-1] - x[0])/(nx - 1)
+                xtrend = 0.5 * (2*np.arange(nx) - nx + 1)*trend
+                xtmp = x - xtrend
+    sp = fft.rfft(xtmp,axis=axis,norm='forward')
+    wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi
+    
+    decomp = [sp]
+    for k in kthres:
+        ik = np.argmin(np.abs(wnum - k))
+        sp0 = decomp[-1]
+        sp1 = sp0.copy()
+        if sp.ndim==2:
+            if axis==1:
+                sp0[:,ik:] = 0.0
+                sp1[:,:ik] = 0.0
+            else:
+                sp0[ik:,:] = 0.0
+                sp1[:ik,:] = 0.0
+        else:
+            sp0[ik:] = 0.0
+            sp1[:ik] = 0.0
+        decomp.append(sp1)
+    
+    xdecomp = [fft.irfft(stmp,axis=axis,norm='forward') for stmp in decomp]
+    if not cyclic:
+        xdecomp[0] = xdecomp[0] + xtrend
+    return xdecomp
