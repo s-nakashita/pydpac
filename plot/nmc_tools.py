@@ -233,7 +233,7 @@ def trunc_operator(x,ix=None,ftmax=None,first=False,cyclic=True,nghost=None):
     return np.dot(Ei,np.dot(Fi,np.dot(T,np.dot(F,np.dot(E,x))))).real
 
 # scale decomposition using FFT
-def scale_decomp(x,ix=None,kthres=[],axis=0,cyclic=True,nghost=0,average=True):
+def scale_decomp(x,ix=None,kthres=[],axis=0,cyclic=True,nghost=0):
     if (type(kthres) == 'list' and len(kthres) == 0) or \
         (hasattr(kthres,'size') and kthres.size == 0):
         print("provide wavenumber thresholds for decomposition")
@@ -276,7 +276,7 @@ def scale_decomp(x,ix=None,kthres=[],axis=0,cyclic=True,nghost=0,average=True):
             else:
                 trend = (x[-1] - x[0])/(nx - 1)
                 xtrend = 0.5 * (2*np.arange(nx) - nx + 1)*trend
-                xtmp = x - xtrend
+            xtmp = x - xtrend
     sp = fft.rfft(xtmp,axis=axis,norm='forward')
     wnum = fft.rfftfreq(xtmp.shape[axis],dx)*2.0*np.pi
     
