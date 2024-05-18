@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 plt.rcParams['font.size'] = 16
+plt.rcParams['axes.labelsize'] = 20
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -17,9 +18,11 @@ lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
 perts = ["envar", "envar_nest","var","var_nest"]
 linecolor = {"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown"}
 
-fig, axs = plt.subplots(nrows=2,figsize=[12,8],sharex=True,constrained_layout=True)
+fig0, ax0 = plt.subplots(figsize=[12,6],constrained_layout=True)
+fig1, ax1 = plt.subplots(figsize=[12,6],constrained_layout=True)
 
-t = np.arange(na)+1
+tc = np.arange(na)+1 # cycles
+t = tc / 4. # days
 ns = 40 # spinup
 errors = {}
 # downscaling
@@ -31,8 +34,8 @@ e_dscl = np.loadtxt(f)
 print("dscl, analysis RMSE = {}".format(np.mean(e_dscl[ns:])))
 f = dscldir / f"stda_lam_{op}_{preGMpt}.txt"
 stda_dscl = np.loadtxt(f)
-axs[0].plot(t,e_dscl,c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-axs[1].plot(t,stda_dscl,c='k',ls='dashed')
+ax0.plot(t,e_dscl,c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+ax1.plot(t,stda_dscl,c='k',label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
 errors['dscl'] = e_dscl[ns:]
 for pt in perts:
     f = lamdir / f"e_lam_{op}_{pt}.txt"
@@ -43,18 +46,20 @@ for pt in perts:
     print("{}, analysis RMSE = {}".format(pt,np.mean(e[ns:])))
     f = lamdir / f"stda_lam_{op}_{pt}.txt"
     stda = np.loadtxt(f)
-    axs[0].plot(t,e,c=linecolor[pt],label=pt+f'={np.mean(e[ns:]):.3f}')
-    axs[1].plot(t,stda,c=linecolor[pt],ls='dashed')
+    ax0.plot(t,e,c=linecolor[pt],label=pt+f'={np.mean(e[ns:]):.3f}')
+    ax1.plot(t,stda,c=linecolor[pt],label=pt+f'={np.mean(stda[ns:]):.3f}')
     errors[pt] = e[ns:]
-for ax in axs:
+for ax in [ax0,ax1]:
     ax.hlines([1.0],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
-    ax.set_xlim(ns,na)
-axs[0].set_ylim(0.0,1.5)
-axs[1].set_ylim(0.0,1.5)
-axs[0].set(ylabel='RMSE',title=op)
-axs[1].set(xlabel='analysis cycle',ylabel='STD',title=op)
-axs[0].legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
-fig.savefig(datadir/'{}_e_lam_{}.png'.format(model,op),dpi=300)
+    ax.set_xlim(t[ns],t[-1])
+ax0.set_ylim(0.0,1.5)
+ax1.set_ylim(0.0,1.5)
+ax0.set(xlabel='days',ylabel='RMSE') #,title=op)
+ax1.set(xlabel='days',ylabel='STD') #,title=op)
+ax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
+ax1.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
+fig0.savefig(datadir/'{}_e_lam_{}.png'.format(model,op),dpi=300)
+fig1.savefig(datadir/'{}_stda_lam_{}.png'.format(model,op),dpi=300)
 plt.show()
 plt.close()
 

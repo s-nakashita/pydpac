@@ -15,7 +15,8 @@ fileConfig('logging_config.ini')
 logger = logging.getLogger(__name__)
 import sys
 
-figdir_parent = Path('work/baxter11')
+#figdir_parent = Path('work/baxter11')
+figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11.2')
 if not figdir_parent.exists():
     figdir_parent.mkdir(parents=True)
 
@@ -191,7 +192,7 @@ while itrial < ntrial:
     yobs = obsope.add_noise(obsope.h_operator(obsloc, u0_t))
 
     ## analysis
-    _ = var_nest.calc_pf(u0_lam[1:-1],B_lam,0)
+    B_lam = var_nest.calc_pf(u0_lam[1:-1],cycle=0)
     ua_lam = up_lam.copy()
     ua_lam_nest = up_lam.copy()
     ua_gm, _, _, _, _, _ = var_gm(u0_gm, B_gm, yobs, obsloc)
@@ -491,3 +492,22 @@ plt.close()
 import pandas as pd
 df = pd.read_csv(figdir_parent/outfile,comment='#')
 print(df)
+
+outfile_b = f'errb_nobs{nobs}.csv'
+outfile_a = f'erra_nobs{nobs}.csv'
+outfile_a_nest = f'erra_nest_nobs{nobs}.csv'
+err_b = np.zeros((errspecb.shape[0],errspecb.shape[1]+1))
+err_b[:, 0] = np.array(rmseb_list)
+err_b[:,1:] = errspecb
+df_b = pd.DataFrame(err_b,index=pd.Index(np.arange(ntrial)+1))
+df_b.to_csv(figdir_parent/outfile_b)
+err_a = np.zeros((errspeca.shape[0],errspeca.shape[1]+1))
+err_a[:, 0] = np.array(rmsea_list)
+err_a[:,1:] = errspeca
+df_a = pd.DataFrame(err_a,index=pd.Index(np.arange(ntrial)+1))
+df_a.to_csv(figdir_parent/outfile_a)
+err_a_nest = np.zeros((errspeca_nest.shape[0],errspeca_nest.shape[1]+1))
+err_a_nest[:, 0] = np.array(rmsea_nest_list)
+err_a_nest[:,1:] = errspeca_nest
+df_a_nest = pd.DataFrame(err_a_nest,index=pd.Index(np.arange(ntrial)+1))
+df_a_nest.to_csv(figdir_parent/outfile_a_nest)

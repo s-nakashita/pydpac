@@ -24,6 +24,7 @@ dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
 
 perts = ["envar", "envar_nest","var","var_nest"]
+labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
 linecolor = {"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown"}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
@@ -55,7 +56,7 @@ print(xt.shape)
 nx_t = xt.shape[1]
 xt2x = interp1d(ix_t,xt)
 wnum_t, psd_bg = psd(xt,ix_t_rad,axis=1)
-axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='nature bg')
+axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
 
 # GM
 f = dscldir/"xagm_{}_{}.npy".format(op,preGMpt)
@@ -65,9 +66,9 @@ if not f.exists():
 xagm = np.load(f)
 xdgm = xagm - xt2x(ix_gm)
 ax.plot(ix_gm, np.sqrt(np.mean(xdgm**2,axis=0)),\
-    c='gray',lw=3.0,label='GM')
+    c='gray',lw=4.0,label='GM')
 wnum_gm, psd_gm = psd(xdgm,ix_gm_rad,axis=1)
-axsp.loglog(wnum_gm,psd_gm,c='gray',lw=3.0,label='GM')
+axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
 # downscaling
 f = dscldir/"xalam_{}_{}.npy".format(op,preGMpt)
@@ -77,10 +78,10 @@ if not f.exists():
 xadscl = np.load(f)
 xddscl = xadscl - xt2x(ix_lam)
 ax.plot(ix_lam, np.sqrt(np.mean(xddscl**2,axis=0)),\
-    c='k',label='downscaling')
+    c='k',lw=2.0,label='downscaling')
 wnum, psd_dscl, xdetrend = psd(xddscl,ix_lam_rad,axis=1,\
     cyclic=False,nghost=0,detrend=True,average=False)
-axsp.loglog(wnum,psd_dscl.mean(axis=0),c='k',lw=2.0,label='downscaling')
+axsp.loglog(wnum,psd_dscl.mean(axis=0),c='k',lw=2.0,label='Downscaling')
 psd_dict["dscl"] = psd_dscl
 #f = dscldir/"xsalam_{}_{}.npy".format(op,preGMpt)
 #xsadscl = np.load(f)
@@ -95,11 +96,11 @@ for pt in perts:
     xalam = np.load(f)
     xdlam = xalam - xt2x(ix_lam)
     ax.plot(ix_lam,np.sqrt(np.mean(xdlam**2,axis=0)),\
-    c=linecolor[pt],label=pt)
+    c=linecolor[pt],lw=2.0,label=labels[pt])
     wnum, psd_lam, xdetrend = psd(xdlam,ix_lam_rad,axis=1,\
     cyclic=False,nghost=0,detrend=True,average=False)
     axsp.loglog(wnum,psd_lam.mean(axis=0),\
-        c=linecolor[pt],lw=2.0,label=pt)
+        c=linecolor[pt],lw=2.0,label=labels[pt])
     psd_dict[pt] = psd_lam
     #f = lamdir/"xsalam_{}_{}.npy".format(op,pt)
     #xsalam = np.load(f)

@@ -47,14 +47,15 @@ b_lam = b_true
 c_lam = c_true
 F = F_true
 dt = dt_true * lamstep
-nature_step = L05III(nx_true,nk_true,ni_true,b_true,c_true,dt_true,F_true)
-nest_step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni_lam, b_lam, c_lam, dt, F, \
-    intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx)
-figdir = Path(f'nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
-#nature_step = L05IIIm(nx_true,nks_true,ni_true,b_true,c_true,dt_true,F_true)
-#nest_step = L05nestm(nx_true, nx_gm, nx_lam, nks_gm, nks_lam, ni_lam, b_lam, c_lam, dt, F, \
+#nature_step = L05III(nx_true,nk_true,ni_true,b_true,c_true,dt_true,F_true)
+#nest_step = L05nest(nx_true, nx_gm, nx_lam, nk_gm, nk_lam, ni_lam, b_lam, c_lam, dt, F, \
 #    intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx)
-#figdir = Path(f'm{"+".join([str(n) for n in nks_gm])}/nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
+#figdir = Path(f'nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
+datadir = Path('/Volumes/FF520/nested_envar/data/l05nestm')
+nature_step = L05IIIm(nx_true,nks_true,ni_true,b_true,c_true,dt_true,F_true)
+nest_step = L05nestm(nx_true, nx_gm, nx_lam, nks_gm, nks_lam, ni_lam, b_lam, c_lam, dt, F, \
+    intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx)
+figdir = datadir / Path(f'm{"+".join([str(n) for n in nks_gm])}/nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
 if not figdir.exists(): figdir.mkdir(parents=True)
 
 ix_t_rad = nest_step.ix_true * 2.0 * np.pi / nx_true
@@ -358,12 +359,12 @@ ax.plot(wnum_gm,sp_gm,c='orange',marker='x',label='GM')
 #mmax = np.argmin(np.abs(wnum_gm - 30)) + 1
 #ax.plot(wnum_gm[:mmax],sp_gm[:mmax],c='tab:orange',marker='x',lw=0.0)
 #wnum_lam = fft.rfftfreq(x0_lam_ext.size,d=dx_lam)[:sp_lam.size] * 2.0 * np.pi
-ax.plot(wnum_lam,sp_lam,c='r',marker='x',label='LAM')
-ax.plot(wnum_lam,sp_detrend,c='magenta',marker='x',label='LAM, detrended')
+#ax.plot(wnum_lam,sp_lam,c='r',marker='x',label='LAM')
+ax.plot(wnum_lam,sp_detrend,c='r',marker='x',label='LAM')
 #mmax = np.argmin(np.abs(wnum_lam - 30)) + 1
 #ax.plot(wnum_lam[:mmax],sp_lam[:mmax],c='tab:green',marker='x',lw=0.0)
-ax.plot(wnum_t[1:],wnum_t[1:]**(-5./3.)*1000.0,c='gray',lw=2.0,label=r'$k^{-\frac{5}{3}}$')
-ax.plot(wnum_t[1:],wnum_t[1:]**(-3.)*1000.0,c='gray',ls='dashed',lw=2.0,label=r'$k^{-3}$')
+#ax.plot(wnum_t[1:],wnum_t[1:]**(-5./3.)*1000.0,c='gray',lw=2.0,label=r'$k^{-\frac{5}{3}}$')
+#ax.plot(wnum_t[1:],wnum_t[1:]**(-3.)*1000.0,c='gray',ls='dashed',lw=2.0,label=r'$k^{-3}$')
 ax.set_title("time averaged power spectrum")
 ax.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
 ax.set_xscale('log')
@@ -377,11 +378,12 @@ secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
 #ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','8','2','1']))
 #secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi,np.pi/4,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
 #secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\pi$',r'$\frac{\pi}{4}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,1]))
-ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','1']))
-secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
-secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,12,2]))
+ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','12','2']))
+secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6,np.pi/15,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
 ax.vlines([12],0,1,colors='gray',alpha=0.5,transform=ax.get_xaxis_transform())
 ax.legend()
+ax.set_ylim(1e-7, 10.0)
 fig.savefig(figdir/f'test_nest_psd.png',dpi=300)
 plt.show()
