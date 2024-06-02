@@ -82,13 +82,13 @@ infl_parm = 1.0
 obsloc = ix_lam[1:-1:2]
 xobsloc = x_lam[1:-1:2]
 if len(sys.argv)>1:
-    nmem = int(sys.argv[1])
-if len(sys.argv)>2:
-    intobs = int(sys.argv[2])
+    intobs = int(sys.argv[1])
     obsloc = ix_lam[1:-1:intobs]
     xobsloc = x_lam[1:-1:intobs]
+if len(sys.argv)>2:
+    nmem = int(sys.argv[2])
 nobs = obsloc.size
-obsope = Obs('linear',sigo,ix=ix_t)
+obsope = Obs('linear',sigo,ix=ix_t,seed=509)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
 obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
 envar_gm = EnVAR(nx_gm, nmem, obsope_gm)
@@ -96,7 +96,8 @@ envar_lam = EnVAR(nx_lam-2, nmem, obsope_lam)
 envar_nest = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False)
 
 ## random seed
-rng = default_rng()
+rng = default_rng(517)
+rng_en = default_rng(515)
 
 ## start trials
 ntrial = 50
@@ -152,12 +153,12 @@ while itrial < ntrial:
     #up_lam = irfft(yp_lam,len(u0_lam))
 
     ## ensemble
-    Y0_gm = rng.standard_normal(size=(U_gm.shape[1],nmem))
+    Y0_gm = rng_en.standard_normal(size=(U_gm.shape[1],nmem))
     X0_gm = U_gm @ Y0_gm
     #X0_gm[-1,:] = 0.0
     X0_gm = X0_gm - np.mean(X0_gm,axis=1)[:,None]
     u_gm = u0_gm[:,None] + X0_gm
-    Y0_lam = rng.standard_normal(size=(U_lam.shape[1],nmem))
+    Y0_lam = rng_en.standard_normal(size=(U_lam.shape[1],nmem))
     X0_lam = U_lam @ Y0_lam
     X0_lam = X0_lam - np.mean(X0_lam,axis=1)[:,None]
     u_lam = np.zeros((nx_lam,nmem))
@@ -227,30 +228,39 @@ while itrial < ntrial:
     ua_lam_nest[1:-1], _, _, _, _, _ = envar_nest(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm)
 
     ## evaluation
-    fig, axs = plt.subplots(nrows=3,figsize=[8,8],constrained_layout=True)
+    fig, axs = plt.subplots(nrows=2,figsize=[8,8],constrained_layout=True)
+    #fig = plt.figure(figsize=[8,8],constrained_layout=True)
+    #gs = GridSpec(2,1,figure=fig)
+    #gs1 = gs[1,:].subgridspec(1,2)
+    #ax0 = fig.add_subplot(gs[0,:])
+    #ax1 = fig.add_subplot(gs1[:,0])
+    #ax2 = fig.add_subplot(gs1[:,1])
+    #axs = [ax0,ax1,ax2]
     #for ax in axs[0,]:
     axs[0].plot(x_t,u0_t,label='nature')
     #axs[0,0].plot(x_gm, u0_gm, label='GM,bg')
     #axs[0,0].plot(x_gm, ua_gm, label='GM,anl')
     axs[0].plot(x_lam, np.mean(u_lam,axis=1), label='LAM,bg')
     axs[0].plot(x_lam, np.mean(ua_lam,axis=1), label='LAM,anl')
-    #axs[0].plot(x_lam, ua_lam, lw=0.5,ls='dotted',c=cmap(2))
     #axs[0,2].plot(x_lam, u0_lam, label='LAM,bg')
     axs[0].plot(x_lam, np.mean(ua_lam_nest,axis=1), label='LAM_nest,anl')
-    #axs[0].plot(x_lam, ua_lam_nest, lw=0.5,ls='dotted',c=cmap(3))
     axs[0].plot(xobsloc,yobs,c='b',marker='x',lw=0.0,label='obs')
     axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
-    width=0.1
+    axs[0].set_xlabel('grid')
+    width=0.2
     for ax in axs[1:]:
         ax.bar(wnum_t-1.5*width,np.abs(y_t),width=width,label='nature')
-    #for ax in axs[1,]:
-    axs[1].set_xlim(0,10)
-    axs[1].set_xticks(np.arange(11))
-    axs[1].set_xticks(np.arange(21)/2.,minor=True)
-    #for ax in axs[2,]:
-    axs[2].set_xlim(9,20)
-    axs[2].set_xticks(np.arange(9,21))
-    axs[2].set_xticks(np.arange(18,41)/2.,minor=True)
+    axs[1].set_xlim(0,20)
+    axs[1].set_xticks(np.arange(0,20))
+    axs[1].set_xticks(np.arange(41)/2.,minor=True)
+    ##for ax in axs[1,]:
+    #axs[1].set_xlim(0,3)
+    #axs[1].set_xticks(np.arange(4))
+    #axs[1].set_xticks(np.arange(8)/2.,minor=True)
+    ##for ax in axs[2,]:
+    #axs[2].set_xlim(16.5,19.5)
+    #axs[2].set_xticks(np.arange(17,20))
+    #axs[2].set_xticks(np.arange(34,40)/2.,minor=True)
     #yb_gm = dst(u0_gm[:-1],type=1)/nx_gm
     #ya_gm = dst(ua_gm[:-1],type=1)/nx_gm
     ##yb_gm = rfft(u0_gm)*2./nx_gm
@@ -269,18 +279,20 @@ while itrial < ntrial:
         yerr=np.std(np.abs(yb_lam),axis=1),width=width,label='LAM,bg')
     axs[1].bar(wnum_lam+0.5*width,np.mean(np.abs(ya_lam),axis=1),\
         yerr=np.std(np.abs(ya_lam),axis=1),width=width,label='LAM,anl')
-    axs[2].bar(wnum_lam-0.5*width,np.mean(np.abs(yb_lam),axis=1),\
-        yerr=np.std(np.abs(yb_lam),axis=1),width=width,label='LAM,bg')
-    axs[2].bar(wnum_lam+0.5*width,np.mean(np.abs(ya_lam),axis=1),\
-        yerr=np.std(np.abs(ya_lam),axis=1),width=width,label='LAM,anl')
+    #axs[2].bar(wnum_lam-0.5*width,np.mean(np.abs(yb_lam),axis=1),\
+    #    yerr=np.std(np.abs(yb_lam),axis=1),width=width,label='LAM,bg')
+    #axs[2].bar(wnum_lam+0.5*width,np.mean(np.abs(ya_lam),axis=1),\
+    #    yerr=np.std(np.abs(ya_lam),axis=1),width=width,label='LAM,anl')
     #axs[1,2].bar(wnum_lam,np.abs(yb_lam),width=width,label='LAM,bg')
     axs[1].bar(wnum_lam+1.5*width,np.mean(np.abs(ya_lam_nest),axis=1),\
         yerr=np.std(np.abs(ya_lam_nest),axis=1),width=width,label='LAM_nest,anl')
     #axs[2,2].bar(wnum_lam,np.abs(yb_lam),width=width,label='LAM,bg')
-    axs[2].bar(wnum_lam+1.5*width,np.mean(np.abs(ya_lam_nest),axis=1),\
-        yerr=np.std(np.abs(ya_lam_nest),axis=1),width=width,label='LAM_nest,anl')
-    for ax in axs.flatten():
-        ax.legend()
+    #axs[2].bar(wnum_lam+1.5*width,np.mean(np.abs(ya_lam_nest),axis=1),\
+    #    yerr=np.std(np.abs(ya_lam_nest),axis=1),width=width,label='LAM_nest,anl')
+    #for ax in axs.flatten():
+    axs[0].legend() #loc='upper left',bbox_to_anchor=(1.01,0.95))
+    axs[1].set_xlabel('wavenumber k/L')
+    #axs[2].set_xlabel('wavenumber k')
     if savefig:
         fig.savefig(figdir/'nature+lamanl.png',dpi=300)
         fig.savefig(figdir/'nature+lamanl.pdf')

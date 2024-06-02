@@ -261,6 +261,7 @@ elif pt == "envar_nest":
     if params_lam["anlsp"]:
         analysis_lam = EnVAR_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
+            crosscov=params_lam["crosscov"],\
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
@@ -269,6 +270,7 @@ elif pt == "envar_nest":
     else:
         analysis_lam = EnVAR_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
+            crosscov=params_lam["crosscov"],\
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \

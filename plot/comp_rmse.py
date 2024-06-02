@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 plt.rcParams['font.size'] = 16
 plt.rcParams['axes.labelsize'] = 20
+plt.rcParams['legend.fontsize'] = 20
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -16,6 +17,7 @@ dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
 
 perts = ["envar", "envar_nest","var","var_nest"]
+labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
 linecolor = {"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown"}
 
 fig0, ax0 = plt.subplots(figsize=[12,6],constrained_layout=True)
@@ -46,8 +48,8 @@ for pt in perts:
     print("{}, analysis RMSE = {}".format(pt,np.mean(e[ns:])))
     f = lamdir / f"stda_lam_{op}_{pt}.txt"
     stda = np.loadtxt(f)
-    ax0.plot(t,e,c=linecolor[pt],label=pt+f'={np.mean(e[ns:]):.3f}')
-    ax1.plot(t,stda,c=linecolor[pt],label=pt+f'={np.mean(stda[ns:]):.3f}')
+    ax0.plot(t,e,c=linecolor[pt],label=labels[pt]+f'={np.mean(e[ns:]):.3f}')
+    ax1.plot(t,stda,c=linecolor[pt],label=labels[pt]+f'={np.mean(stda[ns:]):.3f}')
     errors[pt] = e[ns:]
 for ax in [ax0,ax1]:
     ax.hlines([1.0],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
@@ -56,10 +58,13 @@ ax0.set_ylim(0.0,1.5)
 ax1.set_ylim(0.0,1.5)
 ax0.set(xlabel='days',ylabel='RMSE') #,title=op)
 ax1.set(xlabel='days',ylabel='STD') #,title=op)
-ax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
+ax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
+    title='Time average')
 ax1.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
 fig0.savefig(datadir/'{}_e_lam_{}.png'.format(model,op),dpi=300)
 fig1.savefig(datadir/'{}_stda_lam_{}.png'.format(model,op),dpi=300)
+fig0.savefig(datadir/'{}_e_lam_{}.pdf'.format(model,op))
+fig1.savefig(datadir/'{}_stda_lam_{}.pdf'.format(model,op))
 plt.show()
 plt.close()
 

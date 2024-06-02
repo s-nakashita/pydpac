@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 from scipy.fft import dst, idst, rfft, irfft, ifft
 from scipy.interpolate import interp1d
 from numpy.random import default_rng
@@ -98,7 +99,7 @@ if len(sys.argv)>1:
     obsloc = ix_lam[1:-1:intobs]
     xobsloc = x_lam[1:-1:intobs]
 nobs = obsloc.size
-obsope = Obs('linear',sigo,ix=ix_t)
+obsope = Obs('linear',sigo,ix=ix_t,seed=509)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
 obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
 var_gm = Var(obsope_gm, nx_gm, ix=ix_gm, bmat=B_gm)
@@ -106,7 +107,7 @@ var_lam = Var(obsope_lam, nx_lam-2, ix=ix_lam[1:-1], bmat=B_lam, bsqrt=U_lam, cy
 var_nest = Var_nest(obsope_lam, ix_gm, ix_lam[1:-1], bmat=B_lam, bsqrt=U_lam, sigv=sigb, ntrunc=7, cyclic=False, verbose=False)
 
 ## random seed
-rng = default_rng()
+rng = default_rng(517)
 
 ## start trials
 ntrial = 50
@@ -165,7 +166,7 @@ while itrial < ntrial:
     #yp_lam = y_lam*nx_lam/2. + rng.normal(0, scale=sigb, size=y_lam.size)
     #up_lam = irfft(yp_lam,len(u0_lam))
 
-    width=0.15
+    width=0.2
     fig, axs = plt.subplots(nrows=2,figsize=[8,6],constrained_layout=True)
     axs[0].plot(x_t,u0_t,label='nature')
     axs[0].plot(x_gm,u0_gm,label='GM')
@@ -200,7 +201,14 @@ while itrial < ntrial:
     ua_lam_nest[1:-1], _, _, _, _, _ = var_nest(up_lam[1:-1], B_lam, yobs, obsloc, u0_gm)
 
     ## evaluation
-    fig, axs = plt.subplots(nrows=3,figsize=[8,8],constrained_layout=True)
+    fig, axs = plt.subplots(nrows=2,figsize=[8,8],constrained_layout=True)
+    #fig = plt.figure(figsize=[8,8],constrained_layout=True)
+    #gs = GridSpec(2,1,figure=fig)
+    #gs1 = gs[1,:].subgridspec(1,2)
+    #ax0 = fig.add_subplot(gs[0,:])
+    #ax1 = fig.add_subplot(gs1[:,0])
+    #ax2 = fig.add_subplot(gs1[:,1])
+    #axs = [ax0,ax1,ax2]
     #for ax in axs[0,]:
     axs[0].plot(x_t,u0_t,label='nature')
     #axs[0,0].plot(x_gm, u0_gm, label='GM,bg')
@@ -208,20 +216,25 @@ while itrial < ntrial:
     axs[0].plot(x_lam, up_lam, label='LAM,bg')
     axs[0].plot(x_lam, ua_lam, label='LAM,anl')
     #axs[0,2].plot(x_lam, u0_lam, label='LAM,bg')
-    axs[0].plot(x_lam, ua_lam_nest, label='LAM_nest,anl')
+    #axs[0].plot(x_lam, ua_lam_nest, label='LAM_nest,anl')
     axs[0].plot(xobsloc,yobs,c='b',marker='x',lw=0.0,label='obs')
     axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
-    width=0.1
+    axs[0].set_xlabel('grid')
+    width=0.2
     for ax in axs[1:]:
-        ax.bar(wnum_t-1.5*width,np.abs(y_t),width=width,label='nature')
-    #for ax in axs[1,]:
-    axs[1].set_xlim(0,10)
-    axs[1].set_xticks(np.arange(11))
-    axs[1].set_xticks(np.arange(21)/2.,minor=True)
-    #for ax in axs[2,]:
-    axs[2].set_xlim(9,20)
-    axs[2].set_xticks(np.arange(9,21))
-    axs[2].set_xticks(np.arange(18,41)/2.,minor=True)
+        #ax.bar(wnum_t-1.5*width,np.abs(y_t),width=width,label='nature')
+        ax.plot(wnum_t,np.abs(y_t),marker='^',lw=0.0,ms=8,label='nature')
+    axs[1].set_xlim(0,20)
+    axs[1].set_xticks(np.arange(0,20))
+    axs[1].set_xticks(np.arange(41)/2.,minor=True)
+    ##for ax in axs[1,]:
+    #axs[1].set_xlim(0,3)
+    #axs[1].set_xticks(np.arange(4))
+    #axs[1].set_xticks(np.arange(8)/2.,minor=True)
+    ##for ax in axs[2,]:
+    #axs[2].set_xlim(16.5,19.5)
+    #axs[2].set_xticks(np.arange(17,20))
+    #axs[2].set_xticks(np.arange(34,40)/2.,minor=True)
     #yb_gm = dst(u0_gm[:-1],type=1)/nx_gm
     #ya_gm = dst(ua_gm[:-1],type=1)/nx_gm
     ##yb_gm = rfft(u0_gm)*2./nx_gm
@@ -234,18 +247,23 @@ while itrial < ntrial:
     ya_lam = dst(ua_lam[1:-1],type=1)/(nx_lam-1)
     #yb_lam = rfft(u0_lam)*2./nx_lam
     #ya_lam = rfft(ua_lam)*2./nx_lam
-    axs[1].bar(wnum_lam-0.5*width,np.abs(yb_lam),width=width,label='LAM,bg')
-    axs[1].bar(wnum_lam+0.5*width,np.abs(ya_lam),width=width,label='LAM,anl')
-    axs[2].bar(wnum_lam-0.5*width,np.abs(yb_lam),width=width,label='LAM,bg')
-    axs[2].bar(wnum_lam+0.5*width,np.abs(ya_lam),width=width,label='LAM,anl')
+    #axs[1].bar(wnum_lam-0.5*width,np.abs(yb_lam),width=width,label='LAM,bg')
+    #axs[1].bar(wnum_lam+0.5*width,np.abs(ya_lam),width=width,label='LAM,anl')
+    axs[1].plot(wnum_lam,np.abs(yb_lam),marker='x',lw=0.0,ms=8,label='LAM,bg')
+    axs[1].plot(wnum_lam,np.abs(ya_lam),marker='o',lw=0.0,ms=8,fillstyle='none',label='LAM,anl')
+    #axs[2].bar(wnum_lam-0.5*width,np.abs(yb_lam),width=width,label='LAM,bg')
+    #axs[2].bar(wnum_lam+0.5*width,np.abs(ya_lam),width=width,label='LAM,anl')
     ya_lam_nest = dst(ua_lam_nest[1:-1],type=1)/(nx_lam-1)
     #ya_lam_nest = rfft(ua_lam_nest)*2./nx_lam
     #axs[1,2].bar(wnum_lam,np.abs(yb_lam),width=width,label='LAM,bg')
-    axs[1].bar(wnum_lam+1.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
+    #axs[1].bar(wnum_lam+1.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
     #axs[2,2].bar(wnum_lam,np.abs(yb_lam),width=width,label='LAM,bg')
-    axs[2].bar(wnum_lam+1.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
-    for ax in axs.flatten():
-        ax.legend()
+    #axs[2].bar(wnum_lam+1.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
+    #for ax in axs.flatten():
+    axs[0].legend() #loc='upper left',bbox_to_anchor=(1.01,0.95))
+    axs[1].legend()
+    axs[1].set_xlabel('wavenumber k/L')
+    #axs[2].set_xlabel('wavenumber k')
     if savefig:
         fig.savefig(figdir/'nature+lamanl.png',dpi=300)
         fig.savefig(figdir/'nature+lamanl.pdf')
@@ -375,7 +393,7 @@ ax.set_ylabel('RMSE')
 ax.set_title(f'ntrial={ntrial} nobs={nobs}, 3DVar')
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}.png',dpi=300)
 fig.savefig(figdir_parent/f'rmse_nobs{nobs}.pdf')
-plt.show()
+plt.show(block=False)
 plt.close()
 
 # t-test
@@ -400,7 +418,7 @@ outf.write(f"0,{np.mean(rmsea_list):.4f},{np.mean(rmsea_nest_list):.4f},"+\
 #    f"{t.ppf(1-0.05/2,ntrial-1):.4f}, "+\
 #    f"{t.ppf(1-0.01/2,ntrial-1):.4f}\n")
 
-fig, axs = plt.subplots(figsize=[10,6],nrows=2)
+fig, axs = plt.subplots(figsize=[10,6],nrows=2,constrained_layout=True)
 errspecb = np.array(errspecb_list)
 print(errspecb.shape)
 errspecb_mean = np.mean(errspecb,axis=0)
@@ -430,7 +448,7 @@ axs[1].set_xlabel('wave number k')
 fig.suptitle(f'ntrial={ntrial} nobs={nobs}, 3DVar')
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}.png',dpi=300)
 fig.savefig(figdir_parent/f'errspec_nobs{nobs}.pdf')
-plt.show()
+plt.show(block=False)
 plt.close()
 
 # t-test
@@ -486,7 +504,7 @@ axs[1].set_ylim(0,0.2)
 fig.suptitle(f'ntrial={ntrial} nobs={nobs}, 3DVar, increment')
 fig.savefig(figdir_parent/f'incr_nobs{nobs}.png',dpi=300)
 fig.savefig(figdir_parent/f'incr_nobs{nobs}.pdf')
-plt.show()
+plt.show(block=False)
 plt.close()
 
 import pandas as pd

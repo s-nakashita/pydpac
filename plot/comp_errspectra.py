@@ -42,8 +42,8 @@ Lx_gm = 2.0 * np.pi
 #dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
 Lx_lam = 2.0 * np.pi * nx_lam / nx_t
 
-fig, ax = plt.subplots(figsize=[10,6],constrained_layout=True)
-figsp, axsp = plt.subplots(figsize=[10,8],constrained_layout=True)
+fig, ax = plt.subplots(figsize=[10,5],constrained_layout=True)
+figsp, axsp = plt.subplots(figsize=[10,6],constrained_layout=True)
 psd_dict = {}
 
 # nature background psd
@@ -110,12 +110,13 @@ for pt in perts:
     #else:
     #    ax.plot(ix_lam, np.mean(xsalam,axis=0),\
     #    c=linecolor[pt],ls='dashed')
-ax.set_ylabel('RMSE')
+#ax.set_ylabel('RMSE')
 ax.set_xlabel('grid')
 ax.set_xlim(ix_t[0],ix_t[-1])
 #ax.hlines([1],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
 ax.legend()
 fig.savefig(datadir/f"{model}_xd_{op}.png",dpi=300)
+fig.savefig(datadir/f"{model}_xd_{op}.pdf")
 
 axsp.grid()
 axsp.legend()
@@ -129,6 +130,7 @@ secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
 secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
 secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
 figsp.savefig(datadir/f"{model}_errspectra_{op}.png",dpi=300)
+figsp.savefig(datadir/f"{model}_errspectra_{op}.pdf")
 plt.show()
 plt.close()
 
@@ -176,5 +178,5 @@ for i,m1 in enumerate(methods):
         fig.suptitle(f"LAM {op}: {m1} - {m2}")
         fig.tight_layout()
         fig.savefig(datadir/"{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
-        plt.show()
-
+        #plt.show()
+        plt.close()

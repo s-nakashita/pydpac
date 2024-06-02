@@ -133,7 +133,7 @@ vlim = 0.15
 mp00 = axs[0,0].pcolormesh(ix_lam,ix_lam,pflam,shading='auto',\
     cmap='coolwarm',norm=Normalize(-vlim,vlim))
 fig.colorbar(mp00,ax=axs[0,0],pad=0.01,shrink=0.6)
-axs[0,0].set_title(r'$\mathbf{P}^\mathrm{f}$')
+axs[0,0].set_title(r'$\mathbf{P}^\mathrm{b}$')
 #vlim = max(np.max(vmat),-np.min(vmat))
 mp11 = axs[1,1].pcolormesh(ix_trunc,ix_trunc,vmat,shading='auto',\
     cmap='coolwarm',norm=Normalize(-vlim,vlim))
@@ -143,16 +143,19 @@ axs[1,1].set_title(r'$\mathbf{P}^\mathrm{v}$')
 mp01 = axs[0,1].pcolormesh(ix_trunc,ix_lam,cmat,shading='auto',\
     cmap='coolwarm',norm=Normalize(-vlim,vlim))
 fig.colorbar(mp01,ax=axs[0,1],pad=0.01,shrink=0.6)
-axs[0,1].set_title(r'$\mathbf{X}^\mathrm{b}(\mathbf{Z}^\mathrm{b})^\mathrm{T}$')
+axs[0,1].set_title(r'$\mathbf{X}^\mathrm{b}(\mathbf{Z}^\mathrm{v})^\mathrm{T}$')
 mp10 = axs[1,0].pcolormesh(ix_lam,ix_trunc,cmat.T,shading='auto',\
     cmap='coolwarm',norm=Normalize(-vlim,vlim))
 fig.colorbar(mp10,ax=axs[1,0],pad=0.01,shrink=0.6)
-axs[1,0].set_title(r'$\mathbf{Z}^\mathrm{b}(\mathbf{X}^\mathrm{b})^\mathrm{T}$')
+axs[1,0].set_title(r'$\mathbf{Z}^\mathrm{v}(\mathbf{X}^\mathrm{b})^\mathrm{T}$')
 for ax in axs.flatten():
+    ax.set_ylim(ix_lam[-1],ix_lam[0])
+    ticks = ix_lam[::(nx_lam)//8]
     ax.set_aspect("equal")
-    ax.set_xticks(ix_lam[::(nx_lam//8)])
-    ax.set_yticks(ix_lam[::(nx_lam//8)])
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks[::-1])
 
 #fig.suptitle(f"{labels[pt]}, cycle={scycle}-{ecycle}")
 fig.savefig(lamdir/"{}_pf_{}_{}_cycle{}-{}.png".format(model,op,pt,scycle,ecycle))
+fig.savefig(lamdir/"{}_pf_{}_{}_cycle{}-{}.pdf".format(model,op,pt,scycle,ecycle))
 plt.show()
