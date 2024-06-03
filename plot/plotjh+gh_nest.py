@@ -9,10 +9,10 @@ import matplotlib.gridspec as gridspec
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "envar", "envar_nest", "var","var_nest",\
+perts = ["mlef", "envar", "envar_nest", "envar_nestc", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown",\
+linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":'lime',"var":"tab:olive","var_nest":"tab:brown",\
         "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -49,6 +49,7 @@ lines3 = []
 labels3 = []
 plot_Jk = False
 for pt in perts:
+    #GM
     f = "{}_gm_jh_{}_{}.txt".format(model, op, pt)
     if os.path.isfile(f):
         j_gm = np.loadtxt(f)
@@ -56,92 +57,100 @@ for pt in perts:
         g_gm = np.loadtxt(f)
         f = "{}_gm_niter_{}_{}.txt".format(model, op, pt)
         niter_gm = np.loadtxt(f)
-        f = "{}_lam_jh_{}_{}.txt".format(model, op, pt)
+        cycles_gm = np.arange(j_gm.shape[0]).tolist()
+        lplot=True
+    else:
+        cycles_gm = []
+        j_gm = []
+        g_gm = []
+        niter_gm = []
+        for icycle in range(na):
+            #GM
+            f = "{}_gm_jh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
+            if os.path.isfile(f):
+                j = np.loadtxt(f)
+                if j.ndim == 2:
+                    j_gm.append(j[-1,:])
+                else:
+                    j_gm.append(j)
+                f = "{}_gm_gh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
+                if not os.path.isfile(f): continue
+                g = np.loadtxt(f)
+                if g.ndim == 1:
+                    g_gm.append(g[-1])
+                    niter_gm.append(g.size)
+                else:
+                    g_gm.append(g)
+                    niter_gm.append(1)
+                cycles_gm.append(icycle)
+        if len(j_gm) > 0 and len(g_gm) > 0 and len(niter_gm) > 0:
+            j_gm = np.array(j_gm)
+            g_gm = np.array(g_gm)
+            niter_gm = np.array(niter_gm)
+            np.savetxt("{}_gm_jh_{}_{}.txt".format(model, op, pt), j_gm)
+            np.savetxt("{}_gm_gh_{}_{}.txt".format(model, op, pt), g_gm)
+            np.savetxt("{}_gm_niter_{}_{}.txt".format(model, op, pt), niter_gm)
+    #LAM
+    f = "{}_lam_jh_{}_{}.txt".format(model, op, pt)
+    if os.path.isfile(f):
         j_lam = np.loadtxt(f)
         f = "{}_lam_gh_{}_{}.txt".format(model, op, pt)
         g_lam = np.loadtxt(f)
         f = "{}_lam_niter_{}_{}.txt".format(model, op, pt)
         niter_lam = np.loadtxt(f)
-        cycles_gm = np.arange(j_gm.shape[0])
-        nspinup = j_gm.shape[0] - j_lam.shape[0]
+        nspinup = max(len(cycles_gm) - j_lam.shape[0], 0)
         cycles_lam = np.arange(nspinup,j_lam.shape[0]+nspinup)
         lplot=True
     else:
-        cycles_gm = []
         cycles_lam = []
-        j_gm = []
-        g_gm = []
         j_lam = []
         g_lam = []
-        niter_gm = []
         niter_lam = []
         for icycle in range(na):
-            #GM
-            f = "{}_gm_jh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
-            if not os.path.isfile(f): continue
-            j = np.loadtxt(f)
-            if j.ndim == 2:
-                j_gm.append(j[-1,:])
-            else:
-                j_gm.append(j)
-            f = "{}_gm_gh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
-            if not os.path.isfile(f): continue
-            g = np.loadtxt(f)
-            if g.ndim == 1:
-                g_gm.append(g[-1])
-                niter_gm.append(g.size)
-            else:
-                g_gm.append(g)
-                niter_gm.append(1)
-            cycles_gm.append(icycle)
             #LAM
             f = "{}_lam_jh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
-            if not os.path.isfile(f): continue
-            j = np.loadtxt(f)
-            if j.ndim == 2:
-                j_lam.append(j[-1,:])
-            else:
-                j_lam.append(j)
-            f = "{}_lam_gh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
-            if not os.path.isfile(f): continue
-            g = np.loadtxt(f)
-            if g.ndim == 1:
-                g_lam.append(g[-1])
-                niter_lam.append(g.size)
-            else:
-                g_lam.append(g)
-                niter_lam.append(1)
-            cycles_lam.append(icycle)
+            if os.path.isfile(f):
+                j = np.loadtxt(f)
+                if j.ndim == 2:
+                    j_lam.append(j[-1,:])
+                else:
+                    j_lam.append(j)
+                f = "{}_lam_gh_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
+                if not os.path.isfile(f): continue
+                g = np.loadtxt(f)
+                if g.ndim == 1:
+                    g_lam.append(g[-1])
+                    niter_lam.append(g.size)
+                else:
+                    g_lam.append(g)
+                    niter_lam.append(1)
+                cycles_lam.append(icycle)
             #
             #cycles.append(icycle)
-        if len(cycles_gm) == 0 and len(cycles_lam) == 0:
-            print("not exist {}".format(pt))
-            continue
-        lplot=True
-        j_gm = np.array(j_gm)
-        g_gm = np.array(g_gm)
-        niter_gm = np.array(niter_gm)
-        j_lam = np.array(j_lam)
-        g_lam = np.array(g_lam)
-        niter_lam = np.array(niter_lam)
-        np.savetxt("{}_gm_jh_{}_{}.txt".format(model, op, pt), j_gm)
-        np.savetxt("{}_gm_gh_{}_{}.txt".format(model, op, pt), g_gm)
-        np.savetxt("{}_gm_niter_{}_{}.txt".format(model, op, pt), niter_gm)
-        np.savetxt("{}_lam_jh_{}_{}.txt".format(model, op, pt), j_lam)
-        np.savetxt("{}_lam_gh_{}_{}.txt".format(model, op, pt), g_lam)
-        np.savetxt("{}_lam_niter_{}_{}.txt".format(model, op, pt), niter_lam)
-    print("{}, GM mean J = {}".format(pt,np.mean(j_gm.sum(axis=1))))
-    print("{}, GM mean dJ = {}".format(pt,np.mean(g_gm)))
-    print("{}, LAM mean J = {}".format(pt,np.mean(j_lam.sum(axis=1))))
-    print("{}, LAM mean dJ = {}".format(pt,np.mean(g_lam)))
-    ax[0].plot(cycles_gm, np.sum(j_gm,axis=1), linestyle="solid", color=linecolor[pt]) #, label=pt+",Jb")
-    lines0.append(Line2D([0],[0],color=linecolor[pt]))
-    labels0.append(pt+f",{np.mean(np.sum(j_gm,axis=1)):.3e}") #+",Jb")
-    axe0_gm.plot(cycles_gm, j_gm[:,0], color=linecolor[pt], label=pt)
-    axe1_gm.plot(cycles_gm, j_gm[:,1], color=linecolor[pt]) #, label=pt+",Jo")
-    #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashed"))
-    #labels.append(pt+",Jo")
-    if j_lam.size > 0:
+        if len(j_lam) > 0 and len(g_lam) > 0 and len(niter_lam) > 0:
+            j_lam = np.array(j_lam)
+            g_lam = np.array(g_lam)
+            niter_lam = np.array(niter_lam)
+            np.savetxt("{}_lam_jh_{}_{}.txt".format(model, op, pt), j_lam)
+            np.savetxt("{}_lam_gh_{}_{}.txt".format(model, op, pt), g_lam)
+            np.savetxt("{}_lam_niter_{}_{}.txt".format(model, op, pt), niter_lam)
+    if len(cycles_gm) == 0 and len(cycles_lam) == 0:
+        print("not exist {}".format(pt))
+        continue
+    lplot=True
+    if len(cycles_gm) > 0:
+        print("{}, GM mean J = {}".format(pt,np.mean(j_gm.sum(axis=1))))
+        print("{}, GM mean dJ = {}".format(pt,np.mean(g_gm)))
+        ax[0].plot(cycles_gm, np.sum(j_gm,axis=1), linestyle="solid", color=linecolor[pt]) #, label=pt+",Jb")
+        lines0.append(Line2D([0],[0],color=linecolor[pt]))
+        labels0.append(pt+f",{np.mean(np.sum(j_gm,axis=1)):.3e}") #+",Jb")
+        axe0_gm.plot(cycles_gm, j_gm[:,0], color=linecolor[pt], label=pt)
+        axe1_gm.plot(cycles_gm, j_gm[:,1], color=linecolor[pt]) #, label=pt+",Jo")
+        #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashed"))
+        #labels.append(pt+",Jo")
+    if len(cycles_lam) > 0:
+        print("{}, LAM mean J = {}".format(pt,np.mean(j_lam.sum(axis=1))))
+        print("{}, LAM mean dJ = {}".format(pt,np.mean(g_lam)))
         ax[1].plot(cycles_lam, np.sum(j_lam,axis=1), linestyle="solid", color=linecolor[pt]) #, label=pt+",Jb")
         lines1.append(Line2D([0],[0],color=linecolor[pt]))
         labels1.append(pt+f",{np.mean(np.sum(j_lam,axis=1)):.3e}")
@@ -154,11 +163,12 @@ for pt in perts:
             axe2_lam.plot(cycles_lam, j_lam[:,2], color=linecolor[pt]) #, label=pt+",Jk")
             #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dotted"))
             #labels.append(pt+",Jk")
-    ax2[0,0].plot(cycles_gm, g_gm, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
-    lines2.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashdot"))
-    labels2.append(pt+r",$\nabla$J")
-    ax2[0,1].bar(cycles_gm, niter_gm, color=linecolor[pt], alpha=0.5)
-    if g_lam.size > 0:
+    if len(cycles_gm) > 0:
+        ax2[0,0].plot(cycles_gm, g_gm, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
+        lines2.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashdot"))
+        labels2.append(pt+r",$\nabla$J")
+        ax2[0,1].bar(cycles_gm, niter_gm, color=linecolor[pt], alpha=0.5)
+    if len(cycles_lam) > 0:
         ax2[1,0].plot(cycles_lam, g_lam, linestyle="dashdot", color=linecolor[pt]) #,label=pt+r",$\nabla$J")
         ax2[1,1].bar(cycles_lam, niter_lam, color=linecolor[pt], alpha=0.5)
     #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dashdot"))

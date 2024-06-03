@@ -16,8 +16,8 @@ fileConfig('logging_config.ini')
 logger = logging.getLogger(__name__)
 import sys
 
-#figdir_parent = Path('work/baxter11')
-figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11.2')
+figdir_parent = Path('work/baxter11.2')
+#figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11.2')
 if not figdir_parent.exists():
     figdir_parent.mkdir(parents=True)
 
@@ -216,7 +216,7 @@ while itrial < ntrial:
     axs[0].plot(x_lam, up_lam, label='LAM,bg')
     axs[0].plot(x_lam, ua_lam, label='LAM,anl')
     #axs[0,2].plot(x_lam, u0_lam, label='LAM,bg')
-    #axs[0].plot(x_lam, ua_lam_nest, label='LAM_nest,anl')
+    axs[0].plot(x_lam, ua_lam_nest, label='LAM_nest,anl')
     axs[0].plot(xobsloc,yobs,c='b',marker='x',lw=0.0,label='obs')
     axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
     axs[0].set_xlabel('grid')
@@ -257,6 +257,7 @@ while itrial < ntrial:
     #ya_lam_nest = rfft(ua_lam_nest)*2./nx_lam
     #axs[1,2].bar(wnum_lam,np.abs(yb_lam),width=width,label='LAM,bg')
     #axs[1].bar(wnum_lam+1.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
+    axs[1].plot(wnum_lam,np.abs(ya_lam_nest),marker='s',lw=0.0,ms=8,fillstyle='none',label='LAM_nest,anl')
     #axs[2,2].bar(wnum_lam,np.abs(yb_lam),width=width,label='LAM,bg')
     #axs[2].bar(wnum_lam+1.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
     #for ax in axs.flatten():

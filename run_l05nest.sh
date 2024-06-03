@@ -5,14 +5,14 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var var_nest envar envar_nest"
+perturbations="envar_nestc envar_nest"
 #perturbations="envar"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=1000 # Number of assimilation cycle
+na=10 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -27,8 +27,9 @@ functype=gc5
 #a=-0.1
 ntrunc=12
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
-exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
+#exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
 #exp="envar_dscl_m${nmem}obs${nobs}"
+exp="envar_nestc_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
@@ -112,14 +113,14 @@ for op in ${operators}; do
     if [ $pert = var_nest ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"var\"/" config_gm.py
     fi
-    if [ $pert = envar_nest ]; then
+    if [ $pert = envar_nest ] || [ $pert = envar_nestc ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"envar\"/" config_gm.py
     fi
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ### precomputed GM
     if [ $preGM = True ]; then
-      gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup
+      #gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup
       gsed -i -e "6i \ \"preGM\":${preGM}," config_lam.py
       gsed -i -e "6i \ \"preGMdir\":\"${preGMdir}/data/${preGMda}\"," config_lam.py
       gsed -i -e "6i \ \"preGMda\":\"${preGMda}\"," config_lam.py
@@ -148,6 +149,7 @@ for op in ${operators}; do
     mv ${model}_xsfmean_gm_${op}_${pt}.txt xsfmean_gm_${op}_${pert}.txt
     mv ${model}_xagm_${op}_${pt}.npy xagm_${op}_${pert}.npy
     mv ${model}_xsagm_${op}_${pt}.npy xsagm_${op}_${pert}.npy
+    mv ${model}_xfgm_${op}_${pt}.npy xfgm_${op}_${pert}.npy
     mv ${model}_e_lam_${op}_${pt}.txt e_lam_${op}_${pert}.txt
     mv ${model}_stda_lam_${op}_${pt}.txt stda_lam_${op}_${pert}.txt
     mv ${model}_xdmean_lam_${op}_${pt}.txt xdmean_lam_${op}_${pert}.txt
@@ -158,6 +160,7 @@ for op in ${operators}; do
     mv ${model}_xsfmean_lam_${op}_${pt}.txt xsfmean_lam_${op}_${pert}.txt
     mv ${model}_xalam_${op}_${pt}.npy xalam_${op}_${pert}.npy
     mv ${model}_xsalam_${op}_${pt}.npy xsalam_${op}_${pert}.npy
+    mv ${model}_xflam_${op}_${pt}.npy xflam_${op}_${pert}.npy
     loctype=`echo $pert | cut -c5-5`
     if [ "${loctype}" = "b" ]; then
       mv ${model}_gm_rho_${op}_${pt}.npy ${model}_rhogm_${op}_${pert}.npy
@@ -181,13 +184,13 @@ for op in ${operators}; do
     python ${cdir}/plot/plotpf_nest.py ${op} ${model} ${na} ${pert} 1 100
     #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
-    mkdir -p data/${pt}
+    mkdir -p data/${pert}
     for vname in d dh dx pa pf spf ua uf; do
-      mv ${model}_*_${vname}_${op}_${pt}_cycle*.npy data/${pt}
+      mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
     done
-    if [ $pt = var_nest ] || [ $pt = envar_nest ]; then
-      for vname in dk svmat;do
-        mv ${model}_*_${vname}_${op}_${pt}_cycle*.npy data/${pt}
+    if [ $pt = var_nest ] || [ $pt = envar_nest ] || [ $pt = envar_nestc ]; then
+      for vname in dk svmat qmat dk2;do
+        mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
       done
     fi
   done
@@ -202,9 +205,9 @@ for op in ${operators}; do
   if [ ${extfcst} = True ]; then 
   python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}
   fi
-  python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na}
-  rm ${model}_*_jh_${op}_*_cycle*.txt 
-  rm ${model}_*_alpha_${op}_*_cycle*.txt 
+  python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na} && \
+  rm ${model}_*_jh_${op}_*_cycle*.txt && \
+  rm ${model}_*_alpha_${op}_*_cycle*.txt && \
   rm ${model}_*_gh_${op}_*_cycle*.txt
   #rm obs*.npy
 done

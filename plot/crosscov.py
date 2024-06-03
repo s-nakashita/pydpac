@@ -22,14 +22,16 @@ na = int(sys.argv[3])
 t = np.arange(na)+1
 ns = 40 # spinup
 
-datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
+datadir = Path(f'work/{model}')
+#datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 #preGMpt = 'envar'
 #dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
+#lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
+lamdir  = datadir / 'envar_nestc_preGM_m80obs30'
 
-perts = ["envar", "envar_nest","var","var_nest"]
-labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
-linecolor = {"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown"}
+perts = ["envar", "envar_nest","envar_nestc","var","var_nest"]
+labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "envar_nestc":"Nested EnVar_c", "var":"3DVar", "var_nest":"Nested 3DVar"}
+linecolor = {"envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":'lime',"var":"tab:olive","var_nest":"tab:brown"}
 
 ix_t = np.loadtxt(lamdir/"ix_true.txt")
 ix_gm = np.loadtxt(lamdir/"ix_gm.txt")
@@ -55,10 +57,11 @@ nx_gmlam = ix_trunc.size
 #psd_dict = {}
 
 pt="envar_nest"
-scycle = 40
-ecycle = 1000
+scycle = 1 #40
+ecycle = 1 #1000
 ncycle_lam = 0
 vmat_exist = False
+qmat_exist = False
 for icycle in range(scycle,ecycle+1):
     f = lamdir/"{}_lam_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
     if f.exists():
@@ -122,24 +125,69 @@ for icycle in range(scycle,ecycle+1):
         cmat = spftmp @ svtmp.T
     elif vmat_exist:
         cmat = cmat + (spftmp @ svtmp.T)
+    f = lamdir/"{}_lam_qmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
+    if f.exists():
+        qtmp = np.load(f)
+        q2tmp = qtmp @ qtmp.T
+        f = lamdir/"{}_lam_dk2_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
+        dk2tmp = np.load(f)
+        if not qmat_exist:
+            qmat = qtmp
+            q2mat = q2tmp
+            dk2 = dk2tmp
+            #wnum_v, psdv, _ = psd(svtmp,ix_trunc_rad,axis=0,\
+            #    cyclic=False,nghost=0,average=True,detrend=True)
+        else:
+            qmat = qmat + qtmp
+            q2mat = q2mat + q2tmp
+            dk2 = dk2 + dk2tmp
+            #wnum_v, psdtmp, _ = psd(svtmp,ix_trunc_rad,axis=0,\
+            #    cyclic=False,nghost=0,average=True,detrend=True)
+            #psdv = psdv + psdtmp
+        qmat_exist=True
+    else:
+        f = lamdir/"data/{2}/{0}_lam_qmat_{1}_{2}_cycle{3}.npy".format(model, op, pt, icycle)
+        if f.exists():
+            qtmp = np.load(f)
+            q2tmp = qtmp.T @ qtmp
+            f = lamdir/"data/{2}/{0}_lam_dk2_{1}_{2}_cycle{3}.npy".format(model, op, pt, icycle)
+            dk2tmp = np.load(f)
+            if not qmat_exist:
+                qmat = qtmp
+                q2mat = q2tmp
+                dk2 = dk2tmp
+                #wnum_v, psdv, _ = psd(svtmp,ix_trunc_rad,axis=0,\
+                #    cyclic=False,nghost=0,average=True,detrend=True)
+            else:
+                qmat = qmat + qtmp
+                q2mat = q2mat + q2tmp
+                dk2 = dk2 + dk2tmp
+                #wnum_v, psdtmp, _ = psd(svtmp,ix_trunc_rad,axis=0,\
+                #    cyclic=False,nghost=0,average=True,detrend=True)
+                #psdv = psdv + psdtmp
+            qmat_exist=True
 if ncycle_lam == 0: exit()
 pflam = pflam / float(ncycle_lam)
 if vmat_exist:
     vmat = vmat / float(ncycle_lam)
     cmat = cmat / float(ncycle_lam)
+if qmat_exist:
+    qmat = qmat / float(ncycle_lam)
+    q2mat = q2mat / float(ncycle_lam)
+    dk2 = dk2 / float(ncycle_lam)
 fig, axs = plt.subplots(nrows=2,ncols=2,figsize=[12,12],constrained_layout=True)
-vlim = 0.15
-#vlim = max(np.max(pflam),-np.min(pflam))
+#vlim = 0.15
+vlim = max(np.max(pflam),-np.min(pflam))
 mp00 = axs[0,0].pcolormesh(ix_lam,ix_lam,pflam,shading='auto',\
     cmap='coolwarm',norm=Normalize(-vlim,vlim))
 fig.colorbar(mp00,ax=axs[0,0],pad=0.01,shrink=0.6)
 axs[0,0].set_title(r'$\mathbf{P}^\mathrm{b}$')
-#vlim = max(np.max(vmat),-np.min(vmat))
+vlim = max(np.max(vmat),-np.min(vmat))
 mp11 = axs[1,1].pcolormesh(ix_trunc,ix_trunc,vmat,shading='auto',\
     cmap='coolwarm',norm=Normalize(-vlim,vlim))
 fig.colorbar(mp11,ax=axs[1,1],pad=0.01,shrink=0.6)
 axs[1,1].set_title(r'$\mathbf{P}^\mathrm{v}$')
-#vlim = max(np.max(cmat),-np.min(cmat))
+vlim = max(np.max(cmat),-np.min(cmat))
 mp01 = axs[0,1].pcolormesh(ix_trunc,ix_lam,cmat,shading='auto',\
     cmap='coolwarm',norm=Normalize(-vlim,vlim))
 fig.colorbar(mp01,ax=axs[0,1],pad=0.01,shrink=0.6)
@@ -159,3 +207,39 @@ for ax in axs.flatten():
 fig.savefig(lamdir/"{}_pf_{}_{}_cycle{}-{}.png".format(model,op,pt,scycle,ecycle))
 fig.savefig(lamdir/"{}_pf_{}_{}_cycle{}-{}.pdf".format(model,op,pt,scycle,ecycle))
 plt.show()
+plt.close()
+
+fig, axs = plt.subplots(ncols=3,figsize=[12,6],constrained_layout=True)
+xaxis = np.arange(qmat.shape[0])
+vlim = max(np.max(qmat),-np.min(qmat))
+mp0 = axs[0].pcolormesh(xaxis,xaxis,qmat,shading='auto',\
+    cmap='coolwarm',norm=Normalize(-vlim,vlim))
+fig.colorbar(mp0,ax=axs[0],pad=0.01,shrink=0.6)
+if pt=="envar_nest":
+    axs[0].set_title(r'$\mathbf{Q}=(\mathbf{Z}^\mathrm{v})^{\dagger}\mathbf{Z}^\mathrm{b}$')
+elif pt=="envar_nestc":
+    axs[0].set_title(r'$\mathbf{Q}='
+    r'(\mathbf{X}^\mathrm{b} , '
+    r'\mathbf{Z}^\mathrm{v}'
+    r')^{\dagger}'
+    r'(\mathbf{X}^\mathrm{b} , '
+    r'\mathbf{Z}^\mathrm{b}'
+    r')$')
+vlim = max(np.max(q2mat),-np.min(q2mat))
+mp1 = axs[1].pcolormesh(xaxis,xaxis,q2mat,shading='auto',\
+    cmap='coolwarm',norm=Normalize(-vlim,vlim))
+fig.colorbar(mp1,ax=axs[1],pad=0.01,shrink=0.6)
+axs[1].set_title(r'$\mathbf{Q}^\mathrm{T}\mathbf{Q}$')
+for ax in axs[:2]:
+    ax.set_aspect("equal")
+axs[2].plot(dk2,xaxis)
+if pt=="envar_nest":
+    axs[2].set_title(r'$\tilde{\mathbf{d}}^\mathrm{v}=(\mathbf{Z}^\mathrm{v})^{\dagger}\mathbf{d}^\mathrm{v}$')
+elif pt=="envar_nestc":
+    axs[2].set_title(r'$\tilde{\mathbf{d}}^\mathrm{v}=(\mathbf{X}^\mathrm{b} , '
+    r'\mathbf{Z}^\mathrm{v}'
+    r')^{\dagger}(\mathbf{0} , \mathbf{d}^\mathrm{v})$')
+fig.savefig(lamdir/"{}_qmat_{}_{}_cycle{}-{}.png".format(model,op,pt,scycle,ecycle))
+fig.savefig(lamdir/"{}_qmat_{}_{}_cycle{}-{}.pdf".format(model,op,pt,scycle,ecycle))
+plt.show()
+plt.close()

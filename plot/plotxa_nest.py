@@ -17,7 +17,9 @@ dscl = False
 if len(sys.argv)>4:
     dscl = (sys.argv[4]=='T')
 print(dscl)
-perts = ["mlef", "envar", "envar_nest", "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
+perts = ["mlef", "envar", "envar_nest", "envar_nestc", \
+    "etkf", "po", "srf", "letkf", \
+    "kf", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 cmap = "coolwarm"
@@ -54,12 +56,15 @@ for pt in perts:
     p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     if dscl:
         f = "xagmonly_{}_{}.npy".format(op, pt)
+        f2 = "xfgmonly_{}_{}.npy".format(op, pt)
     else:
         f = "xagm_{}_{}.npy".format(op, pt)
+        f2 = "xfgm_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xagm = np.load(f)
+    xfgm = np.load(f2)
     print(xagm.shape)
     nx = ix_gm.size
     mp1 = axs[1].pcolormesh(ix_gm, t, xagm, shading='auto', \
@@ -151,12 +156,15 @@ for pt in perts:
     p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     if dscl:
         f = "xadscl_{}_{}.npy".format(op, pt)
+        f2 = "xfdscl_{}_{}.npy".format(op, pt)
     else:
         f = "xalam_{}_{}.npy".format(op, pt)
+        f2 = "xflam_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
     xalam = np.load(f)
+    xflam = np.load(f2)
     print(xalam.shape)
     nx = ix_lam.size
     axs[0].set_xticks(ix_lam[::(nx//8)])
@@ -248,13 +256,30 @@ for pt in perts:
         ax.plot(ix_t,xt1,label='nature')
         ax.plot(ix_gm,xagm1,label='GM')
         ax.plot(ix_lam,xalam1,label='LAM')
-        f = "{}_lam_dk_{}_{}_cycle{}.npy".format(model,op,pt,icycle)
+        f = "data/{2}/{0}_lam_dk_{1}_{2}_cycle{3}.npy".format(model,op,pt,icycle)
         if os.path.isfile(f):
             dk = np.load(f)
             ax.plot(ix_trunc,dk,label='dk')
         #else:
         #    ax.plot(ix_gm[i0:i1+1],xagm1[i0:i1+1]-JH2@xalam1,label='dk')
-        ax.set_title(f't={t[icycle]}')
+        ax.set_title(f't={t[icycle]}, analysis')
         ax.legend()
         fig.savefig("{}_xa_{}_{}_c{}.png".format(model,op,pt,icycle))
+        plt.close()
+        #
+        xfgm1 = xfgm[icycle]
+        xflam1 = xflam[icycle]
+        fig, ax = plt.subplots(figsize=[6,4])
+        ax.plot(ix_t,xt1,label='nature')
+        ax.plot(ix_gm,xfgm1,label='GM')
+        ax.plot(ix_lam,xflam1,label='LAM')
+        f = "data/{2}/{0}_lam_dk_{1}_{2}_cycle{3}.npy".format(model,op,pt,icycle)
+        if os.path.isfile(f):
+            dk = np.load(f)
+            ax.plot(ix_trunc,dk,label='dk')
+        #else:
+        #    ax.plot(ix_gm[i0:i1+1],xagm1[i0:i1+1]-JH2@xalam1,label='dk')
+        ax.set_title(f't={t[icycle]}, forecast')
+        ax.legend()
+        fig.savefig("{}_xf_{}_{}_c{}.png".format(model,op,pt,icycle))
         plt.close()

@@ -4,10 +4,10 @@ from matplotlib.lines import Line2D
 import pandas as pd
 from pathlib import Path
 
-#datadir1 = Path('work/baxter11')
-#datadir2 = Path('work/baxter11_en')
-datadir1 = Path('/Volumes/FF520/nested_envar/data/baxter11.2')
-datadir2 = Path('/Volumes/FF520/nested_envar/data/baxter11_en.2')
+datadir1 = Path('work/baxter11.2')
+datadir2 = Path('work/baxter11_en.2')
+#datadir1 = Path('/Volumes/FF520/nested_envar/data/baxter11.2')
+#datadir2 = Path('/Volumes/FF520/nested_envar/data/baxter11_en.2')
 
 nobslist = [31, 16, 11, 8]
 nenslist = [40,80,120,160,320,640,960]

@@ -14,9 +14,10 @@ from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger(__name__)
 import sys
+import os
 
-#figdir_parent = Path('work/baxter11_en')
-figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11_en.2')
+figdir_parent = Path.cwd() / Path('work/baxter11_en.2')
+#figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11_en.2')
 if not figdir_parent.exists():
     figdir_parent.mkdir(parents=True)
 
@@ -91,9 +92,11 @@ nobs = obsloc.size
 obsope = Obs('linear',sigo,ix=ix_t,seed=509)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
 obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
-envar_gm = EnVAR(nx_gm, nmem, obsope_gm)
-envar_lam = EnVAR(nx_lam-2, nmem, obsope_lam)
-envar_nest = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False)
+envar_gm = EnVAR(nx_gm, nmem, obsope_gm, model="b11")
+envar_lam = EnVAR(nx_lam-2, nmem, obsope_lam, model="b11")
+envar_nest = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False, model="b11")
+envar_nestc = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False,\
+    crosscov=True, pt="envar_nestc", model="b11")
 
 ## random seed
 rng = default_rng(517)
@@ -104,19 +107,30 @@ ntrial = 50
 rmseb_list = []
 rmsea_list = []
 rmsea_nest_list = []
+rmsea_nestc_list = []
 errspecb_list = []
 errspeca_list = []
 errspeca_nest_list = []
+errspeca_nestc_list = []
+incr_list = []
+incr_nest_list = []
+incr_nestc_list = []
+incrspec_list = []
+incrspec_nest_list = []
+incrspec_nestc_list = []
 itrial = 0
 while itrial < ntrial:
     itrial += 1
     logger.info(f"== trial {itrial} nobs={nobs} nmem={nmem} ==")
     savefig=False
+    save_dh=False
     if itrial <= 10:
         savefig=True
+        save_dh=True
         figdir = figdir_parent / f'nobs{nobs}nmem{nmem}_test{itrial}'
         if not figdir.exists():
             figdir.mkdir(parents=True)
+        os.chdir(figdir)
     ## nature and backgrounds
     u0_t = 5.*np.sin(np.pi*x_t) + np.sin(2.0*np.pi*x_t) + np.sin(36.*np.pi*x_t)
     u0_gm = 5.*np.sin(np.pi*x_gm) + np.sin(2.0*np.pi*x_gm)
@@ -202,10 +216,10 @@ while itrial < ntrial:
     axs[0].plot(x_lam,np.mean(u_lam,axis=1),c=cmap(2),label='LAM mean')
     axs[0].plot(x_lam,u_lam,lw=0.5,ls='dotted',c=cmap(2))
     axs[1].bar(wnum_t-width,np.abs(y_t),width=width,label='nature')
-    axs[1].bar(wnum_gm,np.mean(np.abs(y_gm),axis=1),\
-        yerr=np.std(np.abs(y_gm),axis=1),width=width,label='GM')
-    axs[1].bar(wnum_lam+width,np.mean(np.abs(y_lam),axis=1),\
-        yerr=np.std(np.abs(y_lam),axis=1),width=width,label='LAM')
+    axs[1].bar(wnum_gm,np.abs(np.mean(y_gm,axis=1)),\
+        yerr=np.std(y_gm,axis=1),width=width,label='GM')
+    axs[1].bar(wnum_lam+width,np.abs(np.mean(y_lam,axis=1)),\
+        yerr=np.std(y_lam,axis=1),width=width,label='LAM')
     axs[1].set_xlabel(r'wave number $k/L$')
     axs[1].set_xlim(0,20)
     axs[1].set_xticks(np.arange(21))
@@ -223,9 +237,37 @@ while itrial < ntrial:
     ## analysis
     ua_lam = u_lam.copy()
     ua_lam_nest = u_lam.copy()
+    ua_lam_nestc = u_lam.copy()
     ua_gm, _, _, _, _, _ = envar_gm(u_gm, X0_gm, yobs, obsloc)
     ua_lam[1:-1], _, _, _, _, _ = envar_lam(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc)
-    ua_lam_nest[1:-1], _, _, _, _, _ = envar_nest(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm)
+    ua_lam_nest[1:-1], _, _, _, _, _ = envar_nest(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm, save_dh=save_dh)
+    ua_lam_nestc[1:-1], _, _, _, _, _ = envar_nestc(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm)
+
+    if save_dh:
+        spftmp = np.load("b11_spf_linear_envar_nest_cycle0.npy")
+        svtmp  = np.load("b11_svmat_linear_envar_nest_cycle0.npy")
+        pftmp = spftmp @ spftmp.transpose()
+        vtmp = svtmp @ svtmp.transpose()
+        ctmp = spftmp @ svtmp.transpose()
+        fig, axs = plt.subplots(nrows=2,ncols=2,figsize=[8,8],constrained_layout=True)
+        p00 = axs[0,0].matshow(pftmp)
+        fig.colorbar(p00,ax=axs[0,0],pad=0.01,shrink=0.6)
+        axs[0,0].set_title(r'$\mathbf{P}^\mathrm{b}$')
+        p11 = axs[1,1].matshow(vtmp)
+        fig.colorbar(p11,ax=axs[1,1],pad=0.01,shrink=0.6)
+        axs[1,1].set_title(r'$\mathbf{P}^\mathrm{v}$')
+        p01 = axs[0,1].matshow(ctmp)
+        fig.colorbar(p01,ax=axs[0,1],pad=0.01,shrink=0.6)
+        axs[0,1].set_title(r'$\mathbf{X}^\mathrm{b}(\mathbf{Z}^\mathrm{v})^\mathrm{T}$')
+        p10 = axs[1,0].matshow(ctmp.transpose())
+        fig.colorbar(p10,ax=axs[1,0],pad=0.01,shrink=0.6)
+        axs[1,0].set_title(r'$\mathbf{Z}^\mathrm{v}(\mathbf{X}^\mathrm{b})^\mathrm{T}$')
+        for ax in axs.flatten():
+            ax.set_aspect('equal')
+        fig.savefig(figdir/'crosscov_lam.png',dpi=300)
+        fig.savefig(figdir/'crosscov_lam.pdf')
+        plt.show(block=False)
+        plt.close()
 
     ## evaluation
     fig, axs = plt.subplots(nrows=2,figsize=[8,8],constrained_layout=True)
@@ -244,12 +286,14 @@ while itrial < ntrial:
     axs[0].plot(x_lam, np.mean(ua_lam,axis=1), label='LAM,anl')
     #axs[0,2].plot(x_lam, u0_lam, label='LAM,bg')
     axs[0].plot(x_lam, np.mean(ua_lam_nest,axis=1), label='LAM_nest,anl')
+    axs[0].plot(x_lam, np.mean(ua_lam_nestc,axis=1), label='LAM_nestc,anl')
     axs[0].plot(xobsloc,yobs,c='b',marker='x',lw=0.0,label='obs')
     axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
     axs[0].set_xlabel('grid')
     width=0.2
     for ax in axs[1:]:
-        ax.bar(wnum_t-1.5*width,np.abs(y_t),width=width,label='nature')
+        #ax.bar(wnum_t-1.5*width,np.abs(y_t),width=width,label='nature')
+        ax.plot(wnum_t,np.abs(y_t),marker='^',lw=0.0,ms=8,label='nature')
     axs[1].set_xlim(0,20)
     axs[1].set_xticks(np.arange(0,20))
     axs[1].set_xticks(np.arange(41)/2.,minor=True)
@@ -272,20 +316,29 @@ while itrial < ntrial:
     yb_lam = dst(u_lam[1:-1],type=1,axis=0)/(nx_lam-1)
     ya_lam = dst(ua_lam[1:-1],type=1,axis=0)/(nx_lam-1)
     ya_lam_nest = dst(ua_lam_nest[1:-1],type=1,axis=0)/(nx_lam-1)
+    ya_lam_nestc = dst(ua_lam_nestc[1:-1],type=1,axis=0)/(nx_lam-1)
     #yb_lam = rfft(u0_lam)*2./nx_lam
     #ya_lam = rfft(ua_lam)*2./nx_lam
     #ya_lam_nest = rfft(ua_lam_nest)*2./nx_lam
-    axs[1].bar(wnum_lam-0.5*width,np.mean(np.abs(yb_lam),axis=1),\
-        yerr=np.std(np.abs(yb_lam),axis=1),width=width,label='LAM,bg')
-    axs[1].bar(wnum_lam+0.5*width,np.mean(np.abs(ya_lam),axis=1),\
-        yerr=np.std(np.abs(ya_lam),axis=1),width=width,label='LAM,anl')
+    #axs[1].bar(wnum_lam-0.5*width,np.abs(np.mean(yb_lam,axis=1)),\
+    #    yerr=np.std(yb_lam,axis=1),width=width,label='LAM,bg')
+    #axs[1].bar(wnum_lam+0.5*width,np.abs(np.mean(ya_lam,axis=1)),\
+    #    yerr=np.std(ya_lam,axis=1),width=width,label='LAM,anl')
+    axs[1].errorbar(wnum_lam,np.abs(np.mean(yb_lam,axis=1)),\
+        yerr=np.std(yb_lam,axis=1),marker='x',lw=0.0,ms=8,label='LAM,bg')
+    axs[1].errorbar(wnum_lam,np.abs(np.mean(ya_lam,axis=1)),\
+        yerr=np.std(ya_lam,axis=1),marker='o',fillstyle='none',lw=0.0,ms=8,label='LAM,anl')
     #axs[2].bar(wnum_lam-0.5*width,np.mean(np.abs(yb_lam),axis=1),\
     #    yerr=np.std(np.abs(yb_lam),axis=1),width=width,label='LAM,bg')
     #axs[2].bar(wnum_lam+0.5*width,np.mean(np.abs(ya_lam),axis=1),\
     #    yerr=np.std(np.abs(ya_lam),axis=1),width=width,label='LAM,anl')
     #axs[1,2].bar(wnum_lam,np.abs(yb_lam),width=width,label='LAM,bg')
-    axs[1].bar(wnum_lam+1.5*width,np.mean(np.abs(ya_lam_nest),axis=1),\
-        yerr=np.std(np.abs(ya_lam_nest),axis=1),width=width,label='LAM_nest,anl')
+    #axs[1].bar(wnum_lam+1.5*width,np.abs(np.mean(ya_lam_nest,axis=1)),\
+    #    yerr=np.std(ya_lam_nest,axis=1),width=width,label='LAM_nest,anl')
+    axs[1].errorbar(wnum_lam,np.abs(np.mean(ya_lam_nest,axis=1)),\
+        yerr=np.std(ya_lam_nest,axis=1),marker='s',fillstyle='none',lw=0.0,ms=8,label='LAM_nest,anl')
+    axs[1].errorbar(wnum_lam,np.abs(np.mean(ya_lam_nestc,axis=1)),\
+        yerr=np.std(ya_lam_nestc,axis=1),marker='p',fillstyle='none',lw=0.0,ms=8,label='LAM_nestc,anl')
     #axs[2,2].bar(wnum_lam,np.abs(yb_lam),width=width,label='LAM,bg')
     #axs[2].bar(wnum_lam+1.5*width,np.mean(np.abs(ya_lam_nest),axis=1),\
     #    yerr=np.std(np.abs(ya_lam_nest),axis=1),width=width,label='LAM_nest,anl')
@@ -299,6 +352,51 @@ while itrial < ntrial:
     plt.show(block=False)
     plt.close()
 
+    ## increment
+    incr_lam = np.mean(ua_lam,axis=1) - np.mean(u_lam,axis=1)
+    incr_lam_nest = np.mean(ua_lam_nest,axis=1) - np.mean(u_lam,axis=1)
+    incr_lam_nestc = np.mean(ua_lam_nestc,axis=1) - np.mean(u_lam,axis=1)
+    incr_list.append(incr_lam)
+    incr_nest_list.append(incr_lam_nest)
+    incr_nestc_list.append(incr_lam_nestc)
+    ya_lam = dst(incr_lam[1:-1],type=1)/(nx_lam-1)
+    ya_lam_nest = dst(incr_lam_nest[1:-1],type=1)/(nx_lam-1)
+    ya_lam_nestc = dst(incr_lam_nestc[1:-1],type=1)/(nx_lam-1)
+    incrspec_list.append(np.abs(ya_lam))
+    incrspec_nest_list.append(np.abs(ya_lam_nest))
+    incrspec_nestc_list.append(np.abs(ya_lam_nestc))
+    width=0.3
+    fig, axs = plt.subplots(nrows=3,figsize=[8,8],constrained_layout=True)
+    axs[0].plot(x_lam, incr_lam, label='LAM')
+    axs[0].plot(x_lam, incr_lam_nest, label='LAM_nest')
+    axs[0].plot(x_lam, incr_lam_nestc, label='LAM_nestc')
+    axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
+    #for ax in axs[1,]:
+    axs[1].set_xlim(0,10)
+    axs[1].set_xticks(np.arange(11))
+    axs[1].set_xticks(np.arange(21)/2.,minor=True)
+    axs[1].set_xlabel('wave number k')
+    #for ax in axs[2,]:
+    axs[2].set_xlim(9,20)
+    axs[2].set_xticks(np.arange(9,21))
+    axs[2].set_xticks(np.arange(18,41)/2.,minor=True)
+    axs[2].set_xlabel('wave number k')
+    axs[1].bar(wnum_lam-width,np.abs(ya_lam),width=width,label='LAM')
+    axs[1].bar(wnum_lam      ,np.abs(ya_lam_nest),width=width,label='LAM_nest')
+    axs[1].bar(wnum_lam+width,np.abs(ya_lam_nestc),width=width,label='LAM_nestc')
+    axs[2].bar(wnum_lam-width,np.abs(ya_lam),width=width,label='LAM')
+    axs[2].bar(wnum_lam      ,np.abs(ya_lam_nest),width=width,label='LAM_nest')
+    axs[2].bar(wnum_lam+width,np.abs(ya_lam_nestc),width=width,label='LAM_nestc')
+    #for ax in axs[2,:]:
+    axs[0].legend(bbox_to_anchor=(1.01,0.9))
+    axs[1].set_ylim(0,0.2)
+    fig.suptitle('incr')
+    if savefig:
+        fig.savefig(figdir/'incr.png',dpi=300)
+        fig.savefig(figdir/'incr.pdf')
+    plt.show(block=False)
+    plt.close()
+
     ## error
     nature2model = interp1d(x_t,u0_t)
     #errb_gm = u0_gm - nature2model(x_gm)
@@ -306,12 +404,15 @@ while itrial < ntrial:
     errb_lam = np.mean(u_lam,axis=1) - nature2model(x_lam)
     erra_lam = np.mean(ua_lam,axis=1) - nature2model(x_lam)
     erra_lam_nest = np.mean(ua_lam_nest,axis=1) - nature2model(x_lam)
+    erra_lam_nestc = np.mean(ua_lam_nestc,axis=1) - nature2model(x_lam)
     rmseb = np.sqrt(np.mean(errb_lam**2))
     rmsea = np.sqrt(np.mean(erra_lam**2))
     rmsea_nest = np.sqrt(np.mean(erra_lam_nest**2))
+    rmsea_nestc = np.sqrt(np.mean(erra_lam_nestc**2))
     rmseb_list.append(rmseb)
     rmsea_list.append(rmsea)
     rmsea_nest_list.append(rmsea_nest)
+    rmsea_nestc_list.append(rmsea_nestc)
     #yb_gm = dst(errb_gm[:-1],type=1)/nx_gm
     #ya_gm = dst(erra_gm[:-1],type=1)/nx_gm
     ##yb_gm = rfft(errb_gm)*2./nx_gm
@@ -319,20 +420,23 @@ while itrial < ntrial:
     yb_lam = dst(errb_lam[1:-1],type=1,axis=0)/(nx_lam-1)
     ya_lam = dst(erra_lam[1:-1],type=1,axis=0)/(nx_lam-1)
     ya_lam_nest = dst(erra_lam_nest[1:-1],type=1,axis=0)/(nx_lam-1)
+    ya_lam_nestc = dst(erra_lam_nestc[1:-1],type=1,axis=0)/(nx_lam-1)
     #yb_lam = rfft(errb_lam)*2./nx_lam
     #ya_lam = rfft(erra_lam)*2./nx_lam
     #ya_lam_nest = rfft(erra_lam_nest)*2./nx_lam
     errspecb_list.append(np.abs(yb_lam))
     errspeca_list.append(np.abs(ya_lam))
     errspeca_nest_list.append(np.abs(ya_lam_nest))
+    errspeca_nestc_list.append(np.abs(ya_lam_nestc))
 
-    width=0.3
+    width=0.2
     fig, axs = plt.subplots(nrows=3,figsize=[8,8],constrained_layout=True)
     #axs[0,0].plot(x_gm, errb_gm, label='GM,bg')
     #axs[0,0].plot(x_gm, erra_gm, label='GM,anl')
     axs[0].plot(x_lam, errb_lam, label='LAM,bg\n'+f'rmse={rmseb:.3e}')
     axs[0].plot(x_lam, erra_lam, label='LAM,anl\n'+f'rmse={rmsea:.3e}')
     axs[0].plot(x_lam, erra_lam_nest, label='LAM_nest,anl\n'+f'rmse={rmsea_nest:.3e}')
+    axs[0].plot(x_lam, erra_lam_nestc, label='LAM_nestc,anl\n'+f'rmse={rmsea_nestc:.3e}')
     axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
     #for ax in axs[1,]:
     axs[1].set_xlim(0,10)
@@ -348,12 +452,14 @@ while itrial < ntrial:
     #axs[1].bar(wnum_gm,np.abs(ya_gm),width=width,label='GM,anl')
     #axs[2].bar(wnum_gm-width,np.abs(yb_gm),width=width,label='GM,bg')
     #axs[2].bar(wnum_gm,np.abs(ya_gm),width=width,label='GM,anl')
-    axs[1].bar(wnum_lam-width,np.abs(yb_lam),width=width,label='LAM,bg')
-    axs[1].bar(wnum_lam      ,np.abs(ya_lam),width=width,label='LAM,anl')
-    axs[1].bar(wnum_lam+width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
-    axs[2].bar(wnum_lam-width,np.abs(yb_lam),width=width,label='LAM,bg')
-    axs[2].bar(wnum_lam      ,np.abs(ya_lam),width=width,label='LAM,anl')
-    axs[2].bar(wnum_lam+width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
+    axs[1].bar(wnum_lam-1.5*width,np.abs(yb_lam),width=width,label='LAM,bg')
+    axs[1].bar(wnum_lam-0.5*width,np.abs(ya_lam),width=width,label='LAM,anl')
+    axs[1].bar(wnum_lam+0.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
+    axs[1].bar(wnum_lam+1.5*width,np.abs(ya_lam_nestc),width=width,label='LAM_nestc,anl')
+    axs[2].bar(wnum_lam-1.5*width,np.abs(yb_lam),width=width,label='LAM,bg')
+    axs[2].bar(wnum_lam-0.5*width,np.abs(ya_lam),width=width,label='LAM,anl')
+    axs[2].bar(wnum_lam+0.5*width,np.abs(ya_lam_nest),width=width,label='LAM_nest,anl')
+    axs[2].bar(wnum_lam+1.5*width,np.abs(ya_lam_nestc),width=width,label='LAM_nestc,anl')
     #for ax in axs[2,:]:
     axs[0].legend(bbox_to_anchor=(1.01,0.9))
     axs[1].set_ylim(0,0.2)
@@ -371,11 +477,15 @@ ax.plot(np.arange(1,ntrial+1),rmsea_list,c=cmap(1),marker='^',\
     label='LAM,anl\n'+f'mean={np.mean(rmsea_list):.3f}')
 ax.plot(np.arange(1,ntrial+1),rmsea_nest_list,c=cmap(2),marker='^',\
     label='LAM_nest,anl\n'+f'mean={np.mean(rmsea_nest_list):.3f}')
+ax.plot(np.arange(1,ntrial+1),rmsea_nestc_list,c=cmap(3),marker='^',\
+    label='LAM_nestc,anl\n'+f'mean={np.mean(rmsea_nestc_list):.3f}')
 ax.hlines([np.mean(rmseb_list)],0,1,colors=cmap(0),ls='dashed',\
     transform=ax.get_yaxis_transform(),zorder=0)
 ax.hlines([np.mean(rmsea_list)],0,1,colors=cmap(1),ls='dashed',\
     transform=ax.get_yaxis_transform(),zorder=0)
 ax.hlines([np.mean(rmsea_nest_list)],0,1,colors=cmap(2),ls='dashed',\
+    transform=ax.get_yaxis_transform(),zorder=0)
+ax.hlines([np.mean(rmsea_nestc_list)],0,1,colors=cmap(3),ls='dashed',\
     transform=ax.get_yaxis_transform(),zorder=0)
 ax.legend(bbox_to_anchor=(1.01,0.9))
 ax.set_xlim(0,ntrial+1)
@@ -421,11 +531,15 @@ errspeca_std  = np.std(errspeca,axis=0)
 errspeca_nest = np.array(errspeca_nest_list)
 errspeca_nest_mean = np.mean(errspeca_nest,axis=0)
 errspeca_nest_std  = np.std(errspeca_nest,axis=0)
-width=0.3
+errspeca_nestc = np.array(errspeca_nestc_list)
+errspeca_nestc_mean = np.mean(errspeca_nestc,axis=0)
+errspeca_nestc_std  = np.std(errspeca_nestc,axis=0)
+width=0.2
 for ax in axs:
-    ax.bar(wnum_lam-width,errspecb_mean,yerr=errspecb_std,width=width,label='LAM,bg')
-    ax.bar(wnum_lam,      errspeca_mean,yerr=errspeca_std,width=width,label='LAM,anl')
-    ax.bar(wnum_lam+width,errspeca_nest_mean,yerr=errspeca_nest_std,width=width,label='LAM_nest,anl')
+    ax.bar(wnum_lam-1.5*width,errspecb_mean,yerr=errspecb_std,width=width,label='LAM,bg')
+    ax.bar(wnum_lam-0.5*width,errspeca_mean,yerr=errspeca_std,width=width,label='LAM,anl')
+    ax.bar(wnum_lam+0.5*width,errspeca_nest_mean,yerr=errspeca_nest_std,width=width,label='LAM_nest,anl')
+    ax.bar(wnum_lam+1.5*width,errspeca_nestc_mean,yerr=errspeca_nestc_std,width=width,label='LAM_nestc,anl')
     ax.set_ylabel('Absolute error')
 axs[0].set_xlim(0,10)
 axs[0].set_xticks(np.arange(11))
@@ -464,6 +578,51 @@ for ik in range(wnum_lam.size):
     #f"{t.ppf(1-0.01/2,ntrial-1):.4f}")
 outf.close()
 
+fig, axs = plt.subplots(figsize=[10,8],nrows=3,constrained_layout=True)
+incr = np.array(incr_list)
+incr_mean = np.mean(incr,axis=0)
+incr_std  = np.std(incr,axis=0)
+incrspec = np.array(incrspec_list)
+incrspec_mean = np.mean(incrspec,axis=0)
+incrspec_std  = np.std(incrspec,axis=0)
+incr_nest = np.array(incr_nest_list)
+incr_nest_mean = np.mean(incr_nest,axis=0)
+incr_nest_std  = np.std(incr_nest,axis=0)
+incrspec_nest = np.array(incrspec_nest_list)
+incrspec_nest_mean = np.mean(incrspec_nest,axis=0)
+incrspec_nest_std  = np.std(incrspec_nest,axis=0)
+incr_nestc = np.array(incr_nestc_list)
+incr_nestc_mean = np.mean(incr_nestc,axis=0)
+incr_nestc_std  = np.std(incr_nestc,axis=0)
+incrspec_nestc = np.array(incrspec_nestc_list)
+incrspec_nestc_mean = np.mean(incrspec_nestc,axis=0)
+incrspec_nestc_std  = np.std(incrspec_nestc,axis=0)
+axs[0].errorbar(x_lam, incr_mean, yerr=incr_std, label='LAM')
+axs[0].errorbar(x_lam, incr_nest_mean, yerr=incr_nest_std, label='LAM_nest')
+axs[0].errorbar(x_lam, incr_nestc_mean, yerr=incr_nestc_std, label='LAM_nestc')
+axs[0].set_xlim(x_lam[0]-dx_lam,x_lam[-1])
+axs[1].set_xlim(0,10)
+axs[1].set_xticks(np.arange(11))
+axs[1].set_xticks(np.arange(21)/2.,minor=True)
+axs[1].set_xlabel('wave number k')
+axs[2].set_xlim(9,20)
+axs[2].set_xticks(np.arange(9,21))
+axs[2].set_xticks(np.arange(18,41)/2.,minor=True)
+axs[2].set_xlabel('wave number k')
+axs[1].bar(wnum_lam-width,incrspec_mean,yerr=incrspec_std,width=width,label='LAM,anl')
+axs[1].bar(wnum_lam      ,incrspec_nest_mean,yerr=incrspec_nest_std,width=width,label='LAM_nest,anl')
+axs[1].bar(wnum_lam+width,incrspec_nestc_mean,yerr=incrspec_nestc_std,width=width,label='LAM_nestc,anl')
+axs[2].bar(wnum_lam-width,incrspec_mean,yerr=incrspec_std,width=width,label='LAM,anl')
+axs[2].bar(wnum_lam      ,incrspec_nest_mean,yerr=incrspec_nest_std,width=width,label='LAM_nest,anl')
+axs[2].bar(wnum_lam+width,incrspec_nestc_mean,yerr=incrspec_nestc_std,width=width,label='LAM_nestc,anl')
+axs[0].legend(bbox_to_anchor=(1.01,0.9))
+axs[1].set_ylim(0,0.2)
+fig.suptitle(f'ntrial={ntrial} nobs={nobs} nmem={nmem}, EnVar, increment')
+fig.savefig(figdir_parent/f'incr_nobs{nobs}nmem{nmem}.png',dpi=300)
+fig.savefig(figdir_parent/f'incr_nobs{nobs}nmem{nmem}.pdf')
+plt.show(block=False)
+plt.close()
+
 import pandas as pd
 df = pd.read_csv(figdir_parent/outfile,comment='#')
 print(df)
@@ -472,6 +631,7 @@ print(df)
 outfile_b = f'errb_nobs{nobs}nmem{nmem}.csv'
 outfile_a = f'erra_nobs{nobs}nmem{nmem}.csv'
 outfile_a_nest = f'erra_nest_nobs{nobs}nmem{nmem}.csv'
+outfile_a_nestc = f'erra_nestc_nobs{nobs}nmem{nmem}.csv'
 err_b = np.zeros((errspecb.shape[0],errspecb.shape[1]+1))
 err_b[:, 0] = np.array(rmseb_list)
 err_b[:,1:] = errspecb
@@ -487,3 +647,8 @@ err_a_nest[:, 0] = np.array(rmsea_nest_list)
 err_a_nest[:,1:] = errspeca_nest
 df_a_nest = pd.DataFrame(err_a_nest,index=pd.Index(np.arange(ntrial)+1))
 df_a_nest.to_csv(figdir_parent/outfile_a_nest)
+err_a_nestc = np.zeros((errspeca_nestc.shape[0],errspeca_nestc.shape[1]+1))
+err_a_nestc[:, 0] = np.array(rmsea_nestc_list)
+err_a_nestc[:,1:] = errspeca_nestc
+df_a_nestc = pd.DataFrame(err_a_nestc,index=pd.Index(np.arange(ntrial)+1))
+df_a_nestc.to_csv(figdir_parent/outfile_a_nestc)
