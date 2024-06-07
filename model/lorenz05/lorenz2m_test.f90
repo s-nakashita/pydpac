@@ -29,7 +29,7 @@ program lorenz2m_test
 
   call l2%init(nx,nks,dt,F)
   l2%x(:) = F 
-  l2%x(nx/2) = 1.001*F 
+  l2%x(nx/2) = 1.001d0*F 
   xsave(1,:) = real(l2%x,kind=sp) 
   do k=1,nt
     print '(f5.2,a)', real(k-1,kind=dp)*100.0d0/real(nt,kind=dp),'%'

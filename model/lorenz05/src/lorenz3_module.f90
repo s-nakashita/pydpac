@@ -294,7 +294,7 @@ contains
     fi2 = real(ni*ni,kind=dp)
     fi3 = fi2*real(ni,kind=dp)
     fi4 = fi3*real(ni,kind=dp)
-    al = (3.0d0*fi2+3.0d0)/(2.0d0*fi3+4.0*real(ni,kind=dp))
+    al = (3.0d0*fi2+3.0d0)/(2.0d0*fi3+4.0d0*real(ni,kind=dp))
     be = (2.0d0*fi2+1.0d0)/(fi4+2.0d0*fi2)
     do i=1,nifil
       js = i - ni

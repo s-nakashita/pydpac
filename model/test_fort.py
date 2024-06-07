@@ -54,6 +54,7 @@ fig.colorbar(p2,ax=axs[2],pad=0.01,shrink=0.6)
 axs[0].set_title('Python')
 axs[1].set_title('Fortran')
 axs[2].set_title('Diff')
+fig.savefig(f"lorenz05/build/test_{model}.png",dpi=300)
 plt.show()
 
 for i in range(0,101,10):

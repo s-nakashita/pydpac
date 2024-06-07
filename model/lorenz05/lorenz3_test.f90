@@ -18,13 +18,13 @@ program lorenz3_test
   nx = 960
   nk = 32
   ni = 12
-  b = 10.0
-  c = 0.6
-  F = 15.0
-  dt = 0.05 / b
+  b = 10.0d0
+  c = 0.6d0
+  F = 15.0d0
+  dt = 0.05d0 / b
   call l3%init(nx,nk,ni,b,c,dt,F)
   
-  tmax = 5.0
+  tmax = 20.0d0
   nt = ceiling(tmax/dt)
   ksave = int(b)
   nsave = nt / ksave

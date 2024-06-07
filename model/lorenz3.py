@@ -168,7 +168,7 @@ if __name__ == "__main__":
     if not figdir.exists():
         figdir.mkdir(parents=True)
 
-    tmax = 5.0
+    tmax = 20.0
     nt = int(tmax/h)
     print(nt)
     z = []

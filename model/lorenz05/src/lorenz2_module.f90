@@ -202,14 +202,14 @@ contains
         elseif(ii.gt.n) then
           ii=ii-n
         end if
-        w(i) = w(i) - 0.5*x(jj) - 0.5*x(ii)
+        w(i) = w(i) - 0.5d0*x(jj) - 0.5d0*x(ii)
       end do
     end if
     w = w / float(nk)
 
     allocate( w2(n), y(n) )
-    w2(:) = 0.0
-    y(:) = 0.0
+    w2(:) = 0.0d0
+    y(:) = 0.0d0
     if(present(x2)) then
       y(:) = x2(:)
       do j=-nj,nj
@@ -237,7 +237,7 @@ contains
           elseif(ii.gt.n) then
             ii=ii-n
           end if
-          w2(i) = w2(i) - 0.5*y(jj) - 0.5*y(ii)
+          w2(i) = w2(i) - 0.5d0*y(jj) - 0.5d0*y(ii)
         end do
       end if
       w2 = w2 / float(nk)
@@ -278,7 +278,7 @@ contains
         elseif(ii.gt.n) then
           ii=ii-n
         end if
-        xadv(i) = xadv(i) - 0.5*w(jj)*y(ii)
+        xadv(i) = xadv(i) - 0.5d0*w(jj)*y(ii)
         jj=i-(nk-nj)
         if(jj.le.0) then
           jj=jj+n 
@@ -291,7 +291,7 @@ contains
         elseif(ii.gt.n) then
           ii=ii-n
         end if
-        xadv(i) = xadv(i) - 0.5*w(jj)*y(ii)
+        xadv(i) = xadv(i) - 0.5d0*w(jj)*y(ii)
       end do
     end if
     xadv = xadv / float(nk)

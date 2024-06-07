@@ -15,15 +15,15 @@ program lorenz2_test
 
   nx = 240
   nk = 8
-  dt = 0.05
-  F = 15.0
-  tmax = 20.0
+  dt = 0.05d0
+  F = 15.0d0
+  tmax = 20.0d0
   nt = ceiling(tmax/dt)
   allocate(xsave(nt+1,nx))
 
   call l2%init(nx,nk,dt,F)
   l2%x(:) = F 
-  l2%x(nx/2) = F*1.0001d0
+  l2%x(nx/2) = F+F*0.0001d0
   print *, 'initial'
   print *, l2%x
   xsave(1,:) = real(l2%x,kind=sp)
