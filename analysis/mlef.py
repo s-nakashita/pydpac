@@ -14,7 +14,7 @@ logger = getLogger('anl')
         
 class Mlef():
 
-    def __init__(self, state_size, nmem, obs, 
+    def __init__(self, state_size, nmem, obs, pt="mlef",
         nvars=1,ndims=1,
         linf=False, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, getkf=False,
@@ -22,13 +22,13 @@ class Mlef():
         calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
         # necessary parameters
-        self.pt = "mlef" # DA type 
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         # optional parameters
+        self.pt = pt # DA type 
         # for 2 or more variables
         self.nvars = nvars
         # for 2 or more dimensional data
@@ -123,7 +123,7 @@ class Mlef():
         if alpha is not None:
             alphak.append(alpha)
 
-    def calc_j(self, zeta, *args):
+    def calc_j(self, zeta, *args, return_each=False):
         if not self.incremental:
             xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
@@ -139,9 +139,12 @@ class Mlef():
             jb = 0.5 * zeta.transpose() @ heinv @ zeta 
             jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
             #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
-        logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
-        j = jb + jo
-        return j
+        if return_each:
+            return jb, jo
+        else:
+            logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
+            j = jb + jo
+            return j
 
     def calc_grad_j(self, zeta, *args):
         if not self.incremental:
@@ -432,10 +435,14 @@ class Mlef():
             else:
                 if save_hist:
                     x, flg = minimize(x0, callback=self.callback)
-                    jh = np.zeros(len(zetak))
+                    jh = np.zeros((len(zetak),2))
                     gh = np.zeros(len(zetak))
                     for i in range(len(zetak)):
-                        jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                        #jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                        # calculate jb and jo separately
+                        jb, jo = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
+                        jh[i,0] = jb
+                        jh[i,1] = jo
                         g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                         gh[i] = np.sqrt(g.transpose() @ g)
                     np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)

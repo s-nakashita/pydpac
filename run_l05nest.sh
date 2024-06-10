@@ -5,17 +5,18 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar_nestc envar_nest"
-#perturbations="envar"
+#perturbations="var_nest var envar_nest envar"
+#perturbations="mlef"
+perturbations="mlef_nestc"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=10 # Number of assimilation cycle
+na=60 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
-linf=False # True:Apply inflation False:Not apply
+linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 extfcst=False # for NMC
@@ -28,15 +29,18 @@ functype=gc5
 ntrunc=12
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
-#exp="envar_dscl_m${nmem}obs${nobs}"
-exp="envar_nestc_preGM_m${nmem}obs${nobs}"
+#exp="var_vs_envar_shrink_preGM_m${nmem}obs${nobs}"
+#exp="mlef_dscl_m${nmem}obs${nobs}"
+exp="mlef_nestc2_shrink_preGM_m${nmem}obs${nobs}"
+#exp="envar_nestc_shrink_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 preGM=True
-preGMda="envar"
-preGMdir="${cdir}/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}"
+preGMda="mlef"
+#preGMdir="${cdir}/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}"
+preGMdir="${cdir}/work/${model}/${preGMda}_dscl_m${nmem}obs${nobs}"
 #preGMdir="${cdir}/work/${model}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
 wdir=work/${model}/${exp}
 rm -rf $wdir
@@ -116,11 +120,14 @@ for op in ${operators}; do
     if [ $pert = envar_nest ] || [ $pert = envar_nestc ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"envar\"/" config_gm.py
     fi
+    if [ $pert = mlef_nest ] || [ $pert = mlef_nestc ]; then
+      gsed -i -e "/pt/s/\"${pert}\"/\"mlef\"/" config_gm.py
+    fi
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ### precomputed GM
     if [ $preGM = True ]; then
-      #gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup
+      gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup
       gsed -i -e "6i \ \"preGM\":${preGM}," config_lam.py
       gsed -i -e "6i \ \"preGMdir\":\"${preGMdir}/data/${preGMda}\"," config_lam.py
       gsed -i -e "6i \ \"preGMda\":\"${preGMda}\"," config_lam.py
@@ -188,8 +195,10 @@ for op in ${operators}; do
     for vname in d dh dx pa pf spf ua uf; do
       mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
     done
-    if [ $pt = var_nest ] || [ $pt = envar_nest ] || [ $pt = envar_nestc ]; then
-      for vname in dk svmat qmat dk2;do
+    if [ $pt = var_nest ] || \
+    [ $pt = envar_nest ] || [ $pt = envar_nestc ] || \
+    [ $pt = mlef_nest ] || [ $pt = mlef_nestc ]; then
+      for vname in dk svmat qmat dk2 hess tmat heinv zbmat zvmat dxc1 dxc2;do
         mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
       done
     fi
@@ -207,8 +216,8 @@ for op in ${operators}; do
   fi
   python ${cdir}/plot/plotjh+gh_nest.py ${op} ${model} ${na} && \
   rm ${model}_*_jh_${op}_*_cycle*.txt && \
-  rm ${model}_*_alpha_${op}_*_cycle*.txt && \
   rm ${model}_*_gh_${op}_*_cycle*.txt
+  rm ${model}_*_alpha_${op}_*_cycle*.txt
   #rm obs*.npy
 done
 #rm ${model}*.txt 

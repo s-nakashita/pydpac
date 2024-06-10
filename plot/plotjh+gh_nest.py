@@ -9,11 +9,13 @@ import matplotlib.gridspec as gridspec
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "envar", "envar_nest", "envar_nestc", "var","var_nest",\
+perts = ["mlef", "envar", "mlef_nest", "mlef_nestc",\
+    "envar_nest", "envar_nestc", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":'lime',"var":"tab:olive","var_nest":"tab:brown",\
-        "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
+linecolor = {"mlef":'tab:blue',"mlef_nest":'tab:purple',"mlef_nestc":'tab:cyan',\
+    "envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":'lime',"var":"tab:olive","var_nest":"tab:brown",\
+    "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
@@ -158,7 +160,7 @@ for pt in perts:
         axe1_lam.plot(cycles_lam, j_lam[:,1], color=linecolor[pt]) #, label=pt+",Jo")
         lines3.append(Line2D([0],[0],color=linecolor[pt]))
         labels3.append(pt)
-        if pt=="var_nest" or pt=="envar_nest":
+        if pt=="var_nest" or pt=="envar_nest" or pt=="mlef_nest":
             plot_Jk=True
             axe2_lam.plot(cycles_lam, j_lam[:,2], color=linecolor[pt]) #, label=pt+",Jk")
             #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dotted"))

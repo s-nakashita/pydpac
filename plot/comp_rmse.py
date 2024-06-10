@@ -10,11 +10,15 @@ plt.rcParams['legend.fontsize'] = 20
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+anl = True
+if len(sys.argv)>4:
+    anl = (sys.argv[4]=='T')
 
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
+datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
+lamdir  = datadir / 'var_vs_envar_shrink_preGM_m80obs30'
 
 perts = ["envar", "envar_nest","var","var_nest"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
@@ -28,25 +32,39 @@ t = tc / 4. # days
 ns = 40 # spinup
 errors = {}
 # downscaling
-f = dscldir / f"e_lam_{op}_{preGMpt}.txt"
+if anl:
+    f = dscldir / f"e_lam_{op}_{preGMpt}.txt"
+else:
+    f = dscldir / f"ef_lam_{op}_{preGMpt}.txt"
 if not f.exists():
     print("not exist {}".format(f))
     exit()
 e_dscl = np.loadtxt(f)
-print("dscl, analysis RMSE = {}".format(np.mean(e_dscl[ns:])))
-f = dscldir / f"stda_lam_{op}_{preGMpt}.txt"
+if anl:
+    print("dscl, analysis RMSE = {}".format(np.mean(e_dscl[ns:])))
+    f = dscldir / f"stda_lam_{op}_{preGMpt}.txt"
+else:
+    print("dscl, forecast RMSE = {}".format(np.mean(e_dscl[ns:])))
+    f = dscldir / f"stdf_lam_{op}_{preGMpt}.txt"
 stda_dscl = np.loadtxt(f)
 ax0.plot(t,e_dscl,c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
 ax1.plot(t,stda_dscl,c='k',label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
 errors['dscl'] = e_dscl[ns:]
 for pt in perts:
-    f = lamdir / f"e_lam_{op}_{pt}.txt"
+    if anl:
+        f = lamdir / f"e_lam_{op}_{pt}.txt"
+    else:
+        f = lamdir / f"ef_lam_{op}_{pt}.txt"
     if not f.exists():
         print("not exist {}".format(f))
         continue
     e = np.loadtxt(f)
-    print("{}, analysis RMSE = {}".format(pt,np.mean(e[ns:])))
-    f = lamdir / f"stda_lam_{op}_{pt}.txt"
+    if anl:
+        print("{}, analysis RMSE = {}".format(pt,np.mean(e[ns:])))
+        f = lamdir / f"stda_lam_{op}_{pt}.txt"
+    else:
+        print("{}, forecast RMSE = {}".format(pt,np.mean(e[ns:])))
+        f = lamdir / f"stdf_lam_{op}_{pt}.txt"
     stda = np.loadtxt(f)
     ax0.plot(t,e,c=linecolor[pt],label=labels[pt]+f'={np.mean(e[ns:]):.3f}')
     ax1.plot(t,stda,c=linecolor[pt],label=labels[pt]+f'={np.mean(stda[ns:]):.3f}')
@@ -61,10 +79,16 @@ ax1.set(xlabel='days',ylabel='STD') #,title=op)
 ax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title='Time average')
 ax1.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
-fig0.savefig(datadir/'{}_e_lam_{}.png'.format(model,op),dpi=300)
-fig1.savefig(datadir/'{}_stda_lam_{}.png'.format(model,op),dpi=300)
-fig0.savefig(datadir/'{}_e_lam_{}.pdf'.format(model,op))
-fig1.savefig(datadir/'{}_stda_lam_{}.pdf'.format(model,op))
+if anl:
+    fig0.savefig(datadir/'{}_e_lam_{}.png'.format(model,op),dpi=300)
+    fig1.savefig(datadir/'{}_stda_lam_{}.png'.format(model,op),dpi=300)
+    fig0.savefig(datadir/'{}_e_lam_{}.pdf'.format(model,op))
+    fig1.savefig(datadir/'{}_stda_lam_{}.pdf'.format(model,op))
+else:
+    fig0.savefig(datadir/'{}_ef_lam_{}.png'.format(model,op),dpi=300)
+    fig1.savefig(datadir/'{}_stdf_lam_{}.png'.format(model,op),dpi=300)
+    fig0.savefig(datadir/'{}_ef_lam_{}.pdf'.format(model,op))
+    fig1.savefig(datadir/'{}_stdf_lam_{}.pdf'.format(model,op))
 plt.show()
 plt.close()
 
@@ -85,13 +109,13 @@ for i, m1 in enumerate(methods):
         e1 = errors[m1]
         e2 = errors[m2]
         res_ttest = stats.ttest_rel(e1,e2)
-        print(f"{m1},{m2} t-stat:{res_ttest.statistic:.3f} pvalue:{res_ttest.pvalue:.3e}")
         tmatrix[i,j] = res_ttest.statistic
         pmatrix[i,j] = res_ttest.pvalue
+        if pmatrix[i,j] < 1e-16:
+            pmatrix[i,j] = 1e-16
         if tmatrix[i,j]>0.0:
-            if pmatrix[i,j] < 1e-16:
-                pmatrix[i,j] = 1e-16
             pmatrix[i,j] = pmatrix[i,j] * -1.0
+        print(f"{m1},{m2} t-stat:{tmatrix[i,j]:.3f} pvalue:{pmatrix[i,j]:.3e}")
 print("")
 fig, ax = plt.subplots(figsize=[8,6])
 cmap=plt.get_cmap("PiYG_r")
@@ -144,5 +168,8 @@ annotate_heatmap(im,data=tmatrix,thdata=np.abs(pmatrix),\
     threshold=0.05,textcolors=("white","black"))
 ax.set_title(f"t-test for LAM {op}: RMSE row-col")
 fig.tight_layout()
-fig.savefig(datadir/"{}_e_t-test_for_lam_{}.png".format(model, op),dpi=300)
+if anl:
+    fig.savefig(datadir/"{}_e_t-test_for_lam_{}.png".format(model, op),dpi=300)
+else:
+    fig.savefig(datadir/"{}_ef_t-test_for_lam_{}.png".format(model, op),dpi=300)
 plt.show()

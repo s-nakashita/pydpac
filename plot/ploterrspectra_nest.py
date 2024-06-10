@@ -18,13 +18,15 @@ na = int(sys.argv[3])
 detrend = False
 if len(sys.argv)>4:
     detrend = sys.argv[4]=='T'
-perts = ["mlef", "envar", "envar_nest", "envar_nestc", \
-    "etkf", "po", "srf", "letkf", "kf", "var", "var_nest",\
+perts = ["mlef", "mlef_nest", "mlef_nestc", \
+    "envar", "envar_nest", "envar_nestc",\
+    "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":"lime",\
-    "etkf":'tab:green', "po":'tab:red',"srf":"tab:pink", "letkf":"tab:purple",\
-    "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
+linecolor = {"mlef":'tab:blue',"mlef_nest":'tab:purple',"mlef_nestc":'tab:cyan',\
+    "envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":"lime",\
+    "etkf":'tab:green', "po":'tab:red',\
+    "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
     "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 if model == "z08":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]

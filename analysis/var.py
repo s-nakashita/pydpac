@@ -139,7 +139,7 @@ class Var():
         if alpha is not None:
             alphak.append(alpha)
 
-    def prec(self,w,first=False):
+    def prec(self,w=None,first=False):
         global bsqrt
         if first:
             if self.bsqrt is not None:
@@ -150,12 +150,13 @@ class Var():
                 npos = np.sum(eival>=1.0e-16)
                 logger.info(f"#positive eigenvalues in bmat={npos}")
                 bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
-        return np.dot(bsqrt,w), bsqrt
+            w = np.zeros(bsqrt.shape[1])
+        return w, np.dot(bsqrt,w), bsqrt
 
     def calc_j(self, w, *args, return_each=False):
         JH, rinv, ob = args
         jb = 0.5 * np.dot(w,w)
-        x, _ = self.prec(w)
+        _, x, _ = self.prec(w)
         d = JH @ x - ob
         jo = 0.5 * d.T @ rinv @ d
         if return_each:
@@ -165,13 +166,13 @@ class Var():
 
     def calc_grad_j(self, w, *args):
         JH, rinv, ob = args
-        x, bsqrt = self.prec(w)
+        _, x, bsqrt = self.prec(w)
         d = JH @ x - ob
         return w + bsqrt.T @ JH.T @ rinv @ d
 
     def calc_hess(self, w, *args):
         JH, rinv, ob = args
-        _, bsqrt = self.prec(w)
+        _, _, bsqrt = self.prec(w)
         return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt
 
     def __call__(self, xf, pf, y, yloc, method="CG", cgtype=1,
@@ -188,8 +189,8 @@ class Var():
         if save_dh:
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
 
-        w0 = np.zeros_like(xf)
-        x0, bsqrt = self.prec(w0,first=True)
+        #w0 = np.zeros_like(xf)
+        w0, x0, bsqrt = self.prec(first=True)
         args_j = (JH, rinv, ob)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'iprint':iprint, 'method':method, 'cgtype':cgtype,\
@@ -215,7 +216,7 @@ class Var():
         else:
             w, flg = minimize(w0)
         
-        x, _ = self.prec(w)
+        _, x, _ = self.prec(w)
         xa = xf + x
         innv = np.zeros_like(ob)
         fun = self.calc_j(w, *args_j)

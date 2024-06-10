@@ -142,10 +142,10 @@ class EnVAR():
             jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta 
             jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
             #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
-        logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
         if return_each:
             return jb, jo
         else:
+            logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
             j = jb + jo
             return j
 

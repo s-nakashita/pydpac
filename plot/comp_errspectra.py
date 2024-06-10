@@ -14,14 +14,18 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+anl = True
+if len(sys.argv)>4:
+    anl = (sys.argv[4]=='T')
 
 t = np.arange(na)+1
 ns = 40 # spinup
 
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
+datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
+lamdir  = datadir / 'var_vs_envar_shrink_preGM_m80obs30'
 
 perts = ["envar", "envar_nest","var","var_nest"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
@@ -47,7 +51,8 @@ figsp, axsp = plt.subplots(figsize=[10,6],constrained_layout=True)
 psd_dict = {}
 
 # nature background psd
-f = datadir/"truth.npy"
+#f = datadir/"truth.npy"
+f = dscldir/"truth.npy"
 if not os.path.isfile(f):
     print("not exist {}".format(f))
     exit
@@ -59,7 +64,10 @@ wnum_t, psd_bg = psd(xt,ix_t_rad,axis=1)
 axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
 
 # GM
-f = dscldir/"xagm_{}_{}.npy".format(op,preGMpt)
+if anl:
+    f = dscldir/"xagm_{}_{}.npy".format(op,preGMpt)
+else:
+    f = dscldir/"{}_xfgm_{}_{}.npy".format(model,op,preGMpt)
 if not f.exists():
     print("not exist {}".format(f))
     exit()
@@ -71,7 +79,10 @@ wnum_gm, psd_gm = psd(xdgm,ix_gm_rad,axis=1)
 axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
 # downscaling
-f = dscldir/"xalam_{}_{}.npy".format(op,preGMpt)
+if anl:
+    f = dscldir/"xalam_{}_{}.npy".format(op,preGMpt)
+else:
+    f = dscldir/"{}_xflam_{}_{}.npy".format(model,op,preGMpt)
 if not f.exists():
     print("not exist {}".format(f))
     exit()
@@ -89,7 +100,10 @@ psd_dict["dscl"] = psd_dscl
 #    c='k',ls='dashed')
 # LAM
 for pt in perts:
-    f = lamdir/"xalam_{}_{}.npy".format(op,pt)
+    if anl:
+        f = lamdir/"xalam_{}_{}.npy".format(op,pt)
+    else:
+        f = lamdir/"xflam_{}_{}.npy".format(op,pt)
     if not f.exists():
         print("not exist {}".format(f))
         exit()
@@ -115,8 +129,12 @@ ax.set_xlabel('grid')
 ax.set_xlim(ix_t[0],ix_t[-1])
 #ax.hlines([1],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
 ax.legend()
-fig.savefig(datadir/f"{model}_xd_{op}.png",dpi=300)
-fig.savefig(datadir/f"{model}_xd_{op}.pdf")
+if anl:
+    fig.savefig(datadir/f"{model}_xd_{op}.png",dpi=300)
+    fig.savefig(datadir/f"{model}_xd_{op}.pdf")
+else:
+    fig.savefig(datadir/f"{model}_xdf_{op}.png",dpi=300)
+    fig.savefig(datadir/f"{model}_xdf_{op}.pdf")
 
 axsp.grid()
 axsp.legend()
@@ -129,8 +147,12 @@ secax = axsp.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
 secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
 secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
 secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-figsp.savefig(datadir/f"{model}_errspectra_{op}.png",dpi=300)
-figsp.savefig(datadir/f"{model}_errspectra_{op}.pdf")
+if anl:
+    figsp.savefig(datadir/f"{model}_errspectra_{op}.png",dpi=300)
+    figsp.savefig(datadir/f"{model}_errspectra_{op}.pdf")
+else:
+    figsp.savefig(datadir/f"{model}_errspectra_f_{op}.png",dpi=300)
+    figsp.savefig(datadir/f"{model}_errspectra_f_{op}.pdf")
 plt.show()
 plt.close()
 
@@ -177,6 +199,9 @@ for i,m1 in enumerate(methods):
         secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
         fig.suptitle(f"LAM {op}: {m1} - {m2}")
         fig.tight_layout()
-        fig.savefig(datadir/"{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
+        if anl:
+            fig.savefig(datadir/"{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
+        else:
+            fig.savefig(datadir/"{}_errspectra_f_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
         #plt.show()
         plt.close()

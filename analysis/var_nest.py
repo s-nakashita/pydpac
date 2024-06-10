@@ -22,7 +22,7 @@ alphak = []
 class Var_nest():
     def __init__(self, obs, ix_gm, ix_lam, ioffset=0, \
         sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, bsqrt=None, \
-        sigv=1.0, lv=-1.0, a_v=0.5, ntrunc=None, vmat=None, \
+        sigv=1.0, lv=-1.0, a_v=0.5, ntrunc=None, ftrunc=None, vmat=None, \
         crosscov=False, ekbmat=None, ebkmat=None, cyclic=False, \
         calc_dist1=None, calc_dist1_gm=None, verbose=True, \
         model="model"):
@@ -59,11 +59,9 @@ class Var_nest():
         self.sigv = sigv # error variance
         self.lv = lv # error correlation length (< 0.0 : diagonal)
         self.a_v = a_v # correlation function shape parameter
-        if ntrunc is None:
-            self.ntrunc = self.nv // 2
-        else:
-            self.ntrunc = ntrunc # truncation number for GM error covariance
-        self.trunc_operator = Trunc1d(self.ix_lam,self.ntrunc,cyclic=False,ttype='s',nghost=0)
+        self.ntrunc = ntrunc # truncation number for GM
+        self.ftrunc = ftrunc # truncation wavenumber for GM
+        self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='s',nghost=0)
         self.ix_trunc = self.trunc_operator.ix_trunc
         self.nv = self.ix_trunc.size
         self.corrfuncv = Corrfunc(self.lv,a=self.a_v)
@@ -238,7 +236,7 @@ class Var_nest():
         if alpha is not None:
             alphak.append(alpha)
 
-    def prec(self,w,first=False):
+    def prec(self,w=None,first=False):
         global bsqrt, vsqrt, vsqrtpinv
         if first:
             if self.bsqrt is not None:
@@ -260,6 +258,7 @@ class Var_nest():
                 bsqrt = np.dot(eivec,np.diag(np.sqrt(eival)))
                 ## reconstruction of bmat
                 #self.bmat = np.dot(bsqrt, bsqrt.T)
+            w = np.zeros(bsqrt.shape[1])
 
             eival, eivec = la.eigh(self.vmat)
             eival = eival[::-1]
@@ -277,12 +276,12 @@ class Var_nest():
             vsqrtpinv = la.pinv(vsqrt) #Moore-Penrose pseudoinverse
             ## reconstruction of vmat
             #self.vmat = np.dot(self.vsqrt, self.vsqrt.T)
-        return np.dot(bsqrt,w), bsqrt, vsqrt, vsqrtpinv
+        return w, np.dot(bsqrt,w), bsqrt, vsqrt, vsqrtpinv
 
     def calc_j(self, w, *args, return_each=False):
         JH, rinv, ob, dk = args
         jb = 0.5 * np.dot(w,w)
-        x, _, vsqrt, vsqrtpinv = self.prec(w)
+        _, x, _, vsqrt, vsqrtpinv = self.prec(w)
         d = JH @ x - ob
         jo = 0.5 * d.T @ rinv @ d
         #dktmp = JH2@x - dk 
@@ -294,11 +293,12 @@ class Var_nest():
         if return_each:
             return jb, jo, jk
         else:
+            logger.info(f"jb:{jb:.6e} jo:{jo:.6e} jk:{jk:.6e}")
             return jb + jo + jk
 
     def calc_grad_j(self, w, *args):
         JH, rinv, ob, dk = args
-        x, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
+        _, x, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
         d = JH @ x - ob
         #dktmp = JH2@x - dk 
         #dktmp2 = la.solve(self.vmat, dktmp)
@@ -311,7 +311,7 @@ class Var_nest():
 
     def calc_hess(self, w, *args):
         JH, rinv, ob, dk = args
-        _, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
+        _, _, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
         JH2Lb = self.trunc_operator(bsqrt)
         qkmat = vsqrtpinv @ JH2Lb
         return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + qkmat.T @ qkmat
@@ -338,8 +338,8 @@ class Var_nest():
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
             np.save("{}_dk_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dk)
 
-        w0 = np.zeros_like(xf)
-        x0, bsqrt, _, _ = self.prec(w0,first=True)
+        #w0 = np.zeros_like(xf)
+        w0, x0, bsqrt, _, _ = self.prec(first=True)
         args_j = (JH, rinv, ob, dk)
         iprint = np.zeros(2, dtype=np.int32)
         options = {'iprint':iprint, 'method':method, 'cgtype':cgtype, \
@@ -365,7 +365,7 @@ class Var_nest():
         else:
             w, flg = minimize(w0)
         
-        x, _, _, _ = self.prec(w)
+        _, x, _, _, _ = self.prec(w)
         xa = xf + x
         innv = np.zeros_like(ob)
         fun = self.calc_j(w, *args_j)

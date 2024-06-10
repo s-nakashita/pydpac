@@ -10,8 +10,8 @@ alpha_99 = 0.01
 plt.rcParams['font.size'] = 18
 plt.rcParams['legend.fontsize'] = 20
 
-figdir_var = Path('work/baxter11.2')
-figdir_envar = Path('work/baxter11_en.2')
+figdir_var = Path('work/baxter11.3')
+figdir_envar = Path('work/baxter11_en.3')
 #figdir_var = Path('/Volumes/FF520/nested_envar/data/baxter11.2')
 #figdir_envar = Path('/Volumes/FF520/nested_envar/data/baxter11_en.2')
 

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 import sys
 import os
 
-figdir_parent = Path.cwd() / Path('work/baxter11_en.2')
+figdir_parent = Path.cwd() / Path('work/baxter11_en.3')
 #figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11_en.2')
 if not figdir_parent.exists():
     figdir_parent.mkdir(parents=True)
@@ -60,9 +60,11 @@ print(U_gm.shape)
 B_gm = U_gm @ U_gm.transpose()
 print(B_gm.shape)
 #B_gm = np.diag(np.full(u0_gm.size,sigb*sigb))
-sig_lam = np.diag(np.full(x_lam.size-2,sigb)) #*nx_lam
+#sig_lam = np.diag(np.full(x_lam.size-2,sigb)) #*nx_lam
+sig_lam = np.diag(np.full(x_lam.size,sigb)) #*nx_lam
 #sig_lam[:7] = sig_lam[:7]/np.sqrt(5.0)
-U_lam = idst(sig_lam,n=len(x_lam)-2,type=1,axis=0,norm='ortho')
+#U_lam = idst(sig_lam,n=len(x_lam)-2,type=1,axis=0,norm='ortho')
+U_lam = idst(sig_lam,n=len(x_lam),type=1,axis=0,norm='ortho')
 #U_lam = irfft(sig_lam,len(u0_lam),axis=0)
 print(U_lam.shape)
 B_lam = U_lam @ U_lam.transpose()
@@ -78,7 +80,7 @@ plt.show()
 """
 
 ## DA
-nmem = 640
+nmem = 40
 infl_parm = 1.0
 obsloc = ix_lam[1:-1:2]
 xobsloc = x_lam[1:-1:2]
@@ -91,11 +93,16 @@ if len(sys.argv)>2:
 nobs = obsloc.size
 obsope = Obs('linear',sigo,ix=ix_t,seed=509)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
-obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
+#obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
+obsope_lam = Obs('linear',sigo,ix=ix_lam,icyclic=False)
 envar_gm = EnVAR(nx_gm, nmem, obsope_gm, model="b11")
-envar_lam = EnVAR(nx_lam-2, nmem, obsope_lam, model="b11")
-envar_nest = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False, model="b11")
-envar_nestc = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False,\
+#envar_lam = EnVAR(nx_lam-2, nmem, obsope_lam, model="b11")
+#envar_nest = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False, model="b11")
+#envar_nestc = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False,\
+#    crosscov=True, pt="envar_nestc", model="b11")
+envar_lam = EnVAR(nx_lam, nmem, obsope_lam, model="b11")
+envar_nest = EnVAR_nest(nx_lam, nmem, obsope_lam, ix_gm, ix_lam, ntrunc=7, cyclic=False, model="b11")
+envar_nestc = EnVAR_nest(nx_lam, nmem, obsope_lam, ix_gm, ix_lam, ntrunc=7, cyclic=False,\
     crosscov=True, pt="envar_nestc", model="b11")
 
 ## random seed
@@ -176,10 +183,10 @@ while itrial < ntrial:
     X0_lam = U_lam @ Y0_lam
     X0_lam = X0_lam - np.mean(X0_lam,axis=1)[:,None]
     u_lam = np.zeros((nx_lam,nmem))
-    #u_lam[:,:] = up_lam[:,None] + X0_lam
-    u_lam[0,:] = up_lam[0]
-    u_lam[-1,:] = up_lam[-1]
-    u_lam[1:-1,:] = up_lam[1:-1,None] + X0_lam
+    u_lam[:,:] = up_lam[:,None] + X0_lam
+    #u_lam[0,:] = up_lam[0]
+    #u_lam[-1,:] = up_lam[-1]
+    #u_lam[1:-1,:] = up_lam[1:-1,None] + X0_lam
     
     X0_gm = u_gm - np.mean(u_gm,axis=1)[:,None]
     Pf_gm = X0_gm @ X0_gm.transpose() / (nmem-1)
@@ -239,9 +246,12 @@ while itrial < ntrial:
     ua_lam_nest = u_lam.copy()
     ua_lam_nestc = u_lam.copy()
     ua_gm, _, _, _, _, _ = envar_gm(u_gm, X0_gm, yobs, obsloc)
-    ua_lam[1:-1], _, _, _, _, _ = envar_lam(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc)
-    ua_lam_nest[1:-1], _, _, _, _, _ = envar_nest(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm, save_dh=save_dh)
-    ua_lam_nestc[1:-1], _, _, _, _, _ = envar_nestc(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm)
+#    ua_lam[1:-1], _, _, _, _, _ = envar_lam(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc)
+#    ua_lam_nest[1:-1], _, _, _, _, _ = envar_nest(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm, save_dh=save_dh)
+#    ua_lam_nestc[1:-1], _, _, _, _, _ = envar_nestc(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm)
+    ua_lam, _, _, _, _, _ = envar_lam(u_lam, X0_lam, yobs, obsloc)
+    ua_lam_nest, _, _, _, _, _ = envar_nest(u_lam, X0_lam, yobs, obsloc, u_gm, save_dh=save_dh)
+    ua_lam_nestc, _, _, _, _, _ = envar_nestc(u_lam, X0_lam, yobs, obsloc, u_gm)
 
     if save_dh:
         spftmp = np.load("b11_spf_linear_envar_nest_cycle0.npy")
@@ -262,7 +272,7 @@ while itrial < ntrial:
         p10 = axs[1,0].matshow(ctmp.transpose())
         fig.colorbar(p10,ax=axs[1,0],pad=0.01,shrink=0.6)
         axs[1,0].set_title(r'$\mathbf{Z}^\mathrm{v}(\mathbf{X}^\mathrm{b})^\mathrm{T}$')
-        for ax in axs.flatten():
+        for ax in [axs[0,0],axs[1,1]]:
             ax.set_aspect('equal')
         fig.savefig(figdir/'crosscov_lam.png',dpi=300)
         fig.savefig(figdir/'crosscov_lam.pdf')

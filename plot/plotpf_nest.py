@@ -19,6 +19,7 @@ na = int(sys.argv[3])
 pt = sys.argv[4]
 scycle = int(sys.argv[5])
 ecycle = int(sys.argv[6])
+if ecycle > na: ecycle=na
 if model == "z08":
     nx = 81
 elif model == "z05":
@@ -38,7 +39,7 @@ nx_lam = ix_lam.size
 #if ix_gm[i1]>ix_lam[-1]: i1-=1
 #nx_gmlam = i1 - i0 + 1
 ntrunc = 12
-trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,nghost=0)
+trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False,nghost=0)
 ix_trunc = trunc_operator.ix_trunc
 nx_gmlam = ix_trunc.size
 
@@ -47,7 +48,9 @@ Lx_gm = Lx
 Lx_lam = Lx * nx_lam / nx_t
 ix_gm_rad = ix_gm * Lx / nx_t
 ix_lam_rad = ix_lam * Lx / nx_t
-ix_trunc_rad = ix_trunc * Lx / nx_gmlam
+ix_trunc_rad = ix_trunc * Lx / nx_t
+print(ix_lam_rad)
+print(ix_trunc_rad)
 
 ncycle_gm = 0
 ncycle_lam = 0

@@ -17,7 +17,8 @@ dscl = False
 if len(sys.argv)>4:
     dscl = (sys.argv[4]=='T')
 print(dscl)
-perts = ["mlef", "envar", "envar_nest", "envar_nestc", \
+perts = ["mlef", "mlef_nest", "mlef_nestc", \
+    "envar", "envar_nest", "envar_nestc", \
     "etkf", "po", "srf", "letkf", \
     "kf", "var","var_nest",\
     "mlefcw","mlefy","mlefbe","mlefbm",\
@@ -35,8 +36,8 @@ ix_t = np.loadtxt("ix_true.txt")
 ix_gm = np.loadtxt("ix_gm.txt")
 ix_lam = np.loadtxt("ix_lam.txt")
 ntrunc = 12
-trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,nghost=0)
-ix_trunc = trunc_operator.ix_trunc[1:-1]
+trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False,nghost=0)
+ix_trunc = trunc_operator.ix_trunc #[1:-1]
 
 xt2x = interp1d(ix_t, xt)
 xlim = 15.0
@@ -248,7 +249,7 @@ for pt in perts:
     if ix_gm[i1]>ix_lam[-1]: i1-=1
     tmp_lam2gm = interp1d(ix_lam,np.eye(ix_lam.size),axis=0)
     JH2 = tmp_lam2gm(ix_gm[i0:i1+1])
-    for icycle in range(10):
+    for icycle in range(40,50):
         xt1 = xt[icycle]
         xagm1 = xagm[icycle]
         xalam1 = xalam[icycle]

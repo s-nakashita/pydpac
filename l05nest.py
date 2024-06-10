@@ -67,24 +67,25 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_gm_l = {"mlef":1.02,"envar":1.1,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,
+infl_gm_l = {"mlef":1.1,"envar":1.1,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_gm = {"linear": infl_gm_l}
-infl_lam_l = {"mlef":1.02,"envar":1.05,"envar_nest":1.25,"envar_nestc":1.1,\
+infl_lam_l = {"mlef":1.05,"mlef_nest":1.1,"mlef_nestc":1.1,"envar":1.05,"envar_nest":1.25,"envar_nestc":1.0,\
     "etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_lam = {"linear": infl_lam_l}
-infl_lrg_l = {"envar_nest":1.25,"envar_nestc":1.1,"var_nest":None}
+infl_lrg_l = {"mlef_nest":1.1,"mlef_nestc":1.1,"envar_nest":1.25,"envar_nestc":1.0,"var_nest":None}
 dict_infl_lrg = {"linear":infl_lrg_l}
 # localization parameter (dictionary for each observation type)
 sig_gm_l = {"mlef":11.0,"envar":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 dict_sig_gm = {"linear": sig_gm_l}
-sig_lam_l = {"mlef":11.0,"envar":11.0,"envar_nest":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
+sig_lam_l = {"mlef":11.0,"mlef_nest":11.0,"mlef_nestc":11.0,"envar":11.0,"envar_nest":11.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":11.0,"kf":None,"var":None,"var_nest":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 dict_sig_lam = {"linear": sig_lam_l}
 # forecast type (ensemble or deterministic)
-ftype = {"mlef":"ensemble","envar":"ensemble","envar_nest":"ensemble","envar_nestc":"ensemble",\
+ftype = {"mlef":"ensemble","mlef_nest":"ensemble","mlef_nestc":"ensemble",\
+    "envar":"ensemble","envar_nest":"ensemble","envar_nestc":"ensemble",\
     "etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
     "kf":"deterministic","var":"deterministic","var_nest":"deterministic",\
     "4dmlef":"ensemble","4detkf":"ensemble","4dpo":"ensemble","4dsrf":"ensemble","4dletkf":"ensemble",\
@@ -185,7 +186,8 @@ if params_lam["linf"] and params_lam["infl_parm"]==-1.0:
     params_lam["infl_parm"] = dict_infl_lam[params_lam["op"]][params_lam["pt"]]
 if params_lam["lloc"] and params_lam["lsig"]==-1.0:
     params_lam["lsig"] = dict_sig_lam[params_lam["op"]][params_lam["pt"]]
-if (params_lam["pt"]=="envar_nest" or params_lam["pt"]=="envar_nestc") \
+if (params_lam["pt"]=="envar_nest" or params_lam["pt"]=="envar_nestc"\
+    or params_lam["pt"]=="mlef_nest" or params_lam["pt"]=="mlef_nestc") \
     and params_lam["linf"] and params_lam["infl_parm_lrg"]==-1.0:
     params_lam["infl_parm_lrg"] = dict_infl_lrg[params_lam["op"]][params_lam["pt"]]
 params_lam["nt"] = params_lam["nt"] * step.lamstep
@@ -219,7 +221,15 @@ if pt == "mlef":
 #        rhofile=f"{model}_rho_{op}_{pt}.npy"
 #        rhofile_new=f"{model}_rhogm_{op}_{pt}.npy"
 #        os.rename(rhofile,rhofile_new)
-    analysis_lam = Mlef(nx_lam, params_lam["nmem"], obs_lam, \
+    if params_lam["anlsp"]:
+        analysis_lam = Mlef(nx_lam-2, params_lam["nmem"], obs_lam, \
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            ss=params_lam["ss"], getkf=params_lam["getkf"], \
+            calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
+    else:
+        analysis_lam = Mlef(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
@@ -229,6 +239,33 @@ if pt == "mlef":
 #        rhofile=f"{model}_rho_{op}_{pt}.npy"
 #        rhofile_new=f"{model}_rholam_{op}_{pt}.npy"
 #        os.rename(rhofile,rhofile_new)
+elif pt == "mlef_nest" or pt == "mlef_nestc":
+    from analysis.mlef import Mlef
+    from analysis.mlef_nest import Mlef_nest
+    analysis_gm = Mlef(nx_gm, params_gm["nmem"], obs_gm, pt=pt, \
+            linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+            iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
+            ss=params_gm["ss"], getkf=params_gm["getkf"], \
+            calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
+            ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
+    if params_lam["anlsp"]:
+        analysis_lam = Mlef_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
+            step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
+            crosscov=params_lam["crosscov"], pt=pt, \
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            ss=params_lam["ss"], getkf=params_lam["getkf"], \
+            calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
+    else:
+        analysis_lam = Mlef_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
+            step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
+            crosscov=params_lam["crosscov"], pt=pt, \
+            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            ss=params_lam["ss"], getkf=params_lam["getkf"], \
+            calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
 elif pt == "envar":
     from analysis.envar import EnVAR
     analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, \
@@ -516,7 +553,8 @@ if __name__ == "__main__":
         utmp_lam = u_lam.copy()
         utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
         if ft=="ensemble":
-            if pt == "mlef" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef"\
+                or pt == "mlef_nest" or pt == "mlef_nestc":
                 xf12_gm[1] = utmp_gm[:, 0]
                 xf12_lam[1] = utmp_lam[:, 0]
             else:
@@ -528,7 +566,8 @@ if __name__ == "__main__":
         for j in range(2):
             utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
         if ft=="ensemble":
-            if pt == "mlef" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef"\
+                or pt == "mlef_nest" or pt == "mlef_nestc":
                 xf24_gm[3] = utmp_gm[:, 0]
                 xf24_lam[3] = utmp_lam[:, 0]
             else:
@@ -540,7 +579,8 @@ if __name__ == "__main__":
         for j in range(4):
             utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam)
         if ft=="ensemble":
-            if pt == "mlef" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef"\
+                or pt == "mlef_nest" or pt == "mlef_nestc":
                 xf48_gm[7] = utmp_gm[:, 0]
                 xf48_lam[7] = utmp_lam[:, 0]
             else:
@@ -601,7 +641,8 @@ if __name__ == "__main__":
                 #    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)
                 #else:
                 args_lam = (u_lam[1:-1],pf_lam,y_lam,yloc_lam)
-                if pt == "var_nest" or pt == "envar_nest" or pt == "envar_nestc":
+                if pt == "var_nest" or pt == "envar_nest" or pt == "envar_nestc"\
+                    or pt == "mlef_nest" or pt == "mlef_nestc":
                     args_lam = (u_lam[1:-1],pf_lam,y_lam,yloc_lam,u_gm)
                 u_tmp, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
@@ -611,7 +652,8 @@ if __name__ == "__main__":
                 #    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam,u_gm) #,step.ix_lam[nsp:-nsp])
                 #else:
                 args_lam = (u_lam[nsp:-nsp],pf_lam,y_lam,yloc_lam)
-                if pt == "var_nest" or pt == "envar_nest" or pt == "envar_nestc":
+                if pt == "var_nest" or pt == "envar_nest" or pt == "envar_nestc"\
+                    or pt == "mlef_nest" or pt == "mlef_nestc":
                     args_lam = (u_lam[nsp:-nsp],pf_lam,y_lam,yloc_lam,u_gm)
                 u_tmp, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
@@ -639,7 +681,8 @@ if __name__ == "__main__":
         #    else:
         #        u += np.random.randn(u.shape[0], u.shape[1])
         if ft=="ensemble":
-            if pt == "mlef" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef"\
+                or pt == "mlef_nest" or pt == "mlef_nestc":
                 xa_gm[i] = u_gm[:, 0]
                 xa_lam[i] = u_lam[:, 0]
             else:
@@ -713,7 +756,8 @@ if __name__ == "__main__":
                     u_gm, u_lam = func.forecast(u_gm,u_lam)
             
             if ft=="ensemble":
-                if pt == "mlef" or pt == "4dmlef":
+                if pt == "mlef" or pt == "4dmlef"\
+                or pt == "mlef_nest" or pt == "mlef_nestc":
                     xf_gm[i+1] = u_gm[:, 0]
                     xf_lam[i+1] = u_lam[:, 0]
                 else:
@@ -742,7 +786,8 @@ if __name__ == "__main__":
                 utmp_lam = u_lam.copy()
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #6h->12h
                 if ft=="ensemble":
-                    if pt == "mlef" or pt == "4dmlef":
+                    if pt == "mlef" or pt == "4dmlef"\
+                    or pt == "mlef_nest" or pt == "mlef_nestc":
                         xf12_gm[i+2] = utmp_gm[:, 0]
                         xf12_lam[i+2] = utmp_lam[:, 0]
                     else:
@@ -754,7 +799,8 @@ if __name__ == "__main__":
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #12h->18h
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #18h->24h
                 if ft=="ensemble":
-                    if pt == "mlef" or pt == "4dmlef":
+                    if pt == "mlef" or pt == "4dmlef"\
+                    or pt == "mlef_nest" or pt == "mlef_nestc":
                         xf24_gm[i+4] = utmp_gm[:, 0]
                         xf24_lam[i+4] = utmp_lam[:, 0]
                     else:
@@ -768,7 +814,8 @@ if __name__ == "__main__":
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #36h->42h
                 utmp_gm, utmp_lam = func.forecast(utmp_gm,utmp_lam) #42h->48h
                 if ft=="ensemble":
-                    if pt == "mlef" or pt == "4dmlef":
+                    if pt == "mlef" or pt == "4dmlef"\
+                    or pt == "mlef_nest" or pt == "mlef_nestc":
                         xf48_gm[i+8] = utmp_gm[:, 0]
                         xf48_lam[i+8] = utmp_lam[:, 0]
                     else:

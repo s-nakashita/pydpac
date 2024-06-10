@@ -15,8 +15,9 @@ from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger(__name__)
 import sys
+import os
 
-figdir_parent = Path('work/baxter11.2')
+figdir_parent = Path.cwd() / Path('work/baxter11.3')
 #figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11.2')
 if not figdir_parent.exists():
     figdir_parent.mkdir(parents=True)
@@ -64,8 +65,10 @@ B_gm = U_gm @ U_gm.transpose()
 print(B_gm.shape)
 #B_gm = np.diag(np.full(u0_gm.size,sigb*sigb))
 sig_lam = np.diag(np.full(x_lam.size-2,sigb)) #*nx_lam
+#sig_lam = np.diag(np.full(x_lam.size,sigb)) #*nx_lam
 #sig_lam[:7] = sig_lam[:7]/np.sqrt(5.0)
 U_lam = idst(sig_lam,n=len(x_lam)-2,type=1,axis=0,norm='ortho')
+#U_lam = np.roll(idst(sig_lam,n=len(x_lam),type=1,axis=0,norm='ortho'),1,axis=0)
 #U_lam = irfft(sig_lam,len(u0_lam),axis=0)
 print(U_lam.shape)
 B_lam = U_lam @ U_lam.transpose()
@@ -102,9 +105,12 @@ nobs = obsloc.size
 obsope = Obs('linear',sigo,ix=ix_t,seed=509)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
 obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
-var_gm = Var(obsope_gm, nx_gm, ix=ix_gm, bmat=B_gm)
-var_lam = Var(obsope_lam, nx_lam-2, ix=ix_lam[1:-1], bmat=B_lam, bsqrt=U_lam, cyclic=False)
-var_nest = Var_nest(obsope_lam, ix_gm, ix_lam[1:-1], bmat=B_lam, bsqrt=U_lam, sigv=sigb, ntrunc=7, cyclic=False, verbose=False)
+#obsope_lam = Obs('linear',sigo,ix=ix_lam,icyclic=False)
+var_gm = Var(obsope_gm, nx_gm, ix=ix_gm, bmat=B_gm, model="b11")
+var_lam = Var(obsope_lam, nx_lam-2, ix=ix_lam[1:-1], bmat=B_lam, bsqrt=U_lam, cyclic=False, model="b11")
+var_nest = Var_nest(obsope_lam, ix_gm, ix_lam[1:-1], bmat=B_lam, bsqrt=U_lam, sigv=sigb, ntrunc=7, cyclic=False, verbose=True, model="b11")
+#var_lam = Var(obsope_lam, nx_lam, ix=ix_lam, bmat=B_lam, bsqrt=U_lam, cyclic=False, model="b11")
+#var_nest = Var_nest(obsope_lam, ix_gm, ix_lam, bmat=B_lam, bsqrt=U_lam, sigv=sigb, ntrunc=7, cyclic=False, verbose=True, model="b11")
 
 ## random seed
 rng = default_rng(517)
@@ -126,11 +132,14 @@ while itrial < ntrial:
     itrial += 1
     logger.info(f"== trial {itrial} nobs={nobs} ==")
     savefig=False
+    save_dh=False
     if itrial <= 10:
         savefig=True
+        save_dh=True
         figdir = figdir_parent / f'nobs{nobs}_test{itrial}'
         if not figdir.exists():
             figdir.mkdir(parents=True)
+        os.chdir(figdir)
     ## nature and backgrounds
     u0_t = 5.*np.sin(np.pi*x_t) + np.sin(2.0*np.pi*x_t) + np.sin(36.*np.pi*x_t)
     u0_gm = 5.*np.sin(np.pi*x_gm) + np.sin(2.0*np.pi*x_gm)
@@ -198,7 +207,26 @@ while itrial < ntrial:
     ua_lam_nest = up_lam.copy()
     ua_gm, _, _, _, _, _ = var_gm(u0_gm, B_gm, yobs, obsloc)
     ua_lam[1:-1], _, _, _, _, _ = var_lam(up_lam[1:-1], B_lam, yobs, obsloc)
-    ua_lam_nest[1:-1], _, _, _, _, _ = var_nest(up_lam[1:-1], B_lam, yobs, obsloc, u0_gm)
+    ua_lam_nest[1:-1], _, _, _, _, _ = var_nest(up_lam[1:-1], B_lam, yobs, obsloc, u0_gm, save_dh=save_dh)
+    #ua_lam, _, _, _, _, _ = var_lam(up_lam, B_lam, yobs, obsloc)
+    #ua_lam_nest, _, _, _, _, _ = var_nest(up_lam, B_lam, yobs, obsloc, u0_gm, save_dh=save_dh)
+    
+    if save_dh:
+        dk = np.load("b11_dk_linear_var_nest_cycle0.npy")
+        ix_trunc = var_nest.ix_trunc
+        gm2lam = interp1d(ix_gm,u0_gm)
+        fig, ax = plt.subplots()
+        ax.plot(ix_t,u0_t,label='nature')
+        ax.plot(ix_gm,u0_gm,label='GM')
+        ax.plot(ix_lam,up_lam,label='LAM,bg')
+        ax.plot(ix_lam,gm2lam(ix_lam)-up_lam,label='GM-LAM')
+        ax.plot(ix_trunc,dk,label='dk')
+        ax.legend()
+        ax.grid()
+        fig.savefig(figdir/'nature+bg+dk.png',dpi=300)
+        fig.savefig(figdir/'nature+bg+dk.pdf')
+        plt.show(block=False)
+        plt.close()
 
     ## evaluation
     fig, axs = plt.subplots(nrows=2,figsize=[8,8],constrained_layout=True)
