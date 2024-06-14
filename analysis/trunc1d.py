@@ -8,17 +8,18 @@ logger = logging.getLogger('anl')
 
 # 1-dimensional truncation module using FFT
 class Trunc1d:
-    def __init__(self,ix,ntrunc=None,ftrunc=None,cyclic=True,nghost=None,nglobal=None,ttype='f'):
+    def __init__(self,ix,ntrunc=None,ftrunc=None,cyclic=True,resample=True,nghost=None,nglobal=None,ttype='f'):
         # cyclic=False: assuming that input data does not include boundary points
         nx = ix.size
         dx = ix[1] - ix[0]
         self.cyclic = cyclic
         self.ttype = ttype
+        self.resample = resample
         if not self.cyclic:
             nx -= 1 # DOF reduces due to detrending
         if self.ttype=='f':
             # Fourier transform
-            logger.info("Trunc1d: Transform type = FT")
+            logger.info("Trunc1d: Transform type = DFT")
             if self.cyclic:
                 self.E = np.eye(nx)
             else:
@@ -60,29 +61,31 @@ class Trunc1d:
             self.f_trunc = self.f.copy()
             self.T = np.eye(self.F.shape[0])
             if self.ntrunc<self.f.size-self.ntrunc:
-                #self.T[self.ntrunc:self.f.size-self.ntrunc,:] = 0.0
-                #self.T[self.f.size-self.ntrunc,:] *= 2
-                self.nx_trunc = min(2*self.ntrunc,nx)
-                if self.cyclic:
-                    self.ix_trunc = np.linspace(ix[0],ix[-1]+dx,\
-                        self.nx_trunc,endpoint=False)
+                if self.resample:
+                    self.nx_trunc = min(2*self.ntrunc,nx)
+                    if self.cyclic:
+                        self.ix_trunc = np.linspace(ix[0],ix[-1]+dx,\
+                            self.nx_trunc,endpoint=False)
+                    else:
+                        self.ix_trunc = np.linspace(ix[0],ix[-1],\
+                            self.nx_trunc+1,endpoint=True)
+                    self.dx_trunc = self.ix_trunc[1] - self.ix_trunc[0]
+                    self.f_trunc = fft.fftfreq(self.nx_trunc,self.dx_trunc)
+                    self.T = np.zeros((self.nx_trunc,self.F.shape[0]))
+                    i = 0
+                    for j in range(self.ntrunc):
+                        self.T[i,j] = 1.0
+                        i += 1
+                    for j in range(self.f.size-self.ntrunc,self.T.shape[1]):
+                        self.T[i,j] = 1.0
+                        #if j==self.f.size-self.ntrunc:
+                        #    self.T[i,j] *= 2.0
+                        i += 1
+                    self.T *= dx / self.dx_trunc
+                    logger.info(f"i:{i} nx_trunc:{self.nx_trunc}")
                 else:
-                    self.ix_trunc = np.linspace(ix[0],ix[-1],\
-                        self.nx_trunc+1,endpoint=True)
-                self.dx_trunc = self.ix_trunc[1] - self.ix_trunc[0]
-                self.f_trunc = fft.fftfreq(self.nx_trunc,self.dx_trunc)
-                self.T = np.zeros((self.nx_trunc,self.F.shape[0]))
-                i = 0
-                for j in range(self.ntrunc):
-                    self.T[i,j] = 1.0
-                    i += 1
-                for j in range(self.f.size-self.ntrunc,self.T.shape[1]):
-                    self.T[i,j] = 1.0
-                    #if j==self.f.size-self.ntrunc:
-                    #    self.T[i,j] *= 2.0
-                    i += 1
-                self.T *= dx / self.dx_trunc
-                logger.info(f"i:{i} nx_trunc:{self.nx_trunc}")
+                    self.T[self.ntrunc:self.f.size-self.ntrunc,:] = 0.0
+                    self.T[self.f.size-self.ntrunc,:] *= 2
             self.Fi = fft.ifft(np.eye(self.T.shape[0]),axis=0)
             if self.cyclic:
                 self.Ei = np.eye(self.ix_trunc.size)
@@ -123,19 +126,21 @@ class Trunc1d:
             self.f_trunc  = self.f.copy()
             self.T = np.eye(self.F.shape[0])
             if self.ntrunc < self.T.shape[0]:
-                #self.T[self.ntrunc:] = 0.
-                self.nx_trunc = self.ntrunc + 1
-                if self.cyclic:
-                    self.ix_trunc = np.linspace(ix[0],ix[-1]+dx,\
-                        self.nx_trunc,endpoint=False)
+                if self.resample:
+                    self.nx_trunc = self.ntrunc + 1
+                    if self.cyclic:
+                        self.ix_trunc = np.linspace(ix[0],ix[-1]+dx,\
+                            self.nx_trunc,endpoint=False)
+                    else:
+                        self.ix_trunc = np.linspace(ix[0],ix[-1],\
+                            self.nx_trunc+1,endpoint=True)
+                    self.dx_trunc = self.ix_trunc[1] - self.ix_trunc[0]
+                    self.f_trunc = np.arange(1,self.ntrunc+1)/(2.*self.dx_trunc*self.nx_trunc)
+                    self.T = np.zeros((self.ntrunc,self.F.shape[0]))
+                    self.T[:,:self.ntrunc] = np.eye(self.ntrunc)
+                    self.T *= dx / self.dx_trunc
                 else:
-                    self.ix_trunc = np.linspace(ix[0],ix[-1],\
-                        self.nx_trunc+1,endpoint=True)
-                self.dx_trunc = self.ix_trunc[1] - self.ix_trunc[0]
-                self.f_trunc = np.arange(1,self.ntrunc+1)/(2.*self.dx_trunc*self.nx_trunc)
-                self.T = np.zeros((self.ntrunc,self.F.shape[0]))
-                self.T[:,:self.ntrunc] = np.eye(self.ntrunc)
-                self.T *= dx / self.dx_trunc
+                    self.T[self.ntrunc:] = 0.
             logger.info(f"Trunc1d: f_trunc={self.f_trunc}")
             self.Fi = fft.idst(np.eye(self.T.shape[0]),type=1,axis=0)
             #if self.cyclic:

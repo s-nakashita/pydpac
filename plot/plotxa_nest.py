@@ -36,7 +36,7 @@ ix_t = np.loadtxt("ix_true.txt")
 ix_gm = np.loadtxt("ix_gm.txt")
 ix_lam = np.loadtxt("ix_lam.txt")
 ntrunc = 12
-trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False,nghost=0)
+trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False,nghost=0) #,resample=False)
 ix_trunc = trunc_operator.ix_trunc #[1:-1]
 
 xt2x = interp1d(ix_t, xt)
@@ -44,17 +44,6 @@ xlim = 15.0
 for pt in perts:
     #GM
     ## nature and analysis
-    fig, axs = plt.subplots(nrows=1,ncols=2,figsize=[10,6],\
-        constrained_layout=True,sharey=True)
-    nx = ix_t.size
-    mp0 = axs[0].pcolormesh(ix_t, t, xt, shading='auto',\
-        cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    axs[0].set_xticks(ix_t[::(nx//8)])
-    axs[0].set_yticks(t[::max(1,na//8)])
-    axs[0].set_xlabel("site")
-    axs[0].set_ylabel("DA cycle")
-    axs[0].set_title("nature")
-    p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     if dscl:
         f = "xagmonly_{}_{}.npy".format(op, pt)
         f2 = "xfgmonly_{}_{}.npy".format(op, pt)
@@ -67,6 +56,17 @@ for pt in perts:
     xagm = np.load(f)
     xfgm = np.load(f2)
     print(xagm.shape)
+    fig, axs = plt.subplots(nrows=1,ncols=2,figsize=[10,6],\
+        constrained_layout=True,sharey=True)
+    nx = ix_t.size
+    mp0 = axs[0].pcolormesh(ix_t, t, xt, shading='auto',\
+        cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
+    axs[0].set_xticks(ix_t[::(nx//8)])
+    axs[0].set_yticks(t[::max(1,na//8)])
+    axs[0].set_xlabel("site")
+    axs[0].set_ylabel("DA cycle")
+    axs[0].set_title("nature")
+    p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     nx = ix_gm.size
     mp1 = axs[1].pcolormesh(ix_gm, t, xagm, shading='auto', \
     cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
@@ -91,15 +91,16 @@ for pt in perts:
     ax00 = fig2.add_subplot(gs00[1:, :])
     ax01 = fig2.add_subplot(gs00[0, :])
     xt2gm = xt2x(ix_gm)
-    xd = xagm - xt2gm
-    vlim = np.nanmax(np.abs(xd))
-    mp2 = ax00.pcolormesh(ix_gm, t, xd, shading='auto', \
+    xdgm = xagm - xt2gm
+    xdfgm = xfgm - xt2gm
+    vlim = np.nanmax(np.abs(xdgm))
+    mp2 = ax00.pcolormesh(ix_gm, t, xdgm, shading='auto', \
     cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
     ax00.set_xticks(ix_gm[::(nx//8)])
     ax00.set_yticks(t[::max(1,na//8)])
     ax00.set_xlabel("site")
     p2 = fig2.colorbar(mp2,ax=ax00,orientation="horizontal")
-    ax01.plot(ix_gm,np.nanmean(np.abs(xd),axis=0))
+    ax01.plot(ix_gm,np.nanmean(np.abs(xdgm),axis=0))
     ax01.set_xlim(ix_gm[0],ix_gm[-1])
     ax01.set_xticks(ix_gm[::(nx//8)])
     ax01.set_xticklabels([])
@@ -145,16 +146,6 @@ for pt in perts:
     plt.close()
     #LAM
     ## nature and analysis
-    fig, axs = plt.subplots(nrows=1,ncols=2,figsize=[10,6],\
-        constrained_layout=True,sharey=True)
-    nx = ix_t.size
-    mp0 = axs[0].pcolormesh(ix_t, t, xt, shading='auto',\
-        cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    axs[0].set_yticks(t[::max(1,na//8)])
-    axs[0].set_xlabel("site")
-    axs[0].set_ylabel("DA cycle")
-    axs[0].set_title("nature")
-    p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     if dscl:
         f = "xadscl_{}_{}.npy".format(op, pt)
         f2 = "xfdscl_{}_{}.npy".format(op, pt)
@@ -167,6 +158,16 @@ for pt in perts:
     xalam = np.load(f)
     xflam = np.load(f2)
     print(xalam.shape)
+    fig, axs = plt.subplots(nrows=1,ncols=2,figsize=[10,6],\
+        constrained_layout=True,sharey=True)
+    nx = ix_t.size
+    mp0 = axs[0].pcolormesh(ix_t, t, xt, shading='auto',\
+        cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
+    axs[0].set_yticks(t[::max(1,na//8)])
+    axs[0].set_xlabel("site")
+    axs[0].set_ylabel("DA cycle")
+    axs[0].set_title("nature")
+    p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     nx = ix_lam.size
     axs[0].set_xticks(ix_lam[::(nx//8)])
     mp1 = axs[1].pcolormesh(ix_lam, t, xalam, shading='auto', \
@@ -191,15 +192,16 @@ for pt in perts:
     ax00 = fig2.add_subplot(gs00[1:, :])
     ax01 = fig2.add_subplot(gs00[0, :])
     xt2lam = xt2x(ix_lam)
-    xd = xalam - xt2lam
-    vlim = np.nanmax(np.abs(xd))
-    mp2 = ax00.pcolormesh(ix_lam, t, xd, shading='auto', \
+    xdlam = xalam - xt2lam
+    xdflam = xflam - xt2lam
+    vlim = np.nanmax(np.abs(xdlam))
+    mp2 = ax00.pcolormesh(ix_lam, t, xdlam, shading='auto', \
     cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
     ax00.set_xticks(ix_lam[::(nx//8)])
     ax00.set_yticks(t[::max(1,na//8)])
     ax00.set_xlabel("site")
     p2 = fig2.colorbar(mp2,ax=ax00,orientation="horizontal")
-    ax01.plot(ix_lam,np.nanmean(np.abs(xd),axis=0))
+    ax01.plot(ix_lam,np.nanmean(np.abs(xdlam),axis=0))
     ax01.set_xticks(ix_lam[::(nx//8)])
     ax01.set_xticklabels([])
     ax01.set_title("error")
@@ -284,3 +286,46 @@ for pt in perts:
         ax.legend()
         fig.savefig("{}_xf_{}_{}_c{}.png".format(model,op,pt,icycle))
         plt.close()
+    ## error cross-covariance evaluation
+    xdv = trunc_operator(xdfgm.transpose()).transpose()
+    print(xdv.shape)
+    ns = 40
+    vlim = max(np.max(xdflam[ns:,:]),-np.min(xdflam[ns:,:]),\
+        np.max(xdv[ns:,:]),-np.min(xdv[ns:,:]))
+    fig, axs = plt.subplots(ncols=2,figsize=[8,6],constrained_layout=True)
+    mp0 = axs[0].pcolormesh(ix_lam,t,xdflam, shading='auto', \
+    cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
+    nx=ix_lam.size
+    axs[0].set_xticks(ix_lam[::(nx//6)])
+    axs[0].set_yticks(t[::max(1,na//8)])
+    axs[0].set_title(r"$\varepsilon^\mathrm{b}$")
+    mp1 = axs[1].pcolormesh(ix_trunc,t,xdv, shading='auto', \
+    cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
+    nx=ix_trunc.size
+    axs[1].set_xticks(ix_trunc[::(nx//5)])
+    axs[1].set_yticks(t[::max(1,na//8)])
+    axs[1].set_title(r"$\varepsilon^\mathrm{v}$")
+    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
+    fig.suptitle(pt)
+    fig.savefig("{}_xdcomp_{}_{}.png".format(model,op,pt))
+    B = np.dot(xdflam[ns:,:].transpose(),xdflam[ns:,:])/float(na-ns)
+    V = np.dot(xdv[ns:,:].transpose(),xdv[ns:,:])/float(na-ns)
+    Ebv = np.dot(xdflam[ns:,:].transpose(),xdv[ns:,:])/float(na-ns)
+    Evb = np.dot(xdv[ns:,:].transpose(),xdflam[ns:,:])/float(na-ns)
+    W = np.hstack((np.vstack((B,Evb)),np.vstack((Ebv,V))))
+    fig2, axs2 = plt.subplots(ncols=2,figsize=[10,6],constrained_layout=True)
+    vlim = np.mean(np.diag(B))
+    mp0 = axs2[0].matshow(W,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp0,ax=axs2[0],shrink=0.6,pad=0.01)
+    axs2[0].hlines([ix_lam.size],0,1,colors='k',ls='dashed',transform=axs2[0].get_yaxis_transform())
+    axs2[0].vlines([ix_lam.size],0,1,colors='k',ls='dashed',transform=axs2[0].get_xaxis_transform())
+    axs2[0].set_title(r'$\mathbf{W}$')
+    lam, c = np.linalg.eigh(W)
+    axs2[1].semilogy(lam)
+    axs2[1].set_ylabel('eigenvalues')
+    axs2[1].set_title(f'cond(W)={np.linalg.cond(W):.4e}')
+    fig2.suptitle(pt)
+    fig2.savefig("{}_errcov_{}_{}.png".format(model,op,pt))
+    plt.show()
+    plt.close()

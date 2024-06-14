@@ -7,7 +7,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FixedLocator, FixedFormatter
 from scipy.interpolate import interp1d
-from nmc_tools import corrscale, psd
+from nmc_tools import NMC_tools #corrscale, psd
 plt.rcParams['font.size'] = 16
 def one_over(k):
     #Vectorized 1/x, treating x==0 manually
@@ -40,6 +40,7 @@ nx = xt.shape[1]
 t = np.arange(na)
 ix = np.loadtxt("ix.txt") * 360. / nx
 ix_rad = np.deg2rad(ix)
+nmc = NMC_tools(ix_rad)
 xlim = 15.0
 ns = na//10
 ne = na
@@ -83,21 +84,21 @@ for pt in perts:
     #x12m6 = x12m6 - x12m6.mean(axis=1)[:,None]
     print(x12m6.shape)
     B12m6 = np.dot(x12m6.T,x12m6)/float(ne-ns+1)*0.5
-    wnum, sp12m6 = psd(x12m6,ix_rad,axis=1)
+    wnum, sp12m6 = nmc.psd(x12m6,axis=1)
     ## 24h - 12h
     #x24m12 = x24h[ns-3:ne-3] - x12h[ns-1:ne-1]
     x24m12 = x24h[ns:ne] - x12h[ns:ne]
     #x24m12 = x24m12 - x24m12.mean(axis=1)[:,None]
     print(x24m12.shape)
     B24m12 = np.dot(x24m12.T,x24m12)/float(ne-ns+1)*0.5
-    wnum, sp24m12 = psd(x24m12,ix_rad,axis=1)
+    wnum, sp24m12 = nmc.psd(x24m12,axis=1)
     ## 48h - 24h
     #x48m24 = x48h[ns-7:ne-7] - x24h[ns-3:ne-3]
     x48m24 = x48h[ns:ne] - x24h[ns:ne]
     #x48m24 = x48m24 - x48m24.mean(axis=1)[:,None]
     print(x48m24.shape)
     B48m24 = np.dot(x48m24.T,x48m24)/float(ne-ns+1)*0.5
-    wnum, sp48m24 = psd(x48m24,ix_rad,axis=1)
+    wnum, sp48m24 = nmc.psd(x48m24,axis=1)
     ## plot
     fig, axs = plt.subplots(nrows=1,ncols=4,figsize=[12,6],constrained_layout=True,sharey=True)
     mp0 = axs[0].pcolormesh(ix, t[ns:ne], x6h[ns:ne,:], shading='auto',\
@@ -193,9 +194,9 @@ for pt in perts:
         ax10.text(np.average(med.get_xdata()),.95,s,
         transform=ax10.get_xaxis_transform(),ha='center',c='r')
     ### correlation length scale
-    L12m6  = corrscale(np.deg2rad(ix),B12m6,cyclic=True)
-    L24m12 = corrscale(np.deg2rad(ix),B24m12,cyclic=True)
-    L48m24 = corrscale(np.deg2rad(ix),B48m24,cyclic=True)
+    L12m6  = nmc.corrscale(B12m6)
+    L24m12 = nmc.corrscale(B24m12)
+    L48m24 = nmc.corrscale(B48m24)
     data = [
         np.rad2deg(L12m6),
         np.rad2deg(L24m12),

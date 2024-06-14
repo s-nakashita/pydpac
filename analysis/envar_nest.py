@@ -155,7 +155,8 @@ class EnVAR_nest():
                 hess = zmatc.transpose() @ zmatc
                 np.save("{}_hess_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), hess)
             lam = s*s
-            ndof = int(np.sum((lam-rho*float(nk-1))>-1.0e-5))
+            ndof = int(np.sum(lam>1.0e-10))
+            #ndof = int(np.sum((lam-rho*float(nk-1))>-1.0e-5))
             logger.info(f"precondition: ndof={ndof}")
             logger.info("precondition: eigenvalue ={}".format(lam))
             if ndof < s.size:

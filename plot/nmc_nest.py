@@ -7,7 +7,8 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FixedLocator, FixedFormatter
 from scipy.interpolate import interp1d
-from nmc_tools import corrscale, psd, cpsd, wnum2wlen, wlen2wnum #, trunc_operator
+from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
+#corrscale, psd, cpsd
 sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
 from trunc1d import Trunc1d
 plt.rcParams['font.size'] = 16
@@ -40,11 +41,20 @@ ix_lam_deg = np.rad2deg(ix_lam)
 tmp_gm2lam = interp1d(ix_gm, np.eye(ix_gm.size), axis=0)
 H_gm2lam = tmp_gm2lam(ix_lam)
 print(f"H_gm2lam={H_gm2lam.shape}")
+nmc_gm = NMC_tools(ix_gm)
+nmc_lam = NMC_tools(ix_lam,cyclic=False)
+i0 = np.argmin(np.abs(ix_gm - ix_lam[0]))
+if ix_gm[i0]<ix_lam[0]: i0+=1
+i1 = np.argmin(np.abs(ix_gm - ix_lam[-1]))
+if ix_gm[i1]>ix_lam[-1]: i1-=1
+ix_gm_crop = ix_gm[i0:i1+1]
+nmc_llam = NMC_tools(ix_gm_crop,cyclic=False)
 #ftmax = 20.0 / np.pi
 #f = trunc_operator(np.arange(ix_lam.size),ix=ix_lam,ftmax=ftmax,first=True,cyclic=False)
 ntrunc = 12
 trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,nghost=0)
 ix_trunc = trunc_operator.ix_trunc
+nmc_trunc = NMC_tools(ix_trunc,cyclic=False)
 
 xt2x = interp1d(ix_t, xt)
 xlim = 15.0
@@ -102,19 +112,19 @@ for pt in perts:
     #x12m6_gm = x12m6_gm - x12m6_gm.mean(axis=1)[:,None]
     print(x12m6_gm.shape)
     B12m6_gm = np.dot(x12m6_gm.T,x12m6_gm)/float(ne-ns+1)*0.5
-    wnum, sp12m6_gm = psd(x12m6_gm,ix_gm,axis=1)
+    wnum, sp12m6_gm = nmc_gm.psd(x12m6_gm,axis=1)
     ## 24h - 12h
     x24m12_gm = x24hgm[ns:ne] - x12hgm[ns:ne]
     #x24m12_gm = x24m12_gm - x24m12_gm.mean(axis=1)[:,None]
     print(x24m12_gm.shape)
     B24m12_gm = np.dot(x24m12_gm.T,x24m12_gm)/float(ne-ns+1)*0.5
-    wnum, sp24m12_gm = psd(x24m12_gm,ix_gm,axis=1)
+    wnum, sp24m12_gm = nmc_gm.psd(x24m12_gm,axis=1)
     ## 48h - 24h
     x48m24_gm = x48hgm[ns:ne] - x24hgm[ns:ne]
     #x48m24_gm = x48m24_gm - x48m24_gm.mean(axis=1)[:,None]
     print(x48m24_gm.shape)
     B48m24_gm = np.dot(x48m24_gm.T,x48m24_gm)/float(ne-ns+1)*0.5
-    wnum, sp48m24_gm = psd(x48m24_gm,ix_gm,axis=1)
+    wnum, sp48m24_gm = nmc_gm.psd(x48m24_gm,axis=1)
     ## plot
     fig, axs = plt.subplots(nrows=1,ncols=4,figsize=[12,6],constrained_layout=True,sharey=True)
     mp0 = axs[0].pcolormesh(ix_gm_deg, t[ns:ne], x6hgm[ns:ne], shading='auto',\
@@ -212,9 +222,9 @@ for pt in perts:
         ax12.text(np.average(med.get_xdata()),.95,s,
         transform=ax12.get_xaxis_transform(),ha='center',c='r')
     ### correlation length scale
-    L12m6_gm  = corrscale(ix_gm,B12m6_gm,cyclic=True)
-    L24m12_gm = corrscale(ix_gm,B24m12_gm,cyclic=True)
-    L48m24_gm = corrscale(ix_gm,B48m24_gm,cyclic=True)
+    L12m6_gm  = nmc_gm.corrscale(B12m6_gm)
+    L24m12_gm = nmc_gm.corrscale(B24m12_gm)
+    L48m24_gm = nmc_gm.corrscale(B48m24_gm)
     data = [
         np.rad2deg(L12m6_gm),
         np.rad2deg(L24m12_gm),
@@ -309,19 +319,19 @@ for pt in perts:
     #x12m6_lam = x12m6_lam - x12m6_lam.mean(axis=1)[:,None]
     print(x12m6_lam.shape)
     B12m6_lam = np.dot(x12m6_lam.T,x12m6_lam)/float(ne-ns+1)*0.5
-    wnum, sp12m6_lam = psd(x12m6_lam, ix_lam, axis=1, cyclic=False, nghost=0)
+    wnum, sp12m6_lam, _ = nmc_lam.psd(x12m6_lam, axis=1)
     ## 24h - 12h
     x24m12_lam = x24hlam[ns:ne] - x12hlam[ns:ne]
     #x24m12_lam = x24m12_lam - x24m12_lam.mean(axis=1)[:,None]
     print(x24m12_lam.shape)
     B24m12_lam = np.dot(x24m12_lam.T,x24m12_lam)/float(ne-ns+1)*0.5
-    wnum, sp24m12_lam = psd(x24m12_lam, ix_lam, axis=1, cyclic=False, nghost=0)
+    wnum, sp24m12_lam, _ = nmc_lam.psd(x24m12_lam, axis=1)
     ## 48h - 24h
     x48m24_lam = x48hlam[ns:ne] - x24hlam[ns:ne]
     #x48m24_lam = x48m24_lam - x48m24_lam.mean(axis=1)[:,None]
     print(x48m24_lam.shape)
     B48m24_lam = np.dot(x48m24_lam.T,x48m24_lam)/float(ne-ns+1)*0.5
-    wnum, sp48m24_lam = psd(x48m24_lam, ix_lam, axis=1, cyclic=False, nghost=0)
+    wnum, sp48m24_lam, _ = nmc_lam.psd(x48m24_lam, axis=1)
     ## plot
     fig, axs = plt.subplots(nrows=1,ncols=4,figsize=[12,6],constrained_layout=True,sharey=True)
     mp0 = axs[0].pcolormesh(ix_lam_deg, t[ns:ne], x6hlam[ns:ne], shading='auto',\
@@ -418,9 +428,9 @@ for pt in perts:
         ax12.text(np.average(med.get_xdata()),.95,s,
         transform=ax12.get_xaxis_transform(),ha='center',c='r')
     ### correlation length scale
-    L12m6_lam  = corrscale(ix_lam,B12m6_lam,cyclic=False)
-    L24m12_lam = corrscale(ix_lam,B24m12_lam,cyclic=False)
-    L48m24_lam = corrscale(ix_lam,B48m24_lam,cyclic=False)
+    L12m6_lam  = nmc_lam.corrscale(B12m6_lam)
+    L24m12_lam = nmc_lam.corrscale(B24m12_lam)
+    L48m24_lam = nmc_lam.corrscale(B48m24_lam)
     data = [
         np.rad2deg(L12m6_lam),
         np.rad2deg(L24m12_lam),
@@ -468,6 +478,7 @@ for pt in perts:
     #exit()
     #GM-LAM
     ixlist = []
+    nmclist = []
     vmatlist=[]
     wnumlist = []
     splist=[]
@@ -475,6 +486,7 @@ for pt in perts:
     sp_gm2lamlist=[]
     ## GM interpolated into nominal LAM grid (H_1:GM=>LAM, H_2=I)
     ixlist.append(ix_lam)
+    nmclist.append(nmc_lam)
     ### 12h - 6h
     gm2lam = interp1d(ix_gm,x12hgm[ns:ne],axis=1)
     x12hgm2lam = gm2lam(ix_lam)
@@ -483,10 +495,10 @@ for pt in perts:
     B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V12m6)
     gm2lamlist.append(B12m6_gm2lam)
-    wnum, sp12m6_v = psd(ek12h,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum, sp12m6_v, _ = nmc_lam.psd(ek12h,axis=1)
     wnumlist.append(wnum)
     splist.append(sp12m6_v)
-    wnum_c, csp12m6 = cpsd(ek12h,x12m6_lam,ix_lam,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp12m6 = nmc_lam.cpsd(ek12h,x12m6_lam,axis=1)
     sp_gm2lamlist.append(csp12m6)
     ### 24h - 12h
     gm2lam = interp1d(ix_gm,x24hgm[ns:ne],axis=1)
@@ -496,9 +508,9 @@ for pt in perts:
     B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V24m12)
     gm2lamlist.append(B24m12_gm2lam)
-    wnum, sp24m12_v = psd(ek24h,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum, sp24m12_v, _ = nmc_lam.psd(ek24h,axis=1)
     splist.append(sp24m12_v)
-    wnum_c, csp24m12 = cpsd(ek24h,x24m12_lam,ix_lam,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp24m12 = nmc_lam.cpsd(ek24h,x24m12_lam,axis=1)
     sp_gm2lamlist.append(csp24m12)
     ### 48h - 24h
     gm2lam = interp1d(ix_gm,x48hgm[ns:ne],axis=1)
@@ -508,16 +520,13 @@ for pt in perts:
     B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V48m24)
     gm2lamlist.append(B48m24_gm2lam)
-    wnum, sp48m24_v = psd(ek48h,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum, sp48m24_v, _ = nmc_lam.psd(ek48h,axis=1)
     splist.append(sp48m24_v)
-    wnum_c, csp48m24 = cpsd(ek48h,x48m24_lam,ix_lam,ix_lam,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp48m24 = nmc_lam.cpsd(ek48h,x48m24_lam,axis=1)
     sp_gm2lamlist.append(csp48m24)
     ## extract GM included in the LAM domain (H_1:crop, H_2:LAM=>cropped GM)
-    i0 = np.argmin(np.abs(ix_gm - ix_lam[0]))
-    if ix_gm[i0]<ix_lam[0]: i0+=1
-    i1 = np.argmin(np.abs(ix_gm - ix_lam[-1]))
-    if ix_gm[i1]>ix_lam[-1]: i1-=1
-    ixlist.append(ix_gm[i0:i1+1])
+    ixlist.append(ix_gm_crop)
+    nmclist.append(nmc_llam)
     ### 12h - 6h
     lam2gm = interp1d(ix_lam,x12hlam[ns:ne],axis=1)
     x12hlam2gm = lam2gm(ix_gm[i0:i1+1])
@@ -526,11 +535,11 @@ for pt in perts:
     B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V12m6)
     gm2lamlist.append(B12m6_gm2lam)
-    wnum, sp12m6_v = psd(ek12h,ix_gm[i0:i1+1],axis=1,cyclic=False,nghost=0)
+    wnum, sp12m6_v, _ = nmc_llam.psd(ek12h,axis=1)
     wnumlist.append(wnum)
     splist.append(sp12m6_v)
     lam2gm = interp1d(ix_lam,x12m6_lam,axis=1)
-    wnum_c, csp12m6 = cpsd(ek12h,lam2gm(ix_gm[i0:i1+1]),ix_gm[i0:i1+1],ix_gm[i0:i1+1],axis=1,cyclic=False,nghost=0)
+    wnum_c, csp12m6 = nmc_llam.cpsd(ek12h,lam2gm(ix_gm[i0:i1+1]),axis=1)
     sp_gm2lamlist.append(csp12m6)
     ### 24h - 12h
     lam2gm = interp1d(ix_lam,x24hlam[ns:ne],axis=1)
@@ -540,10 +549,10 @@ for pt in perts:
     B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V24m12)
     gm2lamlist.append(B24m12_gm2lam)
-    wnum, sp24m12_v = psd(ek24h,ix_gm[i0:i1+1],axis=1,cyclic=False,nghost=0)
+    wnum, sp24m12_v, _ = nmc_llam.psd(ek24h,axis=1)
     splist.append(sp24m12_v)
     lam2gm = interp1d(ix_lam,x24m12_lam,axis=1)
-    wnum_c, csp24m12 = cpsd(ek24h,lam2gm(ix_gm[i0:i1+1]),ix_gm[i0:i1+1],ix_gm[i0:i1+1],axis=1,cyclic=False,nghost=0)
+    wnum_c, csp24m12 = nmc_llam.cpsd(ek24h,lam2gm(ix_gm[i0:i1+1]),axis=1)
     sp_gm2lamlist.append(csp24m12)
     ### 48h - 24h
     lam2gm = interp1d(ix_lam,x48hlam[ns:ne],axis=1)
@@ -553,13 +562,14 @@ for pt in perts:
     B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V48m24)
     gm2lamlist.append(B48m24_gm2lam)
-    wnum, sp48m24_v = psd(ek48h,ix_gm[i0:i1+1],axis=1,cyclic=False,nghost=0)
+    wnum, sp48m24_v, _ = nmc_llam.psd(ek48h,axis=1)
     splist.append(sp48m24_v)
     lam2gm = interp1d(ix_lam,x48m24_lam,axis=1)
-    wnum_c, csp48m24 = cpsd(ek48h,lam2gm(ix_gm[i0:i1+1]),ix_gm[i0:i1+1],ix_gm[i0:i1+1],axis=1,cyclic=False,nghost=0)
+    wnum_c, csp48m24 = nmc_llam.cpsd(ek48h,lam2gm(ix_gm[i0:i1+1]),axis=1)
     sp_gm2lamlist.append(csp48m24)
     ## truncated GM into nominal LAM grid (H_1:GM=>LAM@truncation, H_2=truncation)
     ixlist.append(ix_trunc)
+    nmclist.append(nmc_trunc)
     ### 12h - 6h
     x12hgm2lam = np.dot(x12hgm[ns:ne],H_gm2lam.T)
     x12hgm_trunc = trunc_operator(x12hgm2lam.T)
@@ -569,11 +579,11 @@ for pt in perts:
     B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V12m6)
     gm2lamlist.append(B12m6_gm2lam)
-    wnum, sp12m6_v = psd(ek12h,ix_trunc,axis=1,cyclic=False,nghost=0)
+    wnum, sp12m6_v, _ = nmc_trunc.psd(ek12h,axis=1)
     wnumlist.append(wnum)
     splist.append(sp12m6_v)
     x12m6_trunc = trunc_operator(x12m6_lam.T)
-    wnum_c, csp12m6 = cpsd(ek12h,x12m6_trunc.T,ix_trunc,ix_trunc,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp12m6 = nmc_trunc.cpsd(ek12h,x12m6_trunc.T,axis=1)
     sp_gm2lamlist.append(csp12m6)
     ### 24h - 12h
     x24hgm2lam = np.dot(x24hgm[ns:ne],H_gm2lam.T)
@@ -584,10 +594,10 @@ for pt in perts:
     B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V24m12)
     gm2lamlist.append(B24m12_gm2lam)
-    wnum, sp24m12_v = psd(ek24h,ix_trunc,axis=1,cyclic=False,nghost=0)
+    wnum, sp24m12_v, _ = nmc_trunc.psd(ek24h,axis=1)
     splist.append(sp24m12_v)
     x24m12_trunc = trunc_operator(x24m12_lam.T)
-    wnum_c, csp24m12 = cpsd(ek24h,x24m12_trunc.T,ix_trunc,ix_trunc,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp24m12 = nmc_trunc.cpsd(ek24h,x24m12_trunc.T,axis=1)
     sp_gm2lamlist.append(csp24m12)
     ### 48h - 24h
     x48hgm2lam = np.dot(x48hgm[ns:ne],H_gm2lam.T)
@@ -598,10 +608,10 @@ for pt in perts:
     B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V48m24)
     gm2lamlist.append(B48m24_gm2lam)
-    wnum, sp48m24_v = psd(ek48h,ix_trunc,axis=1,cyclic=False,nghost=0)
+    wnum, sp48m24_v, _ = nmc_trunc.psd(ek48h,axis=1)
     splist.append(sp48m24_v)
     x48m24_trunc = trunc_operator(x48m24_lam.T)
-    wnum_c, csp48m24 = cpsd(ek48h,x48m24_trunc.T,ix_trunc,ix_trunc,axis=1,cyclic=False,nghost=0)
+    wnum_c, csp48m24 = nmc_trunc.cpsd(ek48h,x48m24_trunc.T,axis=1)
     sp_gm2lamlist.append(csp48m24)
     ##gm2lam = interp1d(ix_gm,x12m6_gm,axis=1)
     #V12m6 = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
@@ -623,6 +633,7 @@ for pt in perts:
         title = titlelist[k]
         ixtmp = ixlist[k]
         ixtmp_deg = np.rad2deg(ixtmp)
+        nmc = nmclist[k]
         wnum = wnumlist[k]
         n = ixtmp.size
         j = 3*k
@@ -698,9 +709,9 @@ for pt in perts:
             ax12.text(np.average(med.get_xdata()),.95,s,
             transform=ax12.get_xaxis_transform(),ha='center',c='r')
         ### correlation length scale
-        L12m6_v  = corrscale(ixtmp,V12m6,cyclic=False)
-        L24m12_v = corrscale(ixtmp,V24m12,cyclic=False)
-        L48m24_v = corrscale(ixtmp,V48m24,cyclic=False)
+        L12m6_v  = nmc.corrscale(V12m6)
+        L24m12_v = nmc.corrscale(V24m12)
+        L48m24_v = nmc.corrscale(V48m24)
         data = [
             np.rad2deg(L12m6_v),
             np.rad2deg(L24m12_v),

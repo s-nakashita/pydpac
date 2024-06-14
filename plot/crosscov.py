@@ -27,7 +27,7 @@ datadir = Path(f'work/{model}')
 #preGMpt = 'envar'
 #dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 #lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
-lamdir  = datadir / 'mlef_nestc_shrink_preGM_m80obs30'
+lamdir  = datadir / 'envar_nestc_shrink_preGM_m80obs30'
 
 perts = ["envar_nest","envar_nestc","mlef_nest","mlef_nestc"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "envar_nestc":"Nested EnVar_c", "var":"3DVar", "var_nest":"Nested 3DVar"}
@@ -121,10 +121,101 @@ for pt in perts:
                     #    cyclic=False,nghost=0,average=True,detrend=True)
                     #psdv = psdv + psdtmp
                 vmat_exist=True
-        if ncycle_lam == 1 and vmat_exist:
-            cmat = spftmp @ svtmp.T
-        elif vmat_exist:
-            cmat = cmat + (spftmp @ svtmp.T)
+        if vmat_exist:
+            ctmp = spftmp @ svtmp.T
+            if ncycle_lam == 1:
+                cmat = ctmp
+            else:
+                cmat = cmat + ctmp
+        
+            ub, sb, vbt = np.linalg.svd(spftmp,full_matrices=False)
+            #ndofb = int(np.sum(sb>1.0e-10))
+            sbfull = sb.copy()
+            lamb = sb*sb
+            lamsum = np.sum(lamb)
+            ndofb = 0
+            contrib=0.0
+            while ndofb <= sb.size:
+                contrib+=lamb[ndofb]/lamsum
+                ndofb += 1
+                if contrib > 0.99: break
+            ub = ub[:,:ndofb]
+            sb = sb[:ndofb]
+            vbt = vbt[:ndofb,:]
+            vb = vbt.transpose()
+            uv, sv, vvt = np.linalg.svd(svtmp,full_matrices=False)
+            #ndofv = int(np.sum(sv>1.0e-10))
+            svfull = sv.copy()
+            lamv = sv*sv
+            lamsum = np.sum(lamv)
+            ndofv = 0
+            contrib=0.0
+            while ndofv <= sv.size:
+                contrib+=lamv[ndofv]/lamsum
+                ndofv += 1
+                if contrib > 0.99: break
+            uv = uv[:,:ndofv]
+            sv = sv[:ndofv]
+            vvt = vvt[:ndofv,:]
+            vv = vvt.transpose()
+            fig, axs = plt.subplots(figsize=[8,10],nrows=3,ncols=2,constrained_layout=True)
+            vlim=0.75
+            axs[0,0].set_title(r'$\mathbf{U}_\mathrm{b}$'+f'={ub.shape}',fontsize=16)
+            mp00 = axs[0,0].matshow(ub,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp00,ax=axs[0,0],shrink=0.6,pad=0.01)
+            axs[1,0].set_title(r'$\mathbf{V}_\mathrm{b}$'+f'={vb.shape}',fontsize=16)
+            mp10 = axs[1,0].matshow(vb,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp10,ax=axs[1,0],shrink=0.6,pad=0.01)
+            axs[0,1].set_title(r'$\mathbf{U}_\mathrm{v}$'+f'={uv.shape}',fontsize=16)
+            mp01 = axs[0,1].matshow(uv,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp01,ax=axs[0,1],shrink=0.6,pad=0.01)
+            axs[1,1].set_title(r'$\mathbf{V}_\mathrm{v}$'+f'={vv.shape}',fontsize=16)
+            mp11 = axs[1,1].matshow(vv,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp11,ax=axs[1,1],shrink=0.6,pad=0.01)
+            axs[2,0].plot(np.arange(1,sbfull.size+1),sbfull,label=r'$\sigma_\mathrm{b}$')
+            axs[2,0].plot(np.arange(1,svfull.size+1),svfull,label=r'$\sigma_\mathrm{v}$')
+            axs[2,0].vlines([ndofb,ndofv],0,1,colors=['tab:blue','tab:orange'],ls='dashed',transform=axs[2,0].get_xaxis_transform())
+            axs[2,0].legend()
+            axs[2,1].set_title(r'$\mathbf{V}_\mathrm{v}^\mathrm{T}\mathbf{V}_\mathrm{b}$',fontsize=16)
+            mp21 = axs[2,1].matshow(vvt@vb,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp21,ax=axs[2,1],shrink=0.6,pad=0.01)
+            fig.suptitle(f"cycle={icycle}")
+            fig.savefig(lamdir/"{}_spfsvd_{}_{}_cycle{}.png".format(model,op,pt,icycle))
+            plt.show(block=False)
+            plt.close()
+
+            Pc = np.hstack((np.vstack((pftmp,ctmp.T)),np.vstack((ctmp,vtmp))))
+            # MP-inverse of Pc
+            ubn = ub @ np.diag(1.0/sb)
+            uvn = uv @ np.diag(1.0/sv)
+            tmp = np.eye(sv.size) - vvt@vb@vbt@vv
+            Pci00 = ubn @ (np.eye(sb.size) + vbt@vv@np.linalg.inv(tmp)@vvt@vb) @ ubn.transpose()
+            Pci01 = -1.0 * ubn @ vbt@vv@np.linalg.inv(tmp) @ uvn.transpose()
+            Pci10 = Pci01.transpose()
+            Pci11 = uvn @ np.linalg.inv(tmp) @ uvn.transpose()
+            Pci = np.hstack((np.vstack((Pci00,Pci10)),np.vstack((Pci01,Pci11))))
+            fig, axs = plt.subplots(figsize=[10,10],nrows=2,ncols=2,constrained_layout=True)
+            axs[0,0].set_title(r"$\mathbf{P}_\mathrm{c}$")
+            vlim = max(np.max(Pc),-np.min(Pc))
+            mp00 = axs[0,0].matshow(Pc,cmap='coolwarm',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp00,ax=axs[0,0],shrink=0.6,pad=0.01)
+            axs[0,1].set_title(r"$\mathbf{P}_\mathrm{c}^\dagger$")
+            vlim = max(np.max(Pci),-np.min(Pci))
+            mp01 = axs[0,1].matshow(Pci,cmap='coolwarm',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp01,ax=axs[0,1],shrink=0.6,pad=0.01)
+            axs[1,0].set_title(r"$\mathbf{P}_\mathrm{c}\mathbf{P}_\mathrm{c}^\dagger$")
+            mp10 = axs[1,0].matshow(Pc@Pci,cmap='PiYG',norm=Normalize(vmin=-1.0,vmax=1.0))
+            fig.colorbar(mp10,ax=axs[1,0],shrink=0.6,pad=0.01)
+            Pcpi = np.linalg.pinv(Pc)
+            axs[1,1].set_title("np.linalg.pinv")
+            vlim = max(np.max(Pcpi),-np.min(Pcpi))
+            mp11=axs[1,1].matshow(Pcpi,cmap='coolwarm',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp11,ax=axs[1,1],shrink=0.6,pad=0.01)
+            fig.suptitle(f"cycle={icycle}")
+            fig.savefig(lamdir/"{}_pfc_{}_{}_cycle{}.png".format(model,op,pt,icycle))
+            plt.show(block=False)
+            plt.close()
+
         qmat_exist = False
         hess_exist = False
         f = lamdir/"{}_lam_qmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
