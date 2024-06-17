@@ -4,7 +4,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 class NMC_tools:
-    def __init__(self,ix,cyclic=True,ttype='f'):
+    def __init__(self,ix,cyclic=True,ttype='f',detrend=None):
         self.ix = ix # dimensional gridpoints (ix[i] = i*dx)
         self.cyclic = cyclic # periodicity of fields
         self.nx = self.ix.size
@@ -14,11 +14,13 @@ class NMC_tools:
             self.Lx+=self.dx
         self.ttype = ttype # transform type: f=DFT, s=DST, c=DCT
         self.tname = {'f':'DFT','s':'DST','c':'DCT'}
-        if not self.cyclic and (self.ttype == 'f' or self.ttype == 's'):
-            self.detrend = True
-        else:
-            self.detrend = False
-        logging.info(f"NMC_tools: cyclic={self.cyclic} ttype={self.tname[self.ttype]}")
+        self.detrend = detrend
+        if self.detrend is None:
+            if not self.cyclic and (self.ttype == 'f' or self.ttype == 's'):
+                self.detrend = True
+            else:
+                self.detrend = False
+        logging.info(f"NMC_tools: cyclic={self.cyclic} ttype={self.tname[self.ttype]} detrend={self.detrend}")
 
     # correlation length-scale (Daley 1991; Belo Pereira and Berre 2006)
     def corrscale(self,bmat):
@@ -93,6 +95,16 @@ class NMC_tools:
             wgt = np.ones(wnum.size) * self.Lx / 2.0 / np.pi
             wgt[0] *= 0.5
             wgt[-1] *= 0.5
+        elif self.ttype == 'c':
+            sp = fft.dct(xtmp,axis=axis,norm='forward',type=2)
+            wnum = np.arange(xtmp.shape[axis])*np.pi/xtmp.shape[axis]/self.dx
+            wgt = np.ones(wnum.size) * self.Lx / np.pi
+            wgt[0] *= 0.5
+        elif self.ttype == 's':
+            sp = fft.dst(xtmp,axis=axis,norm='forward',type=2)
+            wnum = np.arange(1,xtmp.shape[axis])*np.pi/xtmp.shape[axis]/self.dx
+            wgt = np.ones(wnum.size) * self.Lx / np.pi
+            wgt[-1] = 0.0
         if average and x.ndim==2:
             if axis==0:
                 psd = np.mean(np.abs(sp)**2*wgt[:,None],axis=1)
@@ -100,6 +112,40 @@ class NMC_tools:
                 psd = np.mean(np.abs(sp)**2*wgt[None,:],axis=0)
         else:
             psd = np.abs(sp)**2*wgt
+        if self.ttype == 'c':
+            # gathering procedure (Denis et al. 2002)
+            wnum = wnum[::2]
+            psdtmp = psd.copy()
+            if x.ndim==2 and not average:
+                if axis==0:
+                    psd = psd[::2,:]
+                    psd[1:] = psd[1:] + 0.5 * psdtmp[1:-1:2]
+                    psd[:-1] = psd[:-1] + 0.5 * psdtmp[1:-1:2]
+                else:
+                    psd = psd[:,::2]
+                    psd[:,1:] = psd[:,1:] + 0.5 * psdtmp[:,1:-1:2]
+                    psd[:,:-1] = psd[:,:-1] + 0.5 * psdtmp[:,1:-1:2]
+            else:
+                psd = psdtmp[::2]
+                psd[1:] = psd[1:] + 0.5 * psdtmp[1:-1:2]
+                psd[:-1] = psd[:-1] + 0.5 * psdtmp[1:-1:2]
+        elif self.ttype == 's':
+            # gathering procedure (Dennis et al. 2002)
+            wnum = wnum[1::2]
+            psdtmp = psd.copy()
+            if x.ndim==2 and not average:
+                if axis==0:
+                    psd = psd[1::2,:]
+                    psd[:] = psd[:] + 0.5 * psdtmp[:-1:2]
+                    psd[:-1] = psd[:-1] + 0.5 * psdtmp[2::2]
+                else:
+                    psd = psd[:,1::2]
+                    psd[:,:] = psd[:,:] + 0.5 * psdtmp[:,:-1:2]
+                    psd[:,:-1] = psd[:,:-1] + 0.5 * psdtmp[:,2::2]
+            else:
+                psd = psdtmp[1::2]
+                psd[:] = psd[:] + 0.5 * psdtmp[:-1:2]
+                psd[:-1] = psd[:-1] + 0.5 * psdtmp[2::2]
         if not self.cyclic and self.detrend:
             return wnum, psd, xtmp
         else:
