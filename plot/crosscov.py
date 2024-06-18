@@ -7,7 +7,7 @@ import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator, FixedFormatter
 from matplotlib.colors import Normalize
-from nmc_tools import psd, wnum2wlen, wlen2wnum
+from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
 from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
 from trunc1d import Trunc1d
@@ -48,10 +48,14 @@ Lx_gm = 2.0 * np.pi
 #dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
 Lx_lam = 2.0 * np.pi * nx_lam / nx_t
 
+nmc = NMC_tools(ix_lam_rad,cyclic=False)
+
 ntrunc = 12
 trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False,nghost=0)
 ix_trunc = trunc_operator.ix_trunc
 nx_gmlam = ix_trunc.size
+ix_trunc_rad = ix_trunc * 2.0 * np.pi / nx_t
+nmc_trunc = NMC_tools(ix_trunc_rad,cyclic=False)
 
 #figsp, axsp = plt.subplots(figsize=[10,8],constrained_layout=True)
 #psd_dict = {}
@@ -69,12 +73,10 @@ for pt in perts:
             pftmp = spftmp @ spftmp.T
             if ncycle_lam==0:
                 pflam = pftmp
-                #wnum_lam, psdlam, _ = psd(spftmp,ix_lam_rad,axis=0,\
-                #    cyclic=False,nghost=0,average=True,detrend=True)
+                #wnum_lam, psdlam, _ = nmc.psd(spftmp,axis=0,average=True)
             else:
                 pflam = pflam + pftmp
-                #wnum_lam, psdtmp, _ = psd(spftmp,ix_lam_rad,axis=0,\
-                #    cyclic=False,nghost=0,average=True,detrend=True)
+                #wnum_lam, psdtmp, _ = nmc.psd(spftmp,axis=0,average=True)
                 #psdlam = psdlam + psdtmp
             ncycle_lam += 1
         else:
@@ -84,12 +86,10 @@ for pt in perts:
                 pftmp = spftmp @ spftmp.T
                 if ncycle_lam==0:
                     pflam = pftmp
-                    #wnum_lam, psdlam, _ = psd(spftmp,ix_lam_rad,axis=0,\
-                    #    cyclic=False,nghost=0,average=True,detrend=True)
+                    #wnum_lam, psdlam, _ = nmc.psd(spftmp,axis=0,average=True)
                 else:
                     pflam = pflam + pftmp
-                    #wnum_lam, psdtmp, _ = psd(spftmp,ix_lam_rad,axis=0,\
-                    #    cyclic=False,nghost=0,average=True,detrend=True)
+                    #wnum_lam, psdtmp, _ = nmc.psd(spftmp,axis=0,average=True)
                     #psdlam = psdlam + psdtmp
                 ncycle_lam += 1
         f = lamdir/"{}_lam_svmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
@@ -98,12 +98,10 @@ for pt in perts:
             vtmp = svtmp @ svtmp.T
             if not vmat_exist:
                 vmat = vtmp
-                #wnum_v, psdv, _ = psd(svtmp,ix_trunc_rad,axis=0,\
-                #    cyclic=False,nghost=0,average=True,detrend=True)
+                #wnum_v, psdv, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
             else:
                 vmat = vmat + vtmp
-                #wnum_v, psdtmp, _ = psd(svtmp,ix_trunc_rad,axis=0,\
-                #    cyclic=False,nghost=0,average=True,detrend=True)
+                #wnum_v, psdtmp, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
                 #psdv = psdv + psdtmp
             vmat_exist=True
         else:
@@ -113,12 +111,10 @@ for pt in perts:
                 vtmp = svtmp @ svtmp.T
                 if not vmat_exist:
                     vmat = vtmp
-                    #wnum_v, psdv, _ = psd(svtmp,ix_trunc_rad,axis=0,\
-                    #    cyclic=False,nghost=0,average=True,detrend=True)
+                    #wnum_v, psdv, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
                 else:
                     vmat = vmat + vtmp
-                    #wnum_v, psdtmp, _ = psd(svtmp,ix_trunc_rad,axis=0,\
-                    #    cyclic=False,nghost=0,average=True,detrend=True)
+                    #wnum_v, psdtmp, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
                     #psdv = psdv + psdtmp
                 vmat_exist=True
         if vmat_exist:
@@ -128,7 +124,7 @@ for pt in perts:
             else:
                 cmat = cmat + ctmp
         
-            ub, sb, vbt = np.linalg.svd(spftmp,full_matrices=False)
+            eb, sb, cbt = np.linalg.svd(spftmp,full_matrices=False)
             #ndofb = int(np.sum(sb>1.0e-10))
             sbfull = sb.copy()
             lamb = sb*sb
@@ -139,11 +135,11 @@ for pt in perts:
                 contrib+=lamb[ndofb]/lamsum
                 ndofb += 1
                 if contrib > 0.99: break
-            ub = ub[:,:ndofb]
+            eb = eb[:,:ndofb]
             sb = sb[:ndofb]
-            vbt = vbt[:ndofb,:]
-            vb = vbt.transpose()
-            uv, sv, vvt = np.linalg.svd(svtmp,full_matrices=False)
+            cbt = cbt[:ndofb,:]
+            cb = cbt.transpose()
+            ev, sv, cvt = np.linalg.svd(svtmp,full_matrices=False)
             #ndofv = int(np.sum(sv>1.0e-10))
             svfull = sv.copy()
             lamv = sv*sv
@@ -154,45 +150,66 @@ for pt in perts:
                 contrib+=lamv[ndofv]/lamsum
                 ndofv += 1
                 if contrib > 0.99: break
-            uv = uv[:,:ndofv]
+            ev = ev[:,:ndofv]
             sv = sv[:ndofv]
-            vvt = vvt[:ndofv,:]
-            vv = vvt.transpose()
-            fig, axs = plt.subplots(figsize=[8,10],nrows=3,ncols=2,constrained_layout=True)
+            cvt = cvt[:ndofv,:]
+            cv = cvt.transpose()
+            fig, axs = plt.subplots(figsize=[10,8],nrows=2,ncols=3,constrained_layout=True)
             vlim=0.75
-            axs[0,0].set_title(r'$\mathbf{U}_\mathrm{b}$'+f'={ub.shape}',fontsize=16)
-            mp00 = axs[0,0].matshow(ub,cmap='bwr',norm=Normalize(-vlim,vlim))
+            axs[0,0].set_title(r'$\mathbf{E}_\mathrm{b}$'+f'={eb.shape}',fontsize=16)
+            mp00 = axs[0,0].matshow(eb,cmap='bwr',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp00,ax=axs[0,0],shrink=0.6,pad=0.01)
-            axs[1,0].set_title(r'$\mathbf{V}_\mathrm{b}$'+f'={vb.shape}',fontsize=16)
-            mp10 = axs[1,0].matshow(vb,cmap='bwr',norm=Normalize(-vlim,vlim))
+            axs[1,0].set_title(r'$\mathbf{C}_\mathrm{b}$'+f'={cb.shape}',fontsize=16)
+            mp10 = axs[1,0].matshow(cb,cmap='bwr',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp10,ax=axs[1,0],shrink=0.6,pad=0.01)
-            axs[0,1].set_title(r'$\mathbf{U}_\mathrm{v}$'+f'={uv.shape}',fontsize=16)
-            mp01 = axs[0,1].matshow(uv,cmap='bwr',norm=Normalize(-vlim,vlim))
+            axs[0,1].set_title(r'$\mathbf{E}_\mathrm{v}$'+f'={ev.shape}',fontsize=16)
+            mp01 = axs[0,1].matshow(ev,cmap='bwr',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp01,ax=axs[0,1],shrink=0.6,pad=0.01)
-            axs[1,1].set_title(r'$\mathbf{V}_\mathrm{v}$'+f'={vv.shape}',fontsize=16)
-            mp11 = axs[1,1].matshow(vv,cmap='bwr',norm=Normalize(-vlim,vlim))
+            axs[1,1].set_title(r'$\mathbf{C}_\mathrm{v}$'+f'={cv.shape}',fontsize=16)
+            mp11 = axs[1,1].matshow(cv,cmap='bwr',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp11,ax=axs[1,1],shrink=0.6,pad=0.01)
-            axs[2,0].plot(np.arange(1,sbfull.size+1),sbfull,label=r'$\sigma_\mathrm{b}$')
-            axs[2,0].plot(np.arange(1,svfull.size+1),svfull,label=r'$\sigma_\mathrm{v}$')
-            axs[2,0].vlines([ndofb,ndofv],0,1,colors=['tab:blue','tab:orange'],ls='dashed',transform=axs[2,0].get_xaxis_transform())
-            axs[2,0].legend()
-            axs[2,1].set_title(r'$\mathbf{V}_\mathrm{v}^\mathrm{T}\mathbf{V}_\mathrm{b}$',fontsize=16)
-            mp21 = axs[2,1].matshow(vvt@vb,cmap='bwr',norm=Normalize(-vlim,vlim))
-            fig.colorbar(mp21,ax=axs[2,1],shrink=0.6,pad=0.01)
+            axs[0,2].plot(np.arange(1,sbfull.size+1),sbfull,label=r'$\sigma_\mathrm{b}$')
+            axs[0,2].plot(np.arange(1,svfull.size+1),svfull,label=r'$\sigma_\mathrm{v}$')
+            axs[0,2].vlines([ndofb,ndofv],0,1,colors=['tab:blue','tab:orange'],ls='dashed',transform=axs[0,2].get_xaxis_transform())
+            axs[0,2].legend()
+            axs[1,2].remove()
             fig.suptitle(f"cycle={icycle}")
             fig.savefig(lamdir/"{}_spfsvd_{}_{}_cycle{}.png".format(model,op,pt,icycle))
             plt.show(block=False)
             plt.close()
 
+            # Schur complement of Pf
+            fig, axs = plt.subplots(figsize=[8,8],nrows=2,ncols=2,constrained_layout=True)
+            Q = svtmp @ (np.eye(cvt.shape[1])-cb@cbt) @ svtmp.T
+            ubn = eb @ np.diag(1.0/sb)
+            uvn = ev @ np.diag(1.0/sv)
+            tmp = np.eye(sv.size) - cvt@cb@cbt@cv
+            Qpinv = uvn @ np.linalg.inv(tmp) @ uvn.transpose()
+            axs[0,0].set_title(r'$\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T}$',fontsize=16)
+            mp00 = axs[0,0].matshow(cb@cbt,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp00,ax=axs[0,0],shrink=0.6,pad=0.01)
+            axs[0,1].set_title(r'$\mathbf{C}_\mathrm{v}^\mathrm{T}\mathbf{C}_\mathrm{b}$',fontsize=16)
+            mp01 = axs[0,1].matshow(cvt@cb,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp01,ax=axs[0,1],shrink=0.6,pad=0.01)
+            vlim = max(np.max(Q),-np.min(Q))
+            axs[1,0].set_title(r'$\mathbf{E}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}\mathbf{C}_\mathrm{v}^\mathrm{T}(\mathbf{I}-\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T})\mathbf{C}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}\mathbf{E}_\mathrm{v}^\mathrm{T}$',fontsize=12)
+            mp10 = axs[1,0].matshow(Q,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp10,ax=axs[1,0],shrink=0.6,pad=0.01)
+            vlim = max(np.max(Qpinv),-np.min(Qpinv))
+            axs[1,1].set_title(r'$\mathbf{E}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}^{-1}\mathbf{C}_\mathrm{v}^\mathrm{T}(\mathbf{I}-\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T})^{-1}\mathbf{C}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}^{-1}\mathbf{E}_\mathrm{v}^\mathrm{T}$',fontsize=12)
+            mp11 = axs[1,1].matshow(Qpinv,cmap='bwr',norm=Normalize(-vlim,vlim))
+            fig.colorbar(mp11,ax=axs[1,1],shrink=0.6,pad=0.01)
+            fig.suptitle(f"cycle={icycle}")
+            fig.savefig(lamdir/"{}_schur_{}_{}_cycle{}.png".format(model,op,pt,icycle))
+            plt.show(block=False)
+            plt.close()
+
             Pc = np.hstack((np.vstack((pftmp,ctmp.T)),np.vstack((ctmp,vtmp))))
             # MP-inverse of Pc
-            ubn = ub @ np.diag(1.0/sb)
-            uvn = uv @ np.diag(1.0/sv)
-            tmp = np.eye(sv.size) - vvt@vb@vbt@vv
-            Pci00 = ubn @ (np.eye(sb.size) + vbt@vv@np.linalg.inv(tmp)@vvt@vb) @ ubn.transpose()
-            Pci01 = -1.0 * ubn @ vbt@vv@np.linalg.inv(tmp) @ uvn.transpose()
+            Pci00 = ubn @ (np.eye(sb.size) + cbt@cv@np.linalg.inv(tmp)@cvt@cb) @ ubn.transpose()
+            Pci01 = -1.0 * ubn @ cbt@cv@np.linalg.inv(tmp) @ uvn.transpose()
             Pci10 = Pci01.transpose()
-            Pci11 = uvn @ np.linalg.inv(tmp) @ uvn.transpose()
+            Pci11 = Qpinv
             Pci = np.hstack((np.vstack((Pci00,Pci10)),np.vstack((Pci01,Pci11))))
             fig, axs = plt.subplots(figsize=[10,10],nrows=2,ncols=2,constrained_layout=True)
             axs[0,0].set_title(r"$\mathbf{P}_\mathrm{c}$")
@@ -203,8 +220,8 @@ for pt in perts:
             vlim = max(np.max(Pci),-np.min(Pci))
             mp01 = axs[0,1].matshow(Pci,cmap='coolwarm',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp01,ax=axs[0,1],shrink=0.6,pad=0.01)
-            axs[1,0].set_title(r"$\mathbf{P}_\mathrm{c}\mathbf{P}_\mathrm{c}^\dagger$")
-            mp10 = axs[1,0].matshow(Pc@Pci,cmap='PiYG',norm=Normalize(vmin=-1.0,vmax=1.0))
+            axs[1,0].set_title(r"$\mathbf{P}_\mathrm{c}\mathbf{P}_\mathrm{c}^\dagger\mathbf{P}_\mathrm{c}$")
+            mp10 = axs[1,0].matshow(Pc@Pci@Pc,cmap='PiYG',norm=Normalize(vmin=-1.0,vmax=1.0))
             fig.colorbar(mp10,ax=axs[1,0],shrink=0.6,pad=0.01)
             Pcpi = np.linalg.pinv(Pc)
             axs[1,1].set_title("np.linalg.pinv")

@@ -258,9 +258,8 @@ class NMC_tools:
             (hasattr(kthres,'size') and kthres.size == 0):
             print("provide wavenumber thresholds for decomposition")
             return
-        if self.cyclic:
-            xtmp = x.copy()
-        else:
+        xtmp = x.copy()
+        if not self.cyclic:
             #if nghost>0:
             #    Lx += 2*nghost*dx
             #    dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
@@ -281,6 +280,16 @@ class NMC_tools:
             #        x[0:nghost] = x[0] * dwindow[::-1]
             #        x[nghost+nx:] = x[-1] * dwindow[:-1]
             #else:
+            if self.ttype=='s':
+                ## remove mean
+                xmean = np.mean(xtmp,axis=axis)
+                if x.ndim==2:
+                    if axis==1:
+                        xtmp = xtmp - xmean[:,None]
+                    else:
+                        xtmp = xtmp - xmean[None,:]
+                else:
+                    xtmp = xtmp - xmean
             if self.detrend:
                 ## remove linear trend (Errico 1985, MWR)
                 if x.ndim==2:
@@ -293,10 +302,22 @@ class NMC_tools:
                 else:
                     trend = (x[-1] - x[0])/(self.nx - 1)
                     xtrend = 0.5 * (2*np.arange(self.nx) - self.nx + 1)*trend
-                xtmp = x - xtrend
+                #xtmp = xtmp - xtrend
+                if x.ndim==2 and axis==1:
+                    xtmp = xtmp[:,:-1] - xtrend[:,:-1]
+                else:
+                    xtmp = xtmp[:-1] - xtrend[:-1]
+        logging.debug(f'x.shape={x.shape}')
+        logging.debug(f'xtmp.shape={xtmp.shape}')
         if self.ttype=='f':
             sp = fft.rfft(xtmp,axis=axis,norm='forward')
             wnum = fft.rfftfreq(xtmp.shape[axis],self.dx)*2.0*np.pi
+        elif self.ttype == 'c':
+            sp = fft.dct(xtmp,axis=axis,norm='forward',type=2)
+            wnum = np.arange(xtmp.shape[axis])*np.pi/xtmp.shape[axis]/self.dx
+        elif self.ttype == 's':
+            sp = fft.dst(xtmp,axis=axis,norm='forward',type=2)
+            wnum = np.arange(1,xtmp.shape[axis]+1)*np.pi/xtmp.shape[axis]/self.dx
         
         decomp = [sp]
         for k in kthres:
@@ -317,9 +338,43 @@ class NMC_tools:
         
         if self.ttype=='f':
             xdecomp = [fft.irfft(stmp,axis=axis,norm='forward') for stmp in decomp]
-        if not self.cyclic:
-            xdecomp[0] = xdecomp[0] + xtrend
-        return xdecomp
+        elif self.ttype=='c':
+            xdecomp = [fft.idct(stmp,axis=axis,norm='forward',type=2) for stmp in decomp]
+        elif self.ttype=='s':
+            xdecomp = [fft.idst(stmp,axis=axis,norm='forward',type=2) for stmp in decomp]
+        if not self.cyclic and self.detrend:
+        #    xdecomp[0] = xdecomp[0] + xtrend
+        #    if self.ttype=='s':
+        #        if x.ndim==2:
+        #            if axis==1:
+        #                xdecomp[0] = xdecomp[0] + xmean[:,None]
+        #            else:
+        #                xdecomp[0] = xdecomp[0] + xmean[None,:]
+        #        else:
+        #            xdecomp[0] = xdecomp[0] + xmean
+            xdecomp_new = []
+            for i,xd in enumerate(xdecomp):
+                xdnew = np.zeros_like(x)
+                if x.ndim==2 and axis==1:
+                    xdnew[:,:-1] = xd[:,:]
+                    xdnew[:,-1] = xd[:,0]
+                else:
+                    xdnew[:-1,] = xd[:,]
+                    xdnew[-1,] = xd[0,]
+                if i==0:
+                    xdnew = xdnew + xtrend
+                    if self.ttype=='s':
+                        if x.ndim==2:
+                            if axis==1:
+                                xdnew = xdnew + xmean[:,None]
+                            else:
+                                xdnew = xdnew + xmean[None,:]
+                        else:
+                            xdnew = xdnew + xmean
+                xdecomp_new.append(xdnew)
+            return xdecomp_new
+        else:
+            return xdecomp
 
 def wnum2wlen(wnum):
     #Vectorized 2\pi/x, treating x==0 manually
