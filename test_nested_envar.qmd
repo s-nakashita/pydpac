@@ -164,6 +164,7 @@ $$
 ```{python}
 def cost(w,*args):
     Xb, Yb, Zb, do, dv, Xb_, dv_ = args
+    nens = Xb.shape[1]
     tmp1 = np.hstack((np.zeros(Xb.shape[0]),dv-Zb@w))
     tmp2 = dv_ - Xb_ @ w
     tmp3 = do - Yb @ w # R=I
@@ -191,27 +192,36 @@ def solve(*args):
 # Example
 
 ```{python}
-pt="envar_nest"
-datadir = Path(f'work/l05nestm/envar_nestc_shrink_preGM_m80obs30/data/{pt}')
-def loaddata(icycle):
-    Xb = np.load(datadir/f"l05nestm_lam_spf_linear_{pt}_cycle{icycle}.npy")
+datadir = Path(f'work/l05nestm/envar_nestc_shrink_preGM_m80obs30/data')
+def loaddata(icycle,pt):
+    Xb = np.load(datadir/f"{pt}/l05nestm_lam_spf_linear_{pt}_cycle{icycle}.npy")
     nmem = Xb.shape[1]
     Xb *= np.sqrt(nmem-1)
-    Zv = np.load(datadir/f"l05nestm_lam_zvmat_linear_{pt}_cycle{icycle}.npy")
-    Zb = np.load(datadir/f"l05nestm_lam_zbmat_linear_{pt}_cycle{icycle}.npy")
-    dv = np.load(datadir/f"l05nestm_lam_dk_linear_{pt}_cycle{icycle}.npy")
-    Yb = np.load(datadir/f"l05nestm_lam_dh_linear_{pt}_cycle{icycle}.npy")
-    do = np.load(datadir/f"l05nestm_lam_d_linear_{pt}_cycle{icycle}.npy")
-    return Xb, Zb, Zv, Yb, do, dv
+    Zv = np.load(datadir/f"{pt}/l05nestm_lam_zvmat_linear_{pt}_cycle{icycle}.npy")
+    Zb = np.load(datadir/f"{pt}/l05nestm_lam_zbmat_linear_{pt}_cycle{icycle}.npy")
+    dv = np.load(datadir/f"{pt}/l05nestm_lam_dk_linear_{pt}_cycle{icycle}.npy")
+    Yb = np.load(datadir/f"{pt}/l05nestm_lam_dh_linear_{pt}_cycle{icycle}.npy")
+    do = np.load(datadir/f"{pt}/l05nestm_lam_d_linear_{pt}_cycle{icycle}.npy")
+    # debug
+    dx = np.load(datadir/f"{pt}/l05nestm_lam_dx_linear_{pt}_cycle{icycle}.npy")
+    dx_conv = np.load(datadir/f"envar/l05nestm_lam_dx_linear_envar_cycle{icycle}.npy")
+    Xb_conv = np.load(datadir/f"envar/l05nestm_lam_spf_linear_envar_cycle{icycle}.npy")
+    Xb_conv *= np.sqrt(nmem-1)
+    Yb_conv = np.load(datadir/f"envar/l05nestm_lam_dh_linear_envar_cycle{icycle}.npy")
+    do_conv = np.load(datadir/f"envar/l05nestm_lam_d_linear_envar_cycle{icycle}.npy")
+
+    return Xb, Zb, Zv, Yb, do, dv, dx, dx_conv, Xb_conv, Yb_conv, do_conv
 
 icycle=50
-Xb, Zb, Zv, Yb, do, dv = loaddata(icycle)
+pt="envar_nest"
+Xb, Zb, Zv, Yb, do, dv, dx, dx_conv, Xb_conv, Yb_conv, do_conv = loaddata(icycle,pt)
 print(Xb.shape)
 print(Zv.shape)
 print(Zb.shape)
 print(dv.shape)
 print(Yb.shape)
 print(do.shape)
+print(dx.shape)
 ```
 
 ```{python}
@@ -316,6 +326,33 @@ plt.show()
 ```
 
 0. solution without cross covariance ($\mathbf{P}^\mathrm{bv}=\mathbf{P}^\mathrm{vb}=0$)
+
+```{python}
+
+    nens = Xb.shape[1]
+    Xb_ = np.vstack(((nens-1)*np.eye(Xb.shape[1]),la.pinv(Pv)@Zb))
+    dv_ = np.hstack((np.zeros(Xb.shape[1]),la.pinv(Pv)@dv))
+    args = (np.eye(Xb.shape[1]), Yb, Zb, do, dv, Xb_, dv_)
+    w_nc, trans_nc = solve(*args)
+    Xa_nc = np.sqrt(nens-1)*Xb@trans_nc
+
+    Ji = cost(np.zeros_like(w_nc),*args)
+    Jf = cost(w_nc,*args)
+    print(f"initial cost={Ji:.4e}")
+    print(f"final cost={Jf:.4e}")
+
+```
+```{python}
+    # without large-scale terms
+    Xb_tmp = np.vstack(((nens-1)*np.eye(Xb.shape[1]),np.zeros_like(Zb)))
+    dv_tmp = np.zeros_like(dv_)
+    args_conv = (np.eye(Xb.shape[1]), Yb_conv, Zb, do_conv, dv, Xb_tmp, dv_tmp)
+    w_conv, trans_conv = solve(*args_conv)
+    Xa_conv = np.sqrt(nens-1)*Xb_conv@trans_conv
+
+```
+
+<!---
 ```{python}
 #| fig-cap: solution without cross covariance
 #| fig-subcap:
@@ -323,10 +360,6 @@ plt.show()
 #|   - $\tilde{d}^b$
 #| label: fig-nocross
 #| layout: [[2,3],[1]]
-
-    nens = Xb.shape[1]
-    Xb_ = np.vstack(((nens-1)*np.eye(Xb.shape[1]),la.pinv(Pv)@Zb))
-    dv_ = np.hstack((np.zeros(Xb.shape[1]),la.pinv(Pv)@dv))
 
     fig, ax = plt.subplots()
     mp=ax.matshow(Xb_)
@@ -340,41 +373,64 @@ plt.show()
     ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
     plt.show()
 ```
+
+--->
+
 ```{python}
-#| fig-cap: solution for $J$ without cross covariance
+#| fig-cap: solution without cross covariance or without large-scale term
 #| fig-subcap:
 #|   - $\mathbf{w}$
 #|   - $\delta\mathbf{x}$
 #|   - Xb, Xa
+#|   - $[\nabla^2 J]^{-1/2}$
 #| label: fig-nocross-cost
+#| layout: [[1,2],[1]]
     
-    args = (np.eye(Xb.shape[1]), Yb, Zb, do, dv, Xb_, dv_)
-    w, trans = solve(*args)
-    Xa = np.sqrt(nens-1)*Xb@trans
-
-    fig, ax = plt.subplots()
-    ax.plot(w)
-    ax.set_ylabel('w')
+    fig, ax = plt.subplots(figsize=[4,6])
+    ax.plot(w_nc,np.arange(1,w_nc.size+1),label='no cross')
+    ax.plot(w_conv,np.arange(1,w_nc.size+1),label='no V')
+    xmin,xmax = ax.get_xlim()
+    xlim = max(-xmin,xmax)
+    ax.set_xlim(-xlim,xlim)
+    ax.legend()
+    ax.set_ylabel('member')
+    ax.set_xlabel('w')
     plt.show()
 
-    fig, ax = plt.subplots()
-    ax.plot(Xb@w)
+    fig, ax = plt.subplots(figsize=[8,6])
+    ax.plot(Xb@w_nc,label='nocross')
+    #ax.plot(dx,ls='dashed')
+    ax.plot(Xb@w_conv,label='no V')
+    #ax.plot(dx_conv,ls='dashed')
+    ymin,ymax = ax.get_ylim()
+    ylim = max(-ymin,ymax)
+    ax.set_ylim(-ylim,ylim)
+    ax.legend()
+    ax.set_xlabel('grid')
     ax.set_ylabel('dx')
     plt.show()
 
-    fig, axs = plt.subplots(ncols=2)
+    fig, axs = plt.subplots(ncols=3,constrained_layout=True)
     mp0=axs[0].matshow(Xb)
     fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
     axs[0].set_title('Xb')
-    mp1=axs[1].matshow(Xa)
+    mp1=axs[1].matshow(Xa_nc)
     fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
-    axs[1].set_title('Xa')
+    axs[1].set_title('Xa (no cross)')
+    mp2=axs[2].matshow(Xa_conv)
+    fig.colorbar(mp2,ax=axs[2],shrink=0.6,pad=0.01)
+    axs[2].set_title('Xa (no V)')
     plt.show()
 
-    Ji = cost(np.zeros_like(w),*args)
-    Jf = cost(w,*args)
-    print(f"initial cost={Ji:.4e}")
-    print(f"final cost={Jf:.4e}")
+    fig, axs = plt.subplots(ncols=2,constrained_layout=True)
+    mp0=axs[0].matshow(trans_nc)
+    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
+    axs[0].set_title('trans (no cross)')
+    mp1=axs[1].matshow(trans_conv)
+    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
+    axs[1].set_title('trans (no V)')
+    plt.show()
+
 ```
 
 1. pseudo-inverse (minimum-norm solution)
@@ -403,6 +459,23 @@ plt.show()
     $$
 
 ```{python}
+
+    Pcpinv = la.pinv(Pc,hermitian=True)
+    Xb_ = Pcpinv @ np.vstack((Xb,Zb))
+    dv_ = Pcpinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+    
+    args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
+    w, trans = solve(*args)
+    Xa = np.sqrt(nens-1)*Xb@trans
+
+    Ji = cost(np.zeros_like(w),*args)
+    Jf = cost(w,*args)
+    print(f"initial cost={Ji:.4e}")
+    print(f"final cost={Jf:.4e}")
+
+```
+
+```{python}
 #| fig-cap: minimum-norm solution
 #| fig-subcap:
 #|   - $\tilde{X}^b$
@@ -410,9 +483,135 @@ plt.show()
 #| label: fig-minnorm
 #| layout: [[2,3],[1]]
 
-    Pcpinv = la.pinv(Pc,hermitian=True)
-    Xb_ = Pcpinv @ np.vstack((Xb,Zb))
-    dv_ = Pcpinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+    fig, ax = plt.subplots()
+    mp=ax.matshow(Xb_)
+    fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
+    ax.set_aspect(0.5)
+    plt.show()
+
+    fig, ax = plt.subplots()
+    ax.plot(dv_,np.arange(dv_.size))
+    ax.set_xlabel(r'$\tilde{d}^v$')
+    ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+    plt.show()
+
+```
+```{python}
+#| fig-cap: minimum-norm solution for $J$
+#| fig-subcap:
+#|   - $\mathbf{w}$
+#|   - $\delta\mathbf{x}$
+#|   - Xb, Xa
+#|   - $[\nabla^2 J]^{-1/2}$
+#| label: fig-minnorm-cost
+#| layout: [[1,2],[1]]
+    
+    fig, ax = plt.subplots(figsize=[4,6])
+    ax.plot(w,np.arange(1,w.size+1),label='cross')
+    ax.plot(w_nc,np.arange(1,w.size+1),label='no cross')
+    xmin,xmax = ax.get_xlim()
+    xlim = max(-xmin,xmax)
+    ax.set_xlim(-xlim,xlim)
+    ax.legend()
+    ax.set_ylabel('member')
+    ax.set_xlabel('w')
+    plt.show()
+
+    fig, ax = plt.subplots(figsize=[8,6])
+    ax.plot(Xb@w,label='cross')
+    ax.plot(dx,ls='dashed',label='no cross')
+    ymin,ymax = ax.get_ylim()
+    ylim = max(-ymin,ymax)
+    ax.set_ylim(-ylim,ylim)
+    ax.legend()
+    ax.set_xlabel('grid')
+    ax.set_ylabel('dx')
+    plt.show()
+
+    fig, axs = plt.subplots(ncols=2)
+    mp0=axs[0].matshow(Xb)
+    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
+    axs[0].set_title('Xb')
+    mp1=axs[1].matshow(Xa)
+    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
+    axs[1].set_title('Xa')
+    plt.show()
+
+    fig, axs = plt.subplots(ncols=2,constrained_layout=True)
+    mp0=axs[0].matshow(trans_nc)
+    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
+    axs[0].set_title('trans (no cross)')
+    mp1=axs[1].matshow(trans)
+    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
+    axs[1].set_title('trans')
+    plt.show()
+
+```
+
+2. regularization
+    $$
+    \tilde{\mathbf{X}}^\mathrm{b}
+    =
+    \left[
+        \begin{pmatrix}
+        \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+        \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+        \end{pmatrix}
+        +\mu\mathbf{I}
+    \right]^{-1}
+    \begin{pmatrix}
+        \mathbf{X}^\mathrm{b}\\
+        \mathbf{Z}^\mathrm{b}
+    \end{pmatrix}
+    $$
+    $$
+    \tilde{\mathbf{d}}^\mathrm{bv}
+    =
+    \left[
+        \begin{pmatrix}
+        \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+        \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+        \end{pmatrix}
+        +\mu\mathbf{I}
+    \right]^{-1}
+    \begin{pmatrix}
+    \mathbf{0}\\\mathbf{d}^\mathrm{v}
+    \end{pmatrix}
+    $$
+
+```{python}
+
+    mulist = [0.001,0.01,0.1]
+    wlist = []
+    Xalist = []
+    translist = []
+    for mu in mulist:
+        #mu = 0.01
+        Pcinv = la.inv(Pc+mu*np.eye(Pc.shape[0]))
+        Xb_ = Pcinv @ np.vstack((Xb,Zb))
+        dv_ = Pcinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+    
+        args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
+        w, trans = solve(*args)
+        Xa = np.sqrt(nens-1)*Xb@trans
+        wlist.append(w)
+        Xalist.append(Xa)
+        translist.append(trans)
+        
+        Ji = cost(np.zeros_like(w),*args)
+        Jf = cost(w,*args)
+        print(f"mu={mu} initial cost={Ji:.4e}")
+        print(f"mu={mu} final cost={Jf:.4e}")
+
+```
+
+```{python}
+#| fig-cap: regularized solution with $\mu$=0.1
+#| fig-subcap:
+#|   - $\tilde{X}^b$
+#|   - $\tilde{d}^b$
+#| label: fig-reg
+#| layout: [[2,3],[1]]
 
     fig, ax = plt.subplots()
     mp=ax.matshow(Xb_)
@@ -427,38 +626,60 @@ plt.show()
     plt.show()
 ```
 ```{python}
-#| fig-cap: minimum-norm solution for $J$
+#| fig-cap: regularized solution for $J$
 #| fig-subcap:
 #|   - $\mathbf{w}$
 #|   - $\delta\mathbf{x}$
 #|   - Xb, Xa
-#| label: fig-minnorm-cost
+#|   - $[\nabla^2 J]^{-1/2}$
+#| label: fig-reg-cost
+#| layout: [[1,2],[1]]
     
-    args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
-    w, trans = solve(*args)
-    Xa = np.sqrt(nens-1)*Xb@trans
-
-    fig, ax = plt.subplots()
-    ax.plot(w)
-    ax.set_ylabel('w')
+    fig, ax = plt.subplots(figsize=[4,6])
+    for mu, w in zip(mulist,wlist):
+        ax.plot(w,np.arange(1,w.size+1),label=r'$\mu$='+f'{mu}')
+    ax.plot(w_nc,np.arange(1,w.size+1),label='no cross')
+    xmin,xmax = ax.get_xlim()
+    xlim = max(-xmin,xmax)
+    ax.set_xlim(-xlim,xlim)
+    ax.legend()
+    ax.set_ylabel('member')
+    ax.set_xlabel('w')
     plt.show()
 
-    fig, ax = plt.subplots()
-    ax.plot(Xb@w)
+    fig, ax = plt.subplots(figsize=[8,6])
+    for mu, w in zip(mulist,wlist):
+        ax.plot(Xb@w,label=r'$\mu$='+f'{mu}')
+    ax.plot(dx,ls='dashed',label='no cross')
+    ymin,ymax = ax.get_ylim()
+    ylim = max(-ymin,ymax)
+    ax.set_ylim(-ylim,ylim)
+    ax.legend()
+    ax.set_xlabel('grid')
     ax.set_ylabel('dx')
     plt.show()
 
-    fig, axs = plt.subplots(ncols=2)
+    fig, axs = plt.subplots(ncols=1+len(mulist),constrained_layout=True)
     mp0=axs[0].matshow(Xb)
     fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
     axs[0].set_title('Xb')
-    mp1=axs[1].matshow(Xa)
-    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
-    axs[1].set_title('Xa')
+    for mu, Xa in zip(mulist,Xalist):
+        i=mulist.index(mu)
+        mp1=axs[i+1].matshow(Xa)
+        fig.colorbar(mp1,ax=axs[i+1],shrink=0.6,pad=0.01)
+        axs[i+1].set_title(r'Xa, $\mu$='+f'{mu}')
     plt.show()
 
-    Ji = cost(np.zeros_like(w),*args)
-    Jf = cost(w,*args)
-    print(f"initial cost={Ji:.4e}")
-    print(f"final cost={Jf:.4e}")
+    fig, axs = plt.subplots(ncols=2,nrows=2,constrained_layout=True)
+    mp0=axs[0,0].matshow(trans_nc)
+    fig.colorbar(mp0,ax=axs[0,0],shrink=0.6,pad=0.01)
+    axs[0,0].set_title('trans (no cross)')
+    for mu, trans in zip(mulist,translist):
+        i=mulist.index(mu)
+        ax = axs.flatten()[i+1]
+        mp1=ax.matshow(trans)
+        fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
+        ax.set_title(r'trans, $\mu$='+f'{mu}')
+    plt.show()
+
 ```
