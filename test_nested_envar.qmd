@@ -1,0 +1,464 @@
+---
+title: "Nested EnVar with cross covariance"
+format:
+  html:
+    code-fold: true
+    code-tools: true
+jupyter: python3
+editor:
+  render-on-save: true
+---
+
+```{python}
+import numpy as np
+import numpy.linalg as la
+import matplotlib.pyplot as plt
+from pathlib import Path
+```
+
+# Formulation
+```{=tex}
+\begin{align*}
+J(\mathbf{w})&=
+\frac{1}{2}
+\begin{bmatrix}
+\begin{pmatrix}
+\mathbf{0}\\\mathbf{d}^\mathrm{v}
+\end{pmatrix}
+-
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b}\\
+\mathbf{Z}^\mathrm{b}
+\end{pmatrix}
+\mathbf{w}
+\end{bmatrix}^\mathrm{T}
+\begin{pmatrix}
+\mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+\mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+\end{pmatrix}^{-1}
+\begin{bmatrix}
+\begin{pmatrix}
+\mathbf{0}\\\mathbf{d}^\mathrm{v}
+\end{pmatrix}
+-
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b}\\
+\mathbf{Z}^\mathrm{b}
+\end{pmatrix}
+\mathbf{w}
+\end{bmatrix}
++\frac{1}{2}(\mathbf{d}^\mathrm{o}-\mathbf{Y}^\mathrm{b}\mathbf{w})^\mathrm{T}\mathbf{R}^{-1}(\mathbf{d}^\mathrm{o}-\mathbf{Y}^\mathrm{b}\mathbf{w})\\
+&=\frac{1}{2}
+\begin{bmatrix}
+\begin{pmatrix}
+\mathbf{0}\\\mathbf{d}^\mathrm{v}
+\end{pmatrix}
+-
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b}\\
+\mathbf{Z}^\mathrm{b}
+\end{pmatrix}
+\mathbf{w}
+\end{bmatrix}^\mathrm{T}
+\begin{bmatrix}
+\tilde{\mathbf{d}}^\mathrm{v}
+-
+\tilde{\mathbf{X}}^\mathrm{b}
+\mathbf{w}
+\end{bmatrix}
++\frac{1}{2}(\mathbf{d}^\mathrm{o}-\mathbf{Y}^\mathrm{b}\mathbf{w})^\mathrm{T}\mathbf{R}^{-1}(\mathbf{d}^\mathrm{o}-\mathbf{Y}^\mathrm{b}\mathbf{w})
+\end{align*}
+```
+
+```{=tex}
+\begin{align*}
+\nabla_\mathbf{w}J&=
+\left[
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b}\\
+\mathbf{Z}^\mathrm{b}
+\end{pmatrix}^\mathrm{T}
+\begin{pmatrix}
+    \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+    \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+\end{pmatrix}^{-1}
+\begin{pmatrix}
+    \mathbf{X}^\mathrm{b}\\
+    \mathbf{Z}^\mathrm{b}
+\end{pmatrix}
++(\mathbf{Y}^\mathrm{b})^\mathrm{T}\mathbf{R}^{-1}\mathbf{Y}^\mathrm{b}
+\right]\mathbf{w}
+-
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b}\\
+\mathbf{Z}^\mathrm{b}
+\end{pmatrix}^\mathrm{T}
+\begin{pmatrix}
+    \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+    \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+    \end{pmatrix}^{-1}
+    \begin{pmatrix}
+    \mathbf{0}\\
+    \mathbf{d}^\mathrm{v}
+\end{pmatrix}
+-(\mathbf{Y}^\mathrm{b})^\mathrm{T}\mathbf{R}^{-1}\mathbf{d}^\mathrm{o}\\
+&=\underbrace{\left[
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b}\\
+\mathbf{Z}^\mathrm{b}
+\end{pmatrix}^\mathrm{T}
+\tilde{\mathbf{X}}^\mathrm{b}
++(\mathbf{Y}^\mathrm{b})^\mathrm{T}\mathbf{R}^{-1}\mathbf{Y}^\mathrm{b}
+\right]}_{\nabla^2_\mathbf{w}J}
+\mathbf{w}
+-
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b}\\
+\mathbf{Z}^\mathrm{b}
+\end{pmatrix}^\mathrm{T}
+\tilde{\mathbf{d}}^\mathrm{bv}
+-(\mathbf{Y}^\mathrm{b})^\mathrm{T}\mathbf{R}^{-1}\mathbf{d}^\mathrm{o}
+=0
+\end{align*}
+```
+
+$$
+\begin{pmatrix}
+    \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+    \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+\end{pmatrix}\tilde{\mathbf{X}}^\mathrm{b}
+=
+\begin{pmatrix}
+    \mathbf{X}^\mathrm{b}\\
+    \mathbf{Z}^\mathrm{b}
+\end{pmatrix}
+$$
+
+$$
+\begin{pmatrix}
+    \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+    \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+\end{pmatrix}\tilde{\mathbf{d}}^\mathrm{bv}
+=
+\begin{pmatrix}
+\mathbf{0}\\\mathbf{d}^\mathrm{v}
+\end{pmatrix}
+$$
+
+$$
+\begin{pmatrix}
+\mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+\mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+\end{pmatrix}
+= \frac{1}{K-1}
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b} \\
+\mathbf{Z}^\mathrm{v}
+\end{pmatrix}
+\begin{bmatrix}
+(\mathbf{X}^\mathrm{b})^\mathrm{T} &
+(\mathbf{Z}^\mathrm{v})^\mathrm{T}
+\end{bmatrix}
+$$
+
+```{python}
+def cost(w,*args):
+    Xb, Yb, Zb, do, dv, Xb_, dv_ = args
+    tmp1 = np.hstack((np.zeros(Xb.shape[0]),dv-Zb@w))
+    tmp2 = dv_ - Xb_ @ w
+    tmp3 = do - Yb @ w # R=I
+    return 0.5*(np.dot(tmp1,tmp2)+np.dot(tmp3,tmp3))
+
+def solve(*args):
+    Xb, Yb, Zb, do, dv, Xb_, dv_ = args
+    nens = Xb.shape[1]
+    hess = np.hstack((Xb.T,Zb.T)) @ Xb_ + Yb.T @ Yb # R=I
+    rhs = np.hstack((Xb.T,Zb.T)) @ dv_ + Yb.T @ do
+    w = la.solve(hess,rhs)
+
+    # update ensemble prtb
+    lam, c = la.eigh(hess)
+    ndof = np.sum(lam>1.0e-10)
+    if ndof < lam.size:
+        D = np.diag(np.hstack((np.zeros(lam.size-ndof),1.0/np.sqrt(lam[lam.size-ndof:]))))
+    else:
+        D = np.diag(1.0/np.sqrt(lam))
+    
+    trans = c @ D @ c.T
+    return w, trans
+```
+
+# Example
+
+```{python}
+pt="envar_nest"
+datadir = Path(f'work/l05nestm/envar_nestc_shrink_preGM_m80obs30/data/{pt}')
+def loaddata(icycle):
+    Xb = np.load(datadir/f"l05nestm_lam_spf_linear_{pt}_cycle{icycle}.npy")
+    nmem = Xb.shape[1]
+    Xb *= np.sqrt(nmem-1)
+    Zv = np.load(datadir/f"l05nestm_lam_zvmat_linear_{pt}_cycle{icycle}.npy")
+    Zb = np.load(datadir/f"l05nestm_lam_zbmat_linear_{pt}_cycle{icycle}.npy")
+    dv = np.load(datadir/f"l05nestm_lam_dk_linear_{pt}_cycle{icycle}.npy")
+    Yb = np.load(datadir/f"l05nestm_lam_dh_linear_{pt}_cycle{icycle}.npy")
+    do = np.load(datadir/f"l05nestm_lam_d_linear_{pt}_cycle{icycle}.npy")
+    return Xb, Zb, Zv, Yb, do, dv
+
+icycle=50
+Xb, Zb, Zv, Yb, do, dv = loaddata(icycle)
+print(Xb.shape)
+print(Zv.shape)
+print(Zb.shape)
+print(dv.shape)
+print(Yb.shape)
+print(do.shape)
+```
+
+```{python}
+#| fig-cap: ensemble perturbations
+#| fig-subcap:
+#|   - Xb
+#|   - Zb, Zv, Yb
+#| label: fig-ensprtb
+#| layout: [[1,2],[1]]
+
+fig, ax = plt.subplots()
+mp0=ax.matshow(Xb)
+fig.colorbar(mp0,ax=ax,shrink=0.6,pad=0.01)
+ax.set_title('Xb')
+plt.show()
+
+fig2, axs = plt.subplots(nrows=3,constrained_layout=True)
+axs[0].set_title('Zb')
+mp1=axs[0].matshow(Zb)
+axs[1].set_title('Zv')
+mp2=axs[1].matshow(Zv)
+axs[2].set_title('Yb')
+mp3=axs[2].matshow(Yb)
+for mp, ax in zip([mp1,mp2,mp3],axs):
+    fig2.colorbar(mp,ax=ax,pad=0.01,shrink=0.6,orientation='horizontal')
+plt.show()
+```
+
+```{python}
+#| fig-cap: innovations
+#| fig-subcap:
+#|   - observation (d^o)
+#|   - large-scale (d^v)
+#| label: fig-innv
+#| layout-ncol: 2
+
+fig, ax = plt.subplots()
+ax.plot(do,np.arange(do.size))
+ax.set_xlabel('d^o')
+ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+plt.show()
+
+fig, ax = plt.subplots()
+ax.plot(dv,np.arange(dv.size))
+ax.set_xlabel('d^v')
+ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+plt.show()
+```
+
+```{python}
+#| fig-cap: ensemble error covariances
+#| fig-subcap:
+#|   - Pb
+#|   - Pv
+#|   - Pvb
+#| label: fig-enserr-each
+#| layout: [[3,2],[1]]
+
+from matplotlib.colors import Normalize
+
+nens = Xb.shape[1]
+Pb = np.dot(Xb,Xb.transpose())/(nens-1)
+Pbv = np.dot(Xb,Zv.transpose())/(nens-1)
+Pvb = np.dot(Zv,Xb.transpose())/(nens-1)
+Pv = np.dot(Zv,Zv.transpose())/(nens-1)
+
+vlim = max(
+    np.max(Pb),-np.min(Pb),
+    np.max(Pbv),-np.min(Pbv),
+    np.max(Pvb),-np.min(Pvb),
+    np.max(Pv),-np.min(Pv)
+)
+
+fig, ax = plt.subplots()
+mp0 = ax.matshow(Pb,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp0,ax=ax,shrink=0.6,pad=0.01)
+ax.set_aspect('equal')
+plt.show()
+fig, ax = plt.subplots()
+mp3 = ax.matshow(Pv,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp3,ax=ax,shrink=0.6,pad=0.01)
+ax.set_aspect('equal')
+plt.show()
+fig, ax = plt.subplots()
+mp2 = ax.matshow(Pvb,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp2,ax=ax,shrink=0.6,pad=0.01,orientation='horizontal')
+ax.set_aspect(5)
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: composite ensemble error covariance
+#| label: fig-enserr
+
+Pc = np.vstack((np.hstack((Pb,Pbv)),np.hstack((Pvb,Pv))))
+
+fig, ax = plt.subplots()
+mp = ax.matshow(Pc,cmap='coolwarm',norm=Normalize(-vlim,vlim))
+fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
+plt.show()
+```
+
+0. solution without cross covariance ($\mathbf{P}^\mathrm{bv}=\mathbf{P}^\mathrm{vb}=0$)
+```{python}
+#| fig-cap: solution without cross covariance
+#| fig-subcap:
+#|   - $\tilde{X}^b$
+#|   - $\tilde{d}^b$
+#| label: fig-nocross
+#| layout: [[2,3],[1]]
+
+    nens = Xb.shape[1]
+    Xb_ = np.vstack(((nens-1)*np.eye(Xb.shape[1]),la.pinv(Pv)@Zb))
+    dv_ = np.hstack((np.zeros(Xb.shape[1]),la.pinv(Pv)@dv))
+
+    fig, ax = plt.subplots()
+    mp=ax.matshow(Xb_)
+    fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
+    ax.set_aspect(0.5)
+    plt.show()
+
+    fig, ax = plt.subplots()
+    ax.plot(dv_,np.arange(dv_.size))
+    ax.set_xlabel(r'$\tilde{d}^v$')
+    ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+    plt.show()
+```
+```{python}
+#| fig-cap: solution for $J$ without cross covariance
+#| fig-subcap:
+#|   - $\mathbf{w}$
+#|   - $\delta\mathbf{x}$
+#|   - Xb, Xa
+#| label: fig-nocross-cost
+    
+    args = (np.eye(Xb.shape[1]), Yb, Zb, do, dv, Xb_, dv_)
+    w, trans = solve(*args)
+    Xa = np.sqrt(nens-1)*Xb@trans
+
+    fig, ax = plt.subplots()
+    ax.plot(w)
+    ax.set_ylabel('w')
+    plt.show()
+
+    fig, ax = plt.subplots()
+    ax.plot(Xb@w)
+    ax.set_ylabel('dx')
+    plt.show()
+
+    fig, axs = plt.subplots(ncols=2)
+    mp0=axs[0].matshow(Xb)
+    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
+    axs[0].set_title('Xb')
+    mp1=axs[1].matshow(Xa)
+    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
+    axs[1].set_title('Xa')
+    plt.show()
+
+    Ji = cost(np.zeros_like(w),*args)
+    Jf = cost(w,*args)
+    print(f"initial cost={Ji:.4e}")
+    print(f"final cost={Jf:.4e}")
+```
+
+1. pseudo-inverse (minimum-norm solution)
+    $$
+    \tilde{\mathbf{X}}^\mathrm{b}
+    =
+    \begin{pmatrix}
+        \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+        \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{pmatrix}
+        \mathbf{X}^\mathrm{b}\\
+        \mathbf{Z}^\mathrm{b}
+    \end{pmatrix}
+    $$
+    $$
+    \tilde{\mathbf{d}}^\mathrm{bv}
+    =
+    \begin{pmatrix}
+        \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
+        \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{pmatrix}
+    \mathbf{0}\\\mathbf{d}^\mathrm{v}
+    \end{pmatrix}
+    $$
+
+```{python}
+#| fig-cap: minimum-norm solution
+#| fig-subcap:
+#|   - $\tilde{X}^b$
+#|   - $\tilde{d}^b$
+#| label: fig-minnorm
+#| layout: [[2,3],[1]]
+
+    Pcpinv = la.pinv(Pc,hermitian=True)
+    Xb_ = Pcpinv @ np.vstack((Xb,Zb))
+    dv_ = Pcpinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+
+    fig, ax = plt.subplots()
+    mp=ax.matshow(Xb_)
+    fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
+    ax.set_aspect(0.5)
+    plt.show()
+
+    fig, ax = plt.subplots()
+    ax.plot(dv_,np.arange(dv_.size))
+    ax.set_xlabel(r'$\tilde{d}^v$')
+    ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+    plt.show()
+```
+```{python}
+#| fig-cap: minimum-norm solution for $J$
+#| fig-subcap:
+#|   - $\mathbf{w}$
+#|   - $\delta\mathbf{x}$
+#|   - Xb, Xa
+#| label: fig-minnorm-cost
+    
+    args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
+    w, trans = solve(*args)
+    Xa = np.sqrt(nens-1)*Xb@trans
+
+    fig, ax = plt.subplots()
+    ax.plot(w)
+    ax.set_ylabel('w')
+    plt.show()
+
+    fig, ax = plt.subplots()
+    ax.plot(Xb@w)
+    ax.set_ylabel('dx')
+    plt.show()
+
+    fig, axs = plt.subplots(ncols=2)
+    mp0=axs[0].matshow(Xb)
+    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
+    axs[0].set_title('Xb')
+    mp1=axs[1].matshow(Xa)
+    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
+    axs[1].set_title('Xa')
+    plt.show()
+
+    Ji = cost(np.zeros_like(w),*args)
+    Jf = cost(w,*args)
+    print(f"initial cost={Ji:.4e}")
+    print(f"final cost={Jf:.4e}")
+```

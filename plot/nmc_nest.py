@@ -52,7 +52,7 @@ nmc_llam = NMC_tools(ix_gm_crop,cyclic=False)
 #ftmax = 20.0 / np.pi
 #f = trunc_operator(np.arange(ix_lam.size),ix=ix_lam,ftmax=ftmax,first=True,cyclic=False)
 ntrunc = 12
-trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,nghost=0)
+trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,cyclic=False,ttype='c')
 ix_trunc = trunc_operator.ix_trunc
 nmc_trunc = NMC_tools(ix_trunc,cyclic=False)
 
@@ -622,11 +622,11 @@ for pt in perts:
     #V48m24 = np.dot(x48m24_gm[:,i0:i1+1].T,x48m24_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
     #B48m24_gm2lam = np.dot(x48m24_gm[:,i0:i1+1].T,x48m24_lam)/float(ne-ns+1)*0.5
     ## plot
-    fnamelist = ['highres','lowres','trunc']
+    fnamelist = ['highres','lowres',f'trunc_{trunc_operator.ttype}']
     titlelist = [
         'GM interpolated into nominal LAM grid (H_1:GM=>LAM, H_2=I)',
         'extract GM in the LAM domain (H_1:crop, H_2:LAM=>cropped GM)',
-        f'truncation at n={ntrunc}'
+        f'truncation by {trunc_operator.tname[trunc_operator.ttype]} at n={ntrunc}'
         ]
     for k in range(len(fnamelist)):
         fname = fnamelist[k]

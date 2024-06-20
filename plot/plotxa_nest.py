@@ -36,8 +36,10 @@ ix_t = np.loadtxt("ix_true.txt")
 ix_gm = np.loadtxt("ix_gm.txt")
 ix_lam = np.loadtxt("ix_lam.txt")
 ntrunc = 12
-trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False,nghost=0) #,resample=False)
+trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False) #,resample=False)
 ix_trunc = trunc_operator.ix_trunc #[1:-1]
+trunc_operator_test = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='c',cyclic=False) #,resample=False)
+ttest = trunc_operator_test.tname[trunc_operator_test.ttype]
 
 xt2x = interp1d(ix_t, xt)
 xlim = 15.0
@@ -267,7 +269,7 @@ for pt in perts:
         #    ax.plot(ix_gm[i0:i1+1],xagm1[i0:i1+1]-JH2@xalam1,label='dk')
         ax.set_title(f't={t[icycle]}, analysis')
         ax.legend()
-        fig.savefig("{}_xa_{}_{}_c{}.png".format(model,op,pt,icycle))
+        fig.savefig("data/{2}/{0}_xa_{1}_{2}_c{3}.png".format(model,op,pt,icycle))
         plt.close()
         #
         xfgm1 = xfgm[icycle]
@@ -284,10 +286,10 @@ for pt in perts:
         #    ax.plot(ix_gm[i0:i1+1],xagm1[i0:i1+1]-JH2@xalam1,label='dk')
         ax.set_title(f't={t[icycle]}, forecast')
         ax.legend()
-        fig.savefig("{}_xf_{}_{}_c{}.png".format(model,op,pt,icycle))
+        fig.savefig("data/{2}/{0}_xf_{1}_{2}_c{3}.png".format(model,op,pt,icycle))
         plt.close()
     ## error cross-covariance evaluation
-    xdv = trunc_operator(xdfgm.transpose()).transpose()
+    xdv = trunc_operator_test(xdfgm.transpose()).transpose()
     print(xdv.shape)
     ns = 40
     vlim = max(np.max(xdflam[ns:,:]),-np.min(xdflam[ns:,:]),\
@@ -326,6 +328,6 @@ for pt in perts:
     axs2[1].set_ylabel('eigenvalues')
     axs2[1].set_title(f'cond(W)={np.linalg.cond(W):.4e}')
     fig2.suptitle(pt)
-    fig2.savefig("{}_errcov_{}_{}.png".format(model,op,pt))
+    fig2.savefig("{}_errcov_{}_{}_{}.png".format(model,op,pt,ttest))
     plt.show()
     plt.close()

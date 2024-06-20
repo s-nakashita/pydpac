@@ -58,10 +58,10 @@ if ix.size == trunc1d.ix_trunc.size:
     ax0.plot(ix,x-xtrunc+r,ls='dashed')
 #ax1.set_title("diff")
 width=0.8
-if trunc1d.ttype=='c':
-    ax2.bar(f,np.abs(y)**2,width=width,alpha=0.5)
-else:
+if trunc1d.ttype!='c':
     ax2.bar(f,np.abs(y*dx)**2,width=width,alpha=0.5)
+else:
+    ax2.bar(f,np.abs(y)**2,width=width,alpha=0.5)
 ##_,f,ytrunc = trunc1d(xtrunc,return_coef=True)
 #ytrunc = fft.fftshift(fft.fft(xtrunc))
 #f_trunc = fft.fftshift(\
@@ -109,10 +109,10 @@ if ix_lam.size == trunc1d.ix_trunc.size:
 #ax1.plot(ix_lam,x_lam-xtrunc+r)
 #ax1.set_title("diff")
 #print(2.0*np.pi*f)
-if trunc1d.ttype=='c':
-    ax2.bar(f,np.abs(y)**2,width=width,alpha=0.5)
-else:
+if trunc1d.ttype!='c':
     ax2.bar(f,np.abs(y*dx)**2,width=width,alpha=0.5)
+else:
+    ax2.bar(f,np.abs(y)**2,width=width,alpha=0.5)
 ##_,f,ytrunc = trunc1d(xtrunc,return_coef=True)
 #ytrunc = fft.fftshift(fft.fft(xtrunc))
 #f_trunc = fft.fftshift(\

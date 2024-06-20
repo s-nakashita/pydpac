@@ -45,7 +45,7 @@ class EnVAR_nest():
         self.nv = self.i1 - self.i0 + 1
         self.ntrunc = ntrunc # truncation number for GM
         self.ftrunc = ftrunc # truncation wavenumber for GM
-        self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='s',nghost=0)
+        self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='c',nghost=0)
         self.nv = min(self.nv,self.trunc_operator.ix_trunc.size)
         # optional parameters
         self.pt = pt # DA type 

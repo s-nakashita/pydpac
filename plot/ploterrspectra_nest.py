@@ -7,9 +7,8 @@ from scipy.interpolate import interp1d
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator, FixedFormatter
-from nmc_tools import psd, wnum2wlen, wlen2wnum
+from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
 sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
-from trunc1d import Trunc1d
 plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
@@ -54,6 +53,9 @@ nghost = 0 # ghost region for periodicity in LAM
 ix_t_rad = ix_t * 2.0 * np.pi / nx_t
 ix_gm_rad = ix_gm * 2.0 * np.pi / nx_t
 ix_lam_rad = ix_lam * 2.0 * np.pi / nx_t
+nmc_t = NMC_tools(ix_t_rad,cyclic=True,ttype='c')
+nmc_g = NMC_tools(ix_gm_rad,cyclic=True,ttype='c')
+nmc_l = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 Lx_gm = 2.0 * np.pi
 #dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
 Lx_lam = 2.0 * np.pi * nx_lam / nx_t
@@ -136,7 +138,7 @@ for pt in perts:
     #wnum = fftfreq(nx_gm,dx_gm)[:nx_gm//2]
     ##freq = np.arange(0,nx//2)
     #psdgm = 2.0*np.mean(np.abs(espgm)**2,axis=0)*dx_gm*dx_gm/Lx_gm
-    wnum_gm, psdgm = psd(xdgm,ix_gm_rad,axis=1,average=False)
+    wnum_gm, psdgm = nmc_g.psd(xdgm,axis=1,average=False)
     psdgm_dict[pt] = psdgm
     psdgm = psdgm.mean(axis=0)
     print(f"psdgm.shape={psdgm.shape}")
@@ -158,10 +160,10 @@ for pt in perts:
     ##freq = np.arange(0,nx//2)
     #psd = 2.0*np.mean(np.abs(esp)**2,axis=0)*dx_lam*dx_lam/Lx_lam
     if detrend:
-        wnum_lam, psdlam, xdlam_detrend = psd(xdlam,ix_lam_rad,axis=1,cyclic=False,nghost=0,average=False,detrend=detrend)
+        wnum_lam, psdlam, xdlam_detrend = nmc_l.psd(xdlam,axis=1,average=False)
         axs[0].plot(ix_lam,np.sqrt(np.mean(xdlam_detrend**2,axis=0)),c='tab:orange',ls='dashed',label='LAM,err,detrend')
     else:
-        wnum_lam, psdlam = psd(xdlam,ix_lam_rad,axis=1,cyclic=False,nghost=0,average=False,detrend=detrend)
+        wnum_lam, psdlam = nmc_l.psd(xdlam,axis=1,average=False)
     axs[0].legend()
     psdlam_dict[pt] = psdlam
     psdlam = psdlam.mean(axis=0)

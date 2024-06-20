@@ -7,7 +7,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import FixedLocator, FixedFormatter
-from nmc_tools import psd, wnum2wlen, wlen2wnum
+from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
 sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
 from trunc1d import Trunc1d
 
@@ -39,7 +39,7 @@ nx_lam = ix_lam.size
 #if ix_gm[i1]>ix_lam[-1]: i1-=1
 #nx_gmlam = i1 - i0 + 1
 ntrunc = 12
-trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False,nghost=0)
+trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='c',cyclic=False,nghost=0)
 ix_trunc = trunc_operator.ix_trunc
 nx_gmlam = ix_trunc.size
 
@@ -51,6 +51,9 @@ ix_lam_rad = ix_lam * Lx / nx_t
 ix_trunc_rad = ix_trunc * Lx / nx_t
 print(ix_lam_rad)
 print(ix_trunc_rad)
+nmc_gm = NMC_tools(ix_gm_rad,cyclic=False,ttype='c')
+nmc_lam = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
+nmc_trunc = NMC_tools(ix_trunc_rad,cyclic=False,ttype='c')
 
 ncycle_gm = 0
 ncycle_lam = 0
@@ -66,10 +69,10 @@ for icycle in range(scycle,ecycle+1):
         pftmp = spftmp @ spftmp.T
         if ncycle_gm==0:
             pfgm = pftmp
-            wnum_gm, psdgm = psd(spftmp,ix_gm_rad,axis=0,average=True)
+            wnum_gm, psdgm = nmc_gm.psd(spftmp,axis=0,average=True)
         else:
             pfgm = pfgm + pftmp
-            wnum_gm, psdtmp = psd(spftmp, ix_gm_rad, axis=0, average=True)
+            wnum_gm, psdtmp = nmc_gm.psd(spftmp, axis=0, average=True)
             psdgm = psdgm + psdtmp
         ncycle_gm += 1
     else:
@@ -79,10 +82,10 @@ for icycle in range(scycle,ecycle+1):
             pftmp = spftmp @ spftmp.T
             if ncycle_gm==0:
                 pfgm = pftmp
-                wnum_gm, psdgm = psd(spftmp,ix_gm_rad,axis=0,average=True)
+                wnum_gm, psdgm = nmc_gm.psd(spftmp,axis=0,average=True)
             else:
                 pfgm = pfgm + pftmp
-                wnum_gm, psdtmp = psd(spftmp,ix_gm_rad,axis=0,average=True)
+                wnum_gm, psdtmp = nmc_gm.psd(spftmp,axis=0,average=True)
                 psdgm = psdgm + psdtmp
             ncycle_gm += 1
     f = "{}_lam_spf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
@@ -91,12 +94,10 @@ for icycle in range(scycle,ecycle+1):
         pftmp = spftmp @ spftmp.T
         if ncycle_lam==0:
             pflam = pftmp
-            wnum_lam, psdlam, _ = psd(spftmp,ix_lam_rad,axis=0,\
-                cyclic=False,nghost=0,average=True,detrend=True)
+            wnum_lam, psdlam, _ = nmc_lam.psd(spftmp,axis=0,average=True)
         else:
             pflam = pflam + pftmp
-            wnum_lam, psdtmp, _ = psd(spftmp,ix_lam_rad,axis=0,\
-                cyclic=False,nghost=0,average=True,detrend=True)
+            wnum_lam, psdtmp, _ = nmc_lam.psd(spftmp,axis=0,average=True)
             psdlam = psdlam + psdtmp
         ncycle_lam += 1
     else:
@@ -106,12 +107,10 @@ for icycle in range(scycle,ecycle+1):
             pftmp = spftmp @ spftmp.T
             if ncycle_lam==0:
                 pflam = pftmp
-                wnum_lam, psdlam, _ = psd(spftmp,ix_lam_rad,axis=0,\
-                    cyclic=False,nghost=0,average=True,detrend=True)
+                wnum_lam, psdlam, _ = nmc_lam.psd(spftmp,axis=0,average=True)
             else:
                 pflam = pflam + pftmp
-                wnum_lam, psdtmp, _ = psd(spftmp,ix_lam_rad,axis=0,\
-                    cyclic=False,nghost=0,average=True,detrend=True)
+                wnum_lam, psdtmp, _ = nmc_lam.psd(spftmp,axis=0,average=True)
                 psdlam = psdlam + psdtmp
             ncycle_lam += 1
     f = "{}_lam_svmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
@@ -120,12 +119,10 @@ for icycle in range(scycle,ecycle+1):
         vtmp = svtmp @ svtmp.T
         if not vmat_exist:
             vmat = vtmp
-            wnum_v, psdv, _ = psd(svtmp,ix_trunc_rad,axis=0,\
-                cyclic=False,nghost=0,average=True,detrend=True)
+            wnum_v, psdv, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
         else:
             vmat = vmat + vtmp
-            wnum_v, psdtmp, _ = psd(svtmp,ix_trunc_rad,axis=0,\
-                cyclic=False,nghost=0,average=True,detrend=True)
+            wnum_v, psdtmp, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
             psdv = psdv + psdtmp
         vmat_exist=True
     else:
@@ -135,12 +132,10 @@ for icycle in range(scycle,ecycle+1):
             vtmp = svtmp @ svtmp.T
             if not vmat_exist:
                 vmat = vtmp
-                wnum_v, psdv, _ = psd(svtmp,ix_trunc_rad,axis=0,\
-                    cyclic=False,nghost=0,average=True,detrend=True)
+                wnum_v, psdv, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
             else:
                 vmat = vmat + vtmp
-                wnum_v, psdtmp, _ = psd(svtmp,ix_trunc_rad,axis=0,\
-                    cyclic=False,nghost=0,average=True,detrend=True)
+                wnum_v, psdtmp, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
                 psdv = psdv + psdtmp
             vmat_exist=True
 #    pa = None  
