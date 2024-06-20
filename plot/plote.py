@@ -44,9 +44,11 @@ elif model == "z05":
     sigma = {"linear": 0.05, "quadratic": 0.05}
 elif model == "l96" or model == "tc87":
     perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var",\
+    "mlefbe", "mlefbm", "mlefcw", "mlefy", \
     "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
     linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive"}
+        "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
+        "mlefbe":"dodgerblue", "mlefbm":"aquamarine", "mlefcw":"aqua", "mlefy":"lightskyblue"}
     marker = {"3d":"o","4d":"x","3ds":"x","4ds":"^"}
     if len(sys.argv) > 4:
         pt = sys.argv[4]
