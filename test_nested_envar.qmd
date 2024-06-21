@@ -116,7 +116,7 @@ J(\mathbf{w})&=
 \mathbf{X}^\mathrm{b}\\
 \mathbf{Z}^\mathrm{b}
 \end{pmatrix}^\mathrm{T}
-\tilde{\mathbf{d}}^\mathrm{bv}
+\tilde{\mathbf{d}}^\mathrm{v}
 -(\mathbf{Y}^\mathrm{b})^\mathrm{T}\mathbf{R}^{-1}\mathbf{d}^\mathrm{o}
 =0
 \end{align*}
@@ -138,7 +138,7 @@ $$
 \begin{pmatrix}
     \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
     \mathbf{P}^\mathrm{vb} & \mathbf{P}^\mathrm{v}
-\end{pmatrix}\tilde{\mathbf{d}}^\mathrm{bv}
+\end{pmatrix}\tilde{\mathbf{d}}^\mathrm{v}
 =
 \begin{pmatrix}
 \mathbf{0}\\\mathbf{d}^\mathrm{v}
@@ -192,7 +192,7 @@ def solve(*args):
 # Example
 
 ```{python}
-datadir = Path(f'work/l05nestm/envar_nestc_shrink_preGM_m80obs30/data')
+datadir = Path(f'/Volumes/nakashita/Development/pydpac/work/l05nestm/envar_nestc_shrink_preGM_m80obs30/data')
 def loaddata(icycle,pt):
     Xb = np.load(datadir/f"{pt}/l05nestm_lam_spf_linear_{pt}_cycle{icycle}.npy")
     nmem = Xb.shape[1]
@@ -449,7 +449,7 @@ plt.show()
     \end{pmatrix}
     $$
     $$
-    \tilde{\mathbf{d}}^\mathrm{bv}
+    \tilde{\mathbf{d}}^\mathrm{v}
     =
     \begin{pmatrix}
         \mathbf{P}^\mathrm{b} & \mathbf{P}^\mathrm{bv} \\
@@ -567,7 +567,7 @@ plt.show()
     \end{pmatrix}
     $$
     $$
-    \tilde{\mathbf{d}}^\mathrm{bv}
+    \tilde{\mathbf{d}}^\mathrm{v}
     =
     \left[
         \begin{pmatrix}
@@ -686,7 +686,92 @@ plt.show()
 
 ```
 
-3. Partial least square (PLS) regression
+3. regularization in ensemble space
+    
+    The inverse of error covariance is replaced with the pseudo inverse.
+    $$
+    J(\mathbf{w})=
+    \frac{K-1}{2}
+    \left\{
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{bmatrix}
+    \begin{pmatrix}
+    \mathbf{0}\\\mathbf{d}^\mathrm{v}
+    \end{pmatrix}
+    -
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b}\\\mathbf{Z}^\mathrm{b}
+    \end{pmatrix}
+    \mathbf{w}
+    \end{bmatrix}
+    \right\}^\mathrm{T}
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{bmatrix}
+    \begin{pmatrix}
+    \mathbf{0}\\\mathbf{d}^\mathrm{v}
+    \end{pmatrix}
+    -
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b}\\\mathbf{Z}^\mathrm{b}
+    \end{pmatrix}
+    \mathbf{w}
+    \end{bmatrix}
+    +J_\mathrm{o}(\mathbf{w})
+    \underline{+\frac{\gamma}{2}\|\mathbf{w}\|^2}
+    $$
+
+```{=tex}
+\begin{align*}
+    \nabla_\mathbf{w}J=
+    &\begin{bmatrix}
+    (K-1)\left\{
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b}\\\mathbf{Z}^\mathrm{b}
+    \end{pmatrix}
+    \right\}^\mathrm{T}
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b}\\\mathbf{Z}^\mathrm{b}
+    \end{pmatrix}
+    +(\mathbf{Y}^\mathrm{b})^\mathrm{T}\mathbf{R}^{-1}\mathbf{Y}^\mathrm{b}
+    \underline{+\gamma\mathbf{I}}
+    \end{bmatrix}
+    \mathbf{w} \\
+    &-
+    (K-1)\left\{
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b}\\\mathbf{Z}^\mathrm{b}
+    \end{pmatrix}
+    \right\}^\mathrm{T}
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{pmatrix}
+    \mathbf{0}\\\mathbf{d}^\mathrm{v}
+    \end{pmatrix}
+    -(\mathbf{Y}^\mathrm{b})^\mathrm{T}\mathbf{R}^{-1}\mathbf{d}^\mathrm{o}
+\end{align*}
+```
+
+4. Partial least square (PLS) regression
 
 $$
 \frac{1}{K-1}
@@ -704,7 +789,25 @@ $$
     \mathbf{Z}^\mathrm{b}
 \end{pmatrix}
 $$
-
+$$
+\Rightarrow \left\{
+    \begin{matrix}
+        \frac{1}{K-1}
+        \begin{pmatrix}
+            \mathbf{X}^\mathrm{b} \\
+            \mathbf{Z}^\mathrm{v}
+        \end{pmatrix}\tilde{\tilde{\mathbf{X}}}^\mathrm{b}=
+        \begin{pmatrix}
+            \mathbf{X}^\mathrm{b}\\
+            \mathbf{Z}^\mathrm{b}
+        \end{pmatrix} \\
+        \begin{bmatrix}
+        (\mathbf{X}^\mathrm{b})^\mathrm{T} &
+        (\mathbf{Z}^\mathrm{v})^\mathrm{T}
+        \end{bmatrix}\tilde{\mathbf{X}}^\mathrm{b}=\tilde{\tilde{\mathbf{X}}}^\mathrm{b}
+    \end{matrix}
+\right.
+$$
 
 $$
 \frac{1}{K-1}
@@ -715,11 +818,29 @@ $$
 \begin{bmatrix}
 (\mathbf{X}^\mathrm{b})^\mathrm{T} &
 (\mathbf{Z}^\mathrm{v})^\mathrm{T}
-\end{bmatrix}\tilde{\mathbf{d}}^\mathrm{bv}
+\end{bmatrix}\tilde{\mathbf{d}}^\mathrm{v}
 =
 \begin{pmatrix}
 \mathbf{0}\\\mathbf{d}^\mathrm{v}
 \end{pmatrix}
+$$
+$$
+\Rightarrow \left\{
+    \begin{matrix}
+        \frac{1}{K-1}
+        \begin{pmatrix}
+            \mathbf{X}^\mathrm{b} \\
+            \mathbf{Z}^\mathrm{v}
+        \end{pmatrix}\tilde{\tilde{\mathbf{d}}}^\mathrm{v}=
+        \begin{pmatrix}
+        \mathbf{0}\\\mathbf{d}^\mathrm{v}
+        \end{pmatrix} \\
+        \begin{bmatrix}
+        (\mathbf{X}^\mathrm{b})^\mathrm{T} &
+        (\mathbf{Z}^\mathrm{v})^\mathrm{T}
+        \end{bmatrix}\tilde{\mathbf{d}}^\mathrm{v}=\tilde{\tilde{\mathbf{d}}}^\mathrm{v}
+    \end{matrix}
+\right.
 $$
 
 ```{python}
