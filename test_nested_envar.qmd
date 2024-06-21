@@ -248,6 +248,7 @@ mp3=axs[2].matshow(Yb)
 for mp, ax in zip([mp1,mp2,mp3],axs):
     fig2.colorbar(mp,ax=ax,pad=0.01,shrink=0.6,orientation='horizontal')
 plt.show()
+
 ```
 
 ```{python}
@@ -269,6 +270,7 @@ ax.plot(dv,np.arange(dv.size))
 ax.set_xlabel('d^v')
 ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
 plt.show()
+
 ```
 
 ```{python}
@@ -548,7 +550,7 @@ plt.show()
 
 ```
 
-2. regularization
+2. regularization in state space
     $$
     \tilde{\mathbf{X}}^\mathrm{b}
     =
@@ -587,9 +589,9 @@ plt.show()
     translist = []
     for mu in mulist:
         #mu = 0.01
-        Pcinv = la.inv(Pc+mu*np.eye(Pc.shape[0]))
-        Xb_ = Pcinv @ np.vstack((Xb,Zb))
-        dv_ = Pcinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+        Pcpi = Pc+mu*np.eye(Pc.shape[0])
+        Xb_ = la.solve(Pcpi,np.vstack((Xb,Zb)))
+        dv_ = la.solve(Pcpi,np.hstack((np.zeros(Xb.shape[0]),dv)))
     
         args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
         w, trans = solve(*args)
@@ -680,6 +682,155 @@ plt.show()
         mp1=ax.matshow(trans)
         fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
         ax.set_title(r'trans, $\mu$='+f'{mu}')
+    plt.show()
+
+```
+
+3. Partial least square (PLS) regression
+
+$$
+\frac{1}{K-1}
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b} \\
+\mathbf{Z}^\mathrm{v}
+\end{pmatrix}
+\begin{bmatrix}
+(\mathbf{X}^\mathrm{b})^\mathrm{T} &
+(\mathbf{Z}^\mathrm{v})^\mathrm{T}
+\end{bmatrix}\tilde{\mathbf{X}}^\mathrm{b}
+=
+\begin{pmatrix}
+    \mathbf{X}^\mathrm{b}\\
+    \mathbf{Z}^\mathrm{b}
+\end{pmatrix}
+$$
+
+
+$$
+\frac{1}{K-1}
+\begin{pmatrix}
+\mathbf{X}^\mathrm{b} \\
+\mathbf{Z}^\mathrm{v}
+\end{pmatrix}
+\begin{bmatrix}
+(\mathbf{X}^\mathrm{b})^\mathrm{T} &
+(\mathbf{Z}^\mathrm{v})^\mathrm{T}
+\end{bmatrix}\tilde{\mathbf{d}}^\mathrm{bv}
+=
+\begin{pmatrix}
+\mathbf{0}\\\mathbf{d}^\mathrm{v}
+\end{pmatrix}
+$$
+
+```{python}
+
+    from sklearn.cross_decomposition import PLSRegression
+
+    nclist = [20,40,60]
+    wlist = []
+    Xalist = []
+    translist = []
+    for nc in nclist:
+        pls1 = PLSRegression(n_components=nc)
+        pls1.fit(Pc,np.hstack((np.zeros(Xb.shape[0]),dv)))
+        dv_ = pls1.coef_[0,:]
+        print(dv_.shape)
+        pls2 = PLSRegression(n_components=nc)
+        pls2.fit(Pc,np.vstack((Xb,Zb)))
+        Xb_ = pls2.coef_.T
+        print(Xb_.shape)
+        print(f"nc={nc} pls1.score={pls1.score(Pc,np.hstack((np.zeros(Xb.shape[0]),dv)))}")
+        print(f"nc={nc} pls2.score={pls2.score(Pc,np.vstack((Xb,Zb)))}")
+
+        args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
+        w, trans = solve(*args)
+        Xa = np.sqrt(nens-1)*Xb@trans
+        wlist.append(w)
+        Xalist.append(Xa)
+        translist.append(trans)
+        
+        Ji = cost(np.zeros_like(w),*args)
+        Jf = cost(w,*args)
+        print(f"nc={nc} initial cost={Ji:.4e}")
+        print(f"nc={nc} final cost={Jf:.4e}")
+
+```
+
+```{python}
+#| fig-cap: PLS solution with 40 PCA modes
+#| fig-subcap:
+#|   - $\tilde{X}^b$
+#|   - $\tilde{d}^b$
+#| label: fig-pls
+#| layout: [[2,3],[1]]
+
+    fig, ax = plt.subplots()
+    mp=ax.matshow(Xb_)
+    fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
+    ax.set_aspect(0.5)
+    plt.show()
+
+    fig, ax = plt.subplots()
+    ax.plot(dv_,np.arange(dv_.size))
+    ax.set_xlabel(r'$\tilde{d}^v$')
+    ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+    plt.show()
+```
+```{python}
+#| fig-cap: PLS solution for $J$
+#| fig-subcap:
+#|   - $\mathbf{w}$
+#|   - $\delta\mathbf{x}$
+#|   - Xb, Xa
+#|   - $[\nabla^2 J]^{-1/2}$
+#| label: fig-pls-cost
+#| layout: [[1,2],[1]]
+    
+    fig, ax = plt.subplots(figsize=[4,6])
+    for nc, w in zip(nclist,wlist):
+        ax.plot(w,np.arange(1,w.size+1),label=f'nc={nc}')
+    ax.plot(w_nc,np.arange(1,w.size+1),label='no cross')
+    xmin,xmax = ax.get_xlim()
+    xlim = max(-xmin,xmax)
+    ax.set_xlim(-xlim,xlim)
+    ax.legend()
+    ax.set_ylabel('member')
+    ax.set_xlabel('w')
+    plt.show()
+
+    fig, ax = plt.subplots(figsize=[8,6])
+    for nc, w in zip(nclist,wlist):
+        ax.plot(Xb@w,label=f'nc={nc}')
+    ax.plot(dx,ls='dashed',label='no cross')
+    ymin,ymax = ax.get_ylim()
+    ylim = max(-ymin,ymax)
+    ax.set_ylim(-ylim,ylim)
+    ax.legend()
+    ax.set_xlabel('grid')
+    ax.set_ylabel('dx')
+    plt.show()
+
+    fig, axs = plt.subplots(ncols=1+len(mulist),constrained_layout=True)
+    mp0=axs[0].matshow(Xb)
+    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
+    axs[0].set_title('Xb')
+    for nc, Xa in zip(nclist,Xalist):
+        i=nclist.index(nc)
+        mp1=axs[i+1].matshow(Xa)
+        fig.colorbar(mp1,ax=axs[i+1],shrink=0.6,pad=0.01)
+        axs[i+1].set_title(f'Xa, nc={nc}')
+    plt.show()
+
+    fig, axs = plt.subplots(ncols=2,nrows=2,constrained_layout=True)
+    mp0=axs[0,0].matshow(trans_nc)
+    fig.colorbar(mp0,ax=axs[0,0],shrink=0.6,pad=0.01)
+    axs[0,0].set_title('trans (no cross)')
+    for nc, trans in zip(nclist,translist):
+        i=nclist.index(nc)
+        ax = axs.flatten()[i+1]
+        mp1=ax.matshow(trans)
+        fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
+        ax.set_title(f'trans, nc={nc}')
     plt.show()
 
 ```
