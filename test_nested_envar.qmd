@@ -164,7 +164,6 @@ $$
 ```{python}
 def cost(w,*args):
     Xb, Yb, Zb, do, dv, Xb_, dv_ = args
-    nens = Xb.shape[1]
     tmp1 = np.hstack((np.zeros(Xb.shape[0]),dv-Zb@w))
     tmp2 = dv_ - Xb_ @ w
     tmp3 = do - Yb @ w # R=I
@@ -172,7 +171,6 @@ def cost(w,*args):
 
 def solve(*args):
     Xb, Yb, Zb, do, dv, Xb_, dv_ = args
-    nens = Xb.shape[1]
     hess = np.hstack((Xb.T,Zb.T)) @ Xb_ + Yb.T @ Yb # R=I
     rhs = np.hstack((Xb.T,Zb.T)) @ dv_ + Yb.T @ do
     w = la.solve(hess,rhs)
@@ -192,23 +190,25 @@ def solve(*args):
 # Example
 
 ```{python}
-datadir = Path(f'/Volumes/nakashita/Development/pydpac/work/l05nestm/envar_nestc_shrink_preGM_m80obs30/data')
+model = "l05nestm"
+datadir = Path(f'work/{model}/envar_nestc_shrink_preGM_m80obs30')
+ix_gm = np.loadtxt(datadir/"ix_gm.txt")
+ix_lam = np.loadtxt(datadir/"ix_lam.txt")
 def loaddata(icycle,pt):
-    Xb = np.load(datadir/f"{pt}/l05nestm_lam_spf_linear_{pt}_cycle{icycle}.npy")
-    nmem = Xb.shape[1]
-    Xb *= np.sqrt(nmem-1)
-    Zv = np.load(datadir/f"{pt}/l05nestm_lam_zvmat_linear_{pt}_cycle{icycle}.npy")
-    Zb = np.load(datadir/f"{pt}/l05nestm_lam_zbmat_linear_{pt}_cycle{icycle}.npy")
-    dv = np.load(datadir/f"{pt}/l05nestm_lam_dk_linear_{pt}_cycle{icycle}.npy")
-    Yb = np.load(datadir/f"{pt}/l05nestm_lam_dh_linear_{pt}_cycle{icycle}.npy")
-    do = np.load(datadir/f"{pt}/l05nestm_lam_d_linear_{pt}_cycle{icycle}.npy")
+    Xb = np.load(datadir/f"data/{pt}/{model}_lam_spf_linear_{pt}_cycle{icycle}.npy")
+    Xb *= np.sqrt(Xb.shape[1]-1)
+    Zv = np.load(datadir/f"data/{pt}/{model}_lam_zvmat_linear_{pt}_cycle{icycle}.npy")
+    Zb = np.load(datadir/f"data/{pt}/{model}_lam_zbmat_linear_{pt}_cycle{icycle}.npy")
+    dv = np.load(datadir/f"data/{pt}/{model}_lam_dk_linear_{pt}_cycle{icycle}.npy")
+    Yb = np.load(datadir/f"data/{pt}/{model}_lam_dh_linear_{pt}_cycle{icycle}.npy")
+    do = np.load(datadir/f"data/{pt}/{model}_lam_d_linear_{pt}_cycle{icycle}.npy")
     # debug
-    dx = np.load(datadir/f"{pt}/l05nestm_lam_dx_linear_{pt}_cycle{icycle}.npy")
-    dx_conv = np.load(datadir/f"envar/l05nestm_lam_dx_linear_envar_cycle{icycle}.npy")
-    Xb_conv = np.load(datadir/f"envar/l05nestm_lam_spf_linear_envar_cycle{icycle}.npy")
-    Xb_conv *= np.sqrt(nmem-1)
-    Yb_conv = np.load(datadir/f"envar/l05nestm_lam_dh_linear_envar_cycle{icycle}.npy")
-    do_conv = np.load(datadir/f"envar/l05nestm_lam_d_linear_envar_cycle{icycle}.npy")
+    dx = np.load(datadir/f"data/{pt}/{model}_lam_dx_linear_{pt}_cycle{icycle}.npy")
+    dx_conv = np.load(datadir/f"data/envar/{model}_lam_dx_linear_envar_cycle{icycle}.npy")
+    Xb_conv = np.load(datadir/f"data/envar/{model}_lam_spf_linear_envar_cycle{icycle}.npy")
+    Xb_conv *= np.sqrt(Xb.shape[1]-1)
+    Yb_conv = np.load(datadir/f"data/envar/{model}_lam_dh_linear_envar_cycle{icycle}.npy")
+    do_conv = np.load(datadir/f"data/envar/{model}_lam_d_linear_envar_cycle{icycle}.npy")
 
     return Xb, Zb, Zv, Yb, do, dv, dx, dx_conv, Xb_conv, Yb_conv, do_conv
 
@@ -222,6 +222,22 @@ print(dv.shape)
 print(Yb.shape)
 print(do.shape)
 print(dx.shape)
+```
+
+```{python}
+#| output: false
+
+from analysis.obs import Obs
+from analysis.envar import EnVAR
+from analysis.envar_nest import EnVAR_nest
+from analysis.minimize import Minimize
+state_size = Xb.shape[0]
+nmem = Xb.shape[1]
+obs = Obs("linear",1.0) # dummy
+
+envar = EnVAR(state_size,nmem,obs,model="l05nestm")
+envar_nest = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nest",ntrunc=12,\
+    crosscov=False, model="l05nestm")
 ```
 
 ```{python}
@@ -280,15 +296,13 @@ plt.show()
 #|   - Pv
 #|   - Pvb
 #| label: fig-enserr-each
-#| layout: [[3,2],[1]]
 
 from matplotlib.colors import Normalize
 
-nens = Xb.shape[1]
-Pb = np.dot(Xb,Xb.transpose())/(nens-1)
-Pbv = np.dot(Xb,Zv.transpose())/(nens-1)
-Pvb = np.dot(Zv,Xb.transpose())/(nens-1)
-Pv = np.dot(Zv,Zv.transpose())/(nens-1)
+Pb = np.dot(Xb,Xb.transpose())/(nmem-1)
+Pbv = np.dot(Xb,Zv.transpose())/(nmem-1)
+Pvb = np.dot(Zv,Xb.transpose())/(nmem-1)
+Pv = np.dot(Zv,Zv.transpose())/(nmem-1)
 
 vlim = max(
     np.max(Pb),-np.min(Pb),
@@ -327,31 +341,59 @@ fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
 plt.show()
 ```
 
-0. solution without cross covariance ($\mathbf{P}^\mathrm{bv}=\mathbf{P}^\mathrm{vb}=0$)
+0. solution without large-scale terms or without cross covariance ($\mathbf{P}^\mathrm{bv}=\mathbf{P}^\mathrm{vb}=0$)
 
 ```{python}
-
-    nens = Xb.shape[1]
-    Xb_ = np.vstack(((nens-1)*np.eye(Xb.shape[1]),la.pinv(Pv)@Zb))
-    dv_ = np.hstack((np.zeros(Xb.shape[1]),la.pinv(Pv)@dv))
-    args = (np.eye(Xb.shape[1]), Yb, Zb, do, dv, Xb_, dv_)
-    w_nc, trans_nc = solve(*args)
-    Xa_nc = np.sqrt(nens-1)*Xb@trans_nc
-
-    Ji = cost(np.zeros_like(w_nc),*args)
-    Jf = cost(w_nc,*args)
+#| output: false
+    # without large-scale terms
+    #Xb_tmp = np.vstack(((nmem-1)*np.eye(Xb.shape[1]),np.zeros_like(Zb)))
+    #dv_tmp = np.zeros(Xb.shape[0]+Zb.shape[0])
+    #args_conv = (np.eye(Xb.shape[1]), Yb_conv, Zb, do_conv, dv, Xb_tmp, dv_tmp)
+    #w_conv, trans_conv = solve(*args_conv)
+    trans_conv, heinv = envar.precondition(Yb_conv)
+    args_conv = (do_conv, trans_conv, Yb_conv, heinv)
+    minimize = Minimize(nmem, envar.calc_j, jac=envar.calc_grad_j, hess=envar.calc_hess, args=args_conv)
+    z_conv, _ = minimize(np.zeros(nmem))
+    w_conv = trans_conv @ z_conv
+    Xa_conv = np.sqrt(nmem-1)*Xb_conv@trans_conv
+```
+```{python}
+    #Ji = cost(np.zeros_like(w_nc),*args)
+    #Jf = cost(w_nc,*args)
+    Ji = envar.calc_j(np.zeros_like(z_conv), *args_conv)
+    Jf = envar.calc_j(z_conv, *args_conv)
     print(f"initial cost={Ji:.4e}")
     print(f"final cost={Jf:.4e}")
 
 ```
-```{python}
-    # without large-scale terms
-    Xb_tmp = np.vstack(((nens-1)*np.eye(Xb.shape[1]),np.zeros_like(Zb)))
-    dv_tmp = np.zeros_like(dv_)
-    args_conv = (np.eye(Xb.shape[1]), Yb_conv, Zb, do_conv, dv, Xb_tmp, dv_tmp)
-    w_conv, trans_conv = solve(*args_conv)
-    Xa_conv = np.sqrt(nens-1)*Xb_conv@trans_conv
 
+```{python}
+#| output: false
+
+    #Xb_ = np.vstack(((nmem-1)*np.eye(Xb.shape[1]),la.pinv(Pv)@Zb))
+    #dv_ = np.hstack((np.zeros(Xb.shape[1]),la.pinv(Pv)@dv))
+    #args = (np.eye(Xb.shape[1]), Yb, Zb, do, dv, Xb_, dv_)
+    #w_nc, trans_nc = solve(*args)
+    #Xa_nc = np.sqrt(nmem-1)*Xb@trans_nc
+
+    Zvd = la.pinv(Zv)
+    qmat = Zvd @ Zb
+    dvtmp = Zvd @ dv
+    args_prec = (Yb, qmat)
+    trans_nc, heinv = envar_nest.precondition(*args_prec)
+    args = (do, trans_nc, Yb, dvtmp, qmat, heinv)
+    minimize = Minimize(nmem, envar_nest.calc_j, jac=envar_nest.calc_grad_j, hess=envar_nest.calc_hess, args=args)
+    z_nc, _ = minimize(np.zeros(nmem))
+    w_nc = trans_nc @ z_nc
+    Xa_nc = np.sqrt(nmem-1)*Xb@trans_nc
+```
+```{python}
+    #Ji = cost(np.zeros_like(w_nc),*args)
+    #Jf = cost(w_nc,*args)
+    Ji = envar_nest.calc_j(np.zeros_like(z_nc), *args)
+    Jf = envar_nest.calc_j(z_nc, *args)
+    print(f"initial cost={Ji:.4e}")
+    print(f"final cost={Jf:.4e}")
 ```
 
 <!---
@@ -363,17 +405,17 @@ plt.show()
 #| label: fig-nocross
 #| layout: [[2,3],[1]]
 
-    fig, ax = plt.subplots()
-    mp=ax.matshow(Xb_)
-    fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
-    ax.set_aspect(0.5)
-    plt.show()
+#    fig, ax = plt.subplots()
+#    mp=ax.matshow(Xb_)
+#    fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
+#    ax.set_aspect(0.5)
+#    plt.show()
 
-    fig, ax = plt.subplots()
-    ax.plot(dv_,np.arange(dv_.size))
-    ax.set_xlabel(r'$\tilde{d}^v$')
-    ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
-    plt.show()
+#    fig, ax = plt.subplots()
+#    ax.plot(dv_,np.arange(dv_.size))
+#    ax.set_xlabel(r'$\tilde{d}^v$')
+#    ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+#    plt.show()
 ```
 
 --->
@@ -389,8 +431,8 @@ plt.show()
 #| layout: [[1,2],[1]]
     
     fig, ax = plt.subplots(figsize=[4,6])
-    ax.plot(w_nc,np.arange(1,w_nc.size+1),label='no cross')
     ax.plot(w_conv,np.arange(1,w_nc.size+1),label='no V')
+    ax.plot(w_nc,np.arange(1,w_nc.size+1),label='no cross')
     xmin,xmax = ax.get_xlim()
     xlim = max(-xmin,xmax)
     ax.set_xlim(-xlim,xlim)
@@ -400,10 +442,10 @@ plt.show()
     plt.show()
 
     fig, ax = plt.subplots(figsize=[8,6])
-    ax.plot(Xb@w_nc,label='nocross')
-    #ax.plot(dx,ls='dashed')
     ax.plot(Xb@w_conv,label='no V')
     #ax.plot(dx_conv,ls='dashed')
+    ax.plot(Xb@w_nc,label='nocross')
+    #ax.plot(dx,ls='dashed')
     ymin,ymax = ax.get_ylim()
     ylim = max(-ymin,ymax)
     ax.set_ylim(-ylim,ylim)
@@ -413,15 +455,20 @@ plt.show()
     plt.show()
 
     fig, axs = plt.subplots(ncols=3,constrained_layout=True)
-    mp0=axs[0].matshow(Xb)
-    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
+    vlim = max(
+        np.max(Xb),-np.min(Xb),
+        np.max(Xa_conv),-np.min(Xa_conv),
+        np.max(Xa_nc),-np.min(Xa_nc)
+    )
+    mp0=axs[0].matshow(Xb,norm=Normalize(-vlim,vlim))
+    #fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
     axs[0].set_title('Xb')
-    mp1=axs[1].matshow(Xa_nc)
-    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
-    axs[1].set_title('Xa (no cross)')
-    mp2=axs[2].matshow(Xa_conv)
+    mp1=axs[1].matshow(Xa_conv,norm=Normalize(-vlim,vlim))
+    #fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
+    axs[1].set_title('Xa (no V)')
+    mp2=axs[2].matshow(Xa_nc,norm=Normalize(-vlim,vlim))
     fig.colorbar(mp2,ax=axs[2],shrink=0.6,pad=0.01)
-    axs[2].set_title('Xa (no V)')
+    axs[2].set_title('Xa (no cross)')
     plt.show()
 
     fig, axs = plt.subplots(ncols=2,constrained_layout=True)
@@ -447,7 +494,19 @@ plt.show()
         \mathbf{X}^\mathrm{b}\\
         \mathbf{Z}^\mathrm{b}
     \end{pmatrix}
-    $$
+    =\left\{\begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger\right\}^\mathrm{T}
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{pmatrix}
+        \mathbf{X}^\mathrm{b}\\
+        \mathbf{Z}^\mathrm{b}
+    \end{pmatrix}
+    $${#eq-psd-1}
     $$
     \tilde{\mathbf{d}}^\mathrm{v}
     =
@@ -458,25 +517,60 @@ plt.show()
     \begin{pmatrix}
     \mathbf{0}\\\mathbf{d}^\mathrm{v}
     \end{pmatrix}
-    $$
+    =
+    \left\{\begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger\right\}^\mathrm{T}
+    \begin{pmatrix}
+    \mathbf{X}^\mathrm{b} \\
+    \mathbf{Z}^\mathrm{v}
+    \end{pmatrix}^\dagger
+    \begin{pmatrix}
+    \mathbf{0}\\\mathbf{d}^\mathrm{v}
+    \end{pmatrix}
+    $${#eq-psd-2}
 
 ```{python}
+#| output: false
+
+    envar_nestc = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nestc",ntrunc=12,\
+    crosscov=True,ridge=True,mu=0.0,model="l05nestm")
+
+    dxc1 = np.vstack((Xb,Zv))
+    dxc2 = np.vstack((Xb,Zb))
+    u, s, vt = la.svd(dxc1)
+    ndof = int(np.sum(s>1.0e-10))
+    vsqrtinv = vt[:ndof,:].transpose() @ np.diag(1.0/s[:ndof]) @ u[:,:ndof].transpose()
+    qmat = vsqrtinv @ dxc2
+    dvtmp = vsqrtinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+    args_prec = (Yb,qmat)
+    trans, heinv = envar_nestc.precondition(*args_prec)
+    args = (do, trans, Yb, dvtmp, qmat, heinv)
+    minimize = Minimize(nmem, envar_nestc.calc_j, jac=envar_nestc.calc_grad_j, hess=envar_nestc.calc_hess, args=args)
+    z, _ = minimize(np.zeros(nmem))
+    w = trans @ z
+    Xa = np.sqrt(nmem-1)*Xb@trans
 
     Pcpinv = la.pinv(Pc,hermitian=True)
     Xb_ = Pcpinv @ np.vstack((Xb,Zb))
     dv_ = Pcpinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
-    
-    args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
-    w, trans = solve(*args)
-    Xa = np.sqrt(nens-1)*Xb@trans
-
-    Ji = cost(np.zeros_like(w),*args)
-    Jf = cost(w,*args)
+    #
+    #args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
+    #w, trans = solve(*args)
+    #Xa = np.sqrt(nmem-1)*Xb@trans
+```
+```{python}
+    Ji = envar_nestc.calc_j(np.zeros(nmem),*args)
+    Jf = envar_nestc.calc_j(z,*args)
+    #Ji = cost(np.zeros_like(w),*args)
+    #Jf = cost(w,*args)
     print(f"initial cost={Ji:.4e}")
     print(f"final cost={Jf:.4e}")
 
 ```
 
+<!---
 ```{python}
 #| fig-cap: minimum-norm solution
 #| fig-subcap:
@@ -498,6 +592,8 @@ plt.show()
     plt.show()
 
 ```
+--->
+
 ```{python}
 #| fig-cap: minimum-norm solution for $J$
 #| fig-subcap:
@@ -565,7 +661,7 @@ plt.show()
         \mathbf{X}^\mathrm{b}\\
         \mathbf{Z}^\mathrm{b}
     \end{pmatrix}
-    $$
+    $${#eq-reg-1}
     $$
     \tilde{\mathbf{d}}^\mathrm{v}
     =
@@ -579,36 +675,76 @@ plt.show()
     \begin{pmatrix}
     \mathbf{0}\\\mathbf{d}^\mathrm{v}
     \end{pmatrix}
-    $$
+    $${#eq-reg-2}
 
 ```{python}
+#| output: false
 
-    mulist = [0.001,0.01,0.1]
+    mulist = [0.0001,0.001,0.01,0.1,1.0]
+    solverlist = []
+    argslist = []
+    zlist = []
     wlist = []
     Xalist = []
     translist = []
     for mu in mulist:
         #mu = 0.01
+        envar_nestc = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nestc",ntrunc=12,\
+        crosscov=True,ridge=False,reg=True,mu=mu,model="l05nestm")
+        solverlist.append(envar_nestc)
+
+        dvtmp = np.hstack((np.zeros(Xb.shape[0]),dv))
         Pcpi = Pc+mu*np.eye(Pc.shape[0])
-        Xb_ = la.solve(Pcpi,np.vstack((Xb,Zb)))
-        dv_ = la.solve(Pcpi,np.hstack((np.zeros(Xb.shape[0]),dv)))
-    
-        args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
-        w, trans = solve(*args)
-        Xa = np.sqrt(nens-1)*Xb@trans
+        Xb_ = la.solve(Pcpi,dxc2)
+        dv_ = la.solve(Pcpi,dvtmp)
+        args_prec = (Yb, dxc2, Xb_)
+        trans, heinv = envar_nestc.precondition(*args_prec)
+        args = (do, trans, Yb, dvtmp, dv_, Xb_, dxc2, heinv)
+        minimize = Minimize(nmem, envar_nestc.calc_j, jac=envar_nestc.calc_grad_j, hess=envar_nestc.calc_hess, args=args)
+        z, _ = minimize(np.zeros(nmem))
+        w = trans @ z
+
+        #args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
+        #w, trans = solve(*args)
+        
+        Xa = np.sqrt(nmem-1)*Xb@trans
+        argslist.append(args)
+        zlist.append(z)
         wlist.append(w)
         Xalist.append(Xa)
         translist.append(trans)
-        
-        Ji = cost(np.zeros_like(w),*args)
-        Jf = cost(w,*args)
+```
+```{python}
+    Jlist = []
+    for mu, z, args, envar_nestc in zip(mulist,zlist,argslist,solverlist):
+        Ji = envar_nestc.calc_j(np.zeros(nmem),*args)
+        Jf = envar_nestc.calc_j(z,*args)
+        #Ji = cost(np.zeros_like(w),*args)
+        #Jf = cost(w,*args)
         print(f"mu={mu} initial cost={Ji:.4e}")
         print(f"mu={mu} final cost={Jf:.4e}")
-
+        Jlist.append([Ji,Jf])
 ```
 
 ```{python}
-#| fig-cap: regularized solution with $\mu$=0.1
+#| fig-cap: Sensitivity of $J$ to $\mu$
+#| label: fig-reg-cost-mu
+
+    Jarray = np.array(Jlist)
+    fig, ax = plt.subplots()
+    #ax.plot(mulist,Jarray[:,0],marker='o',ms=10,lw=0.0,label='initial')
+    ax.plot(mulist,Jarray[:,1],marker='s',ms=10,lw=0.0,label='final')
+    ax.legend()
+    ax.set_xscale('log')
+    ax.set_ylabel('J')
+    ax.set_xlabel(r'$\mu$')
+    plt.show()
+
+```
+
+<!---
+```{python}
+#| fig-cap: solution with $\mu$=1.0
 #| fig-subcap:
 #|   - $\tilde{X}^b$
 #|   - $\tilde{d}^b$
@@ -627,8 +763,10 @@ plt.show()
     ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
     plt.show()
 ```
+--->
+
 ```{python}
-#| fig-cap: regularized solution for $J$
+#| fig-cap: solution for $J$
 #| fig-subcap:
 #|   - $\mathbf{w}$
 #|   - $\delta\mathbf{x}$
@@ -661,18 +799,23 @@ plt.show()
     ax.set_ylabel('dx')
     plt.show()
 
-    fig, axs = plt.subplots(ncols=1+len(mulist),constrained_layout=True)
-    mp0=axs[0].matshow(Xb)
-    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
-    axs[0].set_title('Xb')
+    nrows = 1
+    ncols = (1+len(mulist))//nrows
+    fig, axs = plt.subplots(nrows=nrows,ncols=ncols,sharey=True,constrained_layout=True)
+    vlim = max(np.max(Xb),-np.min(Xb))
+    mp0=axs.flatten()[0].matshow(Xb,norm=Normalize(-vlim,vlim))
+    #fig.colorbar(mp0,ax=axs.flatten()[0],shrink=0.6,pad=0.01)
+    axs.flatten()[0].set_title('Xb')
     for mu, Xa in zip(mulist,Xalist):
         i=mulist.index(mu)
-        mp1=axs[i+1].matshow(Xa)
-        fig.colorbar(mp1,ax=axs[i+1],shrink=0.6,pad=0.01)
-        axs[i+1].set_title(r'Xa, $\mu$='+f'{mu}')
+        ax=axs.flatten()[i+1]
+        mp1=ax.matshow(Xa,norm=Normalize(-vlim,vlim))
+        #fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
+        ax.set_title('Xa\n'+r'$\mu$='+f'{mu}')
+    fig.colorbar(mp1,ax=axs,shrink=0.6,pad=0.1)
     plt.show()
 
-    fig, axs = plt.subplots(ncols=2,nrows=2,constrained_layout=True)
+    fig, axs = plt.subplots(ncols=3,nrows=2,constrained_layout=True)
     mp0=axs[0,0].matshow(trans_nc)
     fig.colorbar(mp0,ax=axs[0,0],shrink=0.6,pad=0.01)
     axs[0,0].set_title('trans (no cross)')
@@ -686,9 +829,9 @@ plt.show()
 
 ```
 
-3. regularization in ensemble space
+3. regularization in ensemble space (ridge regression)
     
-    The inverse of error covariance is replaced with the pseudo inverse.
+    The inverse of error covariance is replaced by the pseudo inverse.
     $$
     J(\mathbf{w})=
     \frac{K-1}{2}
@@ -723,8 +866,8 @@ plt.show()
     \mathbf{w}
     \end{bmatrix}
     +J_\mathrm{o}(\mathbf{w})
-    \underline{+\frac{\gamma}{2}\|\mathbf{w}\|^2}
-    $$
+    \underline{+J_\mathrm{r}(\mathbf{w})}
+    $${#eq-ridge-cost}
 
 ```{=tex}
 \begin{align*}
@@ -747,7 +890,7 @@ plt.show()
     \mathbf{X}^\mathrm{b}\\\mathbf{Z}^\mathrm{b}
     \end{pmatrix}
     +(\mathbf{Y}^\mathrm{b})^\mathrm{T}\mathbf{R}^{-1}\mathbf{Y}^\mathrm{b}
-    \underline{+\gamma\mathbf{I}}
+    \underline{+\nabla^2 J_\mathrm{r}}
     \end{bmatrix}
     \mathbf{w} \\
     &-
@@ -771,187 +914,374 @@ plt.show()
 \end{align*}
 ```
 
-4. Partial least square (PLS) regression
+where $J_\mathrm{r}$ is a quadratic function of $\mathbf{w}$.
 
+i) $L_2$ norm for ensemble weights
 $$
-\frac{1}{K-1}
-\begin{pmatrix}
-\mathbf{X}^\mathrm{b} \\
-\mathbf{Z}^\mathrm{v}
-\end{pmatrix}
-\begin{bmatrix}
-(\mathbf{X}^\mathrm{b})^\mathrm{T} &
-(\mathbf{Z}^\mathrm{v})^\mathrm{T}
-\end{bmatrix}\tilde{\mathbf{X}}^\mathrm{b}
-=
-\begin{pmatrix}
-    \mathbf{X}^\mathrm{b}\\
-    \mathbf{Z}^\mathrm{b}
-\end{pmatrix}
-$$
-$$
-\Rightarrow \left\{
-    \begin{matrix}
-        \frac{1}{K-1}
-        \begin{pmatrix}
-            \mathbf{X}^\mathrm{b} \\
-            \mathbf{Z}^\mathrm{v}
-        \end{pmatrix}\tilde{\tilde{\mathbf{X}}}^\mathrm{b}=
-        \begin{pmatrix}
-            \mathbf{X}^\mathrm{b}\\
-            \mathbf{Z}^\mathrm{b}
-        \end{pmatrix} \\
-        \begin{bmatrix}
-        (\mathbf{X}^\mathrm{b})^\mathrm{T} &
-        (\mathbf{Z}^\mathrm{v})^\mathrm{T}
-        \end{bmatrix}\tilde{\mathbf{X}}^\mathrm{b}=\tilde{\tilde{\mathbf{X}}}^\mathrm{b}
-    \end{matrix}
-\right.
-$$
-
-$$
-\frac{1}{K-1}
-\begin{pmatrix}
-\mathbf{X}^\mathrm{b} \\
-\mathbf{Z}^\mathrm{v}
-\end{pmatrix}
-\begin{bmatrix}
-(\mathbf{X}^\mathrm{b})^\mathrm{T} &
-(\mathbf{Z}^\mathrm{v})^\mathrm{T}
-\end{bmatrix}\tilde{\mathbf{d}}^\mathrm{v}
-=
-\begin{pmatrix}
-\mathbf{0}\\\mathbf{d}^\mathrm{v}
-\end{pmatrix}
-$$
-$$
-\Rightarrow \left\{
-    \begin{matrix}
-        \frac{1}{K-1}
-        \begin{pmatrix}
-            \mathbf{X}^\mathrm{b} \\
-            \mathbf{Z}^\mathrm{v}
-        \end{pmatrix}\tilde{\tilde{\mathbf{d}}}^\mathrm{v}=
-        \begin{pmatrix}
-        \mathbf{0}\\\mathbf{d}^\mathrm{v}
-        \end{pmatrix} \\
-        \begin{bmatrix}
-        (\mathbf{X}^\mathrm{b})^\mathrm{T} &
-        (\mathbf{Z}^\mathrm{v})^\mathrm{T}
-        \end{bmatrix}\tilde{\mathbf{d}}^\mathrm{v}=\tilde{\tilde{\mathbf{d}}}^\mathrm{v}
-    \end{matrix}
-\right.
-$$
+    J_\mathrm{r}=\frac{\gamma}{2}\|\mathbf{w}\|^2_2
+$${#eq-ridge}
 
 ```{python}
+#| output: false
 
-    from sklearn.cross_decomposition import PLSRegression
+        galist = [0.0001,0.001,0.01,0.1,1.0]
+        solverlist = []
+        argslist = []
+        zlist = []
+        wlist = []
+        Xalist = []
+        translist = []
+        for ga in galist:
+            envar_nestc = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nestc",ntrunc=12,\
+            crosscov=True,reg=False,ridge=True,mu=ga,model="l05nestm")
+            solverlist.append(envar_nestc)
 
-    nclist = [20,40,60]
-    wlist = []
-    Xalist = []
-    translist = []
-    for nc in nclist:
-        pls1 = PLSRegression(n_components=nc)
-        pls1.fit(Pc,np.hstack((np.zeros(Xb.shape[0]),dv)))
-        dv_ = pls1.coef_[0,:]
-        print(dv_.shape)
-        pls2 = PLSRegression(n_components=nc)
-        pls2.fit(Pc,np.vstack((Xb,Zb)))
-        Xb_ = pls2.coef_.T
-        print(Xb_.shape)
-        print(f"nc={nc} pls1.score={pls1.score(Pc,np.hstack((np.zeros(Xb.shape[0]),dv)))}")
-        print(f"nc={nc} pls2.score={pls2.score(Pc,np.vstack((Xb,Zb)))}")
+            qmat = vsqrtinv @ dxc2
+            dvtmp = vsqrtinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+            args_prec = (Yb,qmat)
+            trans, heinv = envar_nestc.precondition(*args_prec)
+            args = (do, trans, Yb, dvtmp, qmat, heinv)
+            minimize = Minimize(nmem, envar_nestc.calc_j, jac=envar_nestc.calc_grad_j, hess=envar_nestc.calc_hess, args=args)
+            z, _ = minimize(np.zeros(nmem))
+            w = trans @ z
 
-        args = (Xb, Yb, Zb, do, dv, Xb_, dv_)
-        w, trans = solve(*args)
-        Xa = np.sqrt(nens-1)*Xb@trans
-        wlist.append(w)
-        Xalist.append(Xa)
-        translist.append(trans)
-        
-        Ji = cost(np.zeros_like(w),*args)
-        Jf = cost(w,*args)
-        print(f"nc={nc} initial cost={Ji:.4e}")
-        print(f"nc={nc} final cost={Jf:.4e}")
+            Xa = np.sqrt(nmem-1)*Xb@trans
+            argslist.append(args)
+            zlist.append(z)
+            wlist.append(w)
+            Xalist.append(Xa)
+            translist.append(trans)
+```
+```{python}
+        Jlist = []
+        for ga, z, args, envar_nestc in zip(galist,zlist,argslist,solverlist):
+            Ji = envar_nestc.calc_j(np.zeros(nmem),*args)
+            Jf = envar_nestc.calc_j(z,*args)
+            #Ji = cost(np.zeros_like(w),*args)
+            #Jf = cost(w,*args)
+            print(f"gamma={ga} initial cost={Ji:.4e}")
+            print(f"gamma={ga} final cost={Jf:.4e}")
+            Jlist.append([Ji,Jf])
+```
+
+```{python}
+#| fig-cap: Sensitivity of $J$ to $\gamma$
+#| label: fig-ridge-cost-gamma
+
+        Jarray = np.array(Jlist)
+        fig, ax = plt.subplots()
+        #ax.plot(galist,Jarray[:,0],marker='o',ms=10,lw=0.0,label='initial')
+        ax.plot(galist,Jarray[:,1],marker='s',ms=10,lw=0.0,label='final')
+        ax.legend()
+        ax.set_xscale('log')
+        ax.set_ylabel('J')
+        ax.set_xlabel(r'$\gamma$')
+        plt.show()
 
 ```
 
 ```{python}
-#| fig-cap: PLS solution with 40 PCA modes
-#| fig-subcap:
-#|   - $\tilde{X}^b$
-#|   - $\tilde{d}^b$
-#| label: fig-pls
-#| layout: [[2,3],[1]]
-
-    fig, ax = plt.subplots()
-    mp=ax.matshow(Xb_)
-    fig.colorbar(mp,ax=ax,pad=0.01,shrink=0.6)
-    ax.set_aspect(0.5)
-    plt.show()
-
-    fig, ax = plt.subplots()
-    ax.plot(dv_,np.arange(dv_.size))
-    ax.set_xlabel(r'$\tilde{d}^v$')
-    ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
-    plt.show()
-```
-```{python}
-#| fig-cap: PLS solution for $J$
+#| fig-cap: solution for $J$
 #| fig-subcap:
 #|   - $\mathbf{w}$
 #|   - $\delta\mathbf{x}$
 #|   - Xb, Xa
 #|   - $[\nabla^2 J]^{-1/2}$
-#| label: fig-pls-cost
+#| label: fig-ridge-cost
 #| layout: [[1,2],[1]]
-    
-    fig, ax = plt.subplots(figsize=[4,6])
-    for nc, w in zip(nclist,wlist):
-        ax.plot(w,np.arange(1,w.size+1),label=f'nc={nc}')
-    ax.plot(w_nc,np.arange(1,w.size+1),label='no cross')
-    xmin,xmax = ax.get_xlim()
-    xlim = max(-xmin,xmax)
-    ax.set_xlim(-xlim,xlim)
-    ax.legend()
-    ax.set_ylabel('member')
-    ax.set_xlabel('w')
-    plt.show()
+        
+        fig, ax = plt.subplots(figsize=[4,6])
+        for ga, w in zip(galist,wlist):
+            ax.plot(w,np.arange(1,w.size+1),label=r'$\gamma$='+f'{ga}')
+        ax.plot(w_nc,np.arange(1,w.size+1),label='no cross')
+        xmin,xmax = ax.get_xlim()
+        xlim = max(-xmin,xmax)
+        ax.set_xlim(-xlim,xlim)
+        ax.legend()
+        ax.set_ylabel('member')
+        ax.set_xlabel('w')
+        plt.show()
 
-    fig, ax = plt.subplots(figsize=[8,6])
-    for nc, w in zip(nclist,wlist):
-        ax.plot(Xb@w,label=f'nc={nc}')
-    ax.plot(dx,ls='dashed',label='no cross')
-    ymin,ymax = ax.get_ylim()
-    ylim = max(-ymin,ymax)
-    ax.set_ylim(-ylim,ylim)
-    ax.legend()
-    ax.set_xlabel('grid')
-    ax.set_ylabel('dx')
-    plt.show()
+        fig, ax = plt.subplots(figsize=[8,6])
+        for ga, w in zip(galist,wlist):
+            ax.plot(Xb@w,label=r'$\gamma$='+f'{ga}')
+        ax.plot(dx,ls='dashed',label='no cross')
+        ymin,ymax = ax.get_ylim()
+        ylim = max(-ymin,ymax)
+        ax.set_ylim(-ylim,ylim)
+        ax.legend()
+        ax.set_xlabel('grid')
+        ax.set_ylabel('dx')
+        plt.show()
 
-    fig, axs = plt.subplots(ncols=1+len(mulist),constrained_layout=True)
-    mp0=axs[0].matshow(Xb)
-    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
-    axs[0].set_title('Xb')
-    for nc, Xa in zip(nclist,Xalist):
-        i=nclist.index(nc)
-        mp1=axs[i+1].matshow(Xa)
-        fig.colorbar(mp1,ax=axs[i+1],shrink=0.6,pad=0.01)
-        axs[i+1].set_title(f'Xa, nc={nc}')
-    plt.show()
+        nrows = 1
+        ncols = (1+len(galist))//nrows
+        fig, axs = plt.subplots(nrows=nrows,ncols=ncols,sharey=True,constrained_layout=True)
+        vlim = max(np.max(Xb),-np.min(Xb))
+        mp0=axs.flatten()[0].matshow(Xb,norm=Normalize(-vlim,vlim))
+        #fig.colorbar(mp0,ax=axs.flatten()[0],shrink=0.6,pad=0.01)
+        axs.flatten()[0].set_title('Xb')
+        for ga, Xa in zip(galist,Xalist):
+            i=galist.index(ga)
+            mp1=axs.flatten()[i+1].matshow(Xa,norm=Normalize(-vlim,vlim))
+            #fig.colorbar(mp1,ax=axs[i+1],shrink=0.6,pad=0.01)
+            axs.flatten()[i+1].set_title('Xa\n'+r'$\gamma$='+f'{ga}')
+        fig.colorbar(mp1,ax=axs,shrink=0.6,pad=0.1)
+        plt.show()
 
-    fig, axs = plt.subplots(ncols=2,nrows=2,constrained_layout=True)
-    mp0=axs[0,0].matshow(trans_nc)
-    fig.colorbar(mp0,ax=axs[0,0],shrink=0.6,pad=0.01)
-    axs[0,0].set_title('trans (no cross)')
-    for nc, trans in zip(nclist,translist):
-        i=nclist.index(nc)
-        ax = axs.flatten()[i+1]
-        mp1=ax.matshow(trans)
-        fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
-        ax.set_title(f'trans, nc={nc}')
-    plt.show()
+        fig, axs = plt.subplots(ncols=3,nrows=2,constrained_layout=True)
+        mp0=axs[0,0].matshow(trans_nc)
+        fig.colorbar(mp0,ax=axs[0,0],shrink=0.6,pad=0.01)
+        axs[0,0].set_title('trans (no cross)')
+        for ga, trans in zip(galist,translist):
+            i=galist.index(ga)
+            ax = axs.flatten()[i+1]
+            mp1=ax.matshow(trans)
+            fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
+            ax.set_title(r'trans, $\gamma$='+f'{ga}')
+        plt.show()
+
+```
+
+
+ii) $L_2$ norm for increments
+$$
+    J_\mathrm{r}=\frac{\gamma}{2}\|\mathbf{X}^\mathrm{b}\mathbf{w}\|^2_2
+$${#eq-ridge-dx}
+
+```{python}
+#| output: false
+
+        galist = [0.001,0.01,0.1,1.0,10.0]
+        solverlist = []
+        argslist = []
+        zlist = []
+        wlist = []
+        Xalist = []
+        translist = []
+        for ga in galist:
+            envar_nestc = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nestc",ntrunc=12,\
+            crosscov=True,reg=False,ridge=False,ridge_dx=True,mu=ga,model="l05nestm")
+            solverlist.append(envar_nestc)
+
+            qmat = vsqrtinv @ dxc2
+            dvtmp = vsqrtinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+            args_prec = (Yb,qmat,Xb)
+            trans, heinv = envar_nestc.precondition(*args_prec)
+            args = (do, trans, Yb, dvtmp, qmat, Xb, heinv)
+            minimize = Minimize(nmem, envar_nestc.calc_j, jac=envar_nestc.calc_grad_j, hess=envar_nestc.calc_hess, args=args)
+            z, _ = minimize(np.zeros(nmem))
+            w = trans @ z
+
+            Xa = np.sqrt(nmem-1)*Xb@trans
+            argslist.append(args)
+            zlist.append(z)
+            wlist.append(w)
+            Xalist.append(Xa)
+            translist.append(trans)
+```
+```{python}
+        Jlist = []
+        for ga, z, args, envar_nestc in zip(galist,zlist,argslist,solverlist):
+            Ji = envar_nestc.calc_j(np.zeros(nmem),*args)
+            Jf = envar_nestc.calc_j(z,*args)
+            #Ji = cost(np.zeros_like(w),*args)
+            #Jf = cost(w,*args)
+            print(f"gamma={ga} initial cost={Ji:.4e}")
+            print(f"gamma={ga} final cost={Jf:.4e}")
+            Jlist.append([Ji,Jf])
+```
+
+```{python}
+#| fig-cap: Sensitivity of $J$ to $\gamma$
+#| label: fig-ridge-dx-cost-gamma
+
+        Jarray = np.array(Jlist)
+        fig, ax = plt.subplots()
+        #ax.plot(galist,Jarray[:,0],marker='o',ms=10,lw=0.0,label='initial')
+        ax.plot(galist,Jarray[:,1],marker='s',ms=10,lw=0.0,label='final')
+        ax.legend()
+        ax.set_xscale('log')
+        ax.set_ylabel('J')
+        ax.set_xlabel(r'$\gamma$')
+        plt.show()
+
+```
+
+```{python}
+#| fig-cap: solution for $J$
+#| fig-subcap:
+#|   - $\mathbf{w}$
+#|   - $\delta\mathbf{x}$
+#|   - Xb, Xa
+#|   - $[\nabla^2 J]^{-1/2}$
+#| label: fig-ridge-dx-cost
+#| layout: [[1,2],[1]]
+        
+        fig, ax = plt.subplots(figsize=[4,6])
+        for ga, w in zip(galist,wlist):
+            ax.plot(w,np.arange(1,w.size+1),label=r'$\gamma$='+f'{ga}')
+        ax.plot(w_nc,np.arange(1,w.size+1),label='no cross')
+        xmin,xmax = ax.get_xlim()
+        xlim = max(-xmin,xmax)
+        ax.set_xlim(-xlim,xlim)
+        ax.legend()
+        ax.set_ylabel('member')
+        ax.set_xlabel('w')
+        plt.show()
+
+        fig, ax = plt.subplots(figsize=[8,6])
+        for ga, w in zip(galist,wlist):
+            ax.plot(Xb@w,label=r'$\gamma$='+f'{ga}')
+        ax.plot(dx,ls='dashed',label='no cross')
+        ymin,ymax = ax.get_ylim()
+        ylim = max(-ymin,ymax)
+        ax.set_ylim(-ylim,ylim)
+        ax.legend()
+        ax.set_xlabel('grid')
+        ax.set_ylabel('dx')
+        plt.show()
+
+        nrows = 1
+        ncols = (1+len(galist))//nrows
+        fig, axs = plt.subplots(nrows=nrows,ncols=ncols,sharey=True,constrained_layout=True)
+        vlim = max(np.max(Xb),-np.min(Xb))
+        mp0=axs.flatten()[0].matshow(Xb,norm=Normalize(-vlim,vlim))
+        #fig.colorbar(mp0,ax=axs.flatten()[0],shrink=0.6,pad=0.01)
+        axs.flatten()[0].set_title('Xb')
+        for ga, Xa in zip(galist,Xalist):
+            i=galist.index(ga)
+            mp1=axs.flatten()[i+1].matshow(Xa,norm=Normalize(-vlim,vlim))
+            #fig.colorbar(mp1,ax=axs[i+1],shrink=0.6,pad=0.01)
+            axs.flatten()[i+1].set_title('Xa\n'+r'$\gamma$='+f'{ga}')
+        fig.colorbar(mp1,ax=axs,shrink=0.6,pad=0.1)
+        plt.show()
+
+        fig, axs = plt.subplots(ncols=3,nrows=2,constrained_layout=True)
+        mp0=axs[0,0].matshow(trans_nc)
+        fig.colorbar(mp0,ax=axs[0,0],shrink=0.6,pad=0.01)
+        axs[0,0].set_title('trans (no cross)')
+        for ga, trans in zip(galist,translist):
+            i=galist.index(ga)
+            ax = axs.flatten()[i+1]
+            mp1=ax.matshow(trans)
+            fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
+            ax.set_title(r'trans, $\gamma$='+f'{ga}')
+        plt.show()
+
+```
+
+# Comparison in a cycled experiment (preliminary result)
+
+```{python}
+#| fig-cap: RMSE for the cycled experiment with Nested Lorenz for ignoring cross covariance, incorporating cross covariance with [@eq-psd-1;@eq-psd-2] (psd), [@eq-reg-1;@eq-reg-2] with $\mu=0.01$ (reg), and [@eq-ridge] with $\gamma=0.1$ (ridge)
+#| fig-subcap:
+#|   - analysis
+#|   - 6-h forecast
+#| label: fig-comp-rmse
+
+datadir = Path(f'work/{model}/envar_nestc_shrink_preGM_m80obs30')
+ea_nc  = np.loadtxt(datadir/'e_lam_linear_envar_nest.txt')
+ef_nc  = np.loadtxt(datadir/'ef_lam_linear_envar_nest.txt')
+ea_psd = np.loadtxt(datadir/'e_lam_linear_envar_nestc.txt')
+ef_psd = np.loadtxt(datadir/'ef_lam_linear_envar_nestc.txt')
+datadir = Path(f'work/{model}/envar_nestc_reg_shrink_preGM_m80obs30')
+ea_reg = np.loadtxt(datadir/'e_lam_linear_envar_nestc.txt')
+ef_reg = np.loadtxt(datadir/'ef_lam_linear_envar_nestc.txt')
+datadir = Path(f'work/{model}/envar_nestc_ridge_shrink_preGM_m80obs30')
+ea_ridge = np.loadtxt(datadir/'e_lam_linear_envar_nestc.txt')
+ef_ridge = np.loadtxt(datadir/'ef_lam_linear_envar_nestc.txt')
+
+t = np.arange(ea_nc.size)
+days = t * 0.25
+nspinup = 40
+fig, ax = plt.subplots()
+ax.plot(days[nspinup:],ea_nc[nspinup:],label='no cross')
+ax.plot(days[nspinup:],ea_psd[nspinup:],label='psd')
+ax.plot(days[nspinup:],ea_reg[nspinup:],label='reg')
+ax.plot(days[nspinup:],ea_ridge[nspinup:],label='ridge')
+ax.set_xlabel('days')
+ax.set_xlim(10.0,days[-1])
+ax.legend()
+plt.show()
+
+fig, ax = plt.subplots()
+ax.plot(days[nspinup:],ef_nc[nspinup:],label='no cross')
+ax.plot(days[nspinup:],ef_psd[nspinup:],label='psd')
+ax.plot(days[nspinup:],ef_reg[nspinup:],label='reg')
+ax.plot(days[nspinup:],ef_ridge[nspinup:],label='ridge')
+ax.set_xlabel('days')
+ax.set_xlim(10.0,days[-1])
+ax.legend()
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: Averaged error in state space for the cycled experiment with Nested Lorenz for ignoring cross covariance, incorporating cross covariance with [@eq-psd-1;@eq-psd-2] (psd), [@eq-reg-1;@eq-reg-2] (reg), and [@eq-ridge] (ridge)
+#| fig-subcap:
+#|   - analysis
+#|   - 6-h forecast
+#| label: fig-comp-xdmean
+
+datadir = Path(f'work/{model}/envar_nestc_shrink_preGM_m80obs30')
+xda_nc  = np.loadtxt(datadir/'xdmean_lam_linear_envar_nest.txt')
+xdf_nc  = np.loadtxt(datadir/'xdfmean_lam_linear_envar_nest.txt')
+xda_psd = np.loadtxt(datadir/'xdmean_lam_linear_envar_nestc.txt')
+xdf_psd = np.loadtxt(datadir/'xdfmean_lam_linear_envar_nestc.txt')
+datadir = Path(f'work/{model}/envar_nestc_reg_shrink_preGM_m80obs30')
+xda_reg = np.loadtxt(datadir/'xdmean_lam_linear_envar_nestc.txt')
+xdf_reg = np.loadtxt(datadir/'xdfmean_lam_linear_envar_nestc.txt')
+datadir = Path(f'work/{model}/envar_nestc_ridge_shrink_preGM_m80obs30')
+xda_ridge = np.loadtxt(datadir/'xdmean_lam_linear_envar_nestc.txt')
+xdf_ridge = np.loadtxt(datadir/'xdfmean_lam_linear_envar_nestc.txt')
+
+fig, ax = plt.subplots()
+ax.plot(ix_lam,xda_nc,label='no cross')
+ax.plot(ix_lam,xda_psd,label='psd')
+ax.plot(ix_lam,xda_reg,label='reg')
+ax.plot(ix_lam,xda_ridge,label='ridge')
+ax.set_xlabel('grid')
+ax.legend()
+plt.show()
+
+fig, ax = plt.subplots()
+ax.plot(ix_lam,xdf_nc,label='no cross')
+ax.plot(ix_lam,xdf_psd,label='psd')
+ax.plot(ix_lam,xdf_reg,label='reg')
+ax.plot(ix_lam,xdf_ridge,label='ridge')
+ax.set_xlabel('grid')
+ax.legend()
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: Final cost for the cycled experiment with Nested Lorenz for ignoring cross covariance, incorporating cross covariance with [@eq-psd-1;@eq-psd-2] (psd), [@eq-reg-1;@eq-reg-2] (reg), and [@eq-ridge] (ridge)
+#| label: fig-comp-cost
+
+datadir = Path(f'work/{model}/envar_nestc_shrink_preGM_m80obs30')
+j_nc  = np.loadtxt(datadir/f'{model}_lam_jh_linear_envar_nest.txt')
+j_psd = np.loadtxt(datadir/f'{model}_lam_jh_linear_envar_nestc.txt')
+datadir = Path(f'work/{model}/envar_nestc_reg_shrink_preGM_m80obs30')
+j_reg = np.loadtxt(datadir/f'{model}_lam_jh_linear_envar_nestc.txt')
+datadir = Path(f'work/{model}/envar_nestc_ridge_shrink_preGM_m80obs30')
+j_ridge = np.loadtxt(datadir/f'{model}_lam_jh_linear_envar_nestc.txt')
+
+cycles = np.arange(j_nc.shape[0]) + 1
+fig, axs = plt.subplots(nrows=2,sharex=True)
+axs[0].plot(cycles,j_nc[:,0]+j_nc[:,2],label='no cross (Jb + Jv)')
+axs[0].plot(cycles,j_psd[:,0],label='psd (Jbv)')
+axs[0].plot(cycles,j_reg[:,0],label='reg (Jbv)')
+axs[0].plot(cycles,j_ridge[:,0],label='ridge (Jbv)')
+axs[0].set_ylabel('background')
+axs[1].plot(cycles,j_nc[:,1],label='no cross')
+axs[1].plot(cycles,j_psd[:,1],label='psd')
+axs[1].plot(cycles,j_reg[:,1],label='reg')
+axs[1].plot(cycles,j_ridge[:,1],label='ridge')
+axs[1].set_ylabel('observation')
+axs[1].set_xlabel('grid')
+axs[0].legend()
+plt.show()
 
 ```

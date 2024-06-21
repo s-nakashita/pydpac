@@ -253,7 +253,7 @@ for pt in perts:
     if ix_gm[i1]>ix_lam[-1]: i1-=1
     tmp_lam2gm = interp1d(ix_lam,np.eye(ix_lam.size),axis=0)
     JH2 = tmp_lam2gm(ix_gm[i0:i1+1])
-    for icycle in range(40,50):
+    for icycle in range(40,na):
         xt1 = xt[icycle]
         xagm1 = xagm[icycle]
         xalam1 = xalam[icycle]

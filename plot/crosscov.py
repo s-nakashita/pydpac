@@ -27,7 +27,7 @@ datadir = Path(f'work/{model}')
 #preGMpt = 'envar'
 #dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 #lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
-lamdir  = datadir / 'envar_nestc_shrink_preGM_m80obs30'
+lamdir  = datadir / 'envar_nestc_reg_shrink_preGM_m80obs30'
 
 perts = ["envar_nest","envar_nestc","mlef_nest","mlef_nestc"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "envar_nestc":"Nested EnVar_c", "var":"3DVar", "var_nest":"Nested 3DVar"}
