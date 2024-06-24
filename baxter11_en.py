@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 import sys
 import os
 
-figdir_parent = Path.cwd() / Path('work/baxter11_en.3')
+figdir_parent = Path.cwd() / Path('work/baxter11_en.c_ridge')
 #figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11_en.2')
 if not figdir_parent.exists():
     figdir_parent.mkdir(parents=True)
@@ -93,17 +93,17 @@ if len(sys.argv)>2:
 nobs = obsloc.size
 obsope = Obs('linear',sigo,ix=ix_t,seed=509)
 obsope_gm = Obs('linear',sigo,ix=ix_gm)
-#obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
-obsope_lam = Obs('linear',sigo,ix=ix_lam,icyclic=False)
+obsope_lam = Obs('linear',sigo,ix=ix_lam[1:-1],icyclic=False)
+#obsope_lam = Obs('linear',sigo,ix=ix_lam,icyclic=False)
 envar_gm = EnVAR(nx_gm, nmem, obsope_gm, model="b11")
-#envar_lam = EnVAR(nx_lam-2, nmem, obsope_lam, model="b11")
-#envar_nest = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False, model="b11")
-#envar_nestc = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False,\
-#    crosscov=True, pt="envar_nestc", model="b11")
-envar_lam = EnVAR(nx_lam, nmem, obsope_lam, model="b11")
-envar_nest = EnVAR_nest(nx_lam, nmem, obsope_lam, ix_gm, ix_lam, ntrunc=7, cyclic=False, model="b11")
-envar_nestc = EnVAR_nest(nx_lam, nmem, obsope_lam, ix_gm, ix_lam, ntrunc=7, cyclic=False,\
+envar_lam = EnVAR(nx_lam-2, nmem, obsope_lam, model="b11")
+envar_nest = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False, model="b11")
+envar_nestc = EnVAR_nest(nx_lam-2, nmem, obsope_lam, ix_gm, ix_lam[1:-1], ntrunc=7, cyclic=False,\
     crosscov=True, pt="envar_nestc", model="b11")
+#envar_lam = EnVAR(nx_lam, nmem, obsope_lam, model="b11")
+#envar_nest = EnVAR_nest(nx_lam, nmem, obsope_lam, ix_gm, ix_lam, ntrunc=7, cyclic=False, model="b11")
+#envar_nestc = EnVAR_nest(nx_lam, nmem, obsope_lam, ix_gm, ix_lam, ntrunc=7, cyclic=False,\
+#    crosscov=True, pt="envar_nestc", model="b11")
 
 ## random seed
 rng = default_rng(517)
@@ -246,12 +246,12 @@ while itrial < ntrial:
     ua_lam_nest = u_lam.copy()
     ua_lam_nestc = u_lam.copy()
     ua_gm, _, _, _, _, _ = envar_gm(u_gm, X0_gm, yobs, obsloc)
-#    ua_lam[1:-1], _, _, _, _, _ = envar_lam(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc)
-#    ua_lam_nest[1:-1], _, _, _, _, _ = envar_nest(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm, save_dh=save_dh)
-#    ua_lam_nestc[1:-1], _, _, _, _, _ = envar_nestc(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm)
-    ua_lam, _, _, _, _, _ = envar_lam(u_lam, X0_lam, yobs, obsloc)
-    ua_lam_nest, _, _, _, _, _ = envar_nest(u_lam, X0_lam, yobs, obsloc, u_gm, save_dh=save_dh)
-    ua_lam_nestc, _, _, _, _, _ = envar_nestc(u_lam, X0_lam, yobs, obsloc, u_gm)
+    ua_lam[1:-1], _, _, _, _, _ = envar_lam(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc)
+    ua_lam_nest[1:-1], _, _, _, _, _ = envar_nest(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm, save_dh=save_dh)
+    ua_lam_nestc[1:-1], _, _, _, _, _ = envar_nestc(u_lam[1:-1], X0_lam[1:-1], yobs, obsloc, u_gm)
+#    ua_lam, _, _, _, _, _ = envar_lam(u_lam, X0_lam, yobs, obsloc)
+#    ua_lam_nest, _, _, _, _, _ = envar_nest(u_lam, X0_lam, yobs, obsloc, u_gm, save_dh=save_dh)
+#    ua_lam_nestc, _, _, _, _, _ = envar_nestc(u_lam, X0_lam, yobs, obsloc, u_gm)
 
     if save_dh:
         spftmp = np.load("b11_spf_linear_envar_nest_cycle0.npy")

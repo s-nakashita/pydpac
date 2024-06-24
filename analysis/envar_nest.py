@@ -21,7 +21,7 @@ class EnVAR_nest():
 
     def __init__(self, state_size, nmem, obs, ix_gm, ix_lam,
         pt="envar_nest", ntrunc=None, ftrunc=None, cyclic=False, 
-        crosscov=False, ridge=False, ridge_dx=False, reg=True, mu=0.01,
+        crosscov=False, ridge=True, ridge_dx=False, reg=False, mu=0.1,
         nvars=1, ndims=1, 
         linf=False, infl_parm=1.0, infl_parm_lrg=1.0,
         iloc=None, lsig=-1.0, ss=False, getkf=False,
@@ -93,6 +93,9 @@ class EnVAR_nest():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig} infl_parm_lrg={self.infl_parm_lrg}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         logger.info(f"crosscov={self.crosscov}")
+        if self.crosscov:
+            logger.info(f"ridge={self.ridge} ridge_dx={self.ridge_dx} reg={self.reg}")
+            logger.info(f"mu={self.mu}")
         if self.iloc is not None:
           #if self.iloc <= 0:
           #  from .lmlef import Lmlef

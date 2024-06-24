@@ -52,7 +52,7 @@ class Trunc1d:
             #    nx += 2*nghost
             self.F = fft.fft(np.eye(self.nx),axis=0)
             self.f = fft.fftfreq(self.nx,self.dx)*2.0*np.pi
-            logger.info(f"Trunc1d: f={self.f}")
+            logger.debug(f"Trunc1d: f={self.f}")
             if self.ftrunc is None:
                 if self.ntrunc is not None:
                     self.ftrunc = self.f[self.ntrunc]
@@ -125,7 +125,7 @@ class Trunc1d:
             self.E = np.eye(self.nx)
             self.F = fft.dst(np.eye(self.E.shape[0]),type=2,axis=0)
             self.f = np.arange(1,self.F.shape[0]+1)*np.pi/self.dx/self.nx
-            logger.info(f"Trunc1d: f={self.f}")
+            logger.debug(f"Trunc1d: f={self.f}")
             if self.ftrunc is None:
                 if self.ntrunc is not None:
                     self.ftrunc = self.f[self.ntrunc]
@@ -163,7 +163,7 @@ class Trunc1d:
                     self.T *= self.dx / self.dx_trunc
                 else:
                     self.T[self.ntrunc:] = 0.
-            logger.info(f"Trunc1d: f_trunc={self.f_trunc}")
+            logger.debug(f"Trunc1d: f_trunc={self.f_trunc}")
             self.Fi = fft.idst(np.eye(self.T.shape[0]),type=2,axis=0)
             ##if self.cyclic:
             #self.Ei = np.zeros((self.ix_trunc.size,self.Fi.shape[0]))
@@ -177,7 +177,7 @@ class Trunc1d:
             self.E = np.eye(self.nx)
             self.F = fft.dct(np.eye(self.E.shape[0]),axis=0,norm='forward',type=2)
             self.f = np.arange(self.F.shape[0])*np.pi/self.dx/self.nx
-            logger.info(f"Trunc1d: f={self.f}")
+            logger.debug(f"Trunc1d: f={self.f}")
             if self.ftrunc is None:
                 if self.ntrunc is not None:
                     self.ftrunc = self.f[self.ntrunc]
@@ -214,7 +214,7 @@ class Trunc1d:
                     #self.T *= dx / self.dx_trunc
                 else:
                     self.T[self.ntrunc:] = 0.
-            logger.info(f"Trunc1d: f_trunc={self.f_trunc}")
+            logger.debug(f"Trunc1d: f_trunc={self.f_trunc}")
             self.Fi = fft.idct(np.eye(self.T.shape[0]),axis=0,norm='forward',type=2)
             self.Ei = np.eye(self.ix_trunc.size)
         logger.info(f"Trunc1d: T.shape={self.T.shape}")

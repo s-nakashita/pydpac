@@ -36,7 +36,7 @@ ix_t = np.loadtxt("ix_true.txt")
 ix_gm = np.loadtxt("ix_gm.txt")
 ix_lam = np.loadtxt("ix_lam.txt")
 ntrunc = 12
-trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='s',cyclic=False) #,resample=False)
+trunc_operator = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='c',cyclic=False) #,resample=False)
 ix_trunc = trunc_operator.ix_trunc #[1:-1]
 trunc_operator_test = Trunc1d(ix_lam,ntrunc=ntrunc,ttype='c',cyclic=False) #,resample=False)
 ttest = trunc_operator_test.tname[trunc_operator_test.ttype]
@@ -253,7 +253,7 @@ for pt in perts:
     if ix_gm[i1]>ix_lam[-1]: i1-=1
     tmp_lam2gm = interp1d(ix_lam,np.eye(ix_lam.size),axis=0)
     JH2 = tmp_lam2gm(ix_gm[i0:i1+1])
-    for icycle in range(40,na):
+    for icycle in range(40,min(100,na)):
         xt1 = xt[icycle]
         xagm1 = xagm[icycle]
         xalam1 = xalam[icycle]
@@ -291,10 +291,14 @@ for pt in perts:
     ## error cross-covariance evaluation
     xdv = trunc_operator_test(xdfgm.transpose()).transpose()
     print(xdv.shape)
+    xdv2 = trunc_operator_test(xdflam.transpose()).transpose()
     ns = 40
-    vlim = max(np.max(xdflam[ns:,:]),-np.min(xdflam[ns:,:]),\
-        np.max(xdv[ns:,:]),-np.min(xdv[ns:,:]))
-    fig, axs = plt.subplots(ncols=2,figsize=[8,6],constrained_layout=True)
+    vlim = max(
+        np.max(xdflam[ns:,:]),-np.min(xdflam[ns:,:]),\
+        np.max(xdv[ns:,:]),-np.min(xdv[ns:,:]),\
+        np.max(xdv2[ns:,:]),-np.min(xdv2[ns:,:])
+        )
+    fig, axs = plt.subplots(ncols=3,figsize=[10,6],constrained_layout=True)
     mp0 = axs[0].pcolormesh(ix_lam,t,xdflam, shading='auto', \
     cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
     nx=ix_lam.size
@@ -307,7 +311,12 @@ for pt in perts:
     axs[1].set_xticks(ix_trunc[::(nx//5)])
     axs[1].set_yticks(t[::max(1,na//8)])
     axs[1].set_title(r"$\varepsilon^\mathrm{v}$")
-    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
+    mp2 = axs[2].pcolormesh(ix_trunc,t,xdv2, shading='auto', \
+    cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
+    axs[2].set_xticks(ix_trunc[::(nx//5)])
+    axs[2].set_yticks(t[::max(1,na//8)])
+    axs[2].set_title(r"$H_2(\varepsilon^\mathrm{b})$")
+    fig.colorbar(mp2,ax=axs[2],shrink=0.6,pad=0.01)
     fig.suptitle(pt)
     fig.savefig("{}_xdcomp_{}_{}.png".format(model,op,pt))
     B = np.dot(xdflam[ns:,:].transpose(),xdflam[ns:,:])/float(na-ns)
@@ -331,3 +340,74 @@ for pt in perts:
     fig2.savefig("{}_errcov_{}_{}_{}.png".format(model,op,pt,ttest))
     plt.show()
     plt.close()
+    #
+    H2BH2 = np.dot(xdv2[ns:,:].transpose(),xdv2[ns:,:])/float(na-ns)
+    trV = np.trace(V)
+    trH2BH2 = np.trace(H2BH2)
+    H2BV = np.dot(xdv2[ns:,:].transpose(),xdv[ns:,:])/float(na-ns)
+    trH2BV = np.trace(H2BV)
+    coef_a = trH2BV / trH2BH2
+    res = xdv - coef_a*xdv2
+    vlim = max(
+        np.max(xdv[ns:,:]),-np.min(xdv[ns:,:]),\
+        np.max(coef_a*xdv2[ns:,:]),-np.min(coef_a*xdv2[ns:,:])
+        )
+    fig, axs = plt.subplots(ncols=3,figsize=[10,6],constrained_layout=True)
+    mp0 = axs[0].pcolormesh(ix_trunc,t,xdv, shading='auto', \
+    cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
+    nx=ix_lam.size
+    axs[0].set_xticks(ix_lam[::(nx//6)])
+    axs[0].set_yticks(t[::max(1,na//8)])
+    axs[0].set_title(r"$\varepsilon^\mathrm{v}$")
+    mp1 = axs[1].pcolormesh(ix_trunc,t,coef_a*xdv2, shading='auto', \
+    cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
+    nx=ix_trunc.size
+    axs[1].set_xticks(ix_trunc[::(nx//5)])
+    axs[1].set_yticks(t[::max(1,na//8)])
+    axs[1].set_title(r"$aH_2(\varepsilon^\mathrm{b})$ "+f"a={coef_a:.3e}")
+    mp2 = axs[2].pcolormesh(ix_trunc,t,res, shading='auto', \
+    cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
+    axs[2].set_xticks(ix_trunc[::(nx//5)])
+    axs[2].set_yticks(t[::max(1,na//8)])
+    axs[2].set_title(r"$\eta=\varepsilon^\mathrm{v}-aH_2(\varepsilon^\mathrm{b})$")
+    fig.colorbar(mp2,ax=axs[2],shrink=0.6,pad=0.01)
+    fig.suptitle(pt)
+    fig.savefig("{}_xddecomp_{}_{}.png".format(model,op,pt))
+    #
+    H2Bres = np.dot(xdv2[ns:,:].transpose(),res[ns:,:])/float(na-ns)
+    resmat = np.dot(res[ns:,:].transpose(),res[ns:,:])/float(na-ns)
+    fig2, axs2 = plt.subplots(nrows=2,ncols=3,figsize=[10,6],constrained_layout=True)
+    vlim = np.mean(np.diag(V))
+    mp00 = axs2[0,0].matshow(V,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp00,ax=axs2[0,0],shrink=0.6,pad=0.01)
+    axs2[0,0].set_title(r'$\langle\varepsilon^\mathrm{v}(\varepsilon^\mathrm{v})^\mathrm{T}\rangle$')
+    vlim = np.mean(np.diag(H2BH2))*coef_a*coef_a
+    mp01 = axs2[0,1].matshow(coef_a*coef_a*H2BH2,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp01,ax=axs2[0,1],shrink=0.6,pad=0.01)
+    axs2[0,1].set_title(r'$a^2\langle H_2(\varepsilon^\mathrm{b})(H_2(\varepsilon^\mathrm{b}))^\mathrm{T}\rangle$')
+    vlim = np.mean(np.diag(H2Bres))*coef_a
+    mp02 = axs2[0,2].matshow(coef_a*H2Bres,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp02,ax=axs2[0,2],shrink=0.6,pad=0.01)
+    axs2[0,2].set_title(r'$a\langle H_2(\varepsilon^\mathrm{b})\eta^\mathrm{T}\rangle$')
+    vlim = np.mean(np.diag(resmat))
+    mp12 = axs2[1,2].matshow(resmat,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp12,ax=axs2[1,2],shrink=0.6,pad=0.01)
+    axs2[1,2].set_title(r'$\langle \eta\eta^\mathrm{T}\rangle$')
+    summat = coef_a*coef_a*H2BH2 + resmat
+    vlim = np.mean(np.diag(V))
+    mp11 = axs2[1,1].matshow(summat,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    axs2[1,1].set_title('sum')
+    vlim = max(np.max(summat-V),-np.min(summat-V))
+    mp10 = axs2[1,0].matshow(summat - V, \
+        cmap='PiYG', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp10,ax=axs2[1,0],shrink=0.6,pad=0.01)
+    axs2[1,0].set_title('diff')
+    fig2.suptitle(pt+r' $\varepsilon^\mathrm{v}=aH_2(\varepsilon^\mathrm{b})+\eta$')
+    fig2.savefig("{}_errcov_decomp_{}_{}_{}.png".format(model,op,pt,ttest))
+    plt.close()
+    

@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator, FixedFormatter
-from nmc_tools import psd, wnum2wlen, wlen2wnum
+from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
 from pathlib import Path
 
 plt.rcParams['font.size'] = 16
@@ -25,7 +25,7 @@ datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_shrink_preGM_m80obs30'
+lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_m80obs30'
 
 perts = ["envar", "envar_nest","var","var_nest"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
@@ -45,6 +45,9 @@ ix_lam_rad = ix_lam * 2.0 * np.pi / nx_t
 Lx_gm = 2.0 * np.pi
 #dwindow = (1.0 + np.cos(np.pi*np.arange(1,nghost+1)/nghost))*0.5
 Lx_lam = 2.0 * np.pi * nx_lam / nx_t
+nmc_t = NMC_tools(ix_t_rad,cyclic=True,ttype='c')
+nmc_gm = NMC_tools(ix_gm_rad,cyclic=True,ttype='c')
+nmc_lam = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 
 fig, ax = plt.subplots(figsize=[10,5],constrained_layout=True)
 figsp, axsp = plt.subplots(figsize=[10,6],constrained_layout=True)
@@ -60,7 +63,7 @@ xt = np.load(f)[:na,]
 print(xt.shape)
 nx_t = xt.shape[1]
 xt2x = interp1d(ix_t,xt)
-wnum_t, psd_bg = psd(xt,ix_t_rad,axis=1)
+wnum_t, psd_bg = nmc_t.psd(xt,axis=1)
 axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
 
 # GM
@@ -75,7 +78,7 @@ xagm = np.load(f)
 xdgm = xagm - xt2x(ix_gm)
 ax.plot(ix_gm, np.sqrt(np.mean(xdgm**2,axis=0)),\
     c='gray',lw=4.0,label='GM')
-wnum_gm, psd_gm = psd(xdgm,ix_gm_rad,axis=1)
+wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
 axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
 # downscaling
@@ -90,8 +93,7 @@ xadscl = np.load(f)
 xddscl = xadscl - xt2x(ix_lam)
 ax.plot(ix_lam, np.sqrt(np.mean(xddscl**2,axis=0)),\
     c='k',lw=2.0,label='downscaling')
-wnum, psd_dscl, xdetrend = psd(xddscl,ix_lam_rad,axis=1,\
-    cyclic=False,nghost=0,detrend=True,average=False)
+wnum, psd_dscl = nmc_lam.psd(xddscl,axis=1,average=False)
 axsp.loglog(wnum,psd_dscl.mean(axis=0),c='k',lw=2.0,label='Downscaling')
 psd_dict["dscl"] = psd_dscl
 #f = dscldir/"xsalam_{}_{}.npy".format(op,preGMpt)
@@ -111,8 +113,7 @@ for pt in perts:
     xdlam = xalam - xt2x(ix_lam)
     ax.plot(ix_lam,np.sqrt(np.mean(xdlam**2,axis=0)),\
     c=linecolor[pt],lw=2.0,label=labels[pt])
-    wnum, psd_lam, xdetrend = psd(xdlam,ix_lam_rad,axis=1,\
-    cyclic=False,nghost=0,detrend=True,average=False)
+    wnum, psd_lam = nmc_lam.psd(xdlam,axis=1,average=False)
     axsp.loglog(wnum,psd_lam.mean(axis=0),\
         c=linecolor[pt],lw=2.0,label=labels[pt])
     psd_dict[pt] = psd_lam

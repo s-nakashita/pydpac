@@ -151,6 +151,10 @@ else:
 params_lam["ntrunc"]    = 12    # (For var_nest & envar_nest) truncation number for GM error covariance
 params_lam["infl_parm_lrg"] = -1.0  # (For envar_nest) inflation parameter for GM error covariance
 params_lam["crosscov"]  = False     # (For var_nest & envar_nest) whether correlation between GM and LAM is considered or not
+params_lam["ridge"]     = True  # (For envar_nestc) ridge regression
+params_lam["ridge_dx"]  = False 
+params_lam["reg"]       = False
+params_lam["hyper_mu"]  = 0.1
 params_lam["preGM"]     = False # using precomputed GM forecasts as LBC
 params_lam["preGMdir"]  = './'
 params_lam["preGMda"]   = "mlef"
@@ -300,7 +304,9 @@ elif pt == "envar_nest" or pt == "envar_nestc":
     if params_lam["anlsp"]:
         analysis_lam = EnVAR_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
-            crosscov=params_lam["crosscov"], pt=pt, \
+            crosscov=params_lam["crosscov"], ridge=params_lam["ridge"],\
+            ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
+            pt=pt, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
@@ -309,7 +315,9 @@ elif pt == "envar_nest" or pt == "envar_nestc":
     else:
         analysis_lam = EnVAR_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
-            crosscov=params_lam["crosscov"], pt=pt, \
+            crosscov=params_lam["crosscov"], ridge=params_lam["ridge"],\
+            ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
+            pt=pt, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \

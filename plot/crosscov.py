@@ -27,7 +27,7 @@ datadir = Path(f'work/{model}')
 #preGMpt = 'envar'
 #dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 #lamdir  = datadir / 'var_vs_envar_preGM_m80obs30'
-lamdir  = datadir / 'envar_nestc_reg_shrink_preGM_m80obs30'
+lamdir  = datadir / 'envar_nestc_shrink_preGM_m80obs30'
 
 perts = ["envar_nest","envar_nestc","mlef_nest","mlef_nestc"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "envar_nestc":"Nested EnVar_c", "var":"3DVar", "var_nest":"Nested 3DVar"}
@@ -183,34 +183,43 @@ for pt in perts:
             plt.show(block=False)
             plt.close()
 
-            Pc00 = pftmp
-            Pc01 = ctmp
-            Pc10 = ctmp.T
-            Pc11 = vtmp
+            #Pc00 = pftmp
+            #Pc01 = ctmp
+            #Pc10 = ctmp.T
+            #Pc11 = vtmp
+            Pc00 = vtmp
+            Pc01 = ctmp.T
+            Pc10 = ctmp
+            Pc11 = pftmp
             Pc = np.hstack((np.vstack((Pc00,Pc10)),np.vstack((Pc01,Pc11))))
             # Schur complement of Pf
             fig, axs = plt.subplots(figsize=[8,8],nrows=2,ncols=2,constrained_layout=True)
             ubn = eb @ np.diag(1.0/sb)
             uvn = ev @ np.diag(1.0/sv)
-            tmp = np.eye(sv.size) - cvt@cb@cbt@cv
+            #tmp = np.eye(sv.size) - cvt@cb@cbt@cv
+            tmp = np.eye(sb.size) - cbt@cv@cvt@cb
             #Q = uvn @ tmp @ uvn.transpose()
             #Qpinv = uvn @ np.linalg.pinv(tmp) @ uvn.transpose()
             Pc00i = np.linalg.pinv(Pc00,hermitian=True)
             Q = Pc11 - Pc10 @ Pc00i @ Pc01
             Qpinv = np.linalg.pinv(Q, hermitian=True)
-            Qpinv[:,:] = 0.0
-            axs[0,0].set_title(r'$\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T}$',fontsize=16)
-            mp00 = axs[0,0].matshow(cb@cbt,cmap='bwr',norm=Normalize(-vlim,vlim))
+            #Qpinv[:,:] = 0.0
+            #axs[0,0].set_title(r'$\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T}$',fontsize=16)
+            #mp00 = axs[0,0].matshow(cb@cbt,cmap='bwr',norm=Normalize(-vlim,vlim))
+            axs[0,0].set_title(r'$\mathbf{C}_\mathrm{v}\mathbf{C}_\mathrm{v}^\mathrm{T}$',fontsize=16)
+            mp00 = axs[0,0].matshow(cv@cvt,cmap='bwr',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp00,ax=axs[0,0],shrink=0.6,pad=0.01)
             axs[0,1].set_title(r'$\mathbf{C}_\mathrm{v}^\mathrm{T}\mathbf{C}_\mathrm{b}$',fontsize=16)
             mp01 = axs[0,1].matshow(cvt@cb,cmap='bwr',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp01,ax=axs[0,1],shrink=0.6,pad=0.01)
             vlim = max(np.max(Q),-np.min(Q))
-            axs[1,0].set_title('Schur\n'+r'$\mathbf{E}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}\mathbf{C}_\mathrm{v}^\mathrm{T}(\mathbf{I}-\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T})\mathbf{C}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}\mathbf{E}_\mathrm{v}^\mathrm{T}$',fontsize=12)
+            #axs[1,0].set_title('Schur\n'+r'$\mathbf{E}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}\mathbf{C}_\mathrm{v}^\mathrm{T}(\mathbf{I}-\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T})\mathbf{C}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}\mathbf{E}_\mathrm{v}^\mathrm{T}$',fontsize=12)
+            axs[1,0].set_title('Schur\n'+r'$\mathbf{E}_\mathrm{b}\mathbf{\Sigma}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T}(\mathbf{I}-\mathbf{C}_\mathrm{v}\mathbf{C}_\mathrm{v}^\mathrm{T})\mathbf{C}_\mathrm{b}\mathbf{\Sigma}_\mathrm{b}\mathbf{E}_\mathrm{b}^\mathrm{T}$',fontsize=12)
             mp10 = axs[1,0].matshow(Q,cmap='bwr',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp10,ax=axs[1,0],shrink=0.6,pad=0.01)
             vlim = max(np.max(Qpinv),-np.min(Qpinv))
-            axs[1,1].set_title('Schur mpinv\n'+r'$\mathbf{E}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}^{-1}\mathbf{C}_\mathrm{v}^\mathrm{T}(\mathbf{I}-\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T})^{-1}\mathbf{C}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}^{-1}\mathbf{E}_\mathrm{v}^\mathrm{T}$',fontsize=12)
+            #axs[1,1].set_title('Schur mpinv\n'+r'$\mathbf{E}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}^{-1}\mathbf{C}_\mathrm{v}^\mathrm{T}(\mathbf{I}-\mathbf{C}_\mathrm{b}\mathbf{C}_\mathrm{b}^\mathrm{T})^{-1}\mathbf{C}_\mathrm{v}\mathbf{\Sigma}_\mathrm{v}^{-1}\mathbf{E}_\mathrm{v}^\mathrm{T}$',fontsize=12)
+            axs[1,1].set_title('Schur mpinv\n'+r'$\mathbf{E}_\mathrm{b}\mathbf{\Sigma}_\mathrm{b}^{-1}\mathbf{C}_\mathrm{b}^\mathrm{T}(\mathbf{I}-\mathbf{C}_\mathrm{v}\mathbf{C}_\mathrm{v}^\mathrm{T})^{-1}\mathbf{C}_\mathrm{b}\mathbf{\Sigma}_\mathrm{b}^{-1}\mathbf{E}_\mathrm{b}^\mathrm{T}$',fontsize=12)
             mp11 = axs[1,1].matshow(Qpinv,cmap='bwr',norm=Normalize(-vlim,vlim))
             fig.colorbar(mp11,ax=axs[1,1],shrink=0.6,pad=0.01)
             fig.suptitle(f"cycle={icycle}")

@@ -61,7 +61,7 @@ class Var_nest():
         self.a_v = a_v # correlation function shape parameter
         self.ntrunc = ntrunc # truncation number for GM
         self.ftrunc = ftrunc # truncation wavenumber for GM
-        self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='s',nghost=0)
+        self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='c',nghost=0)
         self.ix_trunc = self.trunc_operator.ix_trunc
         self.nv = self.ix_trunc.size
         self.corrfuncv = Corrfunc(self.lv,a=self.a_v)

@@ -191,7 +191,7 @@ def solve(*args):
 
 ```{python}
 model = "l05nestm"
-datadir = Path(f'/Volumes/nakashita/Development/pydpac/work/{model}/envar_nestc_shrink_preGM_m80obs30')
+datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
 ix_gm = np.loadtxt(datadir/"ix_gm.txt")
 ix_lam = np.loadtxt(datadir/"ix_lam.txt")
 def loaddata(icycle,pt):
@@ -1191,15 +1191,15 @@ $${#eq-ridge-dx}
 #|   - 6-h forecast
 #| label: fig-comp-rmse
 
-datadir1 = Path(f'/Volumes/nakashita/Development/pydpac/work/{model}/envar_nestc_shrink_preGM_m80obs30')
+datadir1 = Path(f'work/{model}/envar_nestc_shrink_preGM_m80obs30')
 ea_nc  = np.loadtxt(datadir1/'e_lam_linear_envar_nest.txt')
 ef_nc  = np.loadtxt(datadir1/'ef_lam_linear_envar_nest.txt')
 ea_psd = np.loadtxt(datadir1/'e_lam_linear_envar_nestc.txt')
 ef_psd = np.loadtxt(datadir1/'ef_lam_linear_envar_nestc.txt')
-datadir2 = Path(f'/Volumes/nakashita/Development/pydpac/work/{model}/envar_nestc_reg_shrink_preGM_m80obs30')
+datadir2 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_reg0.01_shrink_preGM_m80obs30')
 ea_reg = np.loadtxt(datadir2/'e_lam_linear_envar_nestc.txt')
 ef_reg = np.loadtxt(datadir2/'ef_lam_linear_envar_nestc.txt')
-datadir3 = Path(f'/Volumes/nakashita/Development/pydpac/work/{model}/envar_nestc_ridge_shrink_preGM_m80obs30')
+datadir3 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_ridge0.1_shrink_preGM_m80obs30')
 ea_ridge = np.loadtxt(datadir3/'e_lam_linear_envar_nestc.txt')
 ef_ridge = np.loadtxt(datadir3/'ef_lam_linear_envar_nestc.txt')
 

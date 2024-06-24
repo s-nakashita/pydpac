@@ -5,15 +5,15 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var_nest var envar_nest envar"
+#perturbations="var_nest var envar_nest envar"
 #perturbations="mlef"
-#perturbations="envar_nestc"
+perturbations="envar_nestc"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=1000 # Number of assimilation cycle
+na=100 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -27,22 +27,25 @@ opt=0
 functype=gc5
 #a=-0.1
 ntrunc=12
+hyper_mu=0.001
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
-exp="var_vs_envar_shrink_dct_preGM_m${nmem}obs${nobs}"
+#exp="var_vs_envar_shrink_dct_preGM_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
-#exp="envar_nestc_reg_shrink_preGM_m${nmem}obs${nobs}"
+exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
 #exp="envar_nestc_shrink_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
+ddir=${cdir}/work/${model}
+ddir=/Volumes/FF520/nested_envar/data/${model}
 preGM=True
 preGMda="envar"
-preGMdir="${cdir}/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}"
-#preGMdir="${cdir}/work/${model}/${preGMda}_dscl_m${nmem}obs${nobs}"
-#preGMdir="${cdir}/work/${model}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
-wdir=work/${model}/${exp}
+preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
+#preGMdir="${ddir}/${preGMda}_dscl_m${nmem}obs${nobs}"
+#preGMdir="${ddir}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
+wdir=${ddir}/${exp}
 rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
@@ -112,6 +115,12 @@ for op in ${operators}; do
 #    #gsed -i -e "6i \ \"lb\":4," config_lam.py
 #    fi
     gsed -i -e "6i \ \"ntrunc\":${ntrunc}," config_lam.py
+    if [ $pert = envar_nestc ]; then
+      #gsed -i -e "6i \ \"ridge\":True," config_lam.py
+      gsed -i -e "6i \ \"ridge\":False," config_lam.py
+      gsed -i -e "6i \ \"reg\":True," config_lam.py
+      gsed -i -e "6i \ \"hyper_mu\":${hyper_mu}," config_lam.py
+    fi
     ###
     gsed -i -e "3i \ \"extfcst\":${extfcst}," config_gm.py
     if [ $pert = var_nest ]; then

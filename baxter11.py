@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 import sys
 import os
 
-figdir_parent = Path.cwd() / Path('work/baxter11.3')
+figdir_parent = Path.cwd() / Path('work/baxter11.c')
 #figdir_parent = Path('/Volumes/FF520/nested_envar/data/baxter11.2')
 if not figdir_parent.exists():
     figdir_parent.mkdir(parents=True)
