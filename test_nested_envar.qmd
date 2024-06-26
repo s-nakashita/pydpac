@@ -1191,7 +1191,7 @@ $${#eq-ridge-dx}
 #|   - 6-h forecast
 #| label: fig-comp-rmse
 
-datadir1 = Path(f'work/{model}/envar_nestc_shrink_preGM_m80obs30')
+datadir1 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_shrink_preGM_m80obs30')
 ea_nc  = np.loadtxt(datadir1/'e_lam_linear_envar_nest.txt')
 ef_nc  = np.loadtxt(datadir1/'ef_lam_linear_envar_nest.txt')
 ea_psd = np.loadtxt(datadir1/'e_lam_linear_envar_nestc.txt')

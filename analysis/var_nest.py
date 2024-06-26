@@ -23,7 +23,7 @@ class Var_nest():
     def __init__(self, obs, ix_gm, ix_lam, ioffset=0, \
         sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, bsqrt=None, \
         sigv=1.0, lv=-1.0, a_v=0.5, ntrunc=None, ftrunc=None, vmat=None, \
-        crosscov=False, ekbmat=None, ebkmat=None, cyclic=False, \
+        crosscov=False, coef_a=0.0, ekbmat=None, ebkmat=None, cyclic=False, \
         calc_dist1=None, calc_dist1_gm=None, verbose=True, \
         model="model"):
         self.pt = "var_nest" # DA type 
@@ -72,6 +72,9 @@ class Var_nest():
             self.calc_dist1_gm = calc_dist1_gm
         # correlation between GM and LAM
         self.crosscov = crosscov # whether correlation is considered or not
+        self.coef_a = coef_a
+        if not self.crosscov:
+            self.coef_a = 0.0
         self.ekbmat = ekbmat
         self.ebkmat = ebkmat
         #
@@ -83,6 +86,7 @@ class Var_nest():
         logger.info(f"sigv={self.sigv} lv={self.lv} nv={self.nv}")
         logger.info(f"vmat in={self.vmat is not None}")
         logger.info(f"crosscov={self.crosscov}")
+        if self.crosscov: logger.info(f"coef_a={self.coef_a:.3e}")
     
     def _calc_dist1_gm(self, i, j):
         dist = abs(self.ix_gm[self.i0+i]-j)
@@ -260,7 +264,12 @@ class Var_nest():
                 #self.bmat = np.dot(bsqrt, bsqrt.T)
             w = np.zeros(bsqrt.shape[1])
 
-            eival, eivec = la.eigh(self.vmat)
+            h2bsqrt = self.trunc_operator(bsqrt,axis=0)
+            if self.crosscov:
+                v1 = self.vmat - self.coef_a*self.coef_a*np.dot(h2bsqrt,h2bsqrt.T)
+            else:
+                v1 = self.vmat.copy()
+            eival, eivec = la.eigh(v1)
             eival = eival[::-1]
             eivec = eivec[:,::-1]
             eival[eival<1.0e-16] = 0.0
@@ -287,7 +296,7 @@ class Var_nest():
         #dktmp = JH2@x - dk 
         #dktmp2 = la.solve(self.vmat, dktmp)
         #dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
-        dktmp = vsqrtpinv @ (self.trunc_operator(x)-dk)
+        dktmp = vsqrtpinv @ ((1.0-self.coef_a)*self.trunc_operator(x)-dk)
         dktmp2 = dktmp
         jk = 0.5 * np.dot(dktmp,dktmp2)
         if return_each:
@@ -304,8 +313,8 @@ class Var_nest():
         #dktmp2 = la.solve(self.vmat, dktmp)
         #dktmp = la.solve(vsqrt, (JH2@x-dk)) #valid only for the square matrix of vsqrt
         #dktmp2 = la.solve(vsqrt.T, dktmp) #valid only for the square matrix of vsqrt
-        dktmp = vsqrtpinv @ (self.trunc_operator(x)-dk)
-        dktmp2 = vsqrtpinv.T @ dktmp
+        dktmp = vsqrtpinv @ ((1.0-self.coef_a)*self.trunc_operator(x)-dk)
+        dktmp2 = (1.0-self.coef_a)*vsqrtpinv.T @ dktmp
         JH2Lb = self.trunc_operator(bsqrt)
         return w + bsqrt.T @ JH.T @ rinv @ d + JH2Lb.T @ dktmp2
 
@@ -313,7 +322,7 @@ class Var_nest():
         JH, rinv, ob, dk = args
         _, _, bsqrt, vsqrt, vsqrtpinv = self.prec(w)
         JH2Lb = self.trunc_operator(bsqrt)
-        qkmat = vsqrtpinv @ JH2Lb
+        qkmat = (1.0-self.coef_a)*vsqrtpinv @ JH2Lb
         return np.eye(w.size) + bsqrt.T @ JH.T @ rinv @ JH @ bsqrt + qkmat.T @ qkmat
 
     def __call__(self, xf, pf, y, yloc, xg, method="LBFGS", cgtype=1,

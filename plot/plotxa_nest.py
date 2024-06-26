@@ -289,7 +289,8 @@ for pt in perts:
         fig.savefig("data/{2}/{0}_xf_{1}_{2}_c{3}.png".format(model,op,pt,icycle))
         plt.close()
     ## error cross-covariance evaluation
-    xdv = trunc_operator_test(xdfgm.transpose()).transpose()
+    gm2lam = interp1d(ix_gm, xdfgm, axis=1)
+    xdv = trunc_operator_test(gm2lam(ix_lam).transpose()).transpose()
     print(xdv.shape)
     xdv2 = trunc_operator_test(xdflam.transpose()).transpose()
     ns = 40
@@ -338,7 +339,7 @@ for pt in perts:
     axs2[1].set_title(f'cond(W)={np.linalg.cond(W):.4e}')
     fig2.suptitle(pt)
     fig2.savefig("{}_errcov_{}_{}_{}.png".format(model,op,pt,ttest))
-    plt.show()
+    #plt.show()
     plt.close()
     #
     H2BH2 = np.dot(xdv2[ns:,:].transpose(),xdv2[ns:,:])/float(na-ns)
@@ -382,25 +383,26 @@ for pt in perts:
         cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
     fig2.colorbar(mp00,ax=axs2[0,0],shrink=0.6,pad=0.01)
     axs2[0,0].set_title(r'$\langle\varepsilon^\mathrm{v}(\varepsilon^\mathrm{v})^\mathrm{T}\rangle$')
-    vlim = np.mean(np.diag(H2BH2))*coef_a*coef_a
+    #vlim = np.mean(np.diag(H2BH2))*coef_a*coef_a
     mp01 = axs2[0,1].matshow(coef_a*coef_a*H2BH2,\
         cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
     fig2.colorbar(mp01,ax=axs2[0,1],shrink=0.6,pad=0.01)
     axs2[0,1].set_title(r'$a^2\langle H_2(\varepsilon^\mathrm{b})(H_2(\varepsilon^\mathrm{b}))^\mathrm{T}\rangle$')
-    vlim = np.mean(np.diag(H2Bres))*coef_a
+    #vlim = np.mean(np.diag(H2Bres))*coef_a
     mp02 = axs2[0,2].matshow(coef_a*H2Bres,\
         cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
     fig2.colorbar(mp02,ax=axs2[0,2],shrink=0.6,pad=0.01)
     axs2[0,2].set_title(r'$a\langle H_2(\varepsilon^\mathrm{b})\eta^\mathrm{T}\rangle$')
-    vlim = np.mean(np.diag(resmat))
+    #vlim = np.mean(np.diag(resmat))
     mp12 = axs2[1,2].matshow(resmat,\
         cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
     fig2.colorbar(mp12,ax=axs2[1,2],shrink=0.6,pad=0.01)
     axs2[1,2].set_title(r'$\langle \eta\eta^\mathrm{T}\rangle$')
-    summat = coef_a*coef_a*H2BH2 + resmat
-    vlim = np.mean(np.diag(V))
+    summat = coef_a*coef_a*H2BH2 + resmat + coef_a*H2Bres + coef_a*H2Bres.T
+    #vlim = np.mean(np.diag(V))
     mp11 = axs2[1,1].matshow(summat,\
         cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp11,ax=axs2[1,1],shrink=0.6,pad=0.01)
     axs2[1,1].set_title('sum')
     vlim = max(np.max(summat-V),-np.min(summat-V))
     mp10 = axs2[1,0].matshow(summat - V, \
@@ -409,5 +411,41 @@ for pt in perts:
     axs2[1,0].set_title('diff')
     fig2.suptitle(pt+r' $\varepsilon^\mathrm{v}=aH_2(\varepsilon^\mathrm{b})+\eta$')
     fig2.savefig("{}_errcov_decomp_{}_{}_{}.png".format(model,op,pt,ttest))
+    plt.close()
+    #
+    fig2, axs2 = plt.subplots(nrows=3,ncols=2,figsize=[8,6],constrained_layout=True)
+    vlim = max(np.max(Evb),-np.min(Evb))
+    mp00 = axs2[0,0].matshow(Evb,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp00,ax=axs2[0,0],shrink=0.6,pad=0.01)
+    axs2[0,0].set_title(r'$\langle\varepsilon^\mathrm{v}(\varepsilon^\mathrm{b})^\mathrm{T}\rangle$')
+    H2B = np.dot(xdv2[ns:,:].transpose(),xdflam[ns:,:])/float(na-ns)
+    #vlim = np.mean(np.diag(H2BH2))*coef_a*coef_a
+    mp10 = axs2[1,0].matshow(coef_a*H2B,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp10,ax=axs2[1,0],shrink=0.6,pad=0.01)
+    axs2[1,0].set_title(r'$a\langle H_2(\varepsilon^\mathrm{b})(\varepsilon^\mathrm{b})^\mathrm{T}\rangle$')
+    resB = np.dot(res[ns:,:].transpose(),xdflam[ns:,:])/float(na-ns)
+    #vlim = np.mean(np.diag(H2Bres))*coef_a
+    mp20 = axs2[2,0].matshow(resB,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp20,ax=axs2[2,0],shrink=0.6,pad=0.01)
+    axs2[2,0].set_title(r'$\langle \eta (\varepsilon^\mathrm{b})^\mathrm{T}\rangle$')
+    summat = coef_a*H2B + resB
+    mp01 = axs2[0,1].matshow(summat,\
+        cmap='bwr', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp01,ax=axs2[0,1],shrink=0.6,pad=0.01)
+    axs2[0,1].set_title('sum')
+    vlim = max(np.max(summat-Evb),-np.min(summat-Evb))
+    mp11 = axs2[1,1].matshow(summat - Evb, \
+        cmap='PiYG', norm=Normalize(vmin=-vlim, vmax=vlim))
+    fig2.colorbar(mp11,ax=axs2[1,1],shrink=0.6,pad=0.01)
+    axs2[1,1].set_title('diff')
+    for ax in axs2.flatten():
+        ax.set_aspect(5.0)
+    axs2[2,1].remove()
+    fig2.suptitle(pt+r' $\varepsilon^\mathrm{v}=aH_2(\varepsilon^\mathrm{b})+\eta$')
+    fig2.savefig("{}_errcov_decomp2_{}_{}_{}.png".format(model,op,pt,ttest))
+    #plt.show()
     plt.close()
     

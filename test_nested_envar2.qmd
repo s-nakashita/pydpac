@@ -1,0 +1,502 @@
+---
+title: "Nested EnVar with cross covariance"
+format:
+  html:
+    code-fold: true
+    code-tools: true
+jupyter: python3
+editor:
+  render-on-save: true
+---
+
+```{python}
+import numpy as np
+import numpy.linalg as la
+import matplotlib.pyplot as plt
+from pathlib import Path
+```
+
+# Decomposition of large-scale error
+
+The large-scale departure is defined as 
+$$
+\mathbf{d}^\mathrm{v} = H_1(\mathbf{x}^\mathrm{B}) - H_2(\mathbf{x}^\mathrm{b}).
+$${#eq-lrgscl-innv}
+
+$H_{1,2}$ are truncation operators and can be decomposed into
+$$
+H_1(\mathbf{x}^\mathrm{B})=F^{-1} \circ T \circ F \circ D(\mathbf{x}^\mathrm{B})
+$${#eq-truncope1}
+$$
+H_2(\mathbf{x}^\mathrm{B})=F^{-1} \circ T \circ F(\mathbf{x}^\mathrm{b})
+$${#eq-truncope2}
+where $D$ is the interpolation from GM to LAM, $F$ is the forward transformation into a spectral space using discrete cosine transformation (DCT), $T$ is the truncation of wavenumbers, and $F^{-1}$ is the backward transformation. All the operators are linear.
+
+The large-scale error is decomposed into correlated and uncorrelated parts to the truncated background error of LAM.
+$$
+\boldsymbol{\varepsilon}^\mathrm{v}=H_1(\boldsymbol{\varepsilon}^\mathrm{B})=aH_2(\boldsymbol{\varepsilon}^\mathrm{b})+\boldsymbol{\eta}
+$${#eq-err-decomp}
+
+$$
+\langle H_2(\boldsymbol{\varepsilon}^\mathrm{b}) \boldsymbol{\eta}^\mathrm{T} \rangle = \mathbf{H}_2\langle \boldsymbol{\varepsilon}^\mathrm{b} \boldsymbol{\eta}^\mathrm{T} \rangle = 0
+$${#eq-err-ortho}
+
+In this decomposition, the scaler coefficient $a$ can be expressed as
+$$
+a=\frac{\mathrm{trace}[\langle H_2(\boldsymbol{\varepsilon}^\mathrm{b}) \boldsymbol{\varepsilon}^\mathrm{vT} \rangle]}{\mathrm{trace}[\langle H_2(\boldsymbol{\varepsilon}^\mathrm{b}) [H_2(\boldsymbol{\varepsilon}^\mathrm{b})]^\mathrm{T} \rangle]}
+$${#eq-coef}
+
+Following Eq.([-@eq-err-decomp]), the cross covariance between large-scale and background errors can be represented as
+$$
+\langle \boldsymbol{\varepsilon}^\mathrm{b} \boldsymbol{\varepsilon}^\mathrm{vT} \rangle = a\langle\boldsymbol{\varepsilon}^\mathrm{b}\boldsymbol{\varepsilon}^\mathrm{bT}\rangle\mathbf{H}_2^\mathrm{T} = a\mathbf{B}\mathbf{H}_2^\mathrm{T}
+$${#eq-crosscov-est}
+
+## Nested 3DVar incorporating cross covariance
+
+The cost function for nested 3DVar becomes
+$$
+J(\delta\mathbf{x})=\frac{1}{2}
+\begin{pmatrix}
+\delta\mathbf{x} \\
+\mathbf{H}_2\delta\mathbf{x} - \mathbf{d}^\mathrm{v} \\
+\mathbf{H}\delta\mathbf{x} - \mathbf{d}^\mathrm{o}
+\end{pmatrix}^\mathrm{T}
+\begin{pmatrix}
+\mathbf{B} & a\mathbf{BH}_2^\mathrm{T} & \mathbf{0} \\
+a\mathbf{H}_2\mathbf{B} & \mathbf{V} & \mathbf{0} \\
+\mathbf{0} & \mathbf{0} & \mathbf{R}
+\end{pmatrix}^{-1}
+\begin{pmatrix}
+\delta\mathbf{x} \\
+\mathbf{H}_2\delta\mathbf{x} - \mathbf{d}^\mathrm{v} \\
+\mathbf{H}\delta\mathbf{x} - \mathbf{d}^\mathrm{o}
+\end{pmatrix}
+$$
+$$
+= \frac{1}{2}\delta\mathbf{x}^\mathrm{T}[\mathbf{B}^{-1}+(1-a)^2\mathbf{H}_2^\mathrm{T}\mathbf{V}_1^{-1}\mathbf{H}_2 + \mathbf{H}^\mathrm{T}\mathbf{R}^{-1}\mathbf{H}]\delta\mathbf{x} 
+- (1-a)\delta\mathbf{x}^\mathrm{T}\mathbf{H}_2^\mathrm{T}\mathbf{V}_1^{-1}\mathbf{d}^\mathrm{v}
+$$
+$$
+ -\delta\mathbf{x}^\mathrm{T}\mathbf{H}^\mathrm{T}\mathbf{R}^{-1}\mathbf{d}^\mathrm{o}
+ + \frac{1}{2}\mathbf{d}^\mathrm{vT}\mathbf{V}_1^{-1}\mathbf{d}^\mathrm{v}+ \frac{1}{2}\mathbf{d}^\mathrm{oT}\mathbf{R}^{-1}\mathbf{d}^\mathrm{o}
+$${#eq-cost-cross}
+where $\mathbf{V}_1$ is Schur complement of $\mathbf{B}$ for the composite error covariance
+$$
+\mathbf{V}_1=\mathbf{V}-a^2\mathbf{H}_2\mathbf{B}\mathbf{H}_2^\mathrm{T}
+$${#eq-schur}
+
+When using the transformed control vector $\boldsymbol{\chi}$ defined as
+$$
+\delta\mathbf{x}=\mathbf{L}^\mathrm{b}\boldsymbol{\chi}
+$$
+where
+$$
+\mathbf{B}=\mathbf{L}^\mathrm{b}\mathbf{L}^\mathrm{bT},
+$$
+the cost function is written as
+$$
+J(\boldsymbol{\chi})=\frac{1}{2}\boldsymbol{\chi}\boldsymbol{\chi}^\mathrm{T}+\frac{1}{2}[(1-a)\mathbf{H}_2\mathbf{L}^\mathrm{b}\boldsymbol{\chi}-\mathbf{d}^\mathrm{v}]^\mathrm{T}\mathbf{V}_1^{-1}[(1-a)\mathbf{H}_2\mathbf{L}^\mathrm{b}\boldsymbol{\chi}-\mathbf{d}^\mathrm{v}]
+$$
+$$
++\frac{1}{2}[\mathbf{H}\mathbf{L}^\mathrm{b}\boldsymbol{\chi}-\mathbf{d}^\mathrm{o}]^\mathrm{T}\mathbf{R}^{-1}[\mathbf{H}\mathbf{L}^\mathrm{b}\boldsymbol{\chi}-\mathbf{d}^\mathrm{o}]
+$${#eq-cost-cross2}
+
+## Ensemble framework
+
+The increment is expressed as the linear combination of background ensemble perturbations 
+$$
+\delta\mathbf{x}=\mathbf{X}^\mathrm{b}\mathbf{w}
+$$
+and the background and large-scale error covariances are estimated using the regional and global ensemble forecasts, respectively, 
+$$
+\mathbf{B}\sim \frac{1}{K-1}\mathbf{X}^\mathrm{b}\mathbf{X}^\mathrm{bT}
+$$
+$$
+\mathbf{V}\sim \frac{1}{K-1}\mathbf{H}_1\mathbf{X}^\mathrm{B}(\mathbf{H}_1\mathbf{X}^\mathrm{B})^\mathrm{T} = \frac{1}{K-1}\mathbf{Z}^\mathrm{v}\mathbf{Z}^\mathrm{vT}
+$$
+
+The Monte Carlo estimation allows us to estimate the scaler coefficient ([-@eq-coef]) instanteneously,
+$$
+a=\frac{\mathrm{trace}[\mathbf{Z}^\mathrm{b}\mathbf{Z}^\mathrm{vT}]}{\mathrm{trace}[\mathbf{Z}^\mathrm{b} \mathbf{Z}^\mathrm{bT}]}
+$${#eq-coef-ens}
+where $\mathbf{Z}^\mathrm{b}=\mathbf{H}_2\mathbf{X}^\mathrm{b}$ is truncated background regional ensemble perturbations.
+
+Schur complement can also be expressed as
+$$
+\mathbf{V}_1\sim \frac{1}{K-1}[\mathbf{Z}^\mathrm{v}\mathbf{Z}^\mathrm{vT}-a^2\mathbf{Z}^\mathrm{b}\mathbf{Z}^\mathrm{bT}]\equiv \mathbf{V}_\mathrm{e}
+$$
+
+Then the cost function for ensemble weights $\mathbf{w}$ is formulated as
+$$
+J(\mathbf{w})=\frac{K-1}{2}\mathbf{w}\mathbf{w}^\mathrm{T}+\frac{K-1}{2}[(1-a)\mathbf{Z}^\mathrm{b}\mathbf{w}-\mathbf{d}^\mathrm{v}]^\mathrm{T}\mathbf{V}_\mathrm{e}^{\dagger}[(1-a)\mathbf{Z}^\mathrm{b}\mathbf{w}-\mathbf{d}^\mathrm{v}]
+$$
+$$
++\frac{1}{2}[\mathbf{Y}^\mathrm{b}\mathbf{w}-\mathbf{d}^\mathrm{o}]^\mathrm{T}\mathbf{R}^{-1}[\mathbf{Y}^\mathrm{b}\mathbf{w}-\mathbf{d}^\mathrm{o}]
+$${#eq-enscost-cross}
+
+Since the ensemble estimated Schur complement $\mathbf{V}_\mathrm{e}$ is usually rank deficient, the inverse of $\mathbf{V}_1$ is replaced by Moore-Penrose inverse of $\mathbf{V}_\mathrm{e}$. 
+
+# Example
+
+```{python}
+model = "l05nestm"
+datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
+ix_gm = np.loadtxt(datadir/"ix_gm.txt")
+ix_lam = np.loadtxt(datadir/"ix_lam.txt")
+def loaddata(icycle,pt):
+    Xb = np.load(datadir/f"data/{pt}/{model}_lam_spf_linear_{pt}_cycle{icycle}.npy")
+    Xb *= np.sqrt(Xb.shape[1]-1)
+    Zv = np.load(datadir/f"data/{pt}/{model}_lam_zvmat_linear_{pt}_cycle{icycle}.npy")
+    Zb = np.load(datadir/f"data/{pt}/{model}_lam_zbmat_linear_{pt}_cycle{icycle}.npy")
+    dv = np.load(datadir/f"data/{pt}/{model}_lam_dk_linear_{pt}_cycle{icycle}.npy")
+    Yb = np.load(datadir/f"data/{pt}/{model}_lam_dh_linear_{pt}_cycle{icycle}.npy")
+    do = np.load(datadir/f"data/{pt}/{model}_lam_d_linear_{pt}_cycle{icycle}.npy")
+    # debug
+    dx = np.load(datadir/f"data/{pt}/{model}_lam_dx_linear_{pt}_cycle{icycle}.npy")
+    dx_conv = np.load(datadir/f"data/envar/{model}_lam_dx_linear_envar_cycle{icycle}.npy")
+    Xb_conv = np.load(datadir/f"data/envar/{model}_lam_spf_linear_envar_cycle{icycle}.npy")
+    Xb_conv *= np.sqrt(Xb.shape[1]-1)
+    Yb_conv = np.load(datadir/f"data/envar/{model}_lam_dh_linear_envar_cycle{icycle}.npy")
+    do_conv = np.load(datadir/f"data/envar/{model}_lam_d_linear_envar_cycle{icycle}.npy")
+
+    return Xb, Zb, Zv, Yb, do, dv, dx, dx_conv, Xb_conv, Yb_conv, do_conv
+
+icycle=50
+pt="envar_nest"
+Xb, Zb, Zv, Yb, do, dv, dx, dx_conv, Xb_conv, Yb_conv, do_conv = loaddata(icycle,pt)
+print(Xb.shape)
+print(Zv.shape)
+print(Zb.shape)
+print(dv.shape)
+print(Yb.shape)
+print(do.shape)
+print(dx.shape)
+```
+
+```{python}
+#| output: false
+
+from model.lorenz_nestm import L05nestm
+# model parameter
+## true
+nx_true = 960
+nk_true = 32
+nks_true = [256,128,64,32]
+## GM
+gm_same_with_nature = False # DEBUG: Lorenz III used for GM
+intgm = 4                    # grid interval
+if gm_same_with_nature:
+    intgm = 1
+nx_gm = nx_true // intgm     # number of points
+nk_gm = nk_true // intgm     # advection length scale
+nks_gm = np.array(nks_true) // intgm     # advection length scales
+dt_gm = 0.05 / 36            # time step (=1/6 hour, Kretchmer et al. 2015)
+#dt_gm = 0.05 / 48            # time step (=1/8 hour, Yoon et al. 2012)
+## LAM
+nx_lam = 240                 # number of LAM points
+ist_lam = 240                # first grid index
+nsp = 10                     # width of sponge region
+po = 1                       # order of relaxation function
+intrlx = 1                   # interval of boundary relaxation (K15)
+#intrlx = 48                   # interval of boundary relaxation (Y12)
+lamstep = 1                  # time steps relative to 1 step of GM
+nk_lam = 32                  # advection length
+nks_lam = nks_true           # advection lengths
+ni = 12                      # spatial filter width
+b = 10.0                     # frequency of small-scale perturbation
+c = 0.6                      # coupling factor
+F = 15.0                     # forcing
+
+# forecast model forward operator
+step = L05nestm(nx_true, nx_gm, nx_lam, nks_gm, nks_lam, \
+        ni, b, c, dt_gm, F, intgm, ist_lam, nsp, \
+        lamstep=lamstep, intrlx=intrlx, po=po, gm_same_with_nature=gm_same_with_nature)
+
+```
+
+```{python}
+#| output: false
+
+from analysis.obs import Obs
+from analysis.var import Var
+from analysis.var_nest import Var_nest
+from analysis.envar import EnVAR
+from analysis.envar_nest import EnVAR_nest
+from analysis.minimize import Minimize
+
+state_size = Xb.shape[0]
+nmem = Xb.shape[1]
+obs = Obs("linear",1.0, ix=step.ix_lam[1:-1], icyclic=False)
+ntrunc = 12
+
+# static error covariance parameters
+sigb  = 0.8
+lb    = np.deg2rad(28.77)
+a_b   = -0.11
+sigv  = 1.8
+lv    = np.deg2rad(12.03)
+a_v   = 0.12
+
+var = Var(obs,state_size,ix=step.ix_lam[1:-1], ioffset=1,
+        sigb=sigb, lb=lb, functype="gc5", a=a_b, bmat=None, cyclic=False, \
+        calc_dist1=step.calc_dist1_lam)
+var_nest = Var_nest(obs, ix_gm, ix_lam[1:-1],ioffset=1,
+        sigb=sigb, lb=lb, functype="gc5", a=a_b, bmat=None, cyclic=False, 
+        sigv=sigv, lv=lv, a_v=a_v, ntrunc=ntrunc, vmat=None, 
+        crosscov=False, 
+        calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm)
+
+_ = var.calc_pf(dx, cycle=0)
+_ = var_nest.calc_pf(dx, cycle=0)
+
+envar = EnVAR(state_size,nmem,obs,model="l05nestm")
+envar_nest = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nest",ntrunc=ntrunc,\
+    crosscov=False, model="l05nestm")
+```
+
+## 3DVar
+
+```{python}
+#| fig-cap : static error covariances
+#| fig-subcap:
+#|   - $\mathbf{B}$
+#|   - $\mathbf{V}$
+#| label: fig-static-errcov
+
+fig, ax = plt.subplots()
+mp0 = ax.matshow(var.bmat)
+fig.colorbar(mp0,ax=ax,shrink=0.6,pad=0.01)
+plt.show()
+
+fig, ax = plt.subplots()
+mp1 = ax.matshow(var_nest.vmat)
+fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
+plt.show()
+
+```
+
+```{python}
+#| output: false
+
+yloc = np.array([256, 288, 320, 352, 384, 416, 448])
+# conventional Var
+_, _, rinv = var.obs.set_r(yloc)
+JH = var.obs.dh_operator(yloc,dx)
+chi0, _, _ = var.prec(first=True)
+args_var = (JH,rinv,do)
+minimize = Minimize(chi0.size, var.calc_j, jac=var.calc_grad_j, hess=var.calc_hess, args=args_var)
+chi, _ = minimize(chi0)
+_, dx_var, _ = var.prec(chi)
+# nested Var
+chi0, _, _, _, _ = var_nest.prec(first=True)
+args_var_nest = (JH, rinv, do, dv)
+minimize = Minimize(chi0.size, var_nest.calc_j, jac=var_nest.calc_grad_j, hess=var_nest.calc_hess, args=args_var_nest)
+chi, _ = minimize(chi0)
+_, dx_var_nest, _, _, _ = var_nest.prec(chi)
+# nested Var with cross covariance
+coef_a_list = [1.0,0.5,0.1,0.0]
+dx_var_nestc_list = []
+for coef_a in coef_a_list:
+    var_nestc = Var_nest(obs, ix_gm, ix_lam[1:-1],ioffset=1,
+        sigb=sigb, lb=lb, functype="gc5", a=a_b, bmat=None, cyclic=False, 
+        sigv=sigv, lv=lv, a_v=a_v, ntrunc=ntrunc, vmat=None, 
+        crosscov=True, coef_a=coef_a,
+        calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm)
+    _ = var_nestc.calc_pf(dx,cycle=0)
+    chi0, _, _, _, _ = var_nestc.prec(first=True)
+    minimize = Minimize(chi0.size, var_nestc.calc_j, jac=var_nestc.calc_grad_j, hess=var_nestc.calc_hess, args=args_var_nest)
+    chi, _ = minimize(chi0)
+    _, dx_var_nestc, _, _, _ = var_nestc.prec(chi)
+    dx_var_nestc_list.append(dx_var_nestc)
+
+```
+
+```{python}
+#| fig-cap: increments from 3DVar
+#| label: fig-incr-3dvar
+
+fig, ax = plt.subplots()
+ax.plot(ix_lam[1:-1],dx_var,label='no V')
+ax.plot(ix_lam[1:-1],dx_var_nest,label='no cross')
+for coef_a, dx_var_nestc in zip(coef_a_list,dx_var_nestc_list):
+    ax.plot(ix_lam[1:-1],dx_var_nestc,ls='dashed',label=f'a={coef_a}')
+ax.legend()
+plt.show()
+
+```
+
+## EnVar
+
+```{python}
+#| fig-cap: ensemble perturbations
+#| fig-subcap:
+#|   - Xb
+#|   - Zb, Zv, Yb
+#| label: fig-ensprtb
+#| layout: [[1,2],[1]]
+
+fig, ax = plt.subplots()
+mp0=ax.matshow(Xb)
+fig.colorbar(mp0,ax=ax,shrink=0.6,pad=0.01)
+ax.set_title('Xb')
+plt.show()
+
+fig2, axs = plt.subplots(nrows=3,constrained_layout=True)
+axs[0].set_title('Zb')
+mp1=axs[0].matshow(Zb)
+axs[1].set_title('Zv')
+mp2=axs[1].matshow(Zv)
+axs[2].set_title('Yb')
+mp3=axs[2].matshow(Yb)
+for mp, ax in zip([mp1,mp2,mp3],axs):
+    fig2.colorbar(mp,ax=ax,pad=0.01,shrink=0.6,orientation='horizontal')
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: innovations
+#| fig-subcap:
+#|   - observation (d^o)
+#|   - large-scale (d^v)
+#| label: fig-innv
+#| layout-ncol: 2
+
+fig, ax = plt.subplots()
+ax.plot(do,np.arange(do.size))
+ax.set_xlabel('d^o')
+ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+plt.show()
+
+fig, ax = plt.subplots()
+ax.plot(dv,np.arange(dv.size))
+ax.set_xlabel('d^v')
+ax.vlines([0],0,1,colors='gray',transform=ax.get_xaxis_transform())
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: ensemble error covariances
+#| fig-subcap:
+#|   - Pb
+#|   - Pv
+#| label: fig-enserr-each
+
+from matplotlib.colors import Normalize
+
+Pb = np.dot(Xb,Xb.transpose())/(nmem-1)
+Pbv = np.dot(Xb,Zv.transpose())/(nmem-1)
+Pvb = np.dot(Zv,Xb.transpose())/(nmem-1)
+Pv = np.dot(Zv,Zv.transpose())/(nmem-1)
+
+vlim = max(
+    np.max(Pb),-np.min(Pb),
+    np.max(Pv),-np.min(Pv)
+)
+
+fig, ax = plt.subplots()
+mp0 = ax.matshow(Pb,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp0,ax=ax,shrink=0.6,pad=0.01)
+ax.set_aspect('equal')
+plt.show()
+fig, ax = plt.subplots()
+mp3 = ax.matshow(Pv,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp3,ax=ax,shrink=0.6,pad=0.01)
+ax.set_aspect('equal')
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: error covariance decomposition
+#| label: fig-errcov-decomp
+#| 
+
+coef_a = np.trace(np.dot(Zb, Zv.T))/np.trace(np.dot(Zv, Zv.T))
+print("a={:.3e}".format(coef_a))
+res = Zv - coef_a*Zb
+H2BH2 = np.dot(Zb,Zb.T)/float(nmem-1)
+H2Beta = np.dot(Zb,res.T)/float(nmem-1)
+eta2 = np.dot(res,res.T)/float(nmem-1)
+
+fig, axs = plt.subplots(ncols=3,nrows=2,figsize=[10,8],constrained_layout=True)
+mplist = []
+vlim = max(np.max(Pv),-np.min(Pv))
+mp00=axs[0,0].matshow(Pv,cmap='bwr',norm=Normalize(-vlim,vlim))
+axs[0,0].set_title(r'$\langle \varepsilon^\mathrm{v}(\varepsilon^\mathrm{v})^\mathrm{T}\rangle$')
+mplist.append(mp00)
+mp01=axs[0,1].matshow(coef_a*coef_a*H2BH2,cmap='bwr',norm=Normalize(-vlim,vlim))
+axs[0,1].set_title(r'$a^2\langle H_2(\varepsilon^\mathrm{b})(H_2(\varepsilon^\mathrm{b}))^\mathrm{T}\rangle$')
+mplist.append(mp01)
+mp02=axs[0,2].matshow(coef_a*(H2Beta+H2Beta.T),cmap='bwr',norm=Normalize(-vlim,vlim))
+axs[0,2].set_title(r'$a\langle H_2(\varepsilon^\mathrm{b})\eta^\mathrm{T}+\eta(H_2(\varepsilon^\mathrm{b}))^\mathrm{T}\rangle$')
+mplist.append(mp02)
+summat=coef_a*coef_a*H2BH2+eta2
+mp10=axs[1,0].matshow(summat,cmap='bwr',norm=Normalize(-vlim,vlim))
+axs[1,0].set_title(r'$a^2\langle H_2(\varepsilon^\mathrm{b})(H_2(\varepsilon^\mathrm{b}))^\mathrm{T}\rangle+\langle\eta\eta^\mathrm{T}\rangle$')
+mplist.append(mp10)
+diff = Pv - summat
+mp11=axs[1,1].matshow(diff,cmap='bwr',norm=Normalize(-vlim,vlim))
+axs[1,1].set_title('[0,0] - [1,0]')
+mplist.append(mp11)
+mp12=axs[1,2].matshow(eta2,cmap='bwr',norm=Normalize(-vlim,vlim))
+axs[1,2].set_title(r'$\langle\eta\eta^\mathrm{T}\rangle$')
+mplist.append(mp12)
+for mp, ax in zip(mplist,axs.flatten()):
+    fig.colorbar(mp,ax=ax,shrink=0.6,pad=0.01)
+fig.suptitle(r'$\varepsilon^\mathrm{v}=aH_2(\varepsilon^\mathrm{b})+\eta$')
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: comparison of cross covariance
+#| fig-subcap:
+#|   - $\mathbf{Z}^\mathrm{v}\mathbf{X}^\mathrm{bT}$
+#|   - $a\mathbf{Z}^\mathrm{b}\mathbf{X}^\mathrm{bT}$
+#| label: fig-enserrcross
+#| 
+
+Pvb2 = coef_a*np.dot(Zb,Xb.T)/float(nmem-1)
+
+fig, ax = plt.subplots()
+mp2 = ax.matshow(Pvb,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp2,ax=ax,shrink=0.6,pad=0.01,orientation='horizontal')
+ax.set_aspect(5)
+plt.show()
+
+fig, ax = plt.subplots()
+mp2 = ax.matshow(Pvb2,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp2,ax=ax,shrink=0.6,pad=0.01,orientation='horizontal')
+ax.set_aspect(5)
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: Schur complement
+#| fig-subcap:
+#|   - $\mathbf{V}_\mathrm{e}$
+#|   - $\mathbf{V}_\mathrm{e}^\dagger$
+#| label: fig-schur
+#| layout-ncol: 2
+
+Ve = (np.dot(Zv,Zv.T) - coef_a*coef_a*np.dot(Zb,Zb.T))/(nmem-1)
+Vepinv = la.pinv(Ve)
+
+vlim = max(np.max(Ve),-np.min(Ve))
+fig, ax = plt.subplots()
+mp0=ax.matshow(Ve,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp0,ax=ax,shrink=0.6,pad=0.01)
+ax.set_aspect(1.0)
+plt.show()
+
+vlim = max(np.max(Vepinv),-np.min(Vepinv))
+fig, ax = plt.subplots()
+mp0=ax.matshow(Vepinv,cmap='coolwarm',norm=Normalize(vmin=-vlim,vmax=vlim))
+fig.colorbar(mp0,ax=ax,shrink=0.6,pad=0.01)
+ax.set_aspect(1.0)
+plt.show()
+
+```
