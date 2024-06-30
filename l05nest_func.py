@@ -169,6 +169,25 @@ class L05nest_func():
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
                     iobs_lam[k,:] = obs_in_lam
+            elif obsloctype=="partial":
+                logger.info("partial observation in LAM domain: nobs={}".format(self.nobs))
+                i0obs = np.argmin(np.abs(self.step.ix_true - self.step.ix_lam[1]))
+                i1obs = np.argmin(np.abs(self.step.ix_true - self.step.ix_lam[-2]))
+                icobs = np.argmin(np.abs(self.step.ix_true - self.step.ix_lam[self.nx_lam//2]))
+                ## left-side
+                #obsloc = xloc[i0obs:i0obs+self.nobs]
+                # center
+                obsloc = xloc[icobs-self.nobs//2:icobs-self.nobs//2+self.nobs]
+                ## right-side
+                #obsloc = xloc[i1obs-self.nobs:i1obs]
+                if self.anlsp:
+                    obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
+                else:
+                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
+                for k in range(self.na):
+                    yobs[k,:,0] = obsloc[:]
+                    yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
+                    iobs_lam[k,:] = obs_in_lam
             else:
                 logger.info("random observation: nobs={}".format(self.nobs))
                 for k in range(self.na):

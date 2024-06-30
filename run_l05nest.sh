@@ -5,15 +5,15 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-#perturbations="var_nest var envar_nest envar"
+perturbations="var_nest var envar_nest envar"
 #perturbations="mlef"
-perturbations="envar_nestc envar_nest envar"
+#perturbations="envar_nestc envar_nest envar"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=200 # Number of assimilation cycle
+na=1000 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -30,16 +30,16 @@ ntrunc=12
 hyper_mu=0.0
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
-#exp="var_vs_envar_shrink_dct_preGM_m${nmem}obs${nobs}"
+exp="var_vs_envar_shrink_dct_preGM_partialc_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
-exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
+#exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 ddir=${cdir}/work/${model}
-ddir=/Volumes/FF520/nested_envar/data/${model}
+#ddir=/Volumes/FF520/nested_envar/data/${model}
 preGM=True
 preGMda="envar"
 preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
@@ -59,9 +59,9 @@ rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
 touch timer
-if [ $preGM = True ]; then
-  cp ${preGMdir}/obs*.npy .
-fi
+#if [ $preGM = True ]; then
+#  cp ${preGMdir}/obs*.npy .
+#fi
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
@@ -91,6 +91,7 @@ for op in ${operators}; do
     if [ ! -z $lsig ]; then
     gsed -i -e "8i \ \"lsig\":${lsig}," config.py
     fi
+    gsed -i -e "5i \ \"obsloctype\":\"partial\"," config.py
     mv config.py config_gm.py
     cp config_gm.py config_lam.py
     if [ ! -z $lgsig ]; then
