@@ -160,7 +160,8 @@ for pt in perts:
         axe1_lam.plot(cycles_lam, j_lam[:,1], color=linecolor[pt]) #, label=pt+",Jo")
         lines3.append(Line2D([0],[0],color=linecolor[pt]))
         labels3.append(pt)
-        if pt=="var_nest" or pt=="envar_nest" or pt=="mlef_nest":
+        if pt=="var_nest" or pt=="envar_nest" or pt=="mlef_nest"\
+            or pt=="var_nestc" or pt=="envar_nestc" or pt=="envar_nestc":
             plot_Jk=True
             axe2_lam.plot(cycles_lam, j_lam[:,2], color=linecolor[pt]) #, label=pt+",Jk")
             #lines.append(Line2D([0],[0],color=linecolor[pt],linestyle="dotted"))

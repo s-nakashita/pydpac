@@ -15,7 +15,7 @@ if len(sys.argv)>4:
     anl = (sys.argv[4]=='T')
 
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
-datadir = Path(f'../work/{model}')
+#datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_m80obs30'

@@ -13,20 +13,20 @@ figdir = Path('trunc')
 if not figdir.exists(): figdir.mkdir()
 
 rng = default_rng(509)
-ttype = 'f'
-ntrunc = 24
+ttype = 'c'
+ntrunc = 12
 if len(sys.argv)>1:
     ttype = sys.argv[1]
 if len(sys.argv)>2:
     ntrunc = int(sys.argv[2])
 
-nx_true = 96
+nx_true = 960
 intgm = 4
 nx_gm = nx_true // intgm
-nx_lam = 24
+nx_lam = 240
 if ttype == 'f':
     nx_lam += 1
-ist_lam = 6
+ist_lam = 240
 
 ix_true = np.arange(nx_true)
 ix_gm = np.arange(0,nx_gm)*intgm

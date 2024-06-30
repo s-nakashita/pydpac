@@ -21,7 +21,7 @@ class EnVAR_nest():
 
     def __init__(self, state_size, nmem, obs, ix_gm, ix_lam,
         pt="envar_nest", ntrunc=None, ftrunc=None, cyclic=False, 
-        crosscov=False, ridge=True, ridge_dx=False, reg=False, mu=0.1,
+        crosscov=False, ortho=True, ridge=False, ridge_dx=False, reg=False, mu=0.1,
         nvars=1, ndims=1, 
         linf=False, infl_parm=1.0, infl_parm_lrg=1.0,
         iloc=None, lsig=-1.0, ss=False, getkf=False,
@@ -82,6 +82,7 @@ class EnVAR_nest():
             self.incremental = True
         # cross-covariance
         self.crosscov = crosscov
+        self.ortho = ortho # estimate large-scale error components parallel to truncated background
         self.ridge = ridge # ridge regression (regularization in ensemble space)
         self.ridge_dx = ridge_dx # ridge regression for increment
         self.reg = reg # regularization in state space
@@ -93,7 +94,7 @@ class EnVAR_nest():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig} infl_parm_lrg={self.infl_parm_lrg}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         logger.info(f"crosscov={self.crosscov}")
-        if self.crosscov:
+        if self.crosscov and not self.ortho:
             logger.info(f"ridge={self.ridge} ridge_dx={self.ridge_dx} reg={self.reg}")
             logger.info(f"mu={self.mu}")
         if self.iloc is not None:
@@ -134,8 +135,9 @@ class EnVAR_nest():
         #if self.linf:
         #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
         #    rho = 1.0 / self.infl_parm
-        if not self.crosscov:
-            zmat, qmat = args
+        if not self.crosscov or (self.crosscov and self.ortho):
+            #zmat, qmat = args
+            zmat, zbmat, schurinv, coef_a = args
             ## Z = R^{-1/2}HX^b
             nk = zmat.shape[1]
             ## Q = (JH_1X^B)^\dag JH_2X^b
@@ -143,10 +145,13 @@ class EnVAR_nest():
             #u, s, vt = la.svd(zmat)
             #v = vt.transpose()
             #is2r = 1 / (1 + s**2)
-            hessmi = zmat.transpose() @ zmat + rho*(nk-1)*qmat.transpose() @ qmat # Hess - (K-1)I
+            #hessmi = zmat.transpose() @ zmat + rho*(nk-1)*qmat.transpose() @ qmat # Hess - (K-1)I
+            hessmi = zmat.transpose() @ zmat + \
+                (1.0 - coef_a)**2 * rho*(nk-1)*zbmat.transpose() @ schurinv @ zbmat
             if save:
                 hess = rho*(nk-1)*np.eye(hessmi.shape[0]) + hessmi
             lam, c = la.eigh(hessmi)
+            lam[lam<lam[-1]*1.0e-15] = 0.0
             logger.info("precondition: eigenvalue ={}".format(lam))
             D = np.diag(1.0/np.sqrt(lam + np.full(lam.size,rho*(nk-1))))
             ct = c.transpose()
@@ -218,26 +223,28 @@ class EnVAR_nest():
     def calc_j(self, zeta, *args, return_each=False):
         ## Z = R^{-1/2}JHX^b
         nk = zeta.size
-        if not self.crosscov:
+        if not self.crosscov or (self.crosscov and self.ortho):
             ## Q = (JH_1X^B)^\dag JH_2X^b
             ## dk = (JH_1X^B)^\dag (H_1(x^B) - H_2(x^b))
             if not self.incremental:
-                xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
+                #xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
+                xc, dxf, y, yloc, tmat, gmat, dk, zbmat, schurinv, coef_a, heinv, rinv = args
                 x = xc + gmat @ zeta
                 w = tmat @ zeta
                 ob = y - self.obs.h_operator(yloc, x)
-                jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta
                 jo = 0.5 * ob.transpose() @ rinv @ ob
-                jk = 0.5 * (nk-1) * (qmat@w - dk).transpose() @ (qmat@w - dk)
-            #    j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
+                #j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
             else:
             ## incremental form
-                d, tmat, zmat, dk, qmat, heinv = args
+                #d, tmat, zmat, dk, qmat, heinv = args
+                d, tmat, zmat, dk, zbmat, schurinv, coef_a, heinv = args
                 w = tmat @ zeta
-                jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta 
                 jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
-                jk = 0.5 * (nk-1) * (qmat@w - dk).transpose() @ (qmat@w - dk)
                 #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
+            lrg = (1.0 - coef_a) * zbmat @ w - dk
+            jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta 
+            #jk = 0.5 * (nk-1) * (qmat@w - dk).transpose() @ (qmat@w - dk)
+            jk = 0.5 * (nk-1) * lrg.transpose() @ schurinv @ lrg
             if return_each:
                 return jb, jo, jk
             else:
@@ -258,9 +265,7 @@ class EnVAR_nest():
                 jo = 0.5 * ob.transpose() @ rinv @ ob
             else:
             ## incremental form
-                if self.ridge:
-                    d, tmat, zmat, dk, qmat, heinv = args
-                elif self.ridge_dx:
+                if self.ridge_dx:
                     d, tmat, zmat, dk, qmat, dxf, heinv = args
                 elif self.reg:
                     d, tmat, zmat, dk, dk_, dxb_, dxc2, heinv = args
@@ -285,11 +290,12 @@ class EnVAR_nest():
     def calc_grad_j(self, zeta, *args):
         ## Z = R^{-1/2}JHX^b
         nk = zeta.size
-        if not self.crosscov:
+        if not self.crosscov or (self.crosscov and self.ortho):
             ## Q = (JH_1X^B)^\dag JH_2X^b
             ## dk = (JH_1X^B)^\dag (H_1(x^B) - H_2(x^b))
             if not self.incremental:
-                xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
+                #xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
+                xc, dxf, y, yloc, tmat, gmat, dk, zbmat, schurinv, coef_a, heinv, rinv = args
                 x = xc + gmat @ zeta
                 w = tmat @ zeta
                 hx = self.obs.h_operator(yloc, x)
@@ -300,14 +306,17 @@ class EnVAR_nest():
                     dy = self.obs.h_operator(yloc, x[:, None] + dxf) - hx[:, None]
                 grad = (nk-1) * heinv @ zeta \
                     - tmat @ dy.transpose() @ rinv @ ob \
-                    + (nk-1) * tmat @ qmat.transpose() @ (qmat@w - dk)
+                    + (1.0 - coef_a) * (nk-1) * tmat @ zbmat.transpose() @ schurinv @ ((1.0-coef_a)*zbmat@w - dk)
+                    #+ (nk-1) * tmat @ qmat.transpose() @ (qmat@w - dk)
             else:
             ## incremental form
-                d, tmat, zmat, dk, qmat, heinv = args
+                #d, tmat, zmat, dk, qmat, heinv = args
+                d, tmat, zmat, dk, zbmat, schurinv, coef_a, heinv = args
                 w = tmat @ zeta
                 grad = (nk-1) * heinv @ zeta \
                     + tmat @ zmat.transpose() @ (zmat@w - d) \
-                    + (nk-1) * tmat @ qmat.transpose() @ (qmat@w - dk)
+                    + (1.0 - coef_a) * (nk-1) * tmat @ zbmat.transpose() @ schurinv @ ((1.0-coef_a)*zbmat@w - dk)
+                    #+ (nk-1) * tmat @ qmat.transpose() @ (qmat@w - dk)
         else:
             ## Q = (X^b\\ JH_1X^B)^\dag (X^b\\ JH_2X^b)
             ## dk = (X^b\\ JH_1X^B)^\dag (0\\ H_1(x^B) - H_2(x^b))
@@ -361,11 +370,12 @@ class EnVAR_nest():
     def calc_hess(self, zeta, *args):
         ## Z = R^{-1/2}JHX^b
         nk = zeta.size
-        if not self.crosscov:
+        if not self.crosscov or (self.crosscov and self.ortho):
             ## Q = (JH_1X^B)^\dag JH_2X^b
             ## dk = (JH_1X^B)^\dag (H_1(x^B) - H_2(x^b))
             if not self.incremental:
-                xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
+                #xc, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv = args
+                xc, dxf, y, yloc, tmat, gmat, dk, zbmat, schurinv, coef_a, heinv, rinv = args
                 x = xc + gmat @ zeta
                 if self.ltlm:
                     dy = self.obs.dh_operator(yloc, x) @ dxf
@@ -373,13 +383,16 @@ class EnVAR_nest():
                     dy = self.obs.h_operator(yloc, x[:, None] + dxf) - self.obs.h_operator(yloc, x)[:, None]
                 hess = tmat @ ((nk-1) * np.eye(zeta.size) \
                     + dy.transpose() @ rinv @ dy \
-                    + (nk-1) * qmat.transpose() @ qmat) @ tmat
+                    + (1.0-coef_a)**2 * (nk-1) * zbmat.transpose() @ schurinv @ zbmat) @ tmat
+                    #+ (nk-1) * qmat.transpose() @ qmat) @ tmat
             else:
             ## incremental form
-                d, tmat, zmat, dk, qmat, heinv = args
+                #d, tmat, zmat, dk, qmat, heinv = args
+                d, tmat, zmat, dk, zbmat, schurinv, coef_a, heinv = args
                 hess = tmat @ ((nk-1) * np.eye(zeta.size) \
                     + zmat.transpose() @ zmat \
-                    + (nk-1) * qmat.transpose() @ qmat) @ tmat
+                    + (1.0-coef_a)**2 * (nk-1) * zbmat.transpose() @ schurinv @ zbmat) @ tmat
+                    #+ (nk-1) * qmat.transpose() @ qmat) @ tmat
         else:
             ## Q = (X^b\\ JH_1X^B)^\dag (X^b\\ JH_2X^b)
             ## dk = (X^b\\ JH_1X^B)^\dag (0\\ H_1(x^B) - H_2(x^b))
@@ -619,24 +632,48 @@ class EnVAR_nest():
                 np.save("{}_dk_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dk)
                 svmat = zvmat / np.sqrt(zvmat.shape[1]-1)
                 np.save("{}_svmat_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), svmat)
-            if not self.crosscov:
+            if not self.crosscov or (self.crosscov and self.ortho):
                 ## Q = (JH_1X^B)^\dag JH_2X^b
                 ## dk = (JH_1X^B)^\dag (H_1(x^B) - H_2(x^b))
-                if zvmat.shape[0] >= zvmat.shape[1]:
-                    vsqrtinv = la.pinv(zvmat)
+                if self.crosscov and self.ortho:
+                    # estimate coefficient a
+                    mag2 = np.diag(np.dot(zbmat.T,zbmat))
+                    inner = np.diag(np.dot(zvmat.T,zbmat))
+                    coef_a_all = inner / mag2
+                    coef_a = np.mean(coef_a_all)
+                    coef_a = min(1.0, coef_a)
+                    logger.info(f"coef_a={coef_a:.3e}")
+                    if save_dh:
+                        np.savetxt("{}_coef_a_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), coef_a_all)
                 else:
-                    u, s, vt = la.svd(zvmat)
-                    logger.debug(f"s={s[:self.nv]}")
-                    logger.debug(f"u.shape={u[:,:self.nv].shape}")
-                    vsqrtinv = vt[:self.nv,:].transpose() @ np.diag(1.0/s[:self.nv]) @ u[:,:self.nv].transpose()
-                qmat = vsqrtinv @ zbmat
-                dk = vsqrtinv @ dk
-                args_prec = (zmat, qmat)
-                logger.info(f"qmat.shape={qmat.shape}")
-                logger.info(f"dk.shape={dk.shape}")
+                    coef_a = 0.0
+                schur = np.dot(zvmat,zvmat.T) - coef_a*coef_a*np.dot(zbmat,zbmat.T)
+                #schurinv = la.pinv(schur)
+                lam, c = la.eigh(schur)
+                lam = lam[::-1]
+                c = c[:,::-1]
+                npos = int(np.sum(lam>0.0))
+                #npos = lam.size
+                print(npos)
+                schurinv = c[:,:npos] @ np.diag(1.0/lam[:npos]) @ c[:,:npos].T
+                args_prec = (zmat, zbmat, schurinv, coef_a)
                 if save_dh:
-                    np.save("{}_qmat_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), qmat)
-                    np.save("{}_dk2_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dk)
+                    np.save("{}_schur_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), schur)
+                #if zvmat.shape[0] >= zvmat.shape[1]:
+                #    vsqrtinv = la.pinv(zvmat)
+                #else:
+                #    u, s, vt = la.svd(zvmat)
+                #    logger.debug(f"s={s[:self.nv]}")
+                #    logger.debug(f"u.shape={u[:,:self.nv].shape}")
+                #    vsqrtinv = vt[:self.nv,:].transpose() @ np.diag(1.0/s[:self.nv]) @ u[:,:self.nv].transpose()
+                #qmat = vsqrtinv @ zbmat
+                #dk = vsqrtinv @ dk
+                #args_prec = (zmat, qmat)
+                #logger.info(f"qmat.shape={qmat.shape}")
+                #logger.info(f"dk.shape={dk.shape}")
+                #if save_dh:
+                #    np.save("{}_qmat_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), qmat)
+                #    np.save("{}_dk2_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dk)
             else:
                 dxc1 = np.vstack((dxf,zvmat))
                 dxc2 = np.vstack((dxf,zbmat))
@@ -698,14 +735,16 @@ class EnVAR_nest():
                 if self.crosscov and self.reg:
                     args_j = (xf_, dxf, y, yloc, tmat, gmat, dk, dk_, dxb_, dxc2, heinv, rinv)
                 else:
-                    args_j = (xf_, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv)
+                    #args_j = (xf_, dxf, y, yloc, tmat, gmat, dk, qmat, heinv, rinv)
+                    args_j = (xf_, dxf, y, yloc, tmat, gmat, dk, zbmat, schurinv, coef_a, heinv, rinv)
             else:
                 if self.crosscov and self.reg:
                     args_j = (d, tmat, zmat, dk, dk_, dxb_, dxc2, heinv)
+                elif self.crosscov and self.ridge_dx:
+                    args_j = (d, tmat, zmat, dk, qmat, dxf, heinv)
                 else:
-                    args_j = (d, tmat, zmat, dk, qmat, heinv)
-                    if self.crosscov and self.ridge_dx:
-                        args_j = (d, tmat, zmat, dk, qmat, dxf, heinv)
+                    #args_j = (d, tmat, zmat, dk, qmat, heinv)
+                    args_j = (d, tmat, zmat, dk, zbmat, schurinv, coef_a, heinv)
             iprint = np.zeros(2, dtype=np.int32)
             irest = 0 # restart counter
             flg = -1  # optimilation result flag
@@ -817,7 +856,7 @@ class EnVAR_nest():
                     for i in range(len(zetak)):
                         #jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
                         # calculate jb, jo and jk separately
-                        if not self.crosscov:
+                        if not self.crosscov or (self.crosscov and self.ortho):
                             jb, jo, jk = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
                             jh[i,0] = jb
                             jh[i,1] = jo
@@ -861,7 +900,8 @@ class EnVAR_nest():
             elif self.crosscov and self.reg:
                 args_prec = (zmat, dxc2, dxb_)
             else:
-                args_prec = (zmat, qmat)
+                #args_prec = (zmat, qmat)
+                args_prec = (zmat, zbmat, schurinv, coef_a)
             tmat, heinv = self.precondition(*args_prec)
             d = y - self.obs.h_operator(yloc, xa_)
             logger.info("zmat shape={}".format(zmat.shape))

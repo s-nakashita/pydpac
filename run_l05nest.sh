@@ -7,13 +7,13 @@ model="l05nestm"
 operators="linear" # quadratic" # cubic"
 #perturbations="var_nest var envar_nest envar"
 #perturbations="mlef"
-perturbations="envar_nest"
+perturbations="envar_nestc envar_nest envar"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=100 # Number of assimilation cycle
+na=200 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -33,7 +33,7 @@ hyper_mu=0.0
 #exp="var_vs_envar_shrink_dct_preGM_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
-exp="envar_nestc_shrink_preGM_m${nmem}obs${nobs}"
+exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
@@ -210,6 +210,10 @@ for op in ${operators}; do
       for vname in dk svmat qmat dk2 hess tmat heinv zbmat zvmat dxc1 dxc2;do
         mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
       done
+    fi
+    if [ $pt = envar_nestc ]; then
+      mv ${model}_lam_coef_a_${op}_${pert}_cycle*.txt data/$pert
+      mv ${model}_lam_schur_${op}_${pert}_cycle*.npy data/$pert
     fi
   done
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}

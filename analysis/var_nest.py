@@ -266,10 +266,10 @@ class Var_nest():
 
             h2bsqrt = self.trunc_operator(bsqrt,axis=0)
             if self.crosscov:
-                v1 = self.vmat - self.coef_a*self.coef_a*np.dot(h2bsqrt,h2bsqrt.T)
+                self.v1 = self.vmat - self.coef_a*self.coef_a*np.dot(h2bsqrt,h2bsqrt.T)
             else:
-                v1 = self.vmat.copy()
-            eival, eivec = la.eigh(v1)
+                self.v1 = self.vmat.copy()
+            eival, eivec = la.eigh(self.v1)
             eival = eival[::-1]
             eivec = eivec[:,::-1]
             eival[eival<1.0e-16] = 0.0

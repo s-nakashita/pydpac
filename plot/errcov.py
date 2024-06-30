@@ -59,9 +59,12 @@ for pt in perts:
         Vtmp = np.dot(xdv1,xdv1.T)/float(xdv1.shape[1]-1)
         H2BH2tmp = np.dot(xdv2,xdv2.T)/float(xdv2.shape[1]-1)
         H2BVtmp = np.dot(xdv2,xdv1.T)/float(xdv2.shape[1]-1)
-        coef_a = np.trace(H2BVtmp)/np.trace(H2BH2tmp)
+        mag2 = np.diag(np.dot(xdv2.T,xdv2))
+        inner = np.diag(np.dot(xdv1.T,xdv2))
+        coef_a = inner/mag2
+        #coef_a = np.trace(H2BVtmp)/np.trace(H2BH2tmp)
         coef_a_list.append(coef_a)
-        eta = xdv1 - coef_a * xdv2
+        eta = xdv1 - np.mean(coef_a) * xdv2
         H2Betatmp = np.dot(xdv2,eta.T)/float(xdv2.shape[1]-1)
         eta2tmp = np.dot(eta,eta.T)/float(eta.shape[1]-1)
         if icycle == ns:
@@ -84,16 +87,21 @@ for pt in perts:
 
     fig, ax = plt.subplots(figsize=[6,4],constrained_layout=True)
     cycles = np.arange(ns,na)
-    coef_a = np.array(coef_a_list).mean()
-    ax.plot(cycles,coef_a_list,label=f'mean={coef_a:.3e}')
-    ax.hlines([coef_a],0,1,colors='tab:blue',ls='dashed',transform=ax.get_yaxis_transform())
+    coef_a = np.array(coef_a_list)
+    print(coef_a.shape)
+    coef_a_mean=coef_a.mean(axis=1)
+    coef_a_std=coef_a.std(axis=1)
+    ax.plot(cycles,coef_a_mean,label=f'mean={coef_a_mean.mean():.3e}')
+    ax.fill_between(cycles,coef_a_mean-coef_a_std,coef_a_mean+coef_a_std,color='tab:blue',alpha=0.3)
+    ax.hlines([coef_a_mean.mean()],0,1,colors='tab:blue',ls='dashed',transform=ax.get_yaxis_transform())
     ax.legend()
     ax.set_xlabel('cycles')
     ax.set_ylabel('a')
-    fig.savefig(datadir/"coef_a.png",dpi=300)
+    fig.savefig(lamdir/f"coef_a_{pt}.png",dpi=300)
     plt.show()
     plt.close()
 
+    coef_a = coef_a_mean.mean()
     fig, axs = plt.subplots(ncols=3,nrows=2,figsize=[10,8],constrained_layout=True)
     mplist = []
     vlim = max(np.max(V),-np.min(V))
@@ -121,7 +129,7 @@ for pt in perts:
         fig.colorbar(mp,ax=ax,shrink=0.6,pad=0.01)
     #fig.colorbar(mp00,ax=axs,shrink=0.6,pad=0.01)
     fig.suptitle(r'$\varepsilon^\mathrm{v}=aH_2(\varepsilon^\mathrm{b})+\eta$')
-    fig.savefig(datadir/"errcov_estimate.png",dpi=300)
+    fig.savefig(lamdir/f"errcov_estimate_{pt}.png",dpi=300)
     plt.show()
     plt.close()
-    exit()
+    

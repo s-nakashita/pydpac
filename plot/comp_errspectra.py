@@ -22,7 +22,7 @@ t = np.arange(na)+1
 ns = 40 # spinup
 
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
-datadir = Path(f'../work/{model}')
+#datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_m80obs30'
@@ -49,8 +49,8 @@ nmc_t = NMC_tools(ix_t_rad,cyclic=True,ttype='c')
 nmc_gm = NMC_tools(ix_gm_rad,cyclic=True,ttype='c')
 nmc_lam = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 
-fig, ax = plt.subplots(figsize=[10,5],constrained_layout=True)
-figsp, axsp = plt.subplots(figsize=[10,6],constrained_layout=True)
+fig, ax = plt.subplots(figsize=[8,5],constrained_layout=True)
+figsp, axsp = plt.subplots(figsize=[8,6],constrained_layout=True)
 psd_dict = {}
 
 # nature background psd
