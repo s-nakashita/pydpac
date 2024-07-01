@@ -269,7 +269,9 @@ class EnVAR_nest():
                 jo = 0.5 * ob.transpose() @ rinv @ ob
             else:
             ## incremental form
-                if self.ridge_dx:
+                if self.ridge:
+                    d, tmat, zmat, dk, qmat, heinv = args
+                elif self.ridge_dx:
                     d, tmat, zmat, dk, qmat, dxf, heinv = args
                 elif self.reg:
                     d, tmat, zmat, dk, dk_, dxb_, dxc2, heinv = args

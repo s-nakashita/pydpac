@@ -191,7 +191,8 @@ def solve(*args):
 
 ```{python}
 model = "l05nestm"
-datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
+datadir = Path(f'work/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
+#datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
 ix_gm = np.loadtxt(datadir/"ix_gm.txt")
 ix_lam = np.loadtxt(datadir/"ix_lam.txt")
 def loaddata(icycle,pt):
@@ -377,11 +378,14 @@ plt.show()
     #Xa_nc = np.sqrt(nmem-1)*Xb@trans_nc
 
     Zvd = la.pinv(Zv)
-    qmat = Zvd @ Zb
-    dvtmp = Zvd @ dv
-    args_prec = (Yb, qmat)
+    #qmat = Zvd @ Zb
+    #dvtmp = Zvd @ dv
+    schurinv = Zvd.T @ Zvd
+    coef_a = 0.0
+    args_prec = (Yb, Zb, schurinv, coef_a)
     trans_nc, heinv = envar_nest.precondition(*args_prec)
-    args = (do, trans_nc, Yb, dvtmp, qmat, heinv)
+    #args = (do, trans_nc, Yb, dvtmp, qmat, heinv)
+    args = (do, trans_nc, Yb, dv, Zb, schurinv, coef_a, heinv)
     minimize = Minimize(nmem, envar_nest.calc_j, jac=envar_nest.calc_grad_j, hess=envar_nest.calc_hess, args=args)
     z_nc, _ = minimize(np.zeros(nmem))
     w_nc = trans_nc @ z_nc
@@ -538,22 +542,45 @@ plt.show()
 #| output: false
 
     envar_nestc = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nestc",ntrunc=12,\
-    crosscov=True,ridge=True,mu=0.0,model="l05nestm")
+    crosscov=True,ortho=False,ridge=True,mu=0.0,model="l05nestm")
 
     dxc1 = np.vstack((Xb,Zv))
     dxc2 = np.vstack((Xb,Zb))
     u, s, vt = la.svd(dxc1)
-    ndof = int(np.sum(s>1.0e-10))
-    vsqrtinv = vt[:ndof,:].transpose() @ np.diag(1.0/s[:ndof]) @ u[:,:ndof].transpose()
-    qmat = vsqrtinv @ dxc2
-    dvtmp = vsqrtinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
-    args_prec = (Yb,qmat)
-    trans, heinv = envar_nestc.precondition(*args_prec)
-    args = (do, trans, Yb, dvtmp, qmat, heinv)
-    minimize = Minimize(nmem, envar_nestc.calc_j, jac=envar_nestc.calc_grad_j, hess=envar_nestc.calc_hess, args=args)
-    z, _ = minimize(np.zeros(nmem))
-    w = trans @ z
-    Xa = np.sqrt(nmem-1)*Xb@trans
+    lam = s*s
+    lamsum = np.sum(lam)
+    
+    contriblist = [100,99,95,90]
+    argslist = []
+    zlist = []
+    wlist = []
+    Xalist = []
+    translist = []
+    for contrib in contriblist:
+        if contrib==100:
+            ndof = int(np.sum(s>1.0e-10))
+        else:
+            ndof = 1
+            while ndof < s.size:
+                c = np.sum(lam[:ndof])/lamsum
+                if c>contrib: break
+                ndof+=1
+        print(f"contrib={contrib}% ndof={ndof}")
+        vsqrtinv = vt[:ndof,:].transpose() @ np.diag(1.0/s[:ndof]) @ u[:,:ndof].transpose()
+        qmat = vsqrtinv @ dxc2
+        dvtmp = vsqrtinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+        args_prec = (Yb,qmat)
+        trans, heinv = envar_nestc.precondition(*args_prec)
+        args = (do, trans, Yb, dvtmp, qmat, heinv)
+        argslist.append(args)
+        minimize = Minimize(nmem, envar_nestc.calc_j, jac=envar_nestc.calc_grad_j, hess=envar_nestc.calc_hess, args=args)
+        z, _ = minimize(np.zeros(nmem))
+        w = trans @ z
+        Xa = np.sqrt(nmem-1)*Xb@trans
+        zlist.append(z)
+        wlist.append(w)
+        Xalist.append(Xa)
+        translist.append(trans)
 
     Pcpinv = la.pinv(Pc,hermitian=True)
     Xb_ = Pcpinv @ np.vstack((Xb,Zb))
@@ -564,12 +591,31 @@ plt.show()
     #Xa = np.sqrt(nmem-1)*Xb@trans
 ```
 ```{python}
-    Ji = envar_nestc.calc_j(np.zeros(nmem),*args)
-    Jf = envar_nestc.calc_j(z,*args)
-    #Ji = cost(np.zeros_like(w),*args)
-    #Jf = cost(w,*args)
-    print(f"initial cost={Ji:.4e}")
-    print(f"final cost={Jf:.4e}")
+    Jlist = []
+    for contrib, z, args in zip(contriblist,zlist,argslist):
+        Ji = envar_nestc.calc_j(np.zeros(nmem),*args)
+        Jf = envar_nestc.calc_j(z,*args)
+        #Ji = cost(np.zeros_like(w),*args)
+        #Jf = cost(w,*args)
+        print(f"contrib={contrib}% initial cost={Ji:.4e}")
+        print(f"contrib={contrib}% final cost={Jf:.4e}")
+        Jlist.append([Ji,Jf])
+
+```
+
+```{python}
+#| fig-cap: Sensitivity of $J$ to truncated modes
+#| label: fig-minnorm-cost-c
+
+    Jarray = np.array(Jlist)
+    fig, ax = plt.subplots()
+    #ax.plot(mulist,Jarray[:,0],marker='o',ms=10,lw=0.0,label='initial')
+    ax.plot(contriblist,Jarray[:,1],marker='s',ms=10,lw=0.0,label='final')
+    ax.legend()
+    ax.set_xscale('log')
+    ax.set_ylabel('J')
+    ax.set_xlabel('contribution (%)')
+    plt.show()
 
 ```
 
@@ -610,7 +656,8 @@ plt.show()
     fig, ax = plt.subplots(figsize=[4,6])
     ax.plot(w_nc,np.arange(1,w_nc.size+1),ls='dashed',label='no cross')
     ax.plot(w_conv,np.arange(1,w_conv.size+1),ls='dotted',label='no V')
-    ax.plot(w,np.arange(1,w.size+1),label='cross')
+    for c, w in zip(contriblist,wlist):
+        ax.plot(w,np.arange(1,w.size+1),label=f'cross,{c}%')
     xmin,xmax = ax.get_xlim()
     xlim = max(-xmin,xmax)
     ax.set_xlim(-xlim,xlim)
@@ -622,7 +669,8 @@ plt.show()
     fig, ax = plt.subplots(figsize=[8,6])
     ax.plot(dx_nc,ls='dashed',label='no cross')
     ax.plot(dx_conv,ls='dotted',label='no V')
-    ax.plot(Xb@w,label='cross')
+    for c, w in zip(contriblist,wlist):
+        ax.plot(Xb@w,label=f'cross,{c}%')
     ymin,ymax = ax.get_ylim()
     ylim = max(-ymin,ymax)
     ax.set_ylim(-ylim,ylim)
@@ -631,22 +679,32 @@ plt.show()
     ax.set_ylabel('dx')
     plt.show()
 
-    fig, axs = plt.subplots(ncols=2)
-    mp0=axs[0].matshow(Xb)
-    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
-    axs[0].set_title('Xb')
-    mp1=axs[1].matshow(Xa)
-    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
-    axs[1].set_title('Xa')
+    nrows = 1
+    ncols = (1+len(contriblist))//nrows
+    fig, axs = plt.subplots(nrows=nrows,ncols=ncols,sharey=True,constrained_layout=True)
+    vlim = max(np.max(Xb),-np.min(Xb))
+    mp0=axs.flatten()[0].matshow(Xb,norm=Normalize(-vlim,vlim))
+    #fig.colorbar(mp0,ax=axs.flatten()[0],shrink=0.6,pad=0.01)
+    axs.flatten()[0].set_title('Xb')
+    for c, Xa in zip(contriblist,Xalist):
+        i=contriblist.index(c)
+        ax=axs.flatten()[i+1]
+        mp1=ax.matshow(Xa,norm=Normalize(-vlim,vlim))
+        #fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
+        ax.set_title(f'Xa,{c}%')
+    fig.colorbar(mp1,ax=axs,shrink=0.6,pad=0.1)
     plt.show()
 
-    fig, axs = plt.subplots(ncols=2,constrained_layout=True)
-    mp0=axs[0].matshow(trans_nc)
-    fig.colorbar(mp0,ax=axs[0],shrink=0.6,pad=0.01)
-    axs[0].set_title('trans (no cross)')
-    mp1=axs[1].matshow(trans)
-    fig.colorbar(mp1,ax=axs[1],shrink=0.6,pad=0.01)
-    axs[1].set_title('trans')
+    fig, axs = plt.subplots(ncols=3,nrows=2,constrained_layout=True)
+    mp0=axs[0,0].matshow(trans_nc)
+    fig.colorbar(mp0,ax=axs[0,0],shrink=0.6,pad=0.01)
+    axs[0,0].set_title('trans (no cross)')
+    for c, trans in zip(contriblist,translist):
+        i=contriblist.index(c)
+        ax = axs.flatten()[i+1]
+        mp1=ax.matshow(trans)
+        fig.colorbar(mp1,ax=ax,shrink=0.6,pad=0.01)
+        ax.set_title(f'trans,{c}%')
     plt.show()
 
 ```
@@ -695,7 +753,7 @@ plt.show()
     for mu in mulist:
         #mu = 0.01
         envar_nestc = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nestc",ntrunc=12,\
-        crosscov=True,ridge=False,reg=True,mu=mu,model="l05nestm")
+        crosscov=True,ortho=False,ridge=False,reg=True,mu=mu,model="l05nestm")
         solverlist.append(envar_nestc)
 
         dvtmp = np.hstack((np.zeros(Xb.shape[0]),dv))
@@ -940,7 +998,7 @@ $${#eq-ridge}
         translist = []
         for ga in galist:
             envar_nestc = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nestc",ntrunc=12,\
-            crosscov=True,reg=False,ridge=True,mu=ga,model="l05nestm")
+            crosscov=True,ortho=False,reg=False,ridge=True,mu=ga,model="l05nestm")
             solverlist.append(envar_nestc)
 
             qmat = vsqrtinv @ dxc2
@@ -1070,7 +1128,7 @@ $${#eq-ridge-dx}
         translist = []
         for ga in galist:
             envar_nestc = EnVAR_nest(state_size,nmem,obs,ix_gm,ix_lam,pt="envar_nestc",ntrunc=12,\
-            crosscov=True,reg=False,ridge=False,ridge_dx=True,mu=ga,model="l05nestm")
+            crosscov=True,ortho=False,reg=False,ridge=False,ridge_dx=True,mu=ga,model="l05nestm")
             solverlist.append(envar_nestc)
 
             qmat = vsqrtinv @ dxc2
