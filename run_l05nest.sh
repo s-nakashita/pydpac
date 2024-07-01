@@ -27,7 +27,7 @@ opt=0
 functype=gc5
 #a=-0.1
 ntrunc=12
-coef_a=0.25
+coef_a=0.75
 hyper_mu=0.0
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
@@ -54,7 +54,8 @@ cp ${cdir}/logging_config.ini .
 if [ ${model} = l05nest ]; then
 ln -fs ${cdir}/data/l05III/truth.npy .
 elif [ ${model} = l05nestm ]; then
-ln -fs ${cdir}/data/l05IIIm/truth.npy .
+#ln -fs ${cdir}/data/l05IIIm/truth.npy .
+ln -fs ${ddir}/truth.npy .
 fi
 rm -rf obs*.npy
 rm -rf *.log

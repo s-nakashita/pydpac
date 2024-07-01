@@ -191,7 +191,7 @@ def solve(*args):
 
 ```{python}
 model = "l05nestm"
-datadir = Path(f'work/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
+datadir = Path(f'/Volumes/nakashita/Development/pydpac/work/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
 #datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
 ix_gm = np.loadtxt(datadir/"ix_gm.txt")
 ix_lam = np.loadtxt(datadir/"ix_lam.txt")
@@ -439,8 +439,8 @@ plt.show()
     ax.plot(w_nc,np.arange(1,w_nc.size+1),label='no cross')
     ax.plot(w_conv,np.arange(1,w_nc.size+1),label='no V')
     xmin,xmax = ax.get_xlim()
-    xlim = max(-xmin,xmax)
-    ax.set_xlim(-xlim,xlim)
+    xlimref = max(-xmin,xmax)
+    ax.set_xlim(-xlimref,xlimref)
     ax.legend()
     ax.set_ylabel('member')
     ax.set_xlabel('w')
@@ -454,8 +454,8 @@ plt.show()
     #ax.plot(dx_conv,ls='dashed')
     #ax.plot(dx,ls='dashed')
     ymin,ymax = ax.get_ylim()
-    ylim = max(-ymin,ymax)
-    ax.set_ylim(-ylim,ylim)
+    ylimref = max(-ymin,ymax)
+    ax.set_ylim(-ylimref,ylimref)
     ax.legend()
     ax.set_xlabel('grid')
     ax.set_ylabel('dx')
@@ -489,7 +489,7 @@ plt.show()
 
 ```
 
-1. pseudo-inverse (minimum-norm solution)
+1. truncated pseudo-inverse (minimum-norm solution)
     $$
     \tilde{\mathbf{X}}^\mathrm{b}
     =
@@ -547,10 +547,13 @@ plt.show()
     dxc1 = np.vstack((Xb,Zv))
     dxc2 = np.vstack((Xb,Zb))
     u, s, vt = la.svd(dxc1)
+    ndof = int(np.sum(s>1.0e-10))
+    vsqrtinv = vt[:ndof,:].transpose() @ np.diag(1.0/s[:ndof]) @ u[:,:ndof].transpose()
     lam = s*s
     lamsum = np.sum(lam)
     
-    contriblist = [100,99,95,90]
+    contriblist = [100,95,90,85,80]
+    ndoflist = []
     argslist = []
     zlist = []
     wlist = []
@@ -563,12 +566,12 @@ plt.show()
             ndof = 1
             while ndof < s.size:
                 c = np.sum(lam[:ndof])/lamsum
-                if c>contrib: break
+                if c*100>contrib: break
                 ndof+=1
-        print(f"contrib={contrib}% ndof={ndof}")
-        vsqrtinv = vt[:ndof,:].transpose() @ np.diag(1.0/s[:ndof]) @ u[:,:ndof].transpose()
-        qmat = vsqrtinv @ dxc2
-        dvtmp = vsqrtinv @ np.hstack((np.zeros(Xb.shape[0]),dv))
+        ndoflist.append(ndof)
+        vsqrtinvtmp = vt[:ndof,:].transpose() @ np.diag(1.0/s[:ndof]) @ u[:,:ndof].transpose()
+        qmat = vsqrtinvtmp @ dxc2
+        dvtmp = vsqrtinvtmp @ np.hstack((np.zeros(Xb.shape[0]),dv))
         args_prec = (Yb,qmat)
         trans, heinv = envar_nestc.precondition(*args_prec)
         args = (do, trans, Yb, dvtmp, qmat, heinv)
@@ -597,6 +600,7 @@ plt.show()
         Jf = envar_nestc.calc_j(z,*args)
         #Ji = cost(np.zeros_like(w),*args)
         #Jf = cost(w,*args)
+        print(f"contrib={contrib}% ndof={ndoflist[contriblist.index(contrib)]}")
         print(f"contrib={contrib}% initial cost={Ji:.4e}")
         print(f"contrib={contrib}% final cost={Jf:.4e}")
         Jlist.append([Ji,Jf])
@@ -612,7 +616,7 @@ plt.show()
     #ax.plot(mulist,Jarray[:,0],marker='o',ms=10,lw=0.0,label='initial')
     ax.plot(contriblist,Jarray[:,1],marker='s',ms=10,lw=0.0,label='final')
     ax.legend()
-    ax.set_xscale('log')
+    ax.set_yscale('log')
     ax.set_ylabel('J')
     ax.set_xlabel('contribution (%)')
     plt.show()
@@ -660,7 +664,7 @@ plt.show()
         ax.plot(w,np.arange(1,w.size+1),label=f'cross,{c}%')
     xmin,xmax = ax.get_xlim()
     xlim = max(-xmin,xmax)
-    ax.set_xlim(-xlim,xlim)
+    ax.set_xlim(-xlimref,xlimref)
     ax.legend()
     ax.set_ylabel('member')
     ax.set_xlabel('w')
@@ -673,7 +677,7 @@ plt.show()
         ax.plot(Xb@w,label=f'cross,{c}%')
     ymin,ymax = ax.get_ylim()
     ylim = max(-ymin,ymax)
-    ax.set_ylim(-ylim,ylim)
+    ax.set_ylim(-ylimref,ylimref)
     ax.legend()
     ax.set_xlabel('grid')
     ax.set_ylabel('dx')
@@ -858,7 +862,7 @@ plt.show()
         ax.plot(Xb@w,label=r'$\mu$='+f'{mu}')
     ymin,ymax = ax.get_ylim()
     ylim = max(-ymin,ymax)
-    ax.set_ylim(-ylim,ylim)
+    ax.set_ylim(-ylimref,ylimref)
     ax.legend()
     ax.set_xlabel('grid')
     ax.set_ylabel('dx')
@@ -1075,7 +1079,7 @@ $${#eq-ridge}
             ax.plot(Xb@w,label=r'$\gamma$='+f'{ga}')
         ymin,ymax = ax.get_ylim()
         ylim = max(-ymin,ymax)
-        ax.set_ylim(-ylim,ylim)
+        ax.set_ylim(-ylimref,ylimref)
         ax.legend()
         ax.set_xlabel('grid')
         ax.set_ylabel('dx')
@@ -1205,7 +1209,7 @@ $${#eq-ridge-dx}
             ax.plot(Xb@w,label=r'$\gamma$='+f'{ga}')
         ymin,ymax = ax.get_ylim()
         ylim = max(-ymin,ymax)
-        ax.set_ylim(-ylim,ylim)
+        ax.set_ylim(-ylimref,ylimref)
         ax.legend()
         ax.set_xlabel('grid')
         ax.set_ylabel('dx')
@@ -1249,15 +1253,18 @@ $${#eq-ridge-dx}
 #|   - 6-h forecast
 #| label: fig-comp-rmse
 
-datadir1 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_shrink_preGM_m80obs30')
+datadir1 = Path(f'/Volumes/nakashita/Development/pydpac/work/{model}/envar_nestc_shrink_preGM_m80obs30')
+#datadir1 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_shrink_preGM_m80obs30')
 ea_nc  = np.loadtxt(datadir1/'e_lam_linear_envar_nest.txt')
 ef_nc  = np.loadtxt(datadir1/'ef_lam_linear_envar_nest.txt')
 ea_psd = np.loadtxt(datadir1/'e_lam_linear_envar_nestc.txt')
 ef_psd = np.loadtxt(datadir1/'ef_lam_linear_envar_nestc.txt')
-datadir2 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_reg0.01_shrink_preGM_m80obs30')
+datadir2 = Path(f'/Volumes/nakashita/Development/pydpac/work/{model}/envar_nestc_reg_shrink_preGM_m80obs30')
+#datadir2 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_reg0.01_shrink_preGM_m80obs30')
 ea_reg = np.loadtxt(datadir2/'e_lam_linear_envar_nestc.txt')
 ef_reg = np.loadtxt(datadir2/'ef_lam_linear_envar_nestc.txt')
-datadir3 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_ridge0.1_shrink_preGM_m80obs30')
+datadir3 = Path(f'/Volumes/nakashita/Development/pydpac/work/{model}/envar_nestc_ridge_shrink_preGM_m80obs30')
+#datadir3 = Path(f'/Volumes/FF520/nested_envar/data/{model}/envar_nestc_ridge0.1_shrink_preGM_m80obs30')
 ea_ridge = np.loadtxt(datadir3/'e_lam_linear_envar_nestc.txt')
 ef_ridge = np.loadtxt(datadir3/'ef_lam_linear_envar_nestc.txt')
 

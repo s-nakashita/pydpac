@@ -96,7 +96,7 @@ class EnVAR_nest():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig} infl_parm_lrg={self.infl_parm_lrg}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         logger.info(f"crosscov={self.crosscov}")
-        if self.crosscov and self.ortho:
+        if self.crosscov and self.ortho and (self.coef_a is not None):
             logger.info(f"prescribed coef_a={self.coef_a:.3e}")
         else:
             logger.info(f"ridge={self.ridge} ridge_dx={self.ridge_dx} reg={self.reg}")

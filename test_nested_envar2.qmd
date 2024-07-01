@@ -141,7 +141,7 @@ Since the ensemble Schur complement $\mathbf{V}_\mathrm{e}$ is usually rank defi
 
 ```{python}
 model = "l05nestm"
-datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
+datadir = Path(f'/Volumes/dandelion/nested_envar/data/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
 ix_gm = np.loadtxt(datadir/"ix_gm.txt")
 ix_lam = np.loadtxt(datadir/"ix_lam.txt")
 def loaddata(icycle,pt):
@@ -320,7 +320,8 @@ minimize = Minimize(chi0.size, var_nest.calc_j, jac=var_nest.calc_grad_j, hess=v
 chi, _ = minimize(chi0)
 _, dx_var_nest, _, _, _ = var_nest.prec(chi)
 # nested Var with cross covariance
-coef_a_list = [1.0,0.75,0.5,0.25,0.0]
+#coef_a_list = [1.0,0.75,0.5,0.25,0.0]
+coef_a_list = np.linspace(0.0,1.0,11).tolist()
 dx_var_nestc_list = []
 v1_list = []
 for coef_a in coef_a_list:
@@ -344,10 +345,17 @@ for coef_a in coef_a_list:
 #| label: fig-incr-3dvar
 
 fig, ax = plt.subplots()
-ax.plot(ix_lam[1:-1],dx_var,label='no V')
-ax.plot(ix_lam[1:-1],dx_var_nest,label='no cross')
+cmap = plt.get_cmap('viridis')
+ncol = cmap.N
+ax.plot(ix_lam[1:-1],dx_var_nest,c=cmap(0),label='no cross')
+nline = len(coef_a_list)
+intcol = ncol // (nline + 1)
+icol = intcol
 for coef_a, dx_var_nestc in zip(coef_a_list,dx_var_nestc_list):
-    ax.plot(ix_lam[1:-1],dx_var_nestc,ls='dashed',label=f'a={coef_a}')
+    ax.plot(ix_lam[1:-1],dx_var_nestc,ls='dashed',c=cmap(icol),label=f'a={coef_a:.1f}')
+    icol+=intcol
+ax.plot(ix_lam[1:-1],dx_var,c=cmap(ncol-1),label='no V',zorder=0)
+ax.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
 ax.legend()
 plt.show()
 
@@ -357,19 +365,40 @@ plt.show()
 #| fig-cap: Schur complement ([-@eq-schur]) for different $a$
 #| label: fig-schur-3dvar
 
-nrows = len(v1_list)
 ncols = 2
+nrows = int(np.ceil(len(v1_list) / ncols))
 fig, axs = plt.subplots(figsize=[8,10],nrows=nrows,ncols=ncols,constrained_layout=True)
-for i in range(nrows):
+evallist = []
+for i in range(len(coef_a_list)):
     v1 = v1_list[i]
     coef_a = coef_a_list[i]
     vlim = max(np.max(v1),-np.min(v1))
-    mp = axs[i,0].matshow(v1,cmap='coolwarm',norm=Normalize(-vlim,vlim))
-    fig.colorbar(mp,ax=axs[i,0],shrink=0.6,pad=0.01)
-    axs[i,0].set_title(f'a={coef_a:.2f}')
+    ax = axs.flatten()[i]
+    mp = ax.matshow(v1,cmap='coolwarm',norm=Normalize(-vlim,vlim))
+    fig.colorbar(mp,ax=ax,shrink=0.6,pad=0.01)
+    ax.set_title(f'a={coef_a:.2f}')
     lam, _ = la.eigh(v1)
-    axs[i,1].bar(np.arange(lam.size)+1,lam[::-1],width=0.4)
-    axs[i,1].set_ylabel('eigenvalues')
+    #axs[i,1].bar(np.arange(lam.size)+1,lam[::-1],width=0.4)
+    #axs[i,1].set_ylabel('eigenvalues')
+    evallist.append(lam)
+if i < len(axs.flatten()):
+    axs.flatten()[-1].remove()
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: Eigenvalues of Schur complement ([-@eq-schur]) for different $a$
+#| label: fig-eval-schur-3dvar
+
+fig, ax = plt.subplots()
+nline = len(coef_a_list)
+intcol = ncol // (nline + 1)
+icol = intcol
+for coef_a, lam in zip(coef_a_list,evallist):
+    ax.plot(lam[::-1],c=cmap(icol),label=f'a={coef_a:.1f}')
+    icol+=intcol
+ax.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
 plt.show()
 
 ```
@@ -579,25 +608,51 @@ plt.show()
 #| fig-cap: Schur complement ([-@eq-schur-ens]) for different $a$
 #| label: fig-schur-envar
 
-nrows = len(coef_a_list)//2
 ncols = 2
-fig, axs = plt.subplots(figsize=[8,15],nrows=nrows,ncols=ncols,constrained_layout=True)
-for i in range(nrows):
-    coef_a = coef_a_list[2*i+1]
+nrows = int(np.ceil(len(coef_a_list) / ncols))
+fig, axs = plt.subplots(figsize=[8,10],nrows=nrows,ncols=ncols,constrained_layout=True)
+evallist=[]
+for i in range(len(coef_a_list)):
+    coef_a = coef_a_list[i] #2*i+1]
     v1 = velist[i]/(nmem-1)
     if i==0: vlim = max(np.max(v1),-np.min(v1))
-    mp = axs[i,0].matshow(v1,cmap='coolwarm',norm=Normalize(-vlim,vlim))
-    fig.colorbar(mp,ax=axs[i,0],shrink=0.6,pad=0.01)
-    axs[i,0].set_title(f'a={coef_a:.2f}')
+    ax = axs.flatten()[i]
+    mp = ax.matshow(v1,cmap='coolwarm',norm=Normalize(-vlim,vlim))
+    fig.colorbar(mp,ax=ax,shrink=0.6,pad=0.01)
+    ax.set_title(f'a={coef_a:.2f}')
     lam, _ = la.eigh(v1)
-    #axs[i,1].bar(np.arange(lam.size)+1,lam[::-1],width=0.4)
-    axs[i,1].plot(np.arange(lam.size)+1,lam[::-1],lw=0.0,marker='x')
-    axs[i,1].hlines([0],0,1,colors='k',lw=0.5,transform=axs[i,1].get_yaxis_transform(),zorder=0)
-    axs[i,1].set_ylabel('eigenvalues')
-    if i==0: ymax = lam[-1] + 0.05
-    axs[i,1].set_ylim(-0.1,ymax)
-    axs[i,1].set_xticks(np.arange(lam.size)+1)
+    evallist.append(lam)
+    ##axs[i,1].bar(np.arange(lam.size)+1,lam[::-1],width=0.4)
+    #axs[i,1].plot(np.arange(lam.size)+1,lam[::-1],lw=0.0,marker='x')
+    #axs[i,1].hlines([0],0,1,colors='k',lw=0.5,transform=axs[i,1].get_yaxis_transform(),zorder=0)
+    #axs[i,1].set_ylabel('eigenvalues')
+    #if i==0: ymax = lam[-1] + 0.05
+    #axs[i,1].set_ylim(-0.1,ymax)
+    #axs[i,1].set_xticks(np.arange(lam.size)+1)
     #axs[i,1].grid()
+if i < len(axs.flatten()):
+    axs.flatten()[-1].remove()
+plt.show()
+
+```
+
+```{python}
+#| fig-cap: Eigenvalues of Schur complement ([-@eq-schur-ens]) for different $a$
+#| label: fig-schur-eval-envar
+
+fig, ax = plt.subplots()
+cmap = plt.get_cmap('viridis')
+ncol = cmap.N
+nline = len(coef_a_list)
+intcol = ncol // (nline + 1)
+icol = intcol
+for coef_a, lam in zip(coef_a_list,evallist):
+    ax.plot(lam[::-1],c=cmap(icol),label=f'a={coef_a:.1f}')
+    if lam[0]*lam[-1]<0:
+        ax.plot([0],lam[-1],c=cmap(icol),marker='^',lw=0.0)
+    icol+=intcol
+ax.hlines([0],0,1,colors='k',lw=0.5,transform=ax.get_yaxis_transform(),zorder=0)
+ax.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
 plt.show()
 
 ```
