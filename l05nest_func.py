@@ -176,10 +176,10 @@ class L05nest_func():
                 icobs = np.argmin(np.abs(self.step.ix_true - self.step.ix_lam[self.nx_lam//2]))
                 ## left-side
                 #obsloc = xloc[i0obs:i0obs+self.nobs]
-                # center
-                obsloc = xloc[icobs-self.nobs//2:icobs-self.nobs//2+self.nobs]
-                ## right-side
-                #obsloc = xloc[i1obs-self.nobs:i1obs]
+                ## center
+                #obsloc = xloc[icobs-self.nobs//2:icobs-self.nobs//2+self.nobs]
+                # right-side
+                obsloc = xloc[i1obs-self.nobs:i1obs]
                 if self.anlsp:
                     obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
                 else:

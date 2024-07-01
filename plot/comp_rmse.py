@@ -15,10 +15,15 @@ if len(sys.argv)>4:
     anl = (sys.argv[4]=='T')
 
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
-#datadir = Path(f'../work/{model}')
+datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
+ldscl=False
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_m80obs30'
+lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_partialc_m80obs30'
+if ldscl:
+    figdir = datadir
+else:
+    figdir = lamdir
 
 perts = ["envar", "envar_nest","var","var_nest"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
@@ -31,25 +36,26 @@ tc = np.arange(na)+1 # cycles
 t = tc / 4. # days
 ns = 40 # spinup
 errors = {}
-# downscaling
-if anl:
-    f = dscldir / f"e_lam_{op}_{preGMpt}.txt"
-else:
-    f = dscldir / f"ef_lam_{op}_{preGMpt}.txt"
-if not f.exists():
-    print("not exist {}".format(f))
-    exit()
-e_dscl = np.loadtxt(f)
-if anl:
-    print("dscl, analysis RMSE = {}".format(np.mean(e_dscl[ns:])))
-    f = dscldir / f"stda_lam_{op}_{preGMpt}.txt"
-else:
-    print("dscl, forecast RMSE = {}".format(np.mean(e_dscl[ns:])))
-    f = dscldir / f"stdf_lam_{op}_{preGMpt}.txt"
-stda_dscl = np.loadtxt(f)
-ax0.plot(t,e_dscl,c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-ax1.plot(t,stda_dscl,c='k',label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
-errors['dscl'] = e_dscl[ns:]
+if ldscl:
+    # downscaling
+    if anl:
+        f = dscldir / f"e_lam_{op}_{preGMpt}.txt"
+    else:
+        f = dscldir / f"ef_lam_{op}_{preGMpt}.txt"
+    if not f.exists():
+        print("not exist {}".format(f))
+        exit()
+    e_dscl = np.loadtxt(f)
+    if anl:
+        print("dscl, analysis RMSE = {}".format(np.mean(e_dscl[ns:])))
+        f = dscldir / f"stda_lam_{op}_{preGMpt}.txt"
+    else:
+        print("dscl, forecast RMSE = {}".format(np.mean(e_dscl[ns:])))
+        f = dscldir / f"stdf_lam_{op}_{preGMpt}.txt"
+    stda_dscl = np.loadtxt(f)
+    ax0.plot(t,e_dscl,c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    ax1.plot(t,stda_dscl,c='k',label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
+    errors['dscl'] = e_dscl[ns:]
 for pt in perts:
     if anl:
         f = lamdir / f"e_lam_{op}_{pt}.txt"
@@ -80,15 +86,15 @@ ax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title='Time average')
 ax1.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
 if anl:
-    fig0.savefig(datadir/'{}_e_lam_{}.png'.format(model,op),dpi=300)
-    fig1.savefig(datadir/'{}_stda_lam_{}.png'.format(model,op),dpi=300)
-    fig0.savefig(datadir/'{}_e_lam_{}.pdf'.format(model,op))
-    fig1.savefig(datadir/'{}_stda_lam_{}.pdf'.format(model,op))
+    fig0.savefig(figdir/'{}_e_lam_{}.png'.format(model,op),dpi=300)
+    fig1.savefig(figdir/'{}_stda_lam_{}.png'.format(model,op),dpi=300)
+    fig0.savefig(figdir/'{}_e_lam_{}.pdf'.format(model,op))
+    fig1.savefig(figdir/'{}_stda_lam_{}.pdf'.format(model,op))
 else:
-    fig0.savefig(datadir/'{}_ef_lam_{}.png'.format(model,op),dpi=300)
-    fig1.savefig(datadir/'{}_stdf_lam_{}.png'.format(model,op),dpi=300)
-    fig0.savefig(datadir/'{}_ef_lam_{}.pdf'.format(model,op))
-    fig1.savefig(datadir/'{}_stdf_lam_{}.pdf'.format(model,op))
+    fig0.savefig(figdir/'{}_ef_lam_{}.png'.format(model,op),dpi=300)
+    fig1.savefig(figdir/'{}_stdf_lam_{}.png'.format(model,op),dpi=300)
+    fig0.savefig(figdir/'{}_ef_lam_{}.pdf'.format(model,op))
+    fig1.savefig(figdir/'{}_stdf_lam_{}.pdf'.format(model,op))
 plt.show()
 plt.close()
 
@@ -169,7 +175,7 @@ annotate_heatmap(im,data=tmatrix,thdata=np.abs(pmatrix),\
 ax.set_title(f"t-test for LAM {op}: RMSE row-col")
 fig.tight_layout()
 if anl:
-    fig.savefig(datadir/"{}_e_t-test_for_lam_{}.png".format(model, op),dpi=300)
+    fig.savefig(figdir/"{}_e_t-test_for_lam_{}.png".format(model, op),dpi=300)
 else:
-    fig.savefig(datadir/"{}_ef_t-test_for_lam_{}.png".format(model, op),dpi=300)
+    fig.savefig(figdir/"{}_ef_t-test_for_lam_{}.png".format(model, op),dpi=300)
 plt.show()

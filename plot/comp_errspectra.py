@@ -22,10 +22,15 @@ t = np.arange(na)+1
 ns = 40 # spinup
 
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
-#datadir = Path(f'../work/{model}')
+datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
+ldscl=False
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_m80obs30'
+lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_partialc_m80obs30'
+if ldscl:
+    figdir = datadir
+else:
+    figdir = lamdir
 
 perts = ["envar", "envar_nest","var","var_nest"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
@@ -81,25 +86,26 @@ ax.plot(ix_gm, np.sqrt(np.mean(xdgm**2,axis=0)),\
 wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
 axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
-# downscaling
-if anl:
-    f = dscldir/"xalam_{}_{}.npy".format(op,preGMpt)
-else:
-    f = dscldir/"{}_xflam_{}_{}.npy".format(model,op,preGMpt)
-if not f.exists():
-    print("not exist {}".format(f))
-    exit()
-xadscl = np.load(f)
-xddscl = xadscl - xt2x(ix_lam)
-ax.plot(ix_lam, np.sqrt(np.mean(xddscl**2,axis=0)),\
-    c='k',lw=2.0,label='downscaling')
-wnum, psd_dscl = nmc_lam.psd(xddscl,axis=1,average=False)
-axsp.loglog(wnum,psd_dscl.mean(axis=0),c='k',lw=2.0,label='Downscaling')
-psd_dict["dscl"] = psd_dscl
-#f = dscldir/"xsalam_{}_{}.npy".format(op,preGMpt)
-#xsadscl = np.load(f)
-#ax.plot(ix_lam, np.mean(xsadscl,axis=0),\
-#    c='k',ls='dashed')
+if ldscl:
+    # downscaling
+    if anl:
+        f = dscldir/"xalam_{}_{}.npy".format(op,preGMpt)
+    else:
+        f = dscldir/"{}_xflam_{}_{}.npy".format(model,op,preGMpt)
+    if not f.exists():
+        print("not exist {}".format(f))
+        exit()
+    xadscl = np.load(f)
+    xddscl = xadscl - xt2x(ix_lam)
+    ax.plot(ix_lam, np.sqrt(np.mean(xddscl**2,axis=0)),\
+        c='k',lw=2.0,label='downscaling')
+    wnum, psd_dscl = nmc_lam.psd(xddscl,axis=1,average=False)
+    axsp.loglog(wnum,psd_dscl.mean(axis=0),c='k',lw=2.0,label='Downscaling')
+    psd_dict["dscl"] = psd_dscl
+    #f = dscldir/"xsalam_{}_{}.npy".format(op,preGMpt)
+    #xsadscl = np.load(f)
+    #ax.plot(ix_lam, np.mean(xsadscl,axis=0),\
+    #    c='k',ls='dashed')
 # LAM
 for pt in perts:
     if anl:
@@ -129,13 +135,17 @@ for pt in perts:
 ax.set_xlabel('grid')
 ax.set_xlim(ix_t[0],ix_t[-1])
 #ax.hlines([1],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
-ax.legend()
+ax.legend(loc='upper right')
+#ymin, ymax = ax.get_ylim()
+ymax = 1.0
+ymin = 0.15
+ax.set_ylim(ymin,ymax)
 if anl:
-    fig.savefig(datadir/f"{model}_xd_{op}.png",dpi=300)
-    fig.savefig(datadir/f"{model}_xd_{op}.pdf")
+    fig.savefig(figdir/f"{model}_xd_{op}.png",dpi=300)
+    fig.savefig(figdir/f"{model}_xd_{op}.pdf")
 else:
-    fig.savefig(datadir/f"{model}_xdf_{op}.png",dpi=300)
-    fig.savefig(datadir/f"{model}_xdf_{op}.pdf")
+    fig.savefig(figdir/f"{model}_xdf_{op}.png",dpi=300)
+    fig.savefig(figdir/f"{model}_xdf_{op}.pdf")
 
 axsp.grid()
 axsp.legend()
@@ -149,11 +159,11 @@ secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
 secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
 secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
 if anl:
-    figsp.savefig(datadir/f"{model}_errspectra_{op}.png",dpi=300)
-    figsp.savefig(datadir/f"{model}_errspectra_{op}.pdf")
+    figsp.savefig(figdir/f"{model}_errspectra_{op}.png",dpi=300)
+    figsp.savefig(figdir/f"{model}_errspectra_{op}.pdf")
 else:
-    figsp.savefig(datadir/f"{model}_errspectra_f_{op}.png",dpi=300)
-    figsp.savefig(datadir/f"{model}_errspectra_f_{op}.pdf")
+    figsp.savefig(figdir/f"{model}_errspectra_f_{op}.png",dpi=300)
+    figsp.savefig(figdir/f"{model}_errspectra_f_{op}.pdf")
 plt.show()
 plt.close()
 
@@ -201,8 +211,8 @@ for i,m1 in enumerate(methods):
         fig.suptitle(f"LAM {op}: {m1} - {m2}")
         fig.tight_layout()
         if anl:
-            fig.savefig(datadir/"{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
+            fig.savefig(figdir/"{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
         else:
-            fig.savefig(datadir/"{}_errspectra_f_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
+            fig.savefig(figdir/"{}_errspectra_f_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
         #plt.show()
         plt.close()
