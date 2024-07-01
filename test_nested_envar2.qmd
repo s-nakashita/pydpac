@@ -141,7 +141,7 @@ Since the ensemble Schur complement $\mathbf{V}_\mathrm{e}$ is usually rank defi
 
 ```{python}
 model = "l05nestm"
-datadir = Path(f'/Volumes/dandelion/nested_envar/data/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
+datadir = Path(f'work/{model}/var_vs_envar_shrink_dct_preGM_m80obs30')
 ix_gm = np.loadtxt(datadir/"ix_gm.txt")
 ix_lam = np.loadtxt(datadir/"ix_lam.txt")
 def loaddata(icycle,pt):
@@ -356,7 +356,6 @@ for coef_a, dx_var_nestc in zip(coef_a_list,dx_var_nestc_list):
     icol+=intcol
 ax.plot(ix_lam[1:-1],dx_var,c=cmap(ncol-1),label='no V',zorder=0)
 ax.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
-ax.legend()
 plt.show()
 
 ```

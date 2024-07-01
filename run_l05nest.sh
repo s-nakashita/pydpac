@@ -7,7 +7,7 @@ model="l05nestm"
 operators="linear" # quadratic" # cubic"
 perturbations="var_nest var envar_nest envar"
 #perturbations="mlef"
-#perturbations="var_nestc envar_nestc"
+perturbations="envar_nestc"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
@@ -27,14 +27,14 @@ opt=0
 functype=gc5
 #a=-0.1
 ntrunc=12
-coef_a=0.75
+coef_a=None
 hyper_mu=0.0
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
 exp="var_vs_envar_shrink_dct_preGM_partialr_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
-#exp="var_vs_envar_nestc_a${coef_a}_shrink_preGM_m${nmem}obs${nobs}"
+exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
@@ -54,8 +54,8 @@ cp ${cdir}/logging_config.ini .
 if [ ${model} = l05nest ]; then
 ln -fs ${cdir}/data/l05III/truth.npy .
 elif [ ${model} = l05nestm ]; then
-#ln -fs ${cdir}/data/l05IIIm/truth.npy .
-ln -fs ${ddir}/truth.npy .
+ln -fs ${cdir}/data/l05IIIm/truth.npy .
+#ln -fs ${ddir}/truth.npy .
 fi
 rm -rf obs*.npy
 rm -rf *.log
@@ -214,13 +214,14 @@ for op in ${operators}; do
     if [ $pt = var_nest ] || \
     [ $pt = envar_nest ] || [ $pt = envar_nestc ] || \
     [ $pt = mlef_nest ] || [ $pt = mlef_nestc ]; then
-      for vname in dk svmat qmat dk2 hess tmat heinv zbmat zvmat dxc1 dxc2;do
+      for vname in dk svmat qmat dk2 hess tmat heinv zbmat zvmat dxc1 dxc2 schur;do
         mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
       done
     fi
     if [ $pt = envar_nestc ]; then
-      mv ${model}_lam_coef_a_${op}_${pert}_cycle*.txt data/$pert
-      mv ${model}_lam_schur_${op}_${pert}_cycle*.npy data/$pert
+      python ${cdir}/plot/plotcoef_a_nest.py ${op} ${model} ${na} 
+      mv ${model}_lam_coef_a_${op}_${pert}.txt data/$pert
+      rm ${model}_lam_coef_a_${op}_${pert}_cycle*.txt
     fi
   done
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}
