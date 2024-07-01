@@ -8,6 +8,7 @@ import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator, FixedFormatter
 from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
+from methods import perts, linecolor
 sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
 plt.rcParams['font.size'] = 16
 
@@ -17,21 +18,6 @@ na = int(sys.argv[3])
 detrend = False
 if len(sys.argv)>4:
     detrend = sys.argv[4]=='T'
-perts = ["mlef", "mlef_nest", "mlef_nestc", \
-    "envar", "envar_nest", "envar_nestc",\
-    "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
-    "mlefcw","mlefy","mlefbe","mlefbm",\
-    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"mlef_nest":'tab:purple',"mlef_nestc":'tab:cyan',\
-    "envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":"lime",\
-    "etkf":'tab:green', "po":'tab:red',\
-    "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
-    "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
-if model == "z08":
-    perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
-    linestyle = {"mlef":"solid", "grad":"dashed",
-     "etkf-fh":"solid", "etkf-jh":"dashed"}
-    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red'}
 cmap = "coolwarm"
 f = "truth.npy"
 if not os.path.isfile(f):

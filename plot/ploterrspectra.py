@@ -9,7 +9,8 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FixedLocator, FixedFormatter
 plt.rcParams['font.size'] = 16
-from nmc_tools import psd, wnum2wlen, wlen2wnum
+from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
+from methods import perts, linecolor
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -17,14 +18,6 @@ na = int(sys.argv[3])
 model_error = False
 if len(sys.argv)>4:
     model_error = (sys.argv[4]=='True')
-perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var",\
-    "mlefcw","mlefy","mlefbe","mlefbm",\
-    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-if model == "z08":
-    perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
-    linestyle = {"mlef":"solid", "grad":"dashed",
-     "etkf-fh":"solid", "etkf-jh":"dashed"}
-    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red'}
 cmap = "coolwarm"
 f = "truth.npy"
 if not os.path.isfile(f):
@@ -56,6 +49,7 @@ for pt in perts:
     intmod = nx_t // nx
     xs = np.arange(0,nx_t,intmod)
     xs_rad = xs * dx_t
+    nmc = NMC_tools(xs_rad,cyclic=True,ttype='f')
     xd = xa - xt2mod(xs)
     fig, axs = plt.subplots(nrows=2,figsize=[10,10],constrained_layout=True)
     axs[0].plot(xs,np.sqrt(np.mean(xd**2,axis=0)),label='err')
@@ -77,7 +71,7 @@ for pt in perts:
     if pt != "kf" and pt != "var" and pt != "4dvar":
         #esps = fft(xsa,axis=1)
         #psd = 2.0*np.mean(np.abs(esps[:,:nx//2])**2,axis=0)*dx*dx/2.0/np.pi
-        wnum, epsd = psd(xsa,xs_rad,axis=1)
+        wnum, epsd = nmc.psd(xsa,axis=1)
         axs[1].plot(wnum,epsd,label='sprd')
     #axs[1].set_xlim(wnum[0],wnum[-1])
     axs[1].set(xlabel=r'wave number [radian$^{-1}$]',title='variance power spectra')

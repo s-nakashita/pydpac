@@ -7,6 +7,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.interpolate import interp1d
 plt.rcParams['font.size'] = 16
+from methods import perts
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -15,9 +16,6 @@ dscl = False
 if len(sys.argv)>4:
     dscl = (sys.argv[4]=='T')
 print(dscl)
-perts = ["mlef", "envar", "envar_nest", "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
-    "mlefcw","mlefy","mlefbe","mlefbm",\
-    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 cmap = "coolwarm"
 f = "truth.npy"
 if not os.path.isfile(f):

@@ -3,6 +3,7 @@ import os
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from methods import perts, linecolor
 plt.rcParams['font.size'] = 16
 
 op = sys.argv[1]
@@ -11,16 +12,6 @@ na = int(sys.argv[3])
 spinup=True
 if len(sys.argv) > 4:
     spinup=(sys.argv[4]=='T')
-perts = ["mlef", "mlef_nest", "mlef_nestc", \
-    "envar", "envar_nest", "envar_nestc",\
-    "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
-    "mlefcw","mlefy","mlefbe","mlefbm",\
-    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"mlef_nest":'tab:purple',"mlef_nestc":'tab:cyan',\
-    "envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":"lime",\
-    "etkf":'tab:green', "po":'tab:red',\
-    "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
-    "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 marker = {"3d":"","4d":"s","3ds":"x","4ds":"^"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \

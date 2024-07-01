@@ -21,7 +21,8 @@ class EnVAR_nest():
 
     def __init__(self, state_size, nmem, obs, ix_gm, ix_lam,
         pt="envar_nest", ntrunc=None, ftrunc=None, cyclic=False, 
-        crosscov=False, ortho=True, ridge=False, ridge_dx=False, reg=False, mu=0.1,
+        crosscov=False, ortho=True, coef_a=None, \
+        ridge=False, ridge_dx=False, reg=False, mu=0.1,
         nvars=1, ndims=1, 
         linf=False, infl_parm=1.0, infl_parm_lrg=1.0,
         iloc=None, lsig=-1.0, ss=False, getkf=False,
@@ -83,6 +84,7 @@ class EnVAR_nest():
         # cross-covariance
         self.crosscov = crosscov
         self.ortho = ortho # estimate large-scale error components parallel to truncated background
+        self.coef_a = coef_a # prescribed coefficient
         self.ridge = ridge # ridge regression (regularization in ensemble space)
         self.ridge_dx = ridge_dx # ridge regression for increment
         self.reg = reg # regularization in state space
@@ -94,7 +96,9 @@ class EnVAR_nest():
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig} infl_parm_lrg={self.infl_parm_lrg}")
         logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         logger.info(f"crosscov={self.crosscov}")
-        if self.crosscov and not self.ortho:
+        if self.crosscov and self.ortho:
+            logger.info(f"prescribed coef_a={self.coef_a:.3e}")
+        else:
             logger.info(f"ridge={self.ridge} ridge_dx={self.ridge_dx} reg={self.reg}")
             logger.info(f"mu={self.mu}")
         if self.iloc is not None:
@@ -637,11 +641,15 @@ class EnVAR_nest():
                 ## dk = (JH_1X^B)^\dag (H_1(x^B) - H_2(x^b))
                 if self.crosscov and self.ortho:
                     # estimate coefficient a
-                    mag2 = np.diag(np.dot(zbmat.T,zbmat))
-                    inner = np.diag(np.dot(zvmat.T,zbmat))
-                    coef_a_all = inner / mag2
-                    coef_a = np.mean(coef_a_all)
-                    coef_a = min(1.0, coef_a)
+                    if self.coef_a is not None:
+                        coef_a_all = np.full(nmem,self.coef_a)
+                        coef_a = min(1.0, self.coef_a)
+                    else:
+                        mag2 = np.diag(np.dot(zbmat.T,zbmat))
+                        inner = np.diag(np.dot(zvmat.T,zbmat))
+                        coef_a_all = inner / mag2
+                        coef_a = np.mean(coef_a_all)
+                        coef_a = min(1.0, coef_a)
                     logger.info(f"coef_a={coef_a:.3e}")
                     if save_dh:
                         np.savetxt("{}_coef_a_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), coef_a_all)

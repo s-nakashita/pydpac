@@ -152,6 +152,7 @@ params_lam["ntrunc"]    = 12    # (For var_nest & envar_nest) truncation number 
 params_lam["infl_parm_lrg"] = -1.0  # (For envar_nest) inflation parameter for GM error covariance
 params_lam["crosscov"]  = False     # (For var_nest & envar_nest) whether correlation between GM and LAM is considered or not
 params_lam["ortho"]     = True  # (For envar_nestc) ridge regression
+params_lam["coef_a"]    = 0.0
 params_lam["ridge"]     = False # (For envar_nestc) ridge regression
 params_lam["ridge_dx"]  = False 
 params_lam["reg"]       = False
@@ -305,7 +306,7 @@ elif pt == "envar_nest" or pt == "envar_nestc":
     if params_lam["anlsp"]:
         analysis_lam = EnVAR_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
-            crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], \
+            crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
@@ -316,7 +317,7 @@ elif pt == "envar_nest" or pt == "envar_nestc":
     else:
         analysis_lam = EnVAR_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
-            crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], \
+            crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
             linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
@@ -442,14 +443,14 @@ elif pt == "var_nest":
         analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1,
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
         sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
-        crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
+        crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model=model+"_lam")
     else:
         analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp,
         sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
         sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
-        crosscov=params_lam["crosscov"], ebkmat=ebkmat, ekbmat=ekbmat,
+        crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model=model+"_lam")
 else:

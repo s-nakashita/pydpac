@@ -7,6 +7,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.interpolate import interp1d
 plt.rcParams['font.size'] = 16
+from methods import perts
 sys.path.append(os.path.join(os.path.dirname(__file__),'../analysis'))
 from trunc1d import Trunc1d
 
@@ -17,12 +18,6 @@ dscl = False
 if len(sys.argv)>4:
     dscl = (sys.argv[4]=='T')
 print(dscl)
-perts = ["mlef", "mlef_nest", "mlef_nestc", \
-    "envar", "envar_nest", "envar_nestc", \
-    "etkf", "po", "srf", "letkf", \
-    "kf", "var","var_nest",\
-    "mlefcw","mlefy","mlefbe","mlefbm",\
-    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
 cmap = "coolwarm"
 f = "truth.npy"
 if not os.path.isfile(f):
@@ -135,7 +130,7 @@ for pt in perts:
     for ax in [ax10,ax11]:
         ax.vlines([ix_lam[0],ix_lam[-1]],0,1,\
         colors='black',linestyle='dashdot',transform=ax.get_xaxis_transform())
-    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
+    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "var_nestc" and pt != "4dvar":
         ax11.set_title("spread")
         fig2.suptitle("error and spread in GM : "+pt+" "+op)
     else:
@@ -209,7 +204,7 @@ for pt in perts:
     ax01.set_title("error")
     for ax in [ax00,ax01]:
         ax.set_xlim(ix_lam[0],ix_lam[-1])
-    if pt == "var" or pt == "var_nest" or pt == "4dvar":
+    if pt == "var" or pt == "var_nest" or pt == "var_nestc" or pt == "4dvar":
         ix = ix_lam[1:-1]
     else:
         ix = ix_lam.copy()
@@ -235,7 +230,7 @@ for pt in perts:
     ax11.set_xticklabels([])
     for ax in [ax10,ax11]:
         ax.set_xlim(ix_lam[0],ix_lam[-1])
-    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
+    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "var_nestc" and pt != "4dvar":
         ax11.set_title("spread")
         fig2.suptitle("error and spread in LAM : "+pt+" "+op)
     else:

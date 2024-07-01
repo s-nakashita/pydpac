@@ -7,6 +7,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.interpolate import interp1d
 plt.rcParams['font.size'] = 16
+from methods import perts
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -14,14 +15,6 @@ na = int(sys.argv[3])
 model_error = False
 if len(sys.argv)>4:
     model_error = (sys.argv[4]=='True')
-perts = ["mlef", "envar", "etkf", "po", "srf", "letkf", "kf", "var",\
-    "mlefcw","mlefy","mlefbe","mlefbm",\
-    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-if model == "z08":
-    perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
-    linestyle = {"mlef":"solid", "grad":"dashed",
-     "etkf-fh":"solid", "etkf-jh":"dashed"}
-    linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red'}
 cmap = "coolwarm"
 f = "truth.npy"
 if not os.path.isfile(f):

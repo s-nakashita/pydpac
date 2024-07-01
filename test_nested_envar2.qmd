@@ -510,6 +510,7 @@ Xa_nc = np.sqrt(nmem-1) * Xb @ trans_nc
 # with cross covariance
 coef_a_list = np.linspace(0.0,1.0,11).tolist()
 velist = []
+w_envar_nestc_list = []
 dx_envar_nestc_list = []
 for i in range(len(coef_a_list)):
     coef_a = coef_a_list[i]
@@ -529,7 +530,28 @@ for i in range(len(coef_a_list)):
     z, _ = minimize(np.zeros(nmem))
     w = trans @ z
     dxtmp = Xb @ w
+    w_envar_nestc_list.append(w)
     dx_envar_nestc_list.append(dxtmp)
+
+```
+
+```{python}
+#| fig-cap: ensemble weights from EnVar and Nested EnVar using prescribed $a$
+#| label: fig-ewgt-envar-prescribed-a
+
+fig, ax = plt.subplots()
+cmap = plt.get_cmap('viridis')
+ncol = cmap.N
+ax.plot(w_nc,c=cmap(0),label='no cross')
+nline = len(coef_a_list)
+intcol = ncol // (nline + 1)
+icol = intcol
+for coef_a, w_envar_nestc in zip(coef_a_list,w_envar_nestc_list):
+    ax.plot(w_envar_nestc,ls='dashed',c=cmap(icol),label=f'a={coef_a:.1f}')
+    icol+=intcol
+ax.plot(w_conv,c=cmap(ncol-1),label='no V',zorder=0)
+ax.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+plt.show()
 
 ```
 

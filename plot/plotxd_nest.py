@@ -3,20 +3,11 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['font.size'] = 16
+from methods import perts, linecolor
 
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-perts = ["mlef", "mlef_nest", "mlef_nestc", \
-    "envar", "envar_nest", "envar_nestc",\
-    "etkf", "po", "srf", "letkf", "kf", "var","var_nest",\
-    "mlefcw","mlefy","mlefbe","mlefbm",\
-    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dvar", "4dmlef"]
-linecolor = {"mlef":'tab:blue',"mlef_nest":'tab:purple',"mlef_nestc":'tab:cyan',\
-    "envar":'tab:orange',"envar_nest":'tab:green',"envar_nestc":"lime",\
-    "etkf":'tab:green', "po":'tab:red',\
-    "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive","var_nest":"tab:brown",\
-    "mlefcw":"tab:green","mlefy":"tab:orange","mlefbe":"tab:red","mlefbm":"tab:pink"}
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
@@ -66,7 +57,7 @@ for pt in perts:
     print("{}, LAM analysis SPREAD = {}".format(pt,np.mean(xsmean_lam)))
     ax[0].plot(ix_gm, xdmean_gm, linestyle="solid", color=linecolor[pt], label=pt)
     ax[1].plot(ix_lam, xdmean_lam, linestyle="solid", color=linecolor[pt], label=pt)
-    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
+    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "var_nestc" and pt != "4dvar":
         ax[0].plot(ix_gm, xsmean_gm, linestyle="dashed", color=linecolor[pt])
         ax[1].plot(ix_lam, xsmean_lam, linestyle="dashed", color=linecolor[pt])
         vmax_gm = max(np.max(xdmean_gm),np.max(xsmean_gm),vmax_gm)
@@ -109,7 +100,7 @@ for pt in perts:
     print("{}, LAM forecast SPREAD = {}".format(pt,np.mean(xsfmean_lam)))
     ax2[0].plot(ix_gm, xdfmean_gm, linestyle="solid", color=linecolor[pt], label=pt)
     ax2[1].plot(ix_lam, xdfmean_lam, linestyle="solid", color=linecolor[pt], label=pt)
-    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "4dvar":
+    if pt != "kf" and pt != "var" and pt != "var_nest" and pt != "var_nestc" and pt != "4dvar":
         ax2[0].plot(ix_gm, xsfmean_gm, linestyle="dashed", color=linecolor[pt])
         ax2[1].plot(ix_lam, xsfmean_lam, linestyle="dashed", color=linecolor[pt])
         vmax_gm = max(np.max(xdfmean_gm),np.max(xsfmean_gm),vmax_gm)
