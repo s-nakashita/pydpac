@@ -3,8 +3,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['font.size'] = 16
-from matplotlib.lines import Line2D
-import matplotlib.gridspec as gridspec
+from scipy.signal import correlate
 from methods import perts, linecolor
 
 op = sys.argv[1]
@@ -28,6 +27,16 @@ labels3 = []
 plot_Jk = False
 for pt in perts:
     #LAM
+    # analysis error
+    f = "e_lam_{}_{}.txt".format(op,pt)
+    if not os.path.isfile(f):
+        continue
+    e = np.loadtxt(f)
+    # analysis spread
+    f = "stda_lam_{}_{}.txt".format(op,pt)
+    if not os.path.isfile(f):
+        continue
+    s = np.loadtxt(f)
     #f = "{}_lam_coef_a_{}_{}.txt".format(model, op, pt)
     #if os.path.isfile(f):
     #    coef_a = np.loadtxt(f)
@@ -68,3 +77,9 @@ for pt in perts:
         title=op+" "+pt)
     fig.savefig("{}_coef_a_{}_{}.png".format(model, op, pt))
     plt.show()
+
+    # correlation
+    corr1 = correlate(coef_a_mean, e)
+    corr2 = correlate(coef_a_mean, s)
+    print(f"{pt} correlation between coef_a_mean and analysis error = {corr1[corr1.size//2]}")
+    print(f"{pt} correlation between coef_a_mean and analysis spread = {corr2[corr2.size//2]}")
