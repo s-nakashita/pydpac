@@ -178,13 +178,20 @@ class L05nest_func():
                 #obsloc = xloc[i0obs:i0obs+self.nobs]
                 ## center
                 #obsloc = xloc[icobs-self.nobs//2:icobs-self.nobs//2+self.nobs]
-                # right-side
-                obsloc = xloc[i1obs-self.nobs:i1obs]
-                if self.anlsp:
-                    obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
-                else:
-                    obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
+                ## right-side
+                #obsloc = xloc[i1obs-self.nobs:i1obs]
+                #if self.anlsp:
+                #    obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
+                #else:
+                #    obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                 for k in range(self.na):
+                    # transition
+                    ictmp = np.random.choice(np.arange(i0obs,i1obs+1), size=1)[0]
+                    obsloc = xloc[ictmp-self.nobs//2:ictmp-self.nobs//2+self.nobs]
+                    if self.anlsp:
+                        obs_in_lam = np.where((obsloc > self.step.ix_lam[0])&(obsloc<self.step.ix_lam[-1]), 1, 0)
+                    else:
+                        obs_in_lam = np.where((obsloc >= self.step.ix_lam[self.nsp])&(obsloc<=self.step.ix_lam[-self.nsp]), 1, 0)
                     yobs[k,:,0] = obsloc[:]
                     yobs[k,:,1] = self.obs.h_operator(obsloc, xt[k])
                     iobs_lam[k,:] = obs_in_lam

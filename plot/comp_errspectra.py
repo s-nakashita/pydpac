@@ -26,7 +26,7 @@ datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 ldscl=False
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_partialc_m80obs30'
+lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_partialr_m80obs30'
 if ldscl:
     figdir = datadir
 else:
@@ -64,7 +64,7 @@ f = dscldir/"truth.npy"
 if not os.path.isfile(f):
     print("not exist {}".format(f))
     exit
-xt = np.load(f)[:na,]
+xt = np.load(f)[ns:na,]
 print(xt.shape)
 nx_t = xt.shape[1]
 xt2x = interp1d(ix_t,xt)
@@ -80,7 +80,7 @@ if not f.exists():
     print("not exist {}".format(f))
     exit()
 xagm = np.load(f)
-xdgm = xagm - xt2x(ix_gm)
+xdgm = xagm[ns:na,:] - xt2x(ix_gm)
 ax.plot(ix_gm, np.sqrt(np.mean(xdgm**2,axis=0)),\
     c='gray',lw=4.0,label='GM')
 wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
@@ -96,7 +96,7 @@ if ldscl:
         print("not exist {}".format(f))
         exit()
     xadscl = np.load(f)
-    xddscl = xadscl - xt2x(ix_lam)
+    xddscl = xadscl[ns:na,:] - xt2x(ix_lam)
     ax.plot(ix_lam, np.sqrt(np.mean(xddscl**2,axis=0)),\
         c='k',lw=2.0,label='downscaling')
     wnum, psd_dscl = nmc_lam.psd(xddscl,axis=1,average=False)
@@ -116,8 +116,10 @@ for pt in perts:
         print("not exist {}".format(f))
         exit()
     xalam = np.load(f)
-    xdlam = xalam - xt2x(ix_lam)
-    ax.plot(ix_lam,np.sqrt(np.mean(xdlam**2,axis=0)),\
+    xdlam = xalam[ns:na,:] - xt2x(ix_lam)
+    xdlam1d = np.sqrt(np.mean(xdlam**2,axis=0))
+    print(f"{pt}, RMSE={np.mean(xdlam1d)}")
+    ax.plot(ix_lam,xdlam1d,\
     c=linecolor[pt],lw=2.0,label=labels[pt])
     wnum, psd_lam = nmc_lam.psd(xdlam,axis=1,average=False)
     axsp.loglog(wnum,psd_lam.mean(axis=0),\

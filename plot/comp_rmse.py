@@ -19,7 +19,7 @@ datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 ldscl=False
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_partialc_m80obs30'
+lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_partialm_m80obs30'
 if ldscl:
     figdir = datadir
 else:

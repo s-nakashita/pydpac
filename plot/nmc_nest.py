@@ -484,13 +484,14 @@ for pt in perts:
     splist=[]
     gm2lamlist=[]
     sp_gm2lamlist=[]
+    coef_a_list=[]
     ## GM interpolated into nominal LAM grid (H_1:GM=>LAM, H_2=I)
     ixlist.append(ix_lam)
     nmclist.append(nmc_lam)
     ### 12h - 6h
     gm2lam = interp1d(ix_gm,x12hgm[ns:ne],axis=1)
     x12hgm2lam = gm2lam(ix_lam)
-    ek12h = x12hgm2lam - x12hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    ek12h = x12hgm2lam - x6hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V12m6 = np.dot(ek12h.T,ek12h)/float(ne-ns+1)*0.5
     B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V12m6)
@@ -500,10 +501,12 @@ for pt in perts:
     splist.append(sp12m6_v)
     wnum_c, csp12m6 = nmc_lam.cpsd(ek12h,x12m6_lam,axis=1)
     sp_gm2lamlist.append(csp12m6)
+    coef_a = np.diag(np.dot(x12m6_lam,ek12h.T))/np.diag(np.dot(x12m6_lam,x12m6_lam.T))
+    coef_a_list.append(coef_a)
     ### 24h - 12h
     gm2lam = interp1d(ix_gm,x24hgm[ns:ne],axis=1)
     x24hgm2lam = gm2lam(ix_lam)
-    ek24h = x24hgm2lam - x24hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    ek24h = x24hgm2lam - x12hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V24m12 = np.dot(ek24h.T,ek24h)/float(ne-ns+1)*0.5
     B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V24m12)
@@ -512,10 +515,12 @@ for pt in perts:
     splist.append(sp24m12_v)
     wnum_c, csp24m12 = nmc_lam.cpsd(ek24h,x24m12_lam,axis=1)
     sp_gm2lamlist.append(csp24m12)
+    coef_a = np.diag(np.dot(x24m12_lam,ek24h.T))/np.diag(np.dot(x24m12_lam,x24m12_lam.T))
+    coef_a_list.append(coef_a)
     ### 48h - 24h
     gm2lam = interp1d(ix_gm,x48hgm[ns:ne],axis=1)
     x48hgm2lam = gm2lam(ix_lam)
-    ek48h = x48hgm2lam - x48hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    ek48h = x48hgm2lam - x24hlam[ns:ne] #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V48m24 = np.dot(ek48h.T,ek48h)/float(ne-ns+1)*0.5
     B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V48m24)
@@ -524,13 +529,15 @@ for pt in perts:
     splist.append(sp48m24_v)
     wnum_c, csp48m24 = nmc_lam.cpsd(ek48h,x48m24_lam,axis=1)
     sp_gm2lamlist.append(csp48m24)
+    coef_a = np.diag(np.dot(x48m24_lam,ek48h.T))/np.diag(np.dot(x48m24_lam,x48m24_lam.T))
+    coef_a_list.append(coef_a)
     ## extract GM included in the LAM domain (H_1:crop, H_2:LAM=>cropped GM)
     ixlist.append(ix_gm_crop)
     nmclist.append(nmc_llam)
     ### 12h - 6h
-    lam2gm = interp1d(ix_lam,x12hlam[ns:ne],axis=1)
-    x12hlam2gm = lam2gm(ix_gm[i0:i1+1])
-    ek12h = x12hgm[ns:ne,i0:i1+1] - x12hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    lam2gm = interp1d(ix_lam,x6hlam[ns:ne],axis=1)
+    x6hlam2gm = lam2gm(ix_gm[i0:i1+1])
+    ek12h = x12hgm[ns:ne,i0:i1+1] - x6hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V12m6 = np.dot(ek12h.T,ek12h)/float(ne-ns+1)*0.5
     B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V12m6)
@@ -541,10 +548,12 @@ for pt in perts:
     lam2gm = interp1d(ix_lam,x12m6_lam,axis=1)
     wnum_c, csp12m6 = nmc_llam.cpsd(ek12h,lam2gm(ix_gm[i0:i1+1]),axis=1)
     sp_gm2lamlist.append(csp12m6)
+    coef_a = np.diag(np.dot(lam2gm(ix_gm[i0:i1+1]),ek12h.T))/np.diag(np.dot(lam2gm(ix_gm[i0:i1+1]),lam2gm(ix_gm[i0:i1+1]).T))
+    coef_a_list.append(coef_a)
     ### 24h - 12h
-    lam2gm = interp1d(ix_lam,x24hlam[ns:ne],axis=1)
-    x24hlam2gm = lam2gm(ix_gm[i0:i1+1])
-    ek24h = x24hgm[ns:ne,i0:i1+1]- x24hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    lam2gm = interp1d(ix_lam,x12hlam[ns:ne],axis=1)
+    x12hlam2gm = lam2gm(ix_gm[i0:i1+1])
+    ek24h = x24hgm[ns:ne,i0:i1+1]- x12hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V24m12 = np.dot(ek24h.T,ek24h)/float(ne-ns+1)*0.5
     B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V24m12)
@@ -554,10 +563,12 @@ for pt in perts:
     lam2gm = interp1d(ix_lam,x24m12_lam,axis=1)
     wnum_c, csp24m12 = nmc_llam.cpsd(ek24h,lam2gm(ix_gm[i0:i1+1]),axis=1)
     sp_gm2lamlist.append(csp24m12)
+    coef_a = np.diag(np.dot(lam2gm(ix_gm[i0:i1+1]),ek24h.T))/np.diag(np.dot(lam2gm(ix_gm[i0:i1+1]),lam2gm(ix_gm[i0:i1+1]).T))
+    coef_a_list.append(coef_a)
     ### 48h - 24h
-    lam2gm = interp1d(ix_lam,x48hlam[ns:ne],axis=1)
-    x48hlam2gm = lam2gm(ix_gm[i0:i1+1])
-    ek48h = x48hgm[ns:ne,i0:i1+1] - x48hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    lam2gm = interp1d(ix_lam,x24hlam[ns:ne],axis=1)
+    x24hlam2gm = lam2gm(ix_gm[i0:i1+1])
+    ek48h = x48hgm[ns:ne,i0:i1+1] - x24hlam2gm #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V48m24 = np.dot(ek48h.T,ek48h)/float(ne-ns+1)*0.5
     B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V48m24)
@@ -567,14 +578,16 @@ for pt in perts:
     lam2gm = interp1d(ix_lam,x48m24_lam,axis=1)
     wnum_c, csp48m24 = nmc_llam.cpsd(ek48h,lam2gm(ix_gm[i0:i1+1]),axis=1)
     sp_gm2lamlist.append(csp48m24)
+    coef_a = np.diag(np.dot(lam2gm(ix_gm[i0:i1+1]),ek48h.T))/np.diag(np.dot(lam2gm(ix_gm[i0:i1+1]),lam2gm(ix_gm[i0:i1+1]).T))
+    coef_a_list.append(coef_a)
     ## truncated GM into nominal LAM grid (H_1:GM=>LAM@truncation, H_2=truncation)
     ixlist.append(ix_trunc)
     nmclist.append(nmc_trunc)
     ### 12h - 6h
     x12hgm2lam = np.dot(x12hgm[ns:ne],H_gm2lam.T)
     x12hgm_trunc = trunc_operator(x12hgm2lam.T)
-    x12hlam_trunc = trunc_operator(x12hlam[ns:ne].T)
-    ek12h = x12hgm_trunc.T - x12hlam_trunc.T #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    x6hlam_trunc = trunc_operator(x6hlam[ns:ne].T)
+    ek12h = x12hgm_trunc.T - x6hlam_trunc.T #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V12m6 = np.dot(ek12h.T,ek12h)/float(ne-ns+1)*0.5
     B12m6_gm2lam = np.dot(ek12h.T,x12m6_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V12m6)
@@ -585,11 +598,13 @@ for pt in perts:
     x12m6_trunc = trunc_operator(x12m6_lam.T)
     wnum_c, csp12m6 = nmc_trunc.cpsd(ek12h,x12m6_trunc.T,axis=1)
     sp_gm2lamlist.append(csp12m6)
+    coef_a = np.diag(np.dot(x12m6_trunc.T,ek12h.T))/np.diag(np.dot(x12m6_trunc.T,x12m6_trunc))
+    coef_a_list.append(coef_a)
     ### 24h - 12h
     x24hgm2lam = np.dot(x24hgm[ns:ne],H_gm2lam.T)
     x24hgm_trunc = trunc_operator(x24hgm2lam.T)
-    x24hlam_trunc = trunc_operator(x24hlam[ns:ne].T)
-    ek24h = x24hgm_trunc.T - x24hlam_trunc.T #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    x12hlam_trunc = trunc_operator(x12hlam[ns:ne].T)
+    ek24h = x24hgm_trunc.T - x12hlam_trunc.T #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V24m12 = np.dot(ek24h.T,ek24h)/float(ne-ns+1)*0.5
     B24m12_gm2lam = np.dot(ek24h.T,x24m12_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V24m12)
@@ -599,11 +614,13 @@ for pt in perts:
     x24m12_trunc = trunc_operator(x24m12_lam.T)
     wnum_c, csp24m12 = nmc_trunc.cpsd(ek24h,x24m12_trunc.T,axis=1)
     sp_gm2lamlist.append(csp24m12)
+    coef_a = np.diag(np.dot(x24m12_trunc.T,ek24h.T))/np.diag(np.dot(x24m12_trunc.T,x24m12_trunc))
+    coef_a_list.append(coef_a)
     ### 48h - 24h
     x48hgm2lam = np.dot(x48hgm[ns:ne],H_gm2lam.T)
     x48hgm_trunc = trunc_operator(x48hgm2lam.T)
-    x48hlam_trunc = trunc_operator(x48hlam[ns:ne].T)
-    ek48h = x48hgm_trunc.T - x48hlam_trunc.T #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
+    x24hlam_trunc = trunc_operator(x24hlam[ns:ne].T)
+    ek48h = x48hgm_trunc.T - x24hlam_trunc.T #\sim H_1(x^{a}_{GM}) - H_2(x^{t}_{LAM})
     V48m24 = np.dot(ek48h.T,ek48h)/float(ne-ns+1)*0.5
     B48m24_gm2lam = np.dot(ek48h.T,x48m24_lam)/float(ne-ns+1)*0.5
     vmatlist.append(V48m24)
@@ -613,6 +630,8 @@ for pt in perts:
     x48m24_trunc = trunc_operator(x48m24_lam.T)
     wnum_c, csp48m24 = nmc_trunc.cpsd(ek48h,x48m24_trunc.T,axis=1)
     sp_gm2lamlist.append(csp48m24)
+    coef_a = np.diag(np.dot(x48m24_trunc.T,ek48h.T))/np.diag(np.dot(x48m24_trunc.T,x48m24_trunc))
+    coef_a_list.append(coef_a)
     ##gm2lam = interp1d(ix_gm,x12m6_gm,axis=1)
     #V12m6 = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_gm[:,i0:i1+1])/float(ne-ns+1)*0.5
     #B12m6_gm2lam = np.dot(x12m6_gm[:,i0:i1+1].T,x12m6_lam)/float(ne-ns+1)*0.5
@@ -641,16 +660,19 @@ for pt in perts:
         sp12m6 = splist[j]
         B12m6_gm2lam = gm2lamlist[j]
         csp12m6 = sp_gm2lamlist[j]
+        coef_a_12m6 = coef_a_list[j]
         j+=1
         V24m12 = vmatlist[j]
         sp24m12 = splist[j]
         B24m12_gm2lam = gm2lamlist[j]
         csp24m12 = sp_gm2lamlist[j]
+        coef_a_24m12 = coef_a_list[j]
         j+=1
         V48m24 = vmatlist[j]
         sp48m24 = splist[j]
         B48m24_gm2lam = gm2lamlist[j]
         csp48m24 = sp_gm2lamlist[j]
+        coef_a_48m24 = coef_a_list[j]
 
         fig = plt.figure(figsize=[12,8],constrained_layout=True)
         gs = gridspec.GridSpec(2,1,figure=fig)
@@ -818,10 +840,24 @@ for pt in perts:
         np.save("{}_B12m6_gm2lam_{}.npy".format(model,fname),B12m6_gm2lam)
         np.save("{}_B24m12_gm2lam_{}.npy".format(model,fname),B24m12_gm2lam)
         np.save("{}_B48m24_gm2lam_{}.npy".format(model,fname),B48m24_gm2lam)
+
+        fig, ax = plt.subplots(figsize=[8,6])
+        cycles = np.arange(coef_a_12m6.size)
+        labels = ['12h - 6h', '24h - 12h', '48h - 24h']
+        cmap = plt.get_cmap('tab10')
+        for i, coef_a in enumerate([coef_a_12m6,coef_a_24m12,coef_a_48m24]):
+            ax.plot(cycles, coef_a, c=cmap(i), label=labels[i]+f'={coef_a.mean():.3f}')
+            ax.hlines([coef_a.mean()],0,1,colors=cmap(i),ls='dashed',transform=ax.get_yaxis_transform())
+        ax.legend()
+        fig.suptitle(f"a estimated by NMC \nfor {title}")
+        fig.savefig("{}_coef_a_{}_{}_{}.png".format(model,fname,op,pt))
+        plt.show(block=False)
+        plt.close(fig=fig)
+
         if fname=='highres':
             axsp.plot(wnum,sp48m24,c='orange',ls='dotted',label=f'V_{fname}')
             axsp.plot(wnum,csp48m24,c='purple',ls='dashdot',label=f'Ekb_{fname}')
-        elif fname=='trunc':
+        elif fname[:5]=='trunc':
             axsp.plot(wnum,sp48m24,c='green',label=f'V_{fname}')
             axsp.plot(wnum,csp48m24,c='magenta',ls='dashdot',label=f'Ekb_{fname}')
     axsp.set_yscale("log")
