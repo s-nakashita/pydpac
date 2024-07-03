@@ -199,8 +199,8 @@ if __name__ == "__main__":
                 _, uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,])
             else:
                 uf1_gm[j+1,], uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,])
-        
-        uf_gm.append(uf1_gm)
+        if not params_lam["preGM"]:
+            uf_gm.append(uf1_gm)
         uf_lam.append(uf1_lam)
     if not params_lam["preGM"]:
         uf_gm = np.array(uf_gm)

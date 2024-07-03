@@ -34,7 +34,8 @@ dscldir = wdir / 'var_vs_envar_dscl_m80obs30'
 preGMpt = "envar"
 datadir = wdir / 'var_vs_envar_dscl_m80obs30'
 #datadir  = wdir / 'var_vs_envar_shrink_dct_preGM_partialr_m80obs30'
-figdir = datadir
+figdir = datadir / 'fcst'
+if not figdir.exists(): figdir.mkdir(parents=True)
 
 perts = ["envar", "envar_nest","var","var_nest"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
@@ -110,10 +111,6 @@ if ldscl:
     print(xd_lam.shape)
     print(psd_lam.shape)
     #axl.errorbar(ft,et_lam.mean(axis=1),yerr=et_lam.std(axis=1),c='k',label='downscaling')
-    bplot = axl.boxplot(et_lam.T,patch_artist=True,whis=(0,100))
-    for patch in bplot['boxes']:
-        patch.set_facecolor('black')
-        patch.set_alpha(0.3)
     axl.plot(np.arange(1,nft+1),et_lam.mean(axis=1),c='k',label='downscaling')
     etlam_dict["dscl"] = et_lam
     xdlam_dict["dscl"] = xd_lam
@@ -172,10 +169,6 @@ for pt in perts:
         print(xd_gm.shape)
         print(psd_gm.shape)
         #axg.errorbar(ft,et_gm.mean(axis=1),yerr=et_gm.std(axis=1),c=linecolor[pt],label=labels[pt])
-        bplot = axg.boxplot(et_gm.T,patch_artist=True,whis=(0,100))
-        for patch in bplot['boxes']:
-            patch.set_facecolor(linecolor[pt])
-            patch.set_alpha(0.3)
         axg.plot(np.arange(1,nft+1),et_gm.mean(axis=1),c=linecolor[pt],label=labels[pt])
         etgm_dict[pt] = et_gm
         xdgm_dict[pt] = xd_gm
@@ -208,17 +201,47 @@ for pt in perts:
     print(xd_lam.shape)
     print(psd_lam.shape)
     #axl.errorbar(ft,et_lam.mean(axis=1),yerr=et_lam.std(axis=1),c=linecolor[pt],label=labels[pt])
-    bplot = axl.boxplot(et_lam.T,patch_artist=True,whis=(0,100))
-    for patch in bplot['boxes']:
-        patch.set_facecolor(linecolor[pt])
-        patch.set_alpha(0.3)
     axl.plot(np.arange(1,nft+1),et_lam.mean(axis=1),c=linecolor[pt],label=labels[pt])
     etlam_dict[pt] = et_lam
     xdlam_dict[pt] = xd_lam
     psdlam_dict[pt] = psd_lam
+
 if not preGM:
+    nmethods = len(etgm_dict)
+    width = 0.5 / nmethods
+    xoffset = 0.5 * width * (nmethods - 1)
+    xaxis = np.arange(1,nft+1) - xoffset
+    for pt in etgm_dict.keys():
+        et_gm = etgm_dict[pt]
+        bplot = axg.boxplot(et_gm.T,positions=xaxis,widths=width,patch_artist=True,whis=(0,100))
+        for patch in bplot['boxes']:
+            patch.set_facecolor(linecolor[pt])
+            patch.set_alpha(0.3)
+        xaxis = xaxis + width
     axg.hlines([1.0],0,1,colors='gray',ls='dotted',transform=axg.get_yaxis_transform())
     axg.set_ylabel('GM Forecast RMSE')
+    ymin, ylim = axg.get_ylim()
+    axl.set_ylim(ymin,ylim)
+nmethods = len(etlam_dict)
+if ldscl:
+    nmethods += 1
+width = 0.5 / nmethods
+xoffset = 0.5 * width * (nmethods - 1)
+xaxis = np.arange(1,nft+1) - xoffset
+if ldscl:
+    et_lam = etlam_dict['dscl']
+    bplot = axl.boxplot(et_lam.T,positions=xaxis,widths=width,patch_artist=True,whis=(0,100))
+    for patch in bplot['boxes']:
+        patch.set_facecolor('black')
+        patch.set_alpha(0.3)
+    xaxis = xaxis + width
+for pt in etlam_dict.keys():
+    et_lam = etlam_dict[pt]
+    bplot = axl.boxplot(et_lam.T,positions=xaxis,widths=width,patch_artist=True,whis=(0,100))
+    for patch in bplot['boxes']:
+        patch.set_facecolor(linecolor[pt])
+        patch.set_alpha(0.3)
+    xaxis = xaxis + width
 axl.set_ylabel('LAM Forecast RMSE')
 axl.set_xticks(np.arange(1,nft+1,2))
 axl.set_xticklabels(ft[::2])
@@ -229,6 +252,7 @@ axl.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
 fig.savefig(figdir/f"{model}_efcst_{op}.png",dpi=300)
 #fig.savefig(figdir/f"{model}_efcst_{op}.pdf")
 plt.show()
+plt.close()
 #exit()
 
 cmap=plt.get_cmap("PiYG_r")
@@ -327,7 +351,8 @@ for ift in range(1,nft):
     figsp.savefig(figdir/f"{model}_errspectra_ft{ft1}_{op}.png",dpi=300)
     #figsp.savefig(figdir/f"{model}_errspectra_f_{op}.pdf")
     plt.show(block=False)
-    plt.close()
+    plt.close(fig=figgr)
+    plt.close(fig=figsp)
 
     # t-test
     methods = methods_gm
