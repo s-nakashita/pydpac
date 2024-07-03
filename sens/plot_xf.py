@@ -5,8 +5,8 @@ from pathlib import Path
 
 model = 'l96'
 pt = 'letkf'
-nens = 200
-datadir = Path(f'/Volumes/FF520/pyesa/data/{model}/extfcst_{pt}_m{nens}')
+nens = 20
+datadir = Path(f'/Volumes/dandelion/pyesa/data/{model}/extfcst_m{nens}')
 
 xf00 = np.load(datadir/f"{model}_xf00_linear_{pt}.npy")
 xf24 = np.load(datadir/f"{model}_xf24_linear_{pt}.npy")
@@ -36,7 +36,7 @@ for i in range(len(xflist)):
     ioffset = offsets[i]
     #t = np.arange(xf.shape[0]) # 6-hourly
     #d = t / 4 # days
-    axs[i].set_title(f'FT={ft}')
+    axs[i].set_title(f'FT{ft:02d}')
     mp = axs[i].pcolormesh(ix,d,xf[ioffset:,:,0],norm=Normalize(-10,10),cmap='coolwarm')
     mplist.append(mp)
 fig.colorbar(mplist[-1],ax=axs[-1],shrink=0.6,pad=0.01)
@@ -52,11 +52,11 @@ for i in range(len(xflist)):
     if i==0:
         t = np.arange(xf.shape[0]) # 6-hourly
         d = t / 4 # days
-        axs[i].set_title(f'FT={ft}')
+        axs[i].set_title(f'FT{ft:02d}')
         mp = axs[i].pcolormesh(ix,d,xf[ioffset:,:,0],norm=Normalize(-10,10),cmap='coolwarm')
     else:
         xd = xf[ioffset:,:,0] - xflist[0][:,:,0]
-        axs[i].set_title(f'FT={ft}, error')
+        axs[i].set_title(f'FT{ft:02d} - FT00')
         mp = axs[i].pcolormesh(ix,d,xd,norm=Normalize(-10,10),cmap='coolwarm')
     mplist.append(mp)
 fig.colorbar(mplist[0],ax=axs[0],shrink=0.6,pad=0.01)
@@ -73,7 +73,7 @@ for i in range(len(xflist)):
     xs = np.std(xf,axis=2)
     #t = np.arange(xf.shape[0]) # 6-hourly
     #d = t / 4 # days
-    axs[i].set_title(f'FT={ft}')
+    axs[i].set_title(f'FT{ft:02d}')
     mp = axs[i].pcolormesh(ix,d,xs[ioffset:,:],norm=Normalize(0,2.5),cmap='viridis')
     mplist.append(mp)
 fig.colorbar(mplist[-1],ax=axs[-1],shrink=0.6,pad=0.01)

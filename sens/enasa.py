@@ -9,6 +9,8 @@ class EnASA():
     def __init__(self,vt,X0,Je):
         self.vt = vt
         self.X = X0.T # (nsample, nstate)
+        self.nx = self.X.shape[1]
+        self.nens = self.X.shape[0]
         self.y = Je
         # standardization
         xscaler = StandardScaler()
@@ -106,7 +108,7 @@ class EnASA():
     def enasa_pls(self,n_components=None):
         # n_components: number of PCA modes
         if n_components is None:
-            n_components = min(nx,nens-1)
+            n_components = min(self.nx,self.nens-1)
         self.pls = PLSRegression(n_components=n_components)
         self.pls.fit(self.X,self.y)
         dJedx0_s = self.pls.coef_[0,:]
