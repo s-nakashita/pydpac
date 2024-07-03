@@ -15,7 +15,7 @@ plt.rcParams['font.size'] = 16
 from scipy.interpolate import interp1d
 import scipy.fft as fft
 sys.path.append('../plot')
-from nmc_tools import psd, wnum2wlen, wlen2wnum
+from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
 from pathlib import Path
 
 ## nature
@@ -52,6 +52,7 @@ dt = dt_true * lamstep
 #    intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx)
 #figdir = Path(f'nsp{nsp}p{nest_step.po}intrlx{nest_step.intrlx}')
 datadir = Path('/Volumes/FF520/nested_envar/data/l05nestm')
+datadir = Path('./')
 nature_step = L05IIIm(nx_true,nks_true,ni_true,b_true,c_true,dt_true,F_true)
 nest_step = L05nestm(nx_true, nx_gm, nx_lam, nks_gm, nks_lam, ni_lam, b_lam, c_lam, dt, F, \
     intgm, ist_lam, nsp, po=po, lamstep=lamstep, intrlx=intrlx)
@@ -69,6 +70,9 @@ Lx_lam = 2.0 * np.pi * (nx_lam + 2*nghost) / nx_true
 dx_t = Lx_t / nx_true
 dx_gm = Lx_gm / nx_gm
 dx_lam = Lx_lam / (nx_lam + 2*nghost)
+nmc_t = NMC_tools(ix_t_rad,cyclic=True,ttype='c')
+nmc_g = NMC_tools(ix_gm_rad,cyclic=True,ttype='c')
+nmc_l = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 
 fout_true = figdir/'x_t.npy'
 fout_gm   = figdir/'x_gm.npy'
@@ -92,17 +96,17 @@ if fout_true.exists() and fout_gm.exists() and fout_lam.exists():
     sp_detrend = []
     for i in range(t.size):
         # fft
-        wnum_t, sp0_t = psd(x_t[i],ix_t_rad)
-        wnum_gm, sp0_gm = psd(x_gm[i],ix_gm_rad)
-        wnum_lam, sp0_lam = psd(x_lam[i],ix_lam_rad,cyclic=False,nghost=0,detrend=False)
-        wnum_lam, sp0_detrend, x0_detrend = psd(x_lam[i],ix_lam_rad,cyclic=False,nghost=0,detrend=True)
-        x_detrend.append(x0_detrend)
-        rms_detrend.append(np.sqrt(np.mean(x0_detrend**2)))
+        wnum_t, sp0_t = nmc_t.psd(x_t[i])
+        wnum_gm, sp0_gm = nmc_g.psd(x_gm[i])
+        wnum_lam, sp0_lam = nmc_l.psd(x_lam[i])
+        #wnum_lam, sp0_detrend, x0_detrend = psd(x_lam[i],ix_lam_rad,cyclic=False,nghost=0,detrend=True)
+        #x_detrend.append(x0_detrend)
+        #rms_detrend.append(np.sqrt(np.mean(x0_detrend**2)))
         if i>=30*4:
             sp_t.append(sp0_t)
             sp_gm.append(sp0_gm)
             sp_lam.append(sp0_lam)
-            sp_detrend.append(sp0_detrend)
+            #sp_detrend.append(sp0_detrend)
 else:
     ## spinup for 10 days
     x0_t = np.random.randn(nx_true)
@@ -148,11 +152,11 @@ else:
         #y0_t = fft.rfft(x0_t)
         #sp0_t = np.abs(y0_t)**2
         #sp0_t *= dx_t**2 / Lx_t
-        wnum_t, sp0_t = psd(x0_t,ix_t_rad)
+        wnum_t, sp0_t = nmc_t.psd(x0_t)
         #y0_gm = fft.rfft(x0_gm)
         #sp0_gm = np.abs(y0_gm)**2
         #sp0_gm *= dx_gm**2 / Lx_gm
-        wnum_gm, sp0_gm = psd(x0_gm,ix_gm_rad)
+        wnum_gm, sp0_gm = nmc_g.psd(x0_gm)
         #x0_lam_ext = np.zeros(nx_lam + 2*nghost)
         #x0_lam_ext[nghost:nghost+nx_lam] = x0_lam[:]
         #x0_lam_ext[0:nghost] = x0_lam[0] * dwindow[::-1]
@@ -161,15 +165,15 @@ else:
         #y0_lam_ext = fft.rfft(x0_lam_ext)
         #sp0_lam = np.abs(y0_lam_ext[:nx_lam//2+1])**2
         #sp0_lam *= dx_lam**2 / Lx_lam
-        wnum_lam, sp0_lam = psd(x0_lam,ix_lam_rad,cyclic=False,nghost=0,detrend=False)
-        wnum_lam, sp0_detrend, x0_detrend = psd(x0_lam,ix_lam_rad,cyclic=False,nghost=0,detrend=True)
-        x_detrend.append(x0_detrend)
-        rms_detrend.append(np.sqrt(np.mean(x0_detrend**2)))
+        wnum_lam, sp0_lam = nmc_l.psd(x0_lam)
+        #wnum_lam, sp0_detrend, x0_detrend = psd(x0_lam,ix_lam_rad,cyclic=False,nghost=0,detrend=True)
+        #x_detrend.append(x0_detrend)
+        #rms_detrend.append(np.sqrt(np.mean(x0_detrend**2)))
         if i%20==0:
             plt.plot(nest_step.ix_true,x0_t,label='nature')
             plt.plot(nest_step.ix_gm,x0_gm,label='GM')
             plt.plot(nest_step.ix_lam,x0_lam,label='LAM')
-            plt.plot(nest_step.ix_lam,x0_detrend,label='LAM, detrended')
+            #plt.plot(nest_step.ix_lam,x0_detrend,label='LAM, detrended')
             #plt.plot(ix_lam_ext,x0_lam_ext,ls='dotted')
             plt.title(f"t={i/4.:.1f}d")
             plt.legend()
@@ -180,7 +184,7 @@ else:
             sp_t.append(sp0_t)
             sp_gm.append(sp0_gm)
             sp_lam.append(sp0_lam)
-            sp_detrend.append(sp0_detrend)
+            #sp_detrend.append(sp0_detrend)
             if i%20==0:
                 #wnum_t = fft.rfftfreq(x0_t.size,d=dx_t) * 2.0 * np.pi
                 plt.plot(wnum_t,sp0_t,label='nature')
@@ -188,7 +192,7 @@ else:
                 plt.plot(wnum_gm,sp0_gm,label='GM')
                 #wnum_lam = fft.rfftfreq(x0_lam_ext.size,d=dx_lam)[:sp0_lam.size] * 2.0 * np.pi
                 plt.plot(wnum_lam,sp0_lam,label='LAM')
-                plt.plot(wnum_lam,sp0_detrend,label='LAM, detrended')
+                #plt.plot(wnum_lam,sp0_detrend,label='LAM, detrended')
                 plt.title(f"t={i/4.:.1f}d, power spectrum")
                 plt.xlabel("wave number")
                 plt.xscale("log")
@@ -200,7 +204,7 @@ else:
     plt.plot(nest_step.ix_true,x0_t,label='nature')
     plt.plot(nest_step.ix_gm,x0_gm,label='GM')
     plt.plot(nest_step.ix_lam,x0_lam,label='LAM')
-    plt.plot(nest_step.ix_lam,x0_detrend,ls='dashed',label='LAM, detrended')
+    #plt.plot(nest_step.ix_lam,x0_detrend,ls='dashed',label='LAM, detrended')
     plt.title(f"t={i/4.:.1f}d")
     plt.legend()
     plt.savefig(figdir/f'test_nest_lamstep{lamstep}_t{int(i/4.)}.png',dpi=300)
@@ -300,33 +304,34 @@ fig.savefig(figdir/f'test_nest_err_lamstep{lamstep}.png',dpi=300)
 plt.show()
 plt.close()
 
-fig, axs = plt.subplots(ncols=3,figsize=[12,5],\
-    sharey=True,constrained_layout=True)
-cmap = plt.get_cmap('coolwarm')
-#LAM
-mp0 = axs[0].pcolormesh(nest_step.ix_lam,t,x_lam, shading='auto',\
-    cmap=cmap, norm=Normalize(vmin=-15.0,vmax=15.0))
-axs[0].set_xticks(nest_step.ix_lam[::30])
-axs[0].set_xlabel('site')
-axs[0].set_title('LAM')
-#LAM, detrended
-mp1 = axs[1].pcolormesh(nest_step.ix_lam,t,x_detrend, shading='auto',\
-    cmap=cmap, norm=Normalize(vmin=-15.0,vmax=15.0))
-axs[1].set_xticks(nest_step.ix_lam[::30])
-axs[1].set_xlabel('site')
-axs[1].set_title('LAM, detrended')
-#LAM, trend
-x_trend = x_lam - x_detrend
-print("LAM,trend  mean={:.3f}".format(x_trend.mean()))
-mp2 = axs[2].pcolormesh(nest_step.ix_lam,t,x_trend, shading='auto',\
-    cmap=cmap, norm=Normalize(vmin=-15.0,vmax=15.0))
-axs[2].set_xticks(nest_step.ix_lam[::30])
-axs[2].set_xlabel('site')
-axs[2].set_title('LAM, trend')
-fig.colorbar(mp2,ax=axs[2],shrink=0.6,pad=0.01)
-fig.savefig(figdir/f'test_nest_lam_lamstep{lamstep}.png',dpi=300)
-plt.show()
-plt.close()
+if nmc_l.ttype != 'c':
+    fig, axs = plt.subplots(ncols=3,figsize=[12,5],\
+        sharey=True,constrained_layout=True)
+    cmap = plt.get_cmap('coolwarm')
+    #LAM
+    mp0 = axs[0].pcolormesh(nest_step.ix_lam,t,x_lam, shading='auto',\
+        cmap=cmap, norm=Normalize(vmin=-15.0,vmax=15.0))
+    axs[0].set_xticks(nest_step.ix_lam[::30])
+    axs[0].set_xlabel('site')
+    axs[0].set_title('LAM')
+    #LAM, detrended
+    mp1 = axs[1].pcolormesh(nest_step.ix_lam,t,x_detrend, shading='auto',\
+        cmap=cmap, norm=Normalize(vmin=-15.0,vmax=15.0))
+    axs[1].set_xticks(nest_step.ix_lam[::30])
+    axs[1].set_xlabel('site')
+    axs[1].set_title('LAM, detrended')
+    #LAM, trend
+    x_trend = x_lam - x_detrend
+    print("LAM,trend  mean={:.3f}".format(x_trend.mean()))
+    mp2 = axs[2].pcolormesh(nest_step.ix_lam,t,x_trend, shading='auto',\
+        cmap=cmap, norm=Normalize(vmin=-15.0,vmax=15.0))
+    axs[2].set_xticks(nest_step.ix_lam[::30])
+    axs[2].set_xlabel('site')
+    axs[2].set_title('LAM, trend')
+    fig.colorbar(mp2,ax=axs[2],shrink=0.6,pad=0.01)
+    fig.savefig(figdir/f'test_nest_lam_lamstep{lamstep}.png',dpi=300)
+    plt.show()
+    plt.close()
 
 ## rms
 fig, axs = plt.subplots(ncols=2,figsize=[10,6],sharey=True)
@@ -334,9 +339,9 @@ axs[0].plot(t,rms_t,c='b',label='nature')
 axs[0].plot(t,rms_gm,c='orange',label='GM')
 axs[0].plot(t,rms_lam,c='r',label='LAM')
 axs[1].plot(t,rms_lam,label='LAM')
-axs[1].plot(t,rms_detrend,label='detrended')
-rms_trend = np.sqrt(np.mean(x_trend**2,axis=1))
-axs[1].plot(t,rms_trend,label='trend')
+#axs[1].plot(t,rms_detrend,label='detrended')
+#rms_trend = np.sqrt(np.mean(x_trend**2,axis=1))
+#axs[1].plot(t,rms_trend,label='trend')
 for ax in axs:
     ax.set_xlabel('day')
     ax.legend()
@@ -348,23 +353,14 @@ plt.close()
 sp_t = np.array(sp_t).mean(axis=0)
 sp_gm = np.array(sp_gm).mean(axis=0)
 sp_lam = np.array(sp_lam).mean(axis=0)
-sp_detrend = np.array(sp_detrend).mean(axis=0)
+#sp_detrend = np.array(sp_detrend).mean(axis=0)
 fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
-#wnum_t = fft.rfftfreq(x0_t.size,d=dx_t) * 2.0 * np.pi
 ax.plot(wnum_t,sp_t,c='b',marker='x',label='nature')
-#mmax = np.argmin(np.abs(wnum_t - 30)) + 1
-#ax.plot(wnum_t[:mmax],sp_t[:mmax],c='tab:blue',marker='x',lw=0.0)
-#wnum_gm = fft.rfftfreq(x0_gm.size,d=dx_gm) * 2.0 * np.pi
 ax.plot(wnum_gm,sp_gm,c='orange',marker='x',label='GM')
-#mmax = np.argmin(np.abs(wnum_gm - 30)) + 1
-#ax.plot(wnum_gm[:mmax],sp_gm[:mmax],c='tab:orange',marker='x',lw=0.0)
-#wnum_lam = fft.rfftfreq(x0_lam_ext.size,d=dx_lam)[:sp_lam.size] * 2.0 * np.pi
-#ax.plot(wnum_lam,sp_lam,c='r',marker='x',label='LAM')
-ax.plot(wnum_lam,sp_detrend,c='r',marker='x',label='LAM')
-#mmax = np.argmin(np.abs(wnum_lam - 30)) + 1
-#ax.plot(wnum_lam[:mmax],sp_lam[:mmax],c='tab:green',marker='x',lw=0.0)
-#ax.plot(wnum_t[1:],wnum_t[1:]**(-5./3.)*1000.0,c='gray',lw=2.0,label=r'$k^{-\frac{5}{3}}$')
-#ax.plot(wnum_t[1:],wnum_t[1:]**(-3.)*1000.0,c='gray',ls='dashed',lw=2.0,label=r'$k^{-3}$')
+ax.plot(wnum_lam,sp_lam,c='r',marker='x',label='LAM')
+#ax.plot(wnum_lam,sp_detrend,c='r',marker='x',label='LAM')
+ax.plot(wnum_t[1:],wnum_t[1:]**(-5./3.)*1000.0,c='gray',lw=2.0,label=r'$k^{-\frac{5}{3}}$')
+ax.plot(wnum_t[1:],wnum_t[1:]**(-3.)*1000.0,c='gray',ls='dashed',lw=2.0,label=r'$k^{-3}$')
 ax.set_title("time averaged power spectrum")
 ax.set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
 ax.set_xscale('log')
@@ -384,6 +380,6 @@ secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6,np.pi/15,np.pi/30.,np.
 secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
 ax.vlines([12],0,1,colors='gray',alpha=0.5,transform=ax.get_xaxis_transform())
 ax.legend()
-ax.set_ylim(1e-7, 10.0)
+#ax.set_ylim(1e-7, 10.0)
 fig.savefig(figdir/f'test_nest_psd.png',dpi=300)
 plt.show()
