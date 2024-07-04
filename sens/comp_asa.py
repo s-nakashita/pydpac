@@ -20,16 +20,21 @@ vt = 48 # hours
 if len(sys.argv)>1:
     vt = int(sys.argv[1])
 ioffset = vt // 6
-ic = 20 # center of verification region
-hwidth = 1 # half-width of verification region
 def cost(x,*args):
     xa, ic, hwidth = args
-    xd = x[ic-hwidth:ic+hwidth+1] - xa[ic-hwidth:ic+hwidth+1]
+    nxh = x.size // 2
+    i0 = nxh - hwidth
+    i1 = nxh + hwidth + 1
+    xd = np.roll(x,nxh-ic)[i0:i1] - np.roll(xa,nxh-ic)[i0:i1]
     return 0.5*np.dot(xd,xd)
 def jac(x,*args):
     xa, ic, hwidth = args
-    dJdx = np.zeros_like(x)
-    dJdx[ic-hwidth:ic+hwidth+1] = x[ic-hwidth:ic+hwidth+1] - xa[ic-hwidth:ic+hwidth+1]
+    nxh = x.size // 2
+    i0 = nxh - hwidth
+    i1 = nxh + hwidth + 1
+    dJdxtmp = np.zeros_like(x)
+    dJdxtmp[i0:i1] = np.roll(x,nxh-ic)[i0:i1] - np.roll(xa,nxh-ic)[i0:i1]
+    dJdx = np.roll(dJdxtmp,-nxh+ic)
     return dJdx
 
 # load data
@@ -65,6 +70,9 @@ for i in range(nsample):
     icyc = icyc0 + i
     cycles.append(icyc)
     xa = xf00[icyc+ioffset].mean(axis=1)
+    xf = xfv [icyc+ioffset].mean(axis=1)
+    ic = np.argmax(np.abs(xa - xf)) # center of verification region
+    hwidth = 1 # half-width of verification region
     args = (xa,ic,hwidth)
 
     # ASA
@@ -106,6 +114,7 @@ for i in range(nsample):
         rmsdx_dict[solver].append(np.sqrt(np.mean((dxe0opt-dx0opt)**2)))
 
     if i<0:
+        print(f"ic={ic}")
         fig, ax = plt.subplots()
         for j,key in enumerate(dJdx0_dict.keys()):
             if key=='asa':
@@ -128,6 +137,8 @@ for i in range(nsample):
         ax.set_title('dxopt')
         plt.show()
 
+figdir = Path("fig")
+if not figdir.exists(): figdir.mkdir()
 nrows=2
 ncols=int(np.ceil(len(res_dict.keys())/2))
 fig, axs = plt.subplots(ncols=ncols,nrows=nrows,figsize=[10,8],constrained_layout=True)
@@ -150,7 +161,7 @@ for ax in axs.flatten():
 axs[-1,1].set_xlabel(r'NLM: $\frac{J(M(\mathbf{x}_0+\delta\mathbf{x}_0^\mathrm{opt}))-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$')
 axs[0,0].set_ylabel(r'TLM: $\frac{J(\mathbf{x}_T+\mathbf{M}\delta\mathbf{x}_0^\mathrm{opt})-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$')
 fig.suptitle(r'$\delta J/J$'+f', FT{vt} {nens} member')
-fig.savefig(f"res_vt{vt}nens{nens}.png",dpi=300)
+fig.savefig(figdir/f"res_vt{vt}nens{nens}.png",dpi=300)
 plt.show()
 
 fig, ax = plt.subplots(figsize=[10,8],constrained_layout=True)
@@ -168,10 +179,13 @@ ax.set_ylabel('dxopt')
 ax.grid()
 ax.legend()
 fig.suptitle(f'RMSD against ASA, FT{vt} {nens} member')
-fig.savefig(f"rms_vt{vt}nens{nens}.png",dpi=300)
+fig.savefig(figdir/f"rms_vt{vt}nens{nens}.png",dpi=300)
 plt.show()
 plt.close()
 
+# save results to netcdf
+savedir = Path('data')
+if not savedir.exists(): savedir.mkdir(parents=True)
 for key in res_dict.keys():
     res = np.array(res_dict[key])
     if key == 'asa':
@@ -198,4 +212,4 @@ for key in res_dict.keys():
         }
     ds = xr.Dataset.from_dict(datadict)
     print(ds)
-    ds.to_netcdf(f"{key}_vt{vt}nens{nens}.nc")
+    ds.to_netcdf(savedir/f"{key}_vt{vt}nens{nens}.nc")
