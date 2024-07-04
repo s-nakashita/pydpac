@@ -37,14 +37,14 @@ for pt in perts:
     if not os.path.isfile(f):
         continue
     s = np.loadtxt(f)
-    #f = "{}_lam_coef_a_{}_{}.txt".format(model, op, pt)
-    #if os.path.isfile(f):
-    #    coef_a = np.loadtxt(f)
-    #    cycles_lam = np.arange(1,coef_a.shape[0]+1)
-    #else:
-    cycles_lam = []
-    coef_a = []
-    for icycle in range(na):
+    f = "data/{2}/{0}_lam_coef_a_{1}_{2}.txt".format(model, op, pt)
+    if os.path.isfile(f):
+        coef_a = np.loadtxt(f)
+        cycles_lam = np.arange(1,coef_a.shape[0]+1)
+    else:
+        cycles_lam = []
+        coef_a = []
+        for icycle in range(na):
             #LAM
             f = "{}_lam_coef_a_{}_{}_cycle{}.txt".format(model, op, pt, icycle)
             if os.path.isfile(f):
@@ -59,7 +59,7 @@ for pt in perts:
                     cycles_lam.append(icycle)
             #
             #cycles.append(icycle)
-    if len(coef_a) > 0:
+        if len(coef_a) > 0:
             coef_a = np.array(coef_a)
             np.savetxt("{}_lam_coef_a_{}_{}.txt".format(model, op, pt), coef_a)
     if len(cycles_lam) == 0:
@@ -79,7 +79,7 @@ for pt in perts:
     plt.show()
 
     # correlation
-    corr1 = correlate(coef_a_mean, e)
-    corr2 = correlate(coef_a_mean, s)
+    corr1 = correlate(coef_a_mean, e) / coef_a_mean.size
+    corr2 = correlate(coef_a_mean, s) / coef_a_mean.size
     print(f"{pt} correlation between coef_a_mean and analysis error = {corr1[corr1.size//2]}")
     print(f"{pt} correlation between coef_a_mean and analysis spread = {corr2[corr2.size//2]}")
