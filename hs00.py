@@ -155,11 +155,17 @@ elif pt == "kf":
     analysis = Kf(pt, obs, infl_parm, linf, step, nt, model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, model)
-elif pt == "var4d":
+    sigb = np.sqrt(0.2)
+    lb = -1.0
+    analysis = Var(obs, 
+    sigb=sigb, lb=lb, model=model)
+elif pt == "4dvar":
     from analysis.var4d import Var4d
-    a_window = 5
-    analysis = Var4d(pt, obs, step, nt, a_window, model)
+    #a_window = 5
+    sigb = np.sqrt(0.2)
+    lb = -1.0
+    analysis = Var4d(obs, step, nt, a_window,
+    sigb=sigb, lb=lb, model=model)
 elif pt == "rep" or pt == "rep-mb":
     from analysis.rep import Rep
     analysis = Rep(pt, obs, model)

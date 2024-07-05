@@ -5,50 +5,48 @@ import numpy.linalg as la
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
-
+plt.rcParams["font.size"] = 12
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
 pt = sys.argv[4]
-if model == "z08" or model == "z05":
+scycle = int(sys.argv[5])
+ecycle = int(sys.argv[6])
+if model == "z08":
     nx = 81
+elif model == "z05":
+    nx = 101
 elif model == "l96":
     nx = 40
-x = np.arange(nx)
-for icycle in range(5):
+#ix = np.arange(nx)
+ix = np.loadtxt("ix.txt")
+nx = ix.size
+ncycle = 0
+pf = np.zeros((nx,nx))
+for icycle in range(scycle,ecycle+1):
     cmap = "coolwarm"
-    pf = None
     f = "{}_pf_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
     if os.path.isfile(f):
-        pf = np.load(f)
-    pa = None  
-    f = "{}_pa_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
-    if os.path.isfile(f):
-        pa = np.load(f)
-        
-    fig, ax = plt.subplots(nrows=1,ncols=2)
-    ymax = np.max(pf)
-    ymin = np.min(pf)
-    ylim = max(ymax, np.abs(ymin))
-    mappable=ax[0].matshow(pf,cmap=cmap,norm=Normalize(vmin=-ylim, vmax=ylim))
-    ax[0].set_aspect("equal")
-    ax[0].set_xticks(x[::5])
-    ax[0].set_yticks(x[::5])
-    #ax[0, 0].invert_xaxis()
-    ax[0].invert_yaxis()
-    ax[0].set_title("Pf")
-    fig.colorbar(mappable, ax=ax[0],orientation="horizontal")
-    ymax = np.max(pa)
-    ymin = np.min(pa)
-    ylim = max(ymax, np.abs(ymin))
-    mappable=ax[1].matshow(pa,cmap=cmap,norm=Normalize(vmin=-ylim, vmax=ylim))
-    ax[1].set_aspect("equal")
-    ax[1].set_xticks(x[::5])
-    ax[1].set_yticks(x[::5])
-    #ax[1, 0].invert_xaxis()
-    ax[1].invert_yaxis()
-    ax[1].set_title("Pa")
-    fig.colorbar(mappable, ax=ax[1],orientation="horizontal")
-    
-    fig.tight_layout()
-    fig.savefig("{}_cov_{}_{}_cycle{}.png".format(model,op,pt,icycle))
+        tmp = np.load(f)
+        pf = pf + tmp
+        ncycle += 1
+#    pa = None  
+#    f = "{}_pa_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
+#    if os.path.isfile(f):
+#        pa = np.load(f)
+pf = pf / float(ncycle)
+fig, ax = plt.subplots(figsize=[6,6],constrained_layout=True)
+plot = False
+if ncycle > 0:
+        plot = True
+        ymax = np.max(pf)
+        ymin = np.min(pf)
+        ylim = max(ymax, np.abs(ymin))
+        mappable=ax.pcolormesh(ix,ix,pf,shading='auto',\
+            cmap=cmap,norm=Normalize(vmin=-ylim, vmax=ylim))
+        ax.set_aspect("equal")
+        ax.set_xticks(ix[::(nx//8)])
+        ax.set_yticks(ix[::(nx//8)])
+        ax.set_title("Pf")
+        fig.colorbar(mappable, ax=ax, pad=0.01, shrink=0.6) #orientation="horizontal")
+        fig.savefig("{}_pf_{}_{}_cycle{}-{}.png".format(model,op,pt,scycle,ecycle))

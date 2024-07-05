@@ -141,35 +141,52 @@ else: # odd
 obs = Obs(op, sigma[op])
 
 # assimilation method
+state_size = nx
 if pt == "mlef":
-    if not lloc:
-        from analysis.mlef import Mlef
-    #    lloc = False
-        analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
-    else:
-        from analysis.mlef_rloc import Mlef_rloc
-        analysis = Mlef_rloc(pt, nmem, obs, infl_parm, lsig, linf, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    from analysis.mlef import Mlef
+    analysis = Mlef(state_size, nmem, obs, \
+            linf=linf, infl_parm=infl_parm, \
+            iloc=iloc, lsig=lsig, ss=False, gain=False, \
+            calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
+            ltlm=ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step.calc_dist, step.calc_dist1, model=model)
+    analysis = EnKF(pt, state_size, nmem, obs, \
+        linf=linf, infl_parm=infl_parm, \
+        iloc=iloc, lsig=lsig, ss=True, getkf=False, \
+        ltlm=ltlm, \
+        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
+    analysis = Kf(obs, 
+    infl=infl_parm, linf=linf, 
+    step=step, nt=nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, model=model)
+    sigb = 0.6
+    lb = -1.0
+    analysis = Var(obs, 
+    sigb=sigb, lb=lb, model=model)
 elif pt == "4dvar":
     from analysis.var4d import Var4d
     #a_window = 5
-    analysis = Var4d(pt, obs, step, nt, a_window, model=model)
+    sigb = 0.6
+    lb = -1.0
+    analysis = Var4d(obs, step, nt, a_window,
+    sigb=sigb, lb=lb, model=model)
 elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
-    from analysis.enks import EnKS
+    from analysis.enkf4d import EnKF4d
     #a_window = 5
-    analysis = EnKS(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
+    analysis = EnKF4d(pt, state_size, nmem+1, obs, nt, a_window, \
+        linf=linf, infl_parm=infl_parm, 
+        iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+        ltlm=ltlm, model=model)
 elif pt == "4dmlef":
-    from analysis.mles import Mles
-    lloc = False
-    analysis = Mles(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, step, nt, a_window, model=model)
+    from analysis.mlef4d import Mlef4d
+    analysis = Mlef4d(state_size, nmem, obs, step, nt, a_window, \
+            linf=linf, infl_parm=infl_parm, \
+            iloc=iloc, lsig=lsig, calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+            ltlm=ltlm, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, "nobs":nobs, \
@@ -205,7 +222,7 @@ if __name__ == "__main__":
         logger.debug("obs={}".format(y))
         #if i in [1, 50, 100, 150, 200, 250]:
         if pt[:2] == "4d":
-            u, pa, ds = analysis(u, pf, y, yloc, icycle=i)
+            u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
         else:
             u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)
         

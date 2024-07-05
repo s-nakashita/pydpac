@@ -1,0 +1,19 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module file_utility ! in 
+    interface  ! in :file_utility
+        module file_utility ! in :file_utility:file_utility.f90
+            subroutine file_open(unit,file) ! in :file_utility:file_utility.f90:file_utility
+                integer intent(in) :: unit
+                character*(*) intent(in) :: file
+            end subroutine file_open
+            subroutine file_close(unit) ! in :file_utility:file_utility.f90:file_utility
+                integer intent(in) :: unit
+            end subroutine file_close
+        end module file_utility
+    end interface 
+end python module file_utility
+
+! This file was auto-generated with f2py (version:1.21.0).
+! See http://cens.ioc.ee/projects/f2py2e/

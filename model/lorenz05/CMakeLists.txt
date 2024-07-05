@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(L05 LANGUAGES Fortran)
+set(CMAKE_Fortran_FLAGS "-O3")
+add_subdirectory(src)
+
+add_executable(lorenz2_test lorenz2_test.f90)
+target_link_libraries(lorenz2_test tools)
+add_executable(lorenz3_test lorenz3_test.f90)
+target_link_libraries(lorenz3_test tools)
+add_executable(lorenz2m_test lorenz2m_test.f90)
+target_link_libraries(lorenz2m_test tools)
+add_executable(lorenz3m_test lorenz3m_test.f90)
+target_link_libraries(lorenz3m_test tools)
+include_directories(${CMAKE_BINARY_DIR}/src)

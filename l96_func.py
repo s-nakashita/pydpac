@@ -11,14 +11,15 @@ logger = logging.getLogger('param')
 
 class L96_func():
 
-    def __init__(self, params):
-        self.step = params["step"]
+    def __init__(self, step, obs, analysis, params):
+        self.step = step
         self.nx, self.dt, self.F = self.step.get_params()
-        self.obs = params["obs"]
-        self.analysis = params["analysis"]
+        self.obs = obs
+        self.analysis = analysis
         self.nobs = params["nobs"]
+        self.nmem = params["nmem"]
         self.t0c = params["t0c"]
-        self.t0f = params["t0f"]
+        self.t0off = params["t0off"]
         self.nt = params["nt"]
         self.na = params["na"]
         self.namax = params["namax"]
@@ -33,7 +34,6 @@ class L96_func():
         self.lsig = params["lsig"]
         logger.info("nx={} F={} dt={:7.3e}".format(self.nx, self.F, self.dt))
         logger.info("nobs={}".format(self.nobs))
-        logger.info("t0f={}".format(self.t0f))
         logger.info("nt={} na={}".format(self.nt, self.na))
         logger.info("operator={} perturbation={} sig_obs={} ftype={}".format\
         (self.op, self.pt, self.obs.get_sig(), self.ft))
@@ -93,8 +93,9 @@ class L96_func():
                 yobs[:,:,1] = self.obs.add_noise(yobs[:,:,1])
             else:
                 logger.info("random observation")
+                obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
                 for k in range(self.na):
-                    obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
+                    #obsloc = np.random.choice(xloc, size=self.nobs, replace=False)
                     #obsloc = xloc[:self.nobs]
                     #obsloc = np.random.uniform(low=0.0, high=self.nx, size=self.nobs)
                     yobs[k,:,0] = obsloc[:]
@@ -123,17 +124,25 @@ class L96_func():
 
     # initialize ensemble member
     def init_ens(self,opt):
-        maxiter = np.max(np.array(self.t0f))+1
+        # t0 for ensemble members
+        if self.nmem%2 == 0: # even
+            t0m = [self.t0c + self.t0off//2 + self.t0off * i for i in range(self.nmem//2)]
+            t0f = t0m + [self.t0c + self.t0off//2 + self.t0off * i for i in range(-self.nmem//2, 0)]
+        else: # odd
+            t0m = [self.t0c + self.t0off//2 + self.t0off * i for i in range(-(self.nmem-1)//2, (self.nmem-1)//2)]
+            t0f = [self.t0c] + t0m
+        maxiter = np.max(np.array(t0f))+1
         if(opt==0): # random
             logger.info("spin up max = {}".format(self.t0c))
             X0c = self.init_ctl()
             logger.debug("X0c={}".format(X0c))
             np.random.seed(514)
-            X0 = np.zeros((self.nx, len(self.t0f)))
-            X0[:, :] = np.random.normal(0.0,1.0,size=(self.nx,len(self.t0f))) + X0c[:, None]
+            X0 = np.zeros((self.nx, len(t0f)))
+            X0[:, :] = np.random.normal(0.0,1.0,size=(self.nx,len(t0f))) + X0c[:, None]
         else: # lagged forecast
+            logger.info("t0f={}".format(t0f))
             logger.info("spin up max = {}".format(maxiter))
-            X0 = np.zeros((self.nx,len(self.t0f)))
+            X0 = np.zeros((self.nx,len(t0f)))
             #tmp = np.ones(self.nx)*self.F
             #tmp[self.nx//2 - 1] += 0.001*self.F
             ix = np.arange(self.nx)/self.nx
@@ -141,8 +150,8 @@ class L96_func():
             tmp = np.cos(2.0*np.pi*ix*nk)*self.F
             for j in range(maxiter):
                 tmp = self.step(tmp)
-                if j in self.t0f:
-                    X0[:,self.t0f.index(j)] = tmp
+                if j in t0f:
+                    X0[:,t0f.index(j)] = tmp
         return X0
 
     # initialize variables
@@ -154,16 +163,18 @@ class L96_func():
             xf[0] = u
         else:
             u = self.init_ens(opt)
-            if self.pt == "mlef" or self.pt == "grad":
-                xf[0] = u[:, 0]
+            if self.pt == "mlef":
+                uc = u[:, 0]
+                xf[0] = uc
+                u[:,1:] = (u[:,1:] - uc[:,None])/np.sqrt(u.shape[1]-1) # first scaling
             else:
                 xf[0] = np.mean(u, axis=1)
         pa  = np.zeros((self.nx, self.nx))
         #if self.pt == "mlef" or self.pt == "grad":
-        #    sqrtpa = np.zeros((self.na, self.nx, len(self.t0f)-1))
+        #    savepa = np.zeros((self.na, self.nx, self.nmem-1))
         #else:
-        sqrtpa = np.zeros((self.na, self.nx, self.nx))
-        return u, xa, xf, pa, sqrtpa
+        #savepa = np.zeros((self.na, self.nx, self.nx))
+        return u, xa, xf, pa#, savepa
 
     # forecast
     def forecast(self, u):

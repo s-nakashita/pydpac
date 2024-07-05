@@ -33,7 +33,7 @@ if vname == "innv" or vname == "ua":
         emean /= nmax
     if i>0:
         np.save("{}_{}_{}_{}.npy".format(model, vname, op, pt), emean)
-#if vname == "e" or vname == "chi" or vname == "dof":
+#if vname == "e" or vname == "chi" or vname == "dfs":
 elif vname == "sv":
     if model == "z08":
         imean = np.zeros(81)
@@ -61,11 +61,33 @@ elif vname == "sv":
         fmean /= i
         np.save("initialSVA_{}_{}h.npy".format(pt, op), imean)
         np.save("finalSVA_{}_{}h.npy".format(pt, op), fmean)
+elif vname[:6] == "xdmean" or vname[:6] == "xsmean":
+    i = 0
+    for count in range(1,nmax+1):
+        f = "{}_{}_{}_{}.txt".format(vname, op, pt, count)
+        if not os.path.isfile(f):
+            print(f"not exist {f}")
+            continue
+        e = np.loadtxt(f)
+        if i==0:
+            emean = e.copy()
+            estd = e**2
+        else:
+            emean += e
+            estd += e**2
+        i += 1
+    emean /= i
+    estd /= i
+    estd = np.sqrt(estd - emean**2)
+    data = np.hstack((np.array([i,i]).reshape(-1,1),np.vstack((emean,estd))))
+    if i>0:
+        np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), data)
 else:
     if model == "z08" and vname == "e":
         emean = np.zeros(na+1)
     else:
         emean = np.zeros(na)
+    estd = np.zeros_like(emean)
     i = 0
     for count in range(1,nmax+1):
         f = "{}_{}_{}_{}.txt".format(vname, op, pt, count)
@@ -74,8 +96,12 @@ else:
             continue
         e = np.loadtxt(f)
         emean += e
+        estd += e**2
         i += 1
     emean /= i
+    estd /= i
+    estd = np.sqrt(estd - emean**2)
+    data = np.hstack((np.array([i,i]).reshape(-1,1),np.vstack((emean,estd))))
     if i>0:
-        np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), emean)
+        np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), data)
 #np.savetxt("{}_{}_{}_{}_mean.txt".format(model, vname, op, pt), emean)
