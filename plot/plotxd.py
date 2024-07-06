@@ -29,9 +29,9 @@ if len(sys.argv) > 4:
     #linecolor = {"l"+pt+"1":'tab:blue', "l"+pt+"2":'tab:orange', "l"+pt+"3":'tab:green', 'letkf':'tab:red'}
 if len(sys.argv) > 5 and sys.argv[5]=='infl':
     linfl = True
-    iinflist = [-1,0,1,2,3]
-    infltype = {-1:'pre-mi',0:'post-mi', 1:'add', 2:'rtpp', 3:'rtps'}
-    linecolor = {-1:'tab:blue', 0:'tab:orange', 1:'tab:green', 2:'tab:red', 3:'tab:purple'}
+    iinflist = [-2,-1,0,1,2,3]
+    infltype = {-2:'adap-pre-mi',-1:'pre-mi',0:'post-mi', 1:'add', 2:'rtpp', 3:'rtps'}
+    linecolor = {-2:'b',-1:'tab:blue', 0:'tab:orange', 1:'tab:green', 2:'tab:red', 3:'tab:purple'}
 
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \

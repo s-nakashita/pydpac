@@ -9,7 +9,7 @@ datype="mlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
-perturbations="mlefcw"
+perturbations="mlef mlefbm mlefcw"
 na=100 # Number of assimilation cycle
 nmem=20 # ensemble size
 nobs=40 # observation volume
@@ -17,10 +17,11 @@ linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-exp="${datype}_infl"
+iinf=-2
+exp="${datype}_infladap"
 echo ${exp}
 cdir=` pwd `
-#rm -rf work/${model}/${exp}
+rm -rf work/${model}/${exp}
 mkdir -p work/${model}/${exp}
 cd work/${model}/${exp}
 cp ${cdir}/logging_config.ini .
@@ -31,7 +32,7 @@ touch timer
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
-    for iinf in $(seq -1 3); do
+    #for iinf in $(seq -2 3); do
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
       gsed -i -e "2i \ \"op\":\"${op}\"," config.py
       gsed -i -e "2i \ \"na\":${na}," config.py
@@ -79,6 +80,9 @@ for op in ${operators}; do
       mv l96_xsfmean_${op}_${pt}.txt xsfmean_${op}_${pert}_${iinf}.txt
       mv l96_xf_${op}_${pt}.npy xf_${op}_${pert}_${iinf}.npy
       mv l96_xa_${op}_${pt}.npy xa_${op}_${pert}_${iinf}.npy
+      if [ $iinf -eq -2 ]; then
+        mv l96_infl_${op}_${pt}.txt infl_${op}_${pert}.txt
+      fi
       #if [ "${pert:4:1}" = "b" ]; then
       #mv l96_rho_${op}_${pt}.npy l96_rho_${op}_${pert}.npy
       #fi
@@ -107,16 +111,18 @@ for op in ${operators}; do
       #python ${cdir}/plot/plotlpf.py ${op} l96 ${na} ${pert} 
       mkdir -p data/${pert}_${iinf}
       mv l96_*_${op}_${pt}_cycle*.npy data/${pert}_${iinf}
-    done
+    #done
     python ${cdir}/plot/plote.py ${op} l96 ${na} ${pert} infl
     python ${cdir}/plot/plotxd.py ${op} l96 ${na} ${pert} infl
   done
-  #python ${cdir}/plot/plote.py ${op} l96 ${na} ${datype} infl
+  #python ${cdir}/plot/plote.py ${op} l96 ${na}
+  #python ${cdir}/plot/plotxd.py ${op} l96 ${na}
   #python ${cdir}/plot/plotchi.py ${op} l96 ${na}
   #python ${cdir}/plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
   #python ${cdir}/plot/plotxa.py ${op} l96 ${na}
   #python ${cdir}/plot/nmc.py ${op} l96 ${na}
   #python ${cdir}/plot/plotdof.py ${op} l96 ${na}
+  python ${cdir}/plot/plotinfl.py ${op} l96 ${na}
   
   #rm obs*.npy
 done

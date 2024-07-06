@@ -1,0 +1,391 @@
+---
+title: inflation function
+code-fold: true
+jupyter: python3
+---
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+plt.rcParams['font.size'] = 16
+```
+
+# References
+
+[Duc et al. (2020)](https://doi.org/10.1002/qj.3864) 
+
+[Duc et al. (2021)](https://doi.org/10.1002/qj.4029)
+
+## Perturbation response function (PRF)
+
+mapping from background singular values $\gamma$ to the analysis singular values $\gamma^\mathrm{a}$, 
+
+$$
+\gamma^\mathrm{a} = r(\gamma) = \gamma\lambda = \frac{\gamma}{\sqrt{1+\gamma^2}}
+$${#eq-prf}
+
+## (Posterior) Inflation function
+
+$$
+\lambda \mapsto f(\lambda)
+$$
+$$
+f:[0,1]\mapsto[0,\infty)
+$${#eq-inff}
+
+PRF becomes
+$$
+r^\mathrm{inf}(\gamma) = \gamma f(\lambda)
+$${#eq-prfinf}
+
+## Prior inflation function
+
+$$
+\gamma \mapsto g(\gamma)
+$$
+$$
+g:[0,\infty)\mapsto[0,\infty)
+$${#eq-pif}
+
+PRF becomes
+
+$$
+r^\mathrm{pinf}(\gamma) = \frac{g(\gamma)}{\sqrt{1+g(\gamma)^2}}
+$${#eq-prfpinf}
+
+
+```{python}
+def f2g(f,s,rho=1.0):
+  l = 1.0 / np.sqrt(1.0 + s**2)
+  return s*f(l,rho=rho)/np.sqrt(1.0 - s*s*f(l,rho=rho)*f(l,rho=rho))
+
+def PRF(f,s,rho=1.0):
+  l = 1.0 / np.sqrt(1.0 + s**2)
+  return s*f(l,rho=rho)
+```
+
+## Multiplicative inflation functions
+
+```{python}
+def f_noda(l,rho=1.0):
+  return np.ones(l.size)
+def f_noinf(l,rho=1.0):
+  return l
+def f_preMI(l,rho=1.0):
+  return 1.0/np.sqrt(1.0/l/l + 1.0/rho - 1.0)
+def f_postMI(l,rho=1.0):
+  return np.sqrt(rho)*l
+```
+
+```{python}
+#| fig-cap: Multiplicative inflation functions
+#| label: fig-inf-mul
+
+l = np.arange(1,51)*0.02
+fig, ax = plt.subplots(figsize=(6,6))
+ax.plot(l,f_noda(l),label='noda')
+ax.plot(l,f_noinf(l),label='noinf')
+ax.plot(l,f_preMI(l,rho=1.96),label='preMI')
+ax.plot(l,f_postMI(l,rho=1.96),label='postMI')
+ax.set_xlabel(r'$\lambda$')
+ax.set_ylabel(r'$f(\lambda)$')
+ax.legend()
+ax.grid()
+plt.show()
+```
+
+```{python}
+#| fig-cap: PRF for multiplicative inflation 
+#| label: fig-prf-mul
+
+s = np.arange(1,51)*0.06
+fig, ax = plt.subplots(figsize=(6,6))
+ax.plot(s,PRF(f_noda,s),label='noda')
+ax.plot(s,PRF(f_noinf,s),label='noinf')
+ax.plot(s,PRF(f_preMI,s,rho=1.96),label='preMI')
+ax.plot(s,PRF(f_postMI,s,rho=1.96),label='postMI')
+ax.plot(s,np.ones(s.size),c='k')
+ax.set_xlabel(r'$\gamma$')
+ax.set_ylabel(r'$r(\gamma)$')
+ax.legend()
+ax.grid()
+plt.show()
+```
+
+```{python}
+#| fig-cap: PIF for multiplicative inflation 
+#| label: fig-pif-mul
+
+s = np.arange(1,51)*0.06
+fig, ax = plt.subplots(figsize=(6,6))
+ax.plot(s,f2g(f_noda,s),label='noda')
+ax.plot(s,f2g(f_noinf,s),label='noinf')
+ax.plot(s,f2g(f_preMI,s,rho=1.96),label='preMI')
+ax.plot(s,f2g(f_postMI,s,rho=1.96),label='postMI')
+ax.set_xlabel(r'$\gamma$')
+ax.set_ylabel(r'$g(\gamma)$')
+ax.set_ylim(0.0,3.0)
+ax.set_xlim(0.0,3.0)
+ax.legend()
+ax.grid()
+plt.show()
+```
+
+## Linear inflation function
+
+$$
+f(\lambda) = a\lambda + b
+$${#eq-inff-lin}
+
+$$
+b \ge 0 \qquad
+a + b \ge 0
+$${#eq-inff-lin-cond}
+
+### Constant inflation functions
+$$
+a = 0
+$$
+
+```{python}
+def f_const(l,rho=1.0):
+  return np.ones(l.size) - rho*(np.ones(l.size) - np.mean(l))
+```
+
+### Fixed inflation functions (RTPP)
+$$
+a + b = 1
+$$
+
+```{python}
+def f_rtpp(l,rho=1.0):
+  return rho*l + 1.0 - rho
+```
+
+```{python}
+#| fig-cap: Constant or fixed inflation functions
+#| label: fig-inf-lin
+
+l = np.arange(1,51)*0.02
+fig, ax = plt.subplots(figsize=(6,6))
+ax.plot(l,f_noda(l),label='noda')
+ax.plot(l,f_noinf(l),label='noinf')
+ax.plot(l,f_const(l,rho=0.7),label='const')
+ax.plot(l,f_postMI(l,rho=1.69),label='MI')
+ax.plot(l,f_rtpp(l,rho=0.3),label='RTPP')
+ax.set_xlabel(r'$\lambda$')
+ax.set_ylabel(r'$f(\lambda)$')
+ax.legend()
+ax.grid()
+plt.show()
+```
+
+```{python}
+#| fig-cap: PRF for linear inflation functions
+#| label: fig-prf-lin
+
+s = np.arange(1,51)*0.06
+fig, ax = plt.subplots(figsize=(6,6))
+ax.plot(s,PRF(f_noda,s),label='noda')
+ax.plot(s,PRF(f_noinf,s),label='noinf')
+ax.plot(s,PRF(f_const,s,rho=0.7),label='const')
+ax.plot(s,PRF(f_postMI,s,rho=1.69),label='MI')
+ax.plot(s,PRF(f_rtpp,s,rho=0.3),label='RTPP')
+ax.plot(s,np.ones(s.size),c='k')
+ax.set_xlabel(r'$\gamma$')
+ax.set_ylabel(r'$r(\gamma)$')
+ax.legend()
+ax.grid()
+plt.show()
+```
+
+```{python}
+#| fig-cap: PIF for linear inflation functions
+#| label: fig-pif-lin
+
+s = np.arange(1,51)*0.06
+fig, ax = plt.subplots(figsize=(6,6))
+ax.plot(s,f2g(f_noda,s),label='noda')
+ax.plot(s,f2g(f_noinf,s),label='noinf')
+ax.plot(s,f2g(f_const,s,rho=0.7),label='const')
+ax.plot(s,f2g(f_postMI,s,rho=1.96),label='MI')
+ax.plot(s,f2g(f_rtpp,s,rho=0.3),label='RTPP')
+ax.set_xlabel(r'$\gamma$')
+ax.set_ylabel(r'$g(\gamma)$')
+ax.set_ylim(0.0,3.0)
+ax.set_xlim(0.0,3.0)
+ax.legend()
+ax.grid()
+plt.show()
+```
+
+### Multiplicative inflation functions
+$$
+b = 0
+$$
+
+```{python}
+def f_rtps(l,rho=1.0):
+  return (np.ones(l.size) + rho*(1.0/np.mean(l) - 1.0))*l
+```
+
+```{python}
+#| fig-cap: Multiplicative linear inflation functions
+#| label: fig-inf-lin-mul
+
+l = np.arange(1,51)*0.02
+fig, ax = plt.subplots(figsize=(6,8))
+ax.plot(l,f_noda(l),label='noda')
+ax.plot(l,f_noinf(l),label='noinf')
+for rho in [1.1,1.2,1.3,1.4]:
+  ax.plot(l,f_rtps(l,rho=rho),label=r'$\rho$='+f'{rho}')
+ax.set_xlabel(r'$\lambda$')
+ax.set_ylabel(r'$f(\lambda)$')
+ax.legend()
+ax.grid()
+plt.show()
+```
+
+### Correleation matrix
+
+[Bishop and Hodyss (2007)](https://doi.org/10.1002/qj.169)
+
+[Bishop et al. (2015)](https://doi.org/10.1175/MWR-D-14-00391.1)
+
+```{python}
+def cnag(M,d):
+  knum = np.zeros(M)
+  knum[0] = 0.0
+  knum[M-1] = M/2.0
+  for j in range(1,int(M/2)):
+    knum[2*j-1] = float(j)
+    knum[2*j] = float(j)
+  #print(knum)
+  lam = M*np.exp(-knum*knum/d/d)/np.sum(np.exp(-knum*knum/d/d))
+  #print(lam)
+  Es = np.eye(M)
+  x = np.arange(M)
+  Es[:,0] = 1.0 / np.sqrt(float(M))
+  for j in range(1,int(M/2)):
+    Es[:,2*j-1] = np.sin(knum[2*j-1]*x*2.0*np.pi/M)*np.sqrt(2.0/float(M))
+    Es[:,2*j] = np.cos(knum[2*j]*x*2.0*np.pi/M)*np.sqrt(2.0/float(M))
+  Es[:,M-1] = np.cos(knum[M-1]*x*2.0*np.pi/M)/np.sqrt(M)
+  C = np.dot(np.dot(Es, np.diag(lam)), Es.T)
+  return C, Es, lam
+```
+
+```{python}
+d=8.0
+M=256
+C, Es, lam = cnag(M,d)
+```
+
+```{python}
+
+import matplotlib.cm as cm
+fig, ax = plt.subplots()
+im = ax.imshow(C,origin='lower',cmap=cm.Reds)
+fig.colorbar(im,ax=ax)
+plt.show()
+```
+
+```{python}
+sigb=2.0
+sigo=1.0
+p = 100 # observation number
+Pb = np.dot(np.dot(Es, np.diag(lam*sigb*sigb)), Es.T)
+R = np.eye(p) * sigo * sigo
+```
+
+```{python}
+
+fig, ax = plt.subplots()
+im = ax.imshow(Pb,origin='lower',cmap=cm.Blues)
+fig.colorbar(im,ax=ax)
+ax.set_title(r'$\mathbf{P}_b$')
+plt.show()
+```
+
+```{python}
+import random
+obsloc = random.sample([i for i in range(M)],p)
+#print(obsloc)
+H = np.zeros((p,M))
+for i in range(p):
+  H[i,obsloc[i]] = 1.0
+```
+
+```{python}
+K = 50
+rng = np.random.default_rng()
+Xb = np.zeros((M,K))
+for j in range(K):
+  Xb[:,j] = np.dot(Pb,rng.normal(loc=0.0,scale=1.0,size=M))
+Xb -= Xb.mean(axis=1)[:,None]
+```
+
+```{python}
+
+Pe = np.dot(Xb,Xb.T)/(K-1)
+fig, ax = plt.subplots()
+im = ax.imshow(Pe,origin='lower',cmap=cm.Blues)
+fig.colorbar(im,ax=ax)
+ax.set_title(r'$\mathbf{P}_{ens}$')
+plt.show()
+```
+
+```{python}
+Rinv = np.eye(p)/sigo/sigo
+Yb = np.dot(np.sqrt(Rinv),np.dot(H,Xb))
+u, sig, vh = np.linalg.svd(Yb)
+```
+
+```{python}
+#| fig-cap: Example of singular values
+#| label: fig-sig
+
+plt.plot(np.arange(K),sig)
+plt.show()
+```
+
+```{python}
+#| fig-cap: Example of PRF for multiplicative linear inflation functions
+#| label: fig-prf-lin-mul
+
+fig, ax = plt.subplots(figsize=(6,6))
+ax.plot(sig,PRF(f_noinf,sig),marker='o',label='noinf')
+for rho in [1.1,1.2,1.3,1.4]:
+  ax.plot(sig,PRF(f_rtps,sig,rho=rho**2),marker='o',label=r'$\rho$='+f'{rho}')
+ax.plot(sig,np.ones(sig.size),c='k')
+ax.set_xlabel(r'$\gamma$')
+ax.set_ylabel(r'$r(\gamma)$')
+ax.legend()
+ax.grid()
+plt.show()
+```
+
+```{python}
+def dfs(f,s,rho=1.0):
+  g = f2g(f,s,rho=rho)
+  return np.sum(g*g/(1.0+g*g))
+```
+
+```{python}
+#| fig-cap: Example of DFS for multiplicative linear inflation functions
+#| label: fig-dfs-lin-mul
+
+dfslist = []
+inflist = ['noinf']
+tmp = dfs(f_noinf,sig)
+dfslist.append(tmp)
+for rho in [1.1,1.2,1.3,1.4]:
+  tmp = dfs(f_preMI,sig,rho=rho**2)
+  dfslist.append(tmp)
+  inflist.append(f'{rho}')
+fig, ax = plt.subplots()
+ax.plot(np.arange(len(dfslist)),dfslist)
+ax.set_xticks(np.arange(len(inflist)))
+ax.set_xticklabels(inflist)
+plt.show()
+```
+

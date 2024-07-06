@@ -445,3 +445,8 @@ if __name__ == "__main__":
     np.savetxt("{}_xsmean_{}_{}.txt".format(model, op, pt), xsmean)
     np.savetxt("{}_xdfmean_{}_{}.txt".format(model, op, pt), xdfmean)
     np.savetxt("{}_xsfmean_{}_{}.txt".format(model, op, pt), xsfmean)
+
+    if params["iinf"]==-2:
+        logger.info(len(analysis.infl_adap.asave))
+        # save adaptive inflation
+        np.savetxt("{}_infl_{}_{}.txt".format(model, op, pt), np.array(analysis.infl_adap.asave))
