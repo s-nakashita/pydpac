@@ -24,13 +24,13 @@ ns = 40 # spinup
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
-ldscl=False
+ldscl=True
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
-lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_partialr_m80obs30'
-if ldscl:
-    figdir = datadir
-else:
-    figdir = lamdir
+lamdir  = datadir / 'var_vs_envar_shrink_dct_preGM_partialm_m80obs30'
+#if ldscl:
+#    figdir = datadir
+#else:
+figdir = lamdir
 
 perts = ["envar", "envar_nest","var","var_nest"]
 labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}

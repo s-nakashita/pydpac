@@ -208,4 +208,7 @@ if __name__ == "__main__":
         np.save("{}_gm_ufext_{}_{}.npy".format(model, op, pt), uf_gm)
     uf_lam = np.array(uf_lam)
     logger.info(f"uf_lam.shape={uf_lam.shape}")
-    np.save("{}_lam_ufext_{}_{}.npy".format(model, op, pt), uf_lam)
+    if params_lam["preGM"]:
+        np.save("{}_lam_ufext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+    else:
+        np.save("{}_lam_ufext_{}_{}.npy".format(model, op, pt), uf_lam)

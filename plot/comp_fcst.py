@@ -32,14 +32,14 @@ wdir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 wdir = Path(f'../work/{model}')
 dscldir = wdir / 'var_vs_envar_dscl_m80obs30'
 preGMpt = "envar"
-datadir = wdir / 'var_vs_envar_dscl_m80obs30'
-#datadir  = wdir / 'var_vs_envar_shrink_dct_preGM_partialr_m80obs30'
+#datadir = wdir / 'var_vs_envar_dscl_m80obs30'
+datadir  = wdir / 'var_vs_envar_shrink_dct_preGM_partialm_m80obs30'
 figdir = datadir / 'fcst'
 if not figdir.exists(): figdir.mkdir(parents=True)
 
 perts = ["envar", "envar_nest","var","var_nest"]
-labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
-linecolor = {"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown"}
+labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar","dscl":"Downscaling"}
+linecolor = {"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown","dscl":"black"}
 
 ix_t = np.loadtxt(datadir/"ix_true.txt")
 ix_gm = np.loadtxt(datadir/"ix_gm.txt")
@@ -84,7 +84,7 @@ xdlam_dict = {}
 psdlam_dict = {}
 if ldscl:
     # downscaling
-    f = dscldir/"{}_lam_ufext_{}_{}.npy".format(model,op,pt)
+    f = dscldir/"{}_lam_ufext_preGM_{}_{}.npy".format(model,op,preGMpt)
     if not f.exists():
         print("not exist {}".format(f))
         exit()
@@ -117,7 +117,7 @@ if ldscl:
     psdlam_dict["dscl"] = psd_lam
 
 if preGM:
-    f = dscldir/"{}_gm_ufext_{}_{}.npy".format(model,op,pt)
+    f = dscldir/"{}_gm_ufext_{}_{}.npy".format(model,op,preGMpt)
     if not f.exists():
         print("not exist {}".format(f))
         exit()
@@ -225,35 +225,33 @@ if not preGM:
 nmethods = len(etlam_dict)
 if ldscl:
     nmethods += 1
-width = 0.5 / nmethods
+width = 0.75 / nmethods
 xoffset = 0.5 * width * (nmethods - 1)
 xaxis = np.arange(1,nft+1) - xoffset
-if ldscl:
-    et_lam = etlam_dict['dscl']
-    bplot = axl.boxplot(et_lam.T,positions=xaxis,widths=width,patch_artist=True,whis=(0,100))
-    for patch in bplot['boxes']:
-        patch.set_facecolor('black')
-        patch.set_alpha(0.3)
-    xaxis = xaxis + width
 for pt in etlam_dict.keys():
     et_lam = etlam_dict[pt]
-    bplot = axl.boxplot(et_lam.T,positions=xaxis,widths=width,patch_artist=True,whis=(0,100))
+    bplot = axl.boxplot(et_lam.T,positions=xaxis,widths=width,patch_artist=True,\
+        whis=0.0,showfliers=False,medianprops={"color":linecolor[pt]})
     for patch in bplot['boxes']:
         patch.set_facecolor(linecolor[pt])
         patch.set_alpha(0.3)
     xaxis = xaxis + width
 axl.set_ylabel('LAM Forecast RMSE')
 axl.set_xticks(np.arange(1,nft+1,2))
+axl.set_xticks(np.arange(1,nft+1),minor=True)
 axl.set_xticklabels(ft[::2])
+axl.grid(which='both')
 axl.set_xlabel('forecast hours')
 axl.hlines([1.0],0,1,colors='gray',ls='dotted',transform=axl.get_yaxis_transform())
 axl.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
+if preGM:
+    axl.set_ylim(0.0, 6.0)
 
 fig.savefig(figdir/f"{model}_efcst_{op}.png",dpi=300)
 #fig.savefig(figdir/f"{model}_efcst_{op}.pdf")
 plt.show()
 plt.close()
-#exit()
+exit()
 
 cmap=plt.get_cmap("PiYG_r")
 cl0 = cmap(cmap.N//2)
@@ -346,9 +344,9 @@ for ift in range(1,nft):
     
     figgr.suptitle(f'FT{ft1}')
     figsp.suptitle(f'FT{ft1}')
-    figgr.savefig(figdir/f"{model}_xd_ft{ft1}_{op}.png",dpi=300)
+    figgr.savefig(figdir/f"{model}_xd_ft{ft1:03d}_{op}.png",dpi=300)
     #figgr.savefig(figdir/f"{model}_xd_ft{ft}_{op}.pdf")
-    figsp.savefig(figdir/f"{model}_errspectra_ft{ft1}_{op}.png",dpi=300)
+    figsp.savefig(figdir/f"{model}_errspectra_ft{ft1:03d}_{op}.png",dpi=300)
     #figsp.savefig(figdir/f"{model}_errspectra_f_{op}.pdf")
     plt.show(block=False)
     plt.close(fig=figgr)
@@ -387,7 +385,7 @@ for ift in range(1,nft):
             threshold=0.05,textcolors=("white","black"))
         ax.set_title(f"t-test for GM FT{ft1}: RMSE row-col")
         fig.tight_layout()
-        fig.savefig(figdir/"{}_ef{}_t-test_for_gm_{}.png".format(model, ft1, op),dpi=300)
+        fig.savefig(figdir/"{}_ef{:03d}_t-test_for_gm_{}.png".format(model, ft1, op),dpi=300)
         plt.close()
 
     methods = methods_lam
@@ -422,5 +420,5 @@ for ift in range(1,nft):
             threshold=0.05,textcolors=("white","black"))
         ax.set_title(f"t-test for LAM FT{ft1}: RMSE row-col")
         fig.tight_layout()
-        fig.savefig(figdir/"{}_ef{}_t-test_for_lam_{}.png".format(model, ft1, op),dpi=300)
+        fig.savefig(figdir/"{}_ef{:03d}_t-test_for_lam_{}.png".format(model, ft1, op),dpi=300)
         plt.close()
