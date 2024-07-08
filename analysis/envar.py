@@ -46,9 +46,12 @@ class EnVAR():
                          #      = 3   ->RTPS(Relaxation To Prior Spread)
                          #      >= 4  ->Multiplicative linear inflation (Duc et al. 2020)
         self.infl_parm = infl_parm # inflation parameter
+        if self.iinf is None:
+            self.iinf = -99
         if self.iinf == -2:
             self.infladap = infladap()
-        self.inflfunc = inflfunc("mult",paramtype=self.iinf-4)
+        paramtype = self.iinf - 4
+        self.inflfunc = inflfunc("mult",paramtype=paramtype)
         # localization
         self.iloc = iloc # iloc = None->No localization
                          #      <=0   ->R-localization (TODO: implement)
@@ -123,22 +126,24 @@ class EnVAR():
         c = zmat.transpose() @ zmat
         ga2f, vf = la.eigh(c)
         nrank = np.sum(ga2f>1.0e-10)
+        logger.info("ga2full = {}".format(ga2f))
         logger.info(f"size={ga2f.size} rank={nrank}")
-        ga2 = ga2f[ga2f.size-nrank:]
-        v = vf[:,ga2f.size-nrank:]
+        ga2 = ga2f[::-1]
+        v = vf[:,::-1]
         logger.info(f"v.shape={v.shape}")
-        ga = np.sqrt(ga2)
-        u = np.dot(zmat,v)/ga
+        ga = np.where(ga2>1.0e-10,np.sqrt(ga2),0.0)
+        logger.info("ga = {}".format(ga))
+        u = np.dot(zmat,v[:,:nrank])/ga[:nrank]
         if self.iinf==-3 and not first:
             logger.info("==singular value adaptive inflation==")
-            logger.info("ga = {}".format(ga))
             d_ = np.dot(u.transpose(),d)
-            gainf = self.inflfunc.est(d_,ga)
+            gainf = np.zeros_like(ga)
+            gainf[:nrank] = self.inflfunc.est(d_,ga[:nrank])
             logger.info("ga inf ={}".format(gainf))
         lam = 1.0/(np.sqrt(ga2 + np.full(ga2.size,rho)))
+        logger.info("lam ={}".format(lam))
         if self.iinf>=4 and not first:
             logger.info(f"==singular value inflation==, alpha={self.infl_parm}")
-            logger.info("lam ={}".format(lam))
             laminf = self.inflfunc(lam,alpha1=self.infl_parm)
             logger.info("lam inf ={}".format(laminf))
         elif self.iinf==-3 and not first:
@@ -148,7 +153,7 @@ class EnVAR():
             laminf = lam.copy()
         if d is not None:
             d_ = np.dot(u.transpose(),d)
-            self.inflfunc.pdr(d_, ga, lam, laminf)
+            self.inflfunc.pdr(d_, ga[:nrank], lam[:nrank], laminf[:nrank])
         D = np.diag(laminf)
         vt = v.transpose()
         tmat = v @ D @ vt
@@ -524,11 +529,12 @@ class EnVAR():
             xa_ = xf_ + gmat @ x
             if save_dh:
                 np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), gmat@x)
-            if self.ltlm:
-                dy = self.obs.dh_operator(yloc,xa_) @ dxf
-            else:
-                dy = self.obs.h_operator(yloc, xa_[:, None] + dxf) - self.obs.h_operator(yloc, xa_)[:, None]
-            zmat = rmat @ dy / np.sqrt(nmem-1)
+            if not self.incremental:
+                if self.ltlm:
+                    dy = self.obs.dh_operator(yloc,xa_) @ dxf
+                else:
+                    dy = self.obs.h_operator(yloc, xa_[:, None] + dxf) - self.obs.h_operator(yloc, xa_)[:, None]
+                zmat = rmat @ dy / np.sqrt(nmem-1)
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat, d=d, first=False)
             d = y - self.obs.h_operator(yloc, xa_)
@@ -537,7 +543,8 @@ class EnVAR():
             innv, chi2 = chi2_test(zmat, d)
             ds = self.dfs(zmat)
             logger.debug("dfs={}".format(ds))
-            dxa = dxf @ tmat #* np.sqrt(nmem-1)
+            pa = pf @ tmat 
+            dxa = pa * np.sqrt(nmem-1)
             if self.iinf == 2:
                 logger.info("==RTPP==, alpha={}".format(self.infl_parm))
                 dxa = (1.0 - self.infl_parm)*dxa + self.infl_parm*dxf
@@ -600,7 +607,6 @@ class EnVAR():
 
             u = np.zeros_like(xb)
             u = xa_[:, None] + dxa
-            pa = dxa / np.sqrt(nmem-1)
             fpa = pa @ pa.T
             if save_dh:
                 np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)

@@ -2,23 +2,24 @@
 # This is a run script for Lorenz05 experiment
 export OMP_NUM_THREADS=4
 #alias python=python3.9
-model="l05II"
+model="l05IIm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var envar"
+perturbations="envar"
 na=240 # Number of assimilation cycle
-nmem=480 # ensemble size
+nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
+iinf=-2
 model_error=True
 #L="-1.0 0.5 1.0 2.0"
 #lsig=120
 functype=gc5
 a=-0.2
 #exp="var_${functype}a${a}_obs${nobs}"
-exp="var+envar_mem${nmem}obs${nobs}"
+exp="envar_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -45,15 +46,28 @@ else
 ln -fs ${cdir}/data/${model}/truth.npy .
 fi
 for op in ${operators}; do
-  for pert in ${perturbations}; do
-    echo $pert
-    cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
+  for pert0 in ${perturbations}; do
+    echo $pert0
+    pert=${pert0}
+    for iinf in $(seq -3 5);do
+    pert=${pert0}_${iinf}
+    cp ${cdir}/analysis/config/config_${pert0}_sample.py config.py
     gsed -i -e "2i \ \"op\":\"${op}\"," config.py
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
     if [ $linf = True ];then
-    gsed -i -e '/linf/s/False/True/' config.py
+      gsed -i -e '/linf/s/False/True/' config.py
+      gsed -i -e "4i \ \"iinf\":${iinf}," config.py
+      if [ $iinf -lt 1 ]; then
+        gsed -i -e "5i \ \"infl_parm\":1.1," config.py
+      elif [ $iinf -eq 1 ]; then
+        gsed -i -e "5i \ \"infl_parm\":0.2," config.py
+      elif [ $iinf -lt 4 ]; then
+        gsed -i -e "5i \ \"infl_parm\":0.3," config.py
+      else
+        gsed -i -e "5i \ \"infl_parm\":0.3," config.py
+      fi
     else
     gsed -i -e '/linf/s/True/False/' config.py
     fi
@@ -88,17 +102,22 @@ for op in ${operators}; do
     mv ${model}_stdf_${op}_${pt}.txt stdf_${op}_${pert}.txt
     mv ${model}_xdfmean_${op}_${pt}.txt xdfmean_${op}_${pert}.txt
     mv ${model}_xsfmean_${op}_${pt}.txt xsfmean_${op}_${pert}.txt
+    if [ $iinf -le -2 ]; then
+      mv ${model}_infl_${op}_${pt}.txt infl_${op}_${pert}.txt
+    fi
+    mv ${model}_pdr_${op}_${pt}.txt pdr_${op}_${pert}.txt
+
     loctype=`echo $pert | cut -c5-5`
     if [ "${loctype}" = "b" ]; then
     mv ${model}_rho_${op}_${pt}.npy ${model}_rho_${op}_${pert}.npy
     fi
-    for icycle in $(seq 0 $((${na} - 1))); do
-      if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
-        mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
-      fi
-      if test -e ${model}_ua_${op}_${pt}_cycle${icycle}.npy; then
-        mv ${model}_ua_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_${op}_${pert}_cycle${icycle}.npy
-      fi
+    #for icycle in $(seq 0 $((${na} - 1))); do
+    #  if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
+    #    mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
+    #  fi
+    #  if test -e ${model}_ua_${op}_${pt}_cycle${icycle}.npy; then
+    #    mv ${model}_ua_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_${op}_${pert}_cycle${icycle}.npy
+    #  fi
     #  mv Wmat_${op}_${pt}_cycle${icycle}.npy ${pert}/Wmat_${op}_cycle${icycle}.npy
     #  mv ${model}_K_${op}_${pt}_cycle$icycle.npy ${model}_K_${op}_${pert}_cycle$icycle.npy
     #  mv ${model}_dxaorig_${op}_${pt}_cycle$icycle.npy ${model}_dxaorig_${op}_${pert}_cycle$icycle.npy
@@ -110,27 +129,32 @@ for op in ${operators}; do
     #  mv ${model}_lpf_${op}_${pt}_cycle$icycle.npy ${model}_lpf_${op}_${pert}_cycle$icycle.npy
     #  mv ${model}_lspf_${op}_${pt}_cycle$icycle.npy ${model}_lspf_${op}_${pert}_cycle$icycle.npy
     #  fi
-    done
+    #done
     #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
     #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
     #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
     #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
-    #done
-  done
-  python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
-  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
+    mkdir -p data/${pert}
+    mv ${model}_*_cycle*.npy data/${pert}
+    done #iinf
+    python ${cdir}/plot/plote.py ${op} ${model} ${na} ${pert0} infl
+    python ${cdir}/plot/plotxd.py ${op} ${model} ${na} ${pert0} infl
+    python ${cdir}/plot/plotpdr.py ${op} ${model} ${na} ${pert0} infl
+    python ${cdir}/plot/plotinfl.py ${op} ${model} ${na} ${pert0}
+  done #pert
+#  python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
+#  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-  python ${cdir}/plot/plotxa.py ${op} ${model} ${na} ${model_error}
+#  python ${cdir}/plot/plotxa.py ${op} ${model} ${na} ${model_error}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
-  python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na} ${model_error}
-  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc.py ${op} ${model} ${na}; fi
+#  python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na} ${model_error}
+#  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh.py ${op} ${model} ${na}
   rm ${model}_jh_${op}_*_cycle*.txt ${model}_gh_${op}_*_cycle*.txt ${model}_alpha_${op}_*_cycle*.txt
+#  python ${cdir}/plot/plotinfl.py ${op} ${model} ${na}
   
   #rm obs*.npy
 done
 #rm ${model}*.txt 
 #rm ${model}_*_cycle*.npy 
-mkdir -p data
-mv ${model}_*_cycle*.npy data/

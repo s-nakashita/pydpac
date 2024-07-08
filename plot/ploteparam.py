@@ -60,11 +60,12 @@ except FileNotFoundError:
     print("not found params.txt")
     pass
 #y = np.ones(len(var)) * sigma[op]
-fig, ax = plt.subplots(constrained_layout=True)
 methods = []
 nsuccess = []
-mean = []
-std = []
+emean = []
+estd = []
+rmean = []
+rstd = []
 for pt in perts:
     #fig, ax = plt.subplots()
     i = 0
@@ -72,6 +73,8 @@ for pt in perts:
     success = np.zeros(len(var))
     el = np.zeros(len(var))
     es = np.zeros(len(var))
+    rl = np.zeros(len(var))
+    rs = np.zeros(len(var))
     for ivar in var:
     #f = "{}_e_{}_{}_{}.txt".format(model, op, pt, int(ivar))
         f = "{}_e_{}_{}_{}.txt".format(model, op, pt, ivar)
@@ -91,36 +94,63 @@ for pt in perts:
                 el[i] = np.mean(e[0,nspinup:])
                 es[i] = np.mean(e[1,nspinup:])
                 j += 1
+        f = "{}_stda_{}_{}_{}.txt".format(model, op, pt, ivar)
+        if not os.path.isfile(f):
+            print("not exist {}".format(f))
+            rl[i] = np.nan
+            rs[i] = np.nan
+        else:
+            data = np.loadtxt(f)
+            s = data[:,1:]
+            if np.isnan(s).any():
+                print("divergence in {}".format(pt))
+                rl[i] = np.nan
+                rs[i] = np.nan
+            else:
+                rl[i] = np.mean(s[0,nspinup:]/e[0,nspinup:])
+                rs[i] = np.mean(s[1,nspinup:])
         i+=1
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if j > 0:
         methods.append(pt)
         nsuccess.append(success)
-        mean.append(el)
-        std.append(es)
+        emean.append(el)
+        estd.append(es)
+        rmean.append(rl)
+        rstd.append(rs)
+if len(methods)==0: exit()
+fig, axs = plt.subplots(nrows=2,sharex=True,figsize=[6,6],constrained_layout=True)
 xaxis = np.arange(len(var)) - len(methods)*0.025
 i=0
 for pt in methods:
     ns = nsuccess[i]
-    el = mean[i]
-    es = std[i]
+    el = emean[i]
+    es = estd[i]
+    rl = rmean[i]
+    rs = rstd[i]
     if pt[:2] == "4d":
         mark=marker["4d"]; color=linecolor[pt[2:]]
     else:
         mark=marker["3d"]; color=linecolor[pt]
-    ax.errorbar(xaxis, el, yerr=es, marker=mark, color=color, label=pt)
-    for j in range(ns.size):
-        ax.text(xaxis[j], 0.93, f'{int(ns[j]):d}',\
-        transform=ax.get_xaxis_transform(),\
-        ha='center',fontsize=16,c='r')
+    axs[0].errorbar(xaxis, el, yerr=es, marker=mark, color=color, label=pt)
+    axs[1].errorbar(xaxis, rl, yerr=rs, marker=mark, color=color, label=pt)
+    for ax in axs:
+        for j in range(ns.size):
+            ax.text(xaxis[j], 0.93, f'{int(ns[j]):d}',\
+            transform=ax.get_xaxis_transform(),\
+            ha='center',fontsize=16,c='r')
     xaxis += 0.05
     i+=1
-ax.set(xlabel="{} parameter".format(ptype), ylabel="RMSE",
-            title=op)
-ax.set_xticks(np.arange(len(var)))
-ax.set_xticklabels(var)
-if len(methods) > 1:
-    ax.legend(loc='upper left')
+axs[0].set( #xlabel="{} parameter".format(ptype), \
+    ylabel="RMSE")
+axs[1].set(xlabel="{} parameter".format(ptype), \
+    ylabel="SPREAD/RMSE")
+axs[1].hlines([1],0,1,colors='k',transform=axs[1].get_yaxis_transform())
+axs[1].set_xticks(np.arange(len(var)))
+axs[1].set_xticklabels(var)
+for ax in axs:
+    ax.legend(loc='upper right')
         #fig.savefig("{}_e{}_{}_{}.png".format(model, ptype, op, pt))
+fig.suptitle(op)
 fig.savefig("{}_e{}_{}.png".format(model, ptype, op))
 #fig.savefig("{}_e_{}+nodiff.pdf".format(model, op))

@@ -89,7 +89,9 @@ class inflfunc():
 
     def g2f(self,gamma,g):
         ga2 = gamma*gamma
-        return g / np.sqrt(ga2 + ga2*g*g)
+        f = np.zeros_like(g)
+        f = np.where(gamma>0.0,g / np.sqrt(ga2 + ga2*g*g),1.0)
+        return f
     
     def prf(self,gamma,lam):
         return gamma*lam

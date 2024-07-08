@@ -7,14 +7,15 @@ model="l05II"
 operators="linear" # quadratic" # cubic"
 perturbations="envar"
 na=240 # Number of assimilation cycle
-nmem=240 # ensemble size
-nobs=15 # observation volume
+nmem=80 # ensemble size
+nobs=30 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 model_error=True
 #L="-1.0 0.5 1.0 2.0"
 ptype=infl
+iinf=3
 functype=gc5
 a=-0.2
 #exp="var_${functype}a${a}_${ptype}_obs${nobs}"
@@ -43,7 +44,8 @@ touch timer
 nmemlist="40 80 120 160 200 240"
 lsiglist="20 40 60 80 100 120 140 160"
 nobslist="480 240 120 60 30 15"
-infllist="1.0 1.05 1.1 1.15 1.2 1.25"
+#infllist="1.0 1.05 1.1 1.15 1.2 1.25"
+infllist="0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0"
 sigblist="0.2 0.4 0.6 0.8 1.0 1.2"
 sigblist="1.6 2.0 2.4 2.8 3.2 3.6"
 lblist="2.0 4.0 6.0 8.0 10.0 12.0"
@@ -77,6 +79,7 @@ for op in ${operators}; do
       gsed -i -e "/nmem/s/40/${nmem}/" config.py
       if [ $linf = True ];then
         gsed -i -e '/linf/s/False/True/' config.py
+        gsed -i -e "4i \ \"iinf\":${iinf}," config.py
       else
         gsed -i -e '/linf/s/True/False/' config.py
       fi
@@ -120,6 +123,7 @@ for op in ${operators}; do
         mv ${model}_stda_${op}_${pt}.txt stda_${op}_${pt}_${count}.txt
         mv ${model}_xdmean_${op}_${pt}.txt xdmean_${op}_${pt}_${count}.txt
         mv ${model}_xsmean_${op}_${pt}.txt xsmean_${op}_${pt}_${count}.txt
+        mv ${model}_pdr_${op}_${pt}.txt pdr_${op}_${pt}_${count}.txt
         rm obs*.npy
       done
       python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e ${pt}
@@ -130,10 +134,13 @@ for op in ${operators}; do
       rm xdmean_${op}_${pt}_*.txt
       python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean ${pt}
       rm xsmean_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} pdr ${pt}
+      rm pdr_${op}_${pt}_*.txt
       mv ${model}_e_${op}_${pt}.txt ${model}_e_${op}_${pert}_${ptmp}.txt
       mv ${model}_stda_${op}_${pt}.txt ${model}_stda_${op}_${pert}_${ptmp}.txt
       mv ${model}_xdmean_${op}_${pt}.txt ${model}_xdmean_${op}_${pert}_${ptmp}.txt
       mv ${model}_xsmean_${op}_${pt}.txt ${model}_xsmean_${op}_${pert}_${ptmp}.txt
+      mv ${model}_pdr_${op}_${pt}.txt ${model}_pdr_${op}_${pert}_${ptmp}.txt
     done #pert
     #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #nmem

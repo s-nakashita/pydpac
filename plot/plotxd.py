@@ -43,8 +43,6 @@ i = 0
 vmax = 0.0
 if not linfl:
     for pt in perts:
-        label = pt
-        c = linecolor[pt]
         ## analysis
         f = "xdmean_{}_{}.txt".format(op, pt)
         if not os.path.isfile(f):
@@ -61,6 +59,8 @@ if not linfl:
             continue
         xsmean = np.loadtxt(f)
         print("{}, analysis SPREAD = {}".format(pt,np.mean(xsmean)))
+        label = pt
+        c = linecolor[pt]
         ax.plot(ix, xdmean, linestyle="solid", color=c, label=label)
         if pt != "kf" and pt != "var" and pt != "4dvar":
             ax.plot(ix, xsmean, linestyle="dashed", color=c)

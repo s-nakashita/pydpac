@@ -9,7 +9,7 @@ datype="envar"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
-perturbations="envar"
+perturbations="envar etkf mlef"
 na=200 # Number of assimilation cycle
 nmem=20 # ensemble size
 nobs=40 # observation volume
@@ -17,7 +17,7 @@ linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-iinf=-3
+iinf=-2
 exp="${datype}_infl"
 echo ${exp}
 cdir=` pwd `
@@ -30,11 +30,13 @@ rm -rf *.log
 rm -rf timer
 touch timer
 for op in ${operators}; do
-  for pert in ${perturbations}; do
-    echo $pert
-    for iinf in $(seq -3 5); do
+  for pert0 in ${perturbations}; do
+    echo $pert0
+    pert=${pert0}
+    #for iinf in $(seq -3 5); do
     #for iinf in $(seq 4 5); do
-      cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
+    #  pert=${pert0}_${iinf}
+      cp ${cdir}/analysis/config/config_${pert0}_sample.py config.py
       gsed -i -e "2i \ \"op\":\"${op}\"," config.py
       gsed -i -e "2i \ \"na\":${na}," config.py
       gsed -i -e "2i \ \"nobs\":${nobs}," config.py
@@ -66,27 +68,27 @@ for op in ${operators}; do
       pt=${ptline#\"*}; pt=${pt%\"*}
       echo $pt
       start_time=$(gdate +"%s.%5N")
-      python ${cdir}/l96.py > l96_${op}_${pert}_${iinf}.log 2>&1
+      python ${cdir}/l96.py > l96_${op}_${pert}.log 2>&1
       #python ${cdir}/l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pert}.log 2>&1
       #python ${cdir}/l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb} > l96_${op}_${pt}_${lb}.log 2>&1
       wait
       end_time=$(gdate +"%s.%5N")
-      echo "${pert} ${iinf}" >> timer
+      echo "${pert}" >> timer
       echo "scale=1; ${end_time}-${start_time}" | bc >> timer
-      mv l96_e_${op}_${pt}.txt e_${op}_${pert}_${iinf}.txt
-      mv l96_stda_${op}_${pt}.txt stda_${op}_${pert}_${iinf}.txt
-      mv l96_ef_${op}_${pt}.txt ef_${op}_${pert}_${iinf}.txt
-      mv l96_stdf_${op}_${pt}.txt stdf_${op}_${pert}_${iinf}.txt
-      mv l96_xdmean_${op}_${pt}.txt xdmean_${op}_${pert}_${iinf}.txt
-      mv l96_xsmean_${op}_${pt}.txt xsmean_${op}_${pert}_${iinf}.txt
-      mv l96_xdfmean_${op}_${pt}.txt xdfmean_${op}_${pert}_${iinf}.txt
-      mv l96_xsfmean_${op}_${pt}.txt xsfmean_${op}_${pert}_${iinf}.txt
-      mv l96_xf_${op}_${pt}.npy xf_${op}_${pert}_${iinf}.npy
-      mv l96_xa_${op}_${pt}.npy xa_${op}_${pert}_${iinf}.npy
+      mv l96_e_${op}_${pt}.txt e_${op}_${pert}.txt
+      mv l96_stda_${op}_${pt}.txt stda_${op}_${pert}.txt
+      mv l96_ef_${op}_${pt}.txt ef_${op}_${pert}.txt
+      mv l96_stdf_${op}_${pt}.txt stdf_${op}_${pert}.txt
+      mv l96_xdmean_${op}_${pt}.txt xdmean_${op}_${pert}.txt
+      mv l96_xsmean_${op}_${pt}.txt xsmean_${op}_${pert}.txt
+      mv l96_xdfmean_${op}_${pt}.txt xdfmean_${op}_${pert}.txt
+      mv l96_xsfmean_${op}_${pt}.txt xsfmean_${op}_${pert}.txt
+      mv l96_xf_${op}_${pt}.npy xf_${op}_${pert}.npy
+      mv l96_xa_${op}_${pt}.npy xa_${op}_${pert}.npy
       if [ $iinf -le -2 ]; then
         mv l96_infl_${op}_${pt}.txt infl_${op}_${pert}.txt
       fi
-      mv l96_pdr_${op}_${pt}.txt pdr_${op}_${pert}_${iinf}.txt
+      mv l96_pdr_${op}_${pt}.txt pdr_${op}_${pert}.txt
       #if [ "${pert:4:1}" = "b" ]; then
       #mv l96_rho_${op}_${pt}.npy l96_rho_${op}_${pert}.npy
       #fi
@@ -113,18 +115,19 @@ for op in ${operators}; do
       #python ${cdir}/plot/plotdxa.py ${op} l96 ${na} ${pert}
       #python ${cdir}/plot/plotpf.py ${op} l96 ${na} ${pert}
       #python ${cdir}/plot/plotlpf.py ${op} l96 ${na} ${pert} 
-      mkdir -p data/${pert}_${iinf}
-      mv l96_*_${op}_${pt}_cycle*.npy data/${pert}_${iinf}
-    done
-    python ${cdir}/plot/plote.py ${op} l96 ${na} ${pert} infl
-    python ${cdir}/plot/plotxd.py ${op} l96 ${na} ${pert} infl
-    python ${cdir}/plot/plotpdr.py ${op} l96 ${na} ${pert} infl
+      mkdir -p data/${pert}
+      mv l96_*_${op}_${pt}_cycle*.npy data/${pert}
+    #done
+    #python ${cdir}/plot/plote.py ${op} l96 ${na} ${pert0} infl
+    #python ${cdir}/plot/plotxd.py ${op} l96 ${na} ${pert0} infl
+    #python ${cdir}/plot/plotpdr.py ${op} l96 ${na} ${pert0} infl
+    #python ${cdir}/plot/plotinfl.py ${op} l96 ${na} ${pert0} infl
   done
-  #python ${cdir}/plot/plote.py ${op} l96 ${na}
-  #python ${cdir}/plot/plotxd.py ${op} l96 ${na}
+  python ${cdir}/plot/plote.py ${op} l96 ${na}
+  python ${cdir}/plot/plotxd.py ${op} l96 ${na}
   #python ${cdir}/plot/plotchi.py ${op} l96 ${na}
   #python ${cdir}/plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
-  #python ${cdir}/plot/plotxa.py ${op} l96 ${na}
+  python ${cdir}/plot/plotxa.py ${op} l96 ${na}
   #python ${cdir}/plot/nmc.py ${op} l96 ${na}
   #python ${cdir}/plot/plotdof.py ${op} l96 ${na}
   python ${cdir}/plot/plotinfl.py ${op} l96 ${na}

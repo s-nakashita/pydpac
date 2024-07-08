@@ -118,7 +118,7 @@ params["sigb"]       =  1.0     # (For var & 4dvar) background error standard de
 params["functype"]   = "gc5"    # (For var & 4dvar) background error correlation function type
 if model[-1] == "m":
     params["lb"]     = 16.93
-    parmas["a"]      = 0.22
+    params["a"]      = 0.22
 else:
     params["lb"]     = 24.6     # (For var & 4dvar) correlation length for background error covariance in degree
     params["a"]      = -0.2     # (For var & 4dvar) background error correlation function shape parameter

@@ -43,10 +43,13 @@ class EnKF():
                          #      = 3   ->RTPS(Relaxation To Prior Spread)
                          #      >= 4  ->Multiplicative linear inflation (Duc et al. 2020)
         self.infl_parm = infl_parm # inflation parameter
+        if self.iinf is None:
+            self.iinf = -99
         if self.iinf == -2:
             self.infladap = infladap()
             self.infl_parm_pre = np.full(self.ndim, self.infl_parm)
-        self.inflfunc = inflfunc("mult",paramtype=self.iinf-4)
+        paramtype = self.iinf - 4
+        self.inflfunc = inflfunc("mult",paramtype=paramtype)
         # localization
         self.iloc = iloc # iloc = None->No localization
                          #      = 0   ->K-localization(R-localization for LETKF)
@@ -186,18 +189,26 @@ class EnKF():
                 rho = 1.0 / self.infl_parm
             else:
                 rho = 1.0
-            u, ga, vt = la.svd(dy_,full_matrices=False)
-            v = vt.transpose()
+            C = dy_.T @ dy_ 
+            ga2f, vf = la.eigh(C)
+            nrank = np.sum(ga2f>1.0e-10)
+            ga2 = ga2f[::-1]
+            v = vf[:,::-1]
+            ga = np.where(ga2>1.0e-10,np.sqrt(ga2),0.0)
+            u = np.dot(dy_,v[:,:nrank])/ga[:nrank]
+            #u, ga, vt = la.svd(dy_,full_matrices=False)
+            #v = vt.transpose()
+            #ga2 = ga*ga
             dtilde = np.dot(u.transpose(), d_)
+            logger.info("ga = {}".format(ga))
             if self.iinf==-3:
                 logger.info("==singular value adaptive inflation==")
-                logger.info("ga = {}".format(ga))
-                gainf = self.inflfunc.est(dtilde,ga)
+                gainf = np.zeros_like(ga)
+                gainf[:nrank] = self.inflfunc.est(dtilde,ga[:nrank])
                 logger.info("ga inf = {}".format(gainf))
-            ga2 = ga*ga
             lam = 1.0 / (np.sqrt(ga2 + np.full(ga.size, rho)))
+            logger.info("lam = {}".format(lam))
             if self.iinf>=4:
-                logger.info("lam = {}".format(lam))
                 laminf = self.inflfunc(lam,alpha1=self.infl_parm)
                 logger.info("lam inf = {}".format(laminf))
             elif self.iinf==-3:
@@ -205,7 +216,7 @@ class EnKF():
                 logger.info("lam inf = {}".format(laminf))
             else:
                 laminf = lam.copy()
-            self.inflfunc.pdr(dtilde, ga, lam, laminf)
+            self.inflfunc.pdr(dtilde, ga[:nrank], lam[:nrank], laminf[:nrank])
             #A = (nmem2-1)*A + dy.T @ rinv @ dy
             #lam, v = la.eigh(A)
             ##logger.info("eigen values={}".format(lam))

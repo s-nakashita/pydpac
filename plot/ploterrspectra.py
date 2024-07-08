@@ -66,7 +66,7 @@ for pt in perts:
     #print(esp.shape)
     #print(freq)
     #psd = 2.0*np.mean(np.abs(esp[:,:nx//2])**2,axis=0)*dx*dx/2.0/np.pi
-    wnum, epsd = psd(xd,xs_rad,axis=1)
+    wnum, epsd = nmc.psd(xd,axis=1)
     axs[1].plot(wnum,epsd,label='err')
     if pt != "kf" and pt != "var" and pt != "4dvar":
         #esps = fft(xsa,axis=1)
@@ -94,4 +94,4 @@ for pt in perts:
 #    axs[0].plot(xs,xd2[0,],label='reconstructed')
     fig.suptitle(f"{op} {pt}")
     fig.savefig("{}_errspectra_{}_{}.png".format(model,op,pt))
-    plt.show()
+#    plt.show()

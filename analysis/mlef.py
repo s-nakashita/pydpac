@@ -45,11 +45,14 @@ class Mlef():
                          #      = 3   ->RTPS(Relaxation To Prior Spread)
                          #      >= 4  ->Multiplicative linear inflation (Duc et al. 2020)
         self.infl_parm = infl_parm # inflation parameter
+        if self.iinf is None:
+            self.iinf = -99
         if self.iinf == -2:
             self.infladap = infladap()
         else:
             self.infladap = None
-        self.inflfunc = inflfunc("mult",paramtype=self.iinf-4)
+        paramtype = self.iinf - 4
+        self.inflfunc = inflfunc("mult",paramtype=paramtype)
         # localization
         self.iloc = iloc # iloc = None->No localization
                          #      <=0   ->R-localization (in lmlef.py)
@@ -115,22 +118,31 @@ class Mlef():
         if self.iinf<=-1 and self.iinf>-3:
             logger.info("==pre multiplicative inflation==, alpha={}".format(self.infl_parm))
             rho = 1.0 / self.infl_parm
-        #c = zmat.transpose() @ zmat
-        #ga2, v = la.eigh(c)
-        u, ga, vt = la.svd(zmat,full_matrices=False)
-        v = vt.transpose()
+        c = zmat.transpose() @ zmat
+        ga2f, vf = la.eigh(c)
+        #u, ga, vt = la.svd(zmat) #,full_matrices=False)
+        #ga2 = ga*ga
+        nrank = np.sum(ga2f>1.0e-10)
+        logger.info("ga2full = {}".format(ga2f))
+        logger.info(f"size={ga2f.size} rank={nrank}")
+        ga2 = ga2f[::-1]
+        v = vf[:,::-1]
+        ga = np.where(ga2>1.0e-10,np.sqrt(ga2),0.0)
+        u = np.dot(zmat,v[:,:nrank])/ga[:nrank]
+        logger.info(f"u.shape={u.shape}")
+        logger.info(f"v.shape={v.shape}")
+        logger.info("ga ={}".format(ga))
         if self.iinf==-3 and not first:
             logger.info("==singular value adaptive inflation ==")
-            logger.info("ga ={}".format(ga))
             d_ = np.dot(u.transpose(),d)
-            gainf = self.inflfunc.est(d_,ga)
+            gainf = np.zeros_like(ga)
+            gainf[:nrank] = self.inflfunc.est(d_,ga[:nrank])
             logger.info("ga inf ={}".format(gainf))
-        ga2 = ga*ga
         #is2r = 1 / (1 + s**2)
         lam = 1.0 / (np.sqrt(ga2 + np.full(ga2.size,rho)))
+        logger.info("lam ={}".format(lam))
         if self.iinf>=4 and not first:
             logger.info("==singular value inflation==, alpha={}".format(self.infl_parm))
-            logger.info("lam ={}".format(lam))
             laminf = self.inflfunc(lam,alpha1=self.infl_parm)
             logger.info("lam inf ={}".format(laminf))
         elif self.iinf==-3 and not first:
@@ -140,7 +152,7 @@ class Mlef():
             laminf = lam.copy()
         if d is not None:
             d_ = np.dot(u.transpose(),d)
-            self.inflfunc.pdr(d_, ga, lam, laminf)
+            self.inflfunc.pdr(d_, ga[:nrank], lam[:nrank], laminf[:nrank])
         D = np.diag(laminf)
         vt = v.transpose()
         tmat = v @ D @ vt
