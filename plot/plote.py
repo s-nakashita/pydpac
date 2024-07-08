@@ -3,7 +3,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['font.size'] = 16
-from methods import perts, linecolor
+from methods import perts, linecolor, iinflist, infltype, inflcolor
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -70,9 +70,7 @@ else:
         #linecolor = {"l"+pt+"1":'tab:blue', "l"+pt+"2":'tab:orange', "l"+pt+"3":'tab:green', 'letkf':'tab:red'}
     if len(sys.argv) > 5 and sys.argv[5]=='infl':
         linfl = True
-        iinflist = [-2,-1,0,1,2,3]
-        infltype = {-2:'adap-pre-mi',-1:'pre-mi',0:'post-mi', 1:'add', 2:'rtpp', 3:'rtps'}
-        linecolor = {-2:'b',-1:'tab:blue', 0:'tab:orange', 1:'tab:green', 2:'tab:red', 3:'tab:purple'}
+        linecolor = inflcolor
         linestyle = ['solid', 'dashed', 'dashdot', 'dotted']
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
@@ -92,6 +90,7 @@ else:
     fig2, ax2 = plt.subplots(figsize=(10,5),constrained_layout=True)
     figf2, axf2 = plt.subplots(figsize=(10,5),constrained_layout=True)
 #ax2 = ax.twinx()
+nspinup = na//5
 i = 0
 f = "enda_{}.txt".format(op)
 try:
@@ -99,7 +98,7 @@ try:
     if np.isnan(e).any():
         print("divergence in NoDA")
     else:
-        print("NoDA, mean RMSE = {}".format(np.mean(e[int(na/3):])))
+        print("NoDA, mean RMSE = {}".format(np.mean(e[nspinup:])))
         ax.plot(x, e, linestyle='dotted', color='gray', label='NoDA')
 except OSError or FileNotFoundError:
     print("not exist {}".format(f))
@@ -123,10 +122,10 @@ if not linfl:
             continue
         if model == "qg":
             e = e.reshape(-1,2)
-            eavg = np.mean(e[int(na/3):,:],axis=0)
+            eavg = np.mean(e[nspinup:,:],axis=0)
             print("{}, analysis RMSE = {}".format(pt,eavg[1]))
         else:
-            eavg = np.mean(e[int(na/3):])
+            eavg = np.mean(e[nspinup:])
             print("{}, analysis RMSE = {}".format(pt,eavg))
         ymax = max(np.max(e),ymax)
         #ax.plot(x, e, linestyle=linestyle[pt], color=c, c)
@@ -192,10 +191,10 @@ if not linfl:
             continue
         if model == "qg":
             ef = ef.reshape(-1,2)
-            efavg = np.mean(ef[int(na/3):,:],axis=0)
+            efavg = np.mean(ef[nspinup:,:],axis=0)
             print("{}, forecast RMSE = {}".format(pt,efavg[1]))
         else:
-            efavg = np.mean(ef[int(na/3):])
+            efavg = np.mean(ef[nspinup:])
             print("{}, forecast RMSE = {}".format(pt,efavg))
         yfmax = max(np.max(ef),yfmax)
         #ax.plot(x, e, linestyle=linestyle[pt], color=c, label=label)
@@ -266,10 +265,10 @@ else:
             continue
         if model == "qg":
             e = e.reshape(-1,2)
-            eavg = np.mean(e[int(na/3):,:],axis=0)
+            eavg = np.mean(e[nspinup:,:],axis=0)
             print("{}-{}, analysis RMSE = {}".format(pt,itype,eavg[1]))
         else:
-            eavg = np.mean(e[int(na/3):])
+            eavg = np.mean(e[nspinup:])
             print("{}-{}, analysis RMSE = {}".format(pt,itype,eavg))
         ymax = max(np.max(e),ymax)
         #ax.plot(x, e, linestyle=linestyle[pt], color=c, label=label)
@@ -335,10 +334,10 @@ else:
             continue
         if model == "qg":
             ef = ef.reshape(-1,2)
-            efavg = np.mean(ef[int(na/3):,:],axis=0)
+            efavg = np.mean(ef[nspinup:,:],axis=0)
             print("{}, forecast RMSE = {}".format(pt,efavg[1]))
         else:
-            efavg = np.mean(ef[int(na/3):])
+            efavg = np.mean(ef[nspinup:])
             print("{}, forecast RMSE = {}".format(pt,efavg))
         yfmax = max(np.max(ef),yfmax)
         #ax.plot(x, e, linestyle=linestyle[pt], color=c, label=label)

@@ -5,9 +5,9 @@ alias python=python3
 model=l96
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
-perturbations="mlef mlefbm mlefcw"
-datype="mlef"
-na=100 # Number of assimilation cycle
+perturbations="etkf"
+datype="etkf"
+na=1000 # Number of assimilation cycle
 nmem=20
 nobs=40
 linf=True  # True:Apply inflation False:Not apply
@@ -39,8 +39,10 @@ if [ $iinf -lt 1 ]; then
 infllist="1.0 1.05 1.1 1.15 1.2 1.25"
 elif [ $iinf -eq 1 ]; then
 infllist="0.0 0.05 0.1 0.15 0.2 0.25"
+elif [ $iinf -lt 4 ]; then
+infllist="0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0"
 else
-infllist="0.0 0.2 0.4 0.6 0.8"
+infllist="0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.1 2.2 2.3 2.4 2.5"
 fi
 touch params.txt
 for op in ${operators}; do
@@ -102,6 +104,7 @@ for op in ${operators}; do
         mv ${model}_stda_${op}_${pt}.txt stda_${op}_${pt}_${count}.txt
         mv ${model}_xdmean_${op}_${pt}.txt xdmean_${op}_${pt}_${count}.txt
         mv ${model}_xsmean_${op}_${pt}.txt xsmean_${op}_${pt}_${count}.txt
+        mv ${model}_pdr_${op}_${pt}.txt pdr_${op}_${pt}_${count}.txt
         rm obs*.npy
       done
       python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e ${pt}
@@ -112,10 +115,13 @@ for op in ${operators}; do
       rm xdmean_${op}_${pt}_*.txt
       python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean ${pt}
       rm xsmean_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} pdr ${pt}
+      rm pdr_${op}_${pt}_*.txt
       mv ${model}_e_${op}_${pt}.txt ${model}_e_${op}_${pert}_${ptmp}.txt
       mv ${model}_stda_${op}_${pt}.txt ${model}_stda_${op}_${pert}_${ptmp}.txt
       mv ${model}_xdmean_${op}_${pt}.txt ${model}_xdmean_${op}_${pert}_${ptmp}.txt
       mv ${model}_xsmean_${op}_${pt}.txt ${model}_xsmean_${op}_${pert}_${ptmp}.txt
+      mv ${model}_pdr_${op}_${pt}.txt ${model}_pdr_${op}_${pert}_${ptmp}.txt
     done #pert
   done #params
   cat params.txt

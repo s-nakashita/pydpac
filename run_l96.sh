@@ -5,11 +5,11 @@ model="l96"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
 #perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
-datype="mlef"
+datype="etkf"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
-perturbations="mlef mlefbm mlefcw"
+perturbations="etkf"
 na=100 # Number of assimilation cycle
 nmem=20 # ensemble size
 nobs=40 # observation volume
@@ -17,8 +17,8 @@ linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
-iinf=-2
-exp="${datype}_infladap"
+iinf=-3
+exp="${datype}_inflfuncest"
 echo ${exp}
 cdir=` pwd `
 rm -rf work/${model}/${exp}
@@ -32,7 +32,8 @@ touch timer
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
-    #for iinf in $(seq -2 3); do
+    #for iinf in $(seq -2 5); do
+    #for iinf in $(seq 4 5); do
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
       gsed -i -e "2i \ \"op\":\"${op}\"," config.py
       gsed -i -e "2i \ \"na\":${na}," config.py
@@ -45,8 +46,10 @@ for op in ${operators}; do
         gsed -i -e "5i \ \"infl_parm\":1.05," config.py
       elif [ $iinf -eq 1 ]; then
         gsed -i -e "5i \ \"infl_parm\":0.2," config.py
-      else
+      elif [ $iinf -lt 4 ]; then
         gsed -i -e "5i \ \"infl_parm\":0.8," config.py
+      else
+        gsed -i -e "5i \ \"infl_parm\":0.6," config.py
       fi
       else
       gsed -i -e '/linf/s/True/False/' config.py
@@ -80,9 +83,10 @@ for op in ${operators}; do
       mv l96_xsfmean_${op}_${pt}.txt xsfmean_${op}_${pert}_${iinf}.txt
       mv l96_xf_${op}_${pt}.npy xf_${op}_${pert}_${iinf}.npy
       mv l96_xa_${op}_${pt}.npy xa_${op}_${pert}_${iinf}.npy
-      if [ $iinf -eq -2 ]; then
+      if [ $iinf -le -2 ]; then
         mv l96_infl_${op}_${pt}.txt infl_${op}_${pert}.txt
       fi
+      mv l96_pdr_${op}_${pt}.txt pdr_${op}_${pert}_${iinf}.txt
       #if [ "${pert:4:1}" = "b" ]; then
       #mv l96_rho_${op}_${pt}.npy l96_rho_${op}_${pert}.npy
       #fi
@@ -114,6 +118,7 @@ for op in ${operators}; do
     #done
     python ${cdir}/plot/plote.py ${op} l96 ${na} ${pert} infl
     python ${cdir}/plot/plotxd.py ${op} l96 ${na} ${pert} infl
+    python ${cdir}/plot/plotpdr.py ${op} l96 ${na} ${pert} infl
   done
   #python ${cdir}/plot/plote.py ${op} l96 ${na}
   #python ${cdir}/plot/plotxd.py ${op} l96 ${na}

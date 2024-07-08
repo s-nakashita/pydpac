@@ -5,6 +5,8 @@ import numpy as np
 import numpy.linalg as la
 from scipy.linalg import cho_solve, cho_factor
 from .chi_test import Chi
+from .infladap import infladap
+from .inflfunc import inflfunc
 
 fileConfig("./logging_config.ini")
 logger = getLogger('anl')
@@ -13,7 +15,7 @@ class EnKF():
 
     def __init__(self, da, state_size, nmem, obs, 
         nvars=1,ndims=1,
-        linf=False, infl_parm=1.0, 
+        iinf=None, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, getkf=False, bthres=0.99,
         l_mat=None, l_sqrt=None, 
         calc_dist=None, calc_dist1=None, 
@@ -31,8 +33,20 @@ class EnKF():
         # for 2 or more dimensional data
         self.ndims = ndims
         # inflation
-        self.linf = linf # True->Apply inflation False->Not apply
+        self.iinf = iinf # iinf = None->No inflation
+                         #      = -3  ->Adaptive pre-multiplicative inflation (Duc et al. 2021)
+                         #      = -2  ->Adaptive pre-multiplicative inflation
+                         #      = -1  ->Fixed pre-multiplicative inflation
+                         #      = 0   ->Post-multiplicative inflation
+                         #      = 1   ->Additive inflation
+                         #      = 2   ->RTPP(Relaxation To Prior Perturbations)
+                         #      = 3   ->RTPS(Relaxation To Prior Spread)
+                         #      >= 4  ->Multiplicative linear inflation (Duc et al. 2020)
         self.infl_parm = infl_parm # inflation parameter
+        if self.iinf == -2:
+            self.infladap = infladap()
+            self.infl_parm_pre = np.full(self.ndim, self.infl_parm)
+        self.inflfunc = inflfunc("mult",paramtype=self.iinf-4)
         # localization
         self.iloc = iloc # iloc = None->No localization
                          #      = 0   ->K-localization(R-localization for LETKF)
@@ -62,7 +76,7 @@ class EnKF():
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.da} op={self.op} obserr={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
+        logger.info(f"iinf={self.iinf} iloc={self.iloc} ltlm={self.ltlm}")
         #if self.iloc is not None:
         if self.iloc == 1 or self.iloc == 2:
             if l_mat is None or l_sqrt is None:
@@ -109,6 +123,8 @@ class EnKF():
 
         pf = dxf @ dxf.T / (nmem-1)
         logger.info("pf max={:.3e} min={:.3e}".format(np.max(pf),np.min(pf)))
+        if self.iinf >= 3:
+            stdv_f = np.sqrt(np.diag(pf))
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), pf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxf)
@@ -151,25 +167,51 @@ class EnKF():
             np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dy)
             np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), d)
         logger.info("save_dh={} cycle{}".format(save_dh, icycle))
-
-        if self.linf:
+        d_ = rmat @ d
+        dy_ = rmat @ dy / np.sqrt(nmem-1)
+        
+        if self.iinf == -1:
             if self.da != "letkf" and self.da != "etkf":
-                logger.info("==inflation==, alpha={}".format(self.infl_parm))
+                logger.info("==pre-multiplicative inflation==, alpha={}".format(self.infl_parm))
                 dxf *= self.infl_parm
             #xf = xf_[:, None] + dxf
         
         if self.da == "etkf":
-            if self.linf:
-                logger.info("==inflation==, alpha={}".format(self.infl_parm))
-                A = np.eye(nmem2) / self.infl_parm
+            if self.iinf == -1:
+                logger.info("==pre-multiplicative inflation==, alpha={}".format(self.infl_parm))
+                rho = 1.0 / self.infl_parm
+            elif self.iinf == -2:
+                self.infl_parm = self.infladap(self.infl_parm, d_, dy_)
+                logger.info("==adaptive pre-multiplicative inflation==, alpha={:.2f}".format(self.infl_parm))
+                rho = 1.0 / self.infl_parm
             else:
-                A = np.eye(nmem2)
-            A = (nmem2-1)*A + dy.T @ rinv @ dy
-            lam, v = la.eigh(A)
-            #logger.info("eigen values={}".format(lam))
-            Dinv = np.diag(1.0/lam)
-            TT = v @ Dinv @ v.T
-            T = v @ np.sqrt((nmem2-1)*Dinv) @ v.T
+                rho = 1.0
+            u, ga, vt = la.svd(dy_,full_matrices=False)
+            v = vt.transpose()
+            dtilde = np.dot(u.transpose(), d_)
+            if self.iinf==-3:
+                logger.info("==singular value adaptive inflation==")
+                logger.info("ga = {}".format(ga))
+                gainf = self.inflfunc.est(dtilde,ga)
+                logger.info("ga inf = {}".format(gainf))
+            ga2 = ga*ga
+            lam = 1.0 / (np.sqrt(ga2 + np.full(ga.size, rho)))
+            if self.iinf>=4:
+                logger.info("lam = {}".format(lam))
+                laminf = self.inflfunc(lam,alpha1=self.infl_parm)
+                logger.info("lam inf = {}".format(laminf))
+            elif self.iinf==-3:
+                laminf = self.inflfunc.g2f(ga,gainf)
+                logger.info("lam inf = {}".format(laminf))
+            else:
+                laminf = lam.copy()
+            self.inflfunc.pdr(dtilde, ga, lam, laminf)
+            #A = (nmem2-1)*A + dy.T @ rinv @ dy
+            #lam, v = la.eigh(A)
+            ##logger.info("eigen values={}".format(lam))
+            Dinv = np.diag(lam*lam)
+            TT = v @ (Dinv/(nmem2-1)) @ v.T
+            T = v @ np.sqrt(np.diag(laminf)) @ v.T
 
             K = dxf @ TT @ dy.T @ rinv
             if save_dh:
@@ -191,6 +233,10 @@ class EnKF():
             #print(f"rank(kmat)={dums[np.abs(dums)>1.0e-10].shape[0]}")
             xa_ = xf_ + K @ d
             dxa = dxf @ T
+            if self.iinf == 2:
+                logger.info("==RTPP==, alpha={}".format(self.infl_parm))
+                dxa = (1.0 - self.infl_parm)*dxa + self.infl_parm*dxf
+
             if (self.iloc == 1 or self.iloc == 2):
                 ptrace = np.sum(np.diag(dxa @ dxa.T / (nmem2-1)))
                 if save_dh:
@@ -225,6 +271,19 @@ class EnKF():
                 logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
                 if np.sqrt(ptrace / trace) > 1.0:
                     dxa *= np.sqrt(ptrace / trace)
+            if self.iinf == 0:
+                logger.info("==multiplicative inflation==, alpha={}".format(self.infl_parm))
+                dxa *= self.infl_parm
+            if self.iinf == 1:
+                logger.info("==additive inflation==, alpha={}".format(self.infl_parm))
+                dxa += np.random.randn(dxa.shape[0], dxa.shape[1])*self.infl_parm
+            if self.iinf == 3:
+                pa = dxa @ dxa.T / (nmem-1)
+                stdv_a = np.sqrt(np.diag(pa))
+                logger.info("==RTPS, alpha={}".format(self.infl_parm))
+                beta = ((1.0 - self.infl_parm)*stdv_a + self.infl_parm*stdv_f)/stdv_a
+                logger.info(f"beta={beta}")
+                dxa = dxa * beta[:, None]
             if save_dh:
                 np.save("{}_dxa_{}_{}_cycle{}.npy".format(self.model, self.op, self.da, icycle), dxa)
             xa = dxa + xa_[:,None]
@@ -355,10 +414,11 @@ class EnKF():
             xa = np.zeros_like(xf)
             xa_ = np.zeros_like(xf_)
             dxa = np.zeros_like(dxf)
-            E = np.eye(nmem)
-            if self.linf:
-                logger.info("==inflation==, alpha={}".format(self.infl_parm))
-                E /= self.infl_parm
+            rho = 1.0
+            if self.iinf == -1:
+                logger.info("==pre-multiplicative inflation==, alpha={}".format(self.infl_parm))
+                rho = 1.0 / self.infl_parm
+                #E /= self.infl_parm
             if self.iloc==0:
                 logger.info("==R-localization==, lsig={}".format(self.lsig))
             wlist = []
@@ -366,8 +426,8 @@ class EnKF():
             for i in range(self.ndim):
                 far, Rwf_loc = self.r_loc(sigma, yloc, float(i))
                 logger.debug("analysis grid={} number of assimilated obs.={}".format(i, (y.size - len(far))))
-                di = np.delete(d,far)
-                dyi = np.delete(dy,far,axis=0)
+                di = np.delete(d_,far)
+                dyi = np.delete(dy_,far,axis=0)
                 if self.iloc==0:
                     diagR = np.diag(R)
                     Ri = np.diag(diagR/Rwf_loc)
@@ -376,19 +436,34 @@ class EnKF():
                 Ri = np.delete(Ri,far,axis=0)
                 Ri = np.delete(Ri,far,axis=1)
                 R_inv = la.inv(Ri)
-            
-                A = (nmem-1)*E + dyi.T @ R_inv @ dyi
-                lam,v = la.eigh(A)
-                D_inv = np.diag(1.0/lam)
+                if self.iinf == -2:
+                    self.infl_parm = self.infladap(self.infl_parm_pre[i], di, dyi)
+                    logger.debug("==adaptive pre-multiplicative inflation==, alpha={:.2f}".format(self.infl_parm))
+                    rho = 1.0 / self.infl_parm
+                    #E /= self.infl_parm
+                u, ga, vt = la.svd(dyi,full_matrices=False)
+                v = vt.transpose()
+                ga2 = ga*ga
+                lam = 1.0 / np.sqrt(ga2 + np.full(ga.size, rho))
+                if self.iinf>=4:
+                    logger.debug("lam = {}".format(lam))
+                    laminf = self.inflfunc(lam,alpha1=self.infl_parm)
+                    di_ = np.dot(di, ga, lam, laminf)
+                    logger.debug("lam inf = {}".format(laminf))
+                else:
+                    laminf = lam.copy()
+                #A = (nmem-1)*E + dyi.T @ R_inv @ dyi
+                #lam,v = la.eigh(A)
+                D_inv = np.diag(lam*lam)
                 pa_ = v @ D_inv @ v.T
-                wk = pa_ @ dyi.T @ R_inv @ di
+                wk = pa_ @ dyi.T @ di / np.sqrt(nmem-1)
                 logger.debug(f"wk={wk.shape}")
                 wlist.append(wk)
                 xa_[i] = xf_[i] + dxf[i] @ wk
-                sqrtPa = v @ np.sqrt(D_inv) @ v.T * np.sqrt(nmem-1)
+                sqrtPa = v @ np.sqrt(np.diag(laminf)) @ v.T #* np.sqrt(nmem-1)
                 Wlist.append(sqrtPa)
                 for ivar in range(self.nvars):
-                    xa_[self.ndim*ivar+i] = xf_[self.ndim*ivar+i] + dxf[self.ndim*ivar+i] @ pa_ @ dyi.T @ R_inv @ di
+                    xa_[self.ndim*ivar+i] = xf_[self.ndim*ivar+i] + dxf[self.ndim*ivar+i] @ wk
                     dxa[self.ndim*ivar+i] = dxf[self.ndim*ivar+i] @ sqrtPa
                     xa[self.ndim*ivar+i] = np.full(nmem,xa_[self.ndim*ivar+i]) + dxa[self.ndim*ivar+i]
             if save_w:

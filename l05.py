@@ -107,6 +107,7 @@ params["nobs"]       =  40      # observation number (nobs<=nx)
 params["obsloctype"] = "regular" # observation location type
 params["op"]         = "linear" # observation operator type
 params["na"]         =  100     # number of analysis cycle
+params["nspinup"]    = params["na"]//5    # spinup periods
 params["nt"]         =  int(dt6h/dt)      # number of step per forecast (=6 hour)
 params["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 ### assimilation method settings
@@ -257,7 +258,8 @@ if __name__ == "__main__":
     dof = np.zeros(na)
 
     stdf[0] = np.sqrt(np.trace(pf)/pf.shape[0])
-    xsfmean += np.diag(pf)
+    if params["nspinup"] <= 0:
+        xsfmean += np.diag(pf)
     if params["extfcst"]:
         ## extended forecast
         xf12 = np.zeros((na+1,nx))
@@ -389,7 +391,8 @@ if __name__ == "__main__":
             if ft=="ensemble" and i >= 100:
                 np.save("{}_pf_{}_{}_cycle{}.npy".format(model, op, pt, i), pf)
             stdf[i+1] = np.sqrt(np.trace(pf)/pf.shape[0])
-            xsfmean += np.diag(pf)
+            if i>=params["nspinup"]:
+                xsfmean += np.diag(pf)
 
             if params["extfcst"]:
                 ## extended forecast
@@ -436,18 +439,21 @@ if __name__ == "__main__":
                 xt2mod = interp1d(np.arange(xt.shape[1]),xt[k])
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt2mod(ix))**2))
                 ef[k] = np.sqrt(np.mean((xf[k, :] - xt2mod(ix))**2))
-                xdmean += (xa[k,:] - xt2mod(ix))**2
-                xdfmean += (xf[k,:] - xt2mod(ix))**2
+                if k>=params["nspinup"]:
+                    xdmean += (xa[k,:] - xt2mod(ix))**2
+                    xdfmean += (xf[k,:] - xt2mod(ix))**2
         else:
             xt2mod = interp1d(np.arange(xt.shape[1]),xt[i])
             e[i] = np.sqrt(np.mean((xa[i, :] - xt2mod(ix))**2))
             ef[i] = np.sqrt(np.mean((xf[i, :] - xt2mod(ix))**2))
-            xdmean += (xa[i,:] - xt2mod(ix))**2
-            xdfmean += (xf[i,:] - xt2mod(ix))**2
+            if i>=params["nspinup"]:
+                xdmean += (xa[i,:] - xt2mod(ix))**2
+                xdfmean += (xf[i,:] - xt2mod(ix))**2
         stda[i] = np.sqrt(np.trace(pa)/nx)
         xsa[i] = np.sqrt(np.diag(pa))
-        xsmean += np.diag(pa)
-        nanl += 1
+        if i>=params["nspinup"]:
+            xsmean += np.diag(pa)
+            nanl += 1
 
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
@@ -466,11 +472,12 @@ if __name__ == "__main__":
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
 
-    xdmean = np.sqrt(xdmean/float(nanl))
-    xsmean = np.sqrt(xsmean/float(nanl))
-    xdfmean = np.sqrt(xdfmean/float(nanl))
-    xsfmean = np.sqrt(xsfmean/float(nanl))
-    np.savetxt("{}_xdmean_{}_{}.txt".format(model, op, pt), xdmean)
-    np.savetxt("{}_xsmean_{}_{}.txt".format(model, op, pt), xsmean)
-    np.savetxt("{}_xdfmean_{}_{}.txt".format(model, op, pt), xdfmean)
-    np.savetxt("{}_xsfmean_{}_{}.txt".format(model, op, pt), xsfmean)
+    if nanl>0:
+        xdmean = np.sqrt(xdmean/float(nanl))
+        xsmean = np.sqrt(xsmean/float(nanl))
+        xdfmean = np.sqrt(xdfmean/float(nanl))
+        xsfmean = np.sqrt(xsfmean/float(nanl))
+        np.savetxt("{}_xdmean_{}_{}.txt".format(model, op, pt), xdmean)
+        np.savetxt("{}_xsmean_{}_{}.txt".format(model, op, pt), xsmean)
+        np.savetxt("{}_xdfmean_{}_{}.txt".format(model, op, pt), xdfmean)
+        np.savetxt("{}_xsfmean_{}_{}.txt".format(model, op, pt), xsfmean)

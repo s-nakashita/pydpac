@@ -8,6 +8,7 @@ from methods import perts, linecolor
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+nspinup = na//5
 if model == "z08" or model == "z05":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
@@ -87,8 +88,8 @@ for pt in perts:
                 es[i] = np.nan
             else:
                 success[i] = data[0,0]
-                el[i] = np.mean(e[0,int(na/3):])
-                es[i] = np.mean(e[1,int(na/3):])
+                el[i] = np.mean(e[0,nspinup:])
+                es[i] = np.mean(e[1,nspinup:])
                 j += 1
         i+=1
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)

@@ -1,4 +1,8 @@
 import numpy as np 
+import logging
+
+logging.config.fileConfig("./logging_config.ini")
+logger = logging.getLogger('anl')
 
 # Linear inflation functions (Duc et al. 2020a, QJRMS)
 #   f(lambda) = a*lambda + b
@@ -8,7 +12,7 @@ import numpy as np
 # stdb = background ensemble spread
 # stda = analysis ensemble spread (before inflated)
 class inflfunc():
-    def __init__(self,infltype,paramtype=0):
+    def __init__(self,infltype,paramtype=0,nit=3):
         self.infltype = infltype
         # inflation type
         # "const" : constant 
@@ -25,22 +29,26 @@ class inflfunc():
         #   both alpha_2 and (alpha_1+alpha_2) must be equal or larger than 0
         self.paramtype = paramtype
         # parameterization type
-        # 0 : averaged lambda
-        # 1 : stda / stdb
+        # 0 : inverse of averaged lambda
+        # 1 : averaged lambda
         # 2 : stdb / stda (~RTPS)
-        # 3 : inverse of averaged lambda
+        # 3 : stda / stdb
+        self.nit = nit # iteration number for adaptive estimation
+        self.rhosave = []
+        self.pdrsave = []
 
-    def __call__(self,lam,stdb,stda,\
+    def __call__(self,lam,stdb=None,stda=None,\
         alpha1=None,alpha2=None,a=None,b=None):
         if self.paramtype == 0:
-            param = np.mean(lam)
+            param = 1.0 / np.mean(lam)
         elif self.paramtype == 1:
-            param = stda / stdb
+            param = np.mean(lam)
         elif self.paramtype == 2:
             param = stdb / stda
         elif self.paramtype == 3:
-            param = 1.0 / np.mean(lam)
-        
+            param = stda / stdb
+        logging.info(f"param={param}")
+
         if self.infltype == 'const':
             if alpha1 is None:
                 alpha1 = (1.0 - b)/(1.0 - param)
@@ -52,10 +60,10 @@ class inflfunc():
                 alpha1 = (a - 1.0)/(param - 1.0)
             if alpha1 < 0.0:
                 raise ValueError(f'alpha={alpha1} must be positive or 0')
-            if self.paramtype < 2:
-                laminf = (1.0 + alpha1*(1.0 - param))*lam
-            else:
+            if self.paramtype % 2 == 0:
                 laminf = (1.0 + alpha1*(param - 1.0))*lam
+            else:
+                laminf = (1.0 + alpha1*(1.0 - param))*lam
         elif self.infltype == 'fixed':
             if alpha1 is None:
                 alpha1 = a
@@ -78,6 +86,10 @@ class inflfunc():
     
     def gam2lam(self,gamma):
         return 1.0/np.sqrt(1.0 + gamma*gamma)
+
+    def g2f(self,gamma,g):
+        ga2 = gamma*gamma
+        return g / np.sqrt(ga2 + ga2*g*g)
     
     def prf(self,gamma,lam):
         return gamma*lam
@@ -89,7 +101,30 @@ class inflfunc():
         do2 = do*do
         num = np.sum(ga2*lam4*do2)
         den = np.sum(ga2*laminf*laminf)
-        return num/den
+        self.pdrsave.append(num/den)
+
+    def est(self,do,gamma,form='mult',eps=1.0e-6):
+        # do: innovation projected onto the left-singular vector space
+        do2 = do*do
+        nmode = do.size
+        rho0 = 1.0
+        it=0
+        while (it<self.nit):
+            ga1 = gamma*rho0
+            la1 = self.gam2lam(ga1)
+            ga2 = gamma*gamma
+            la2 = la1*la1
+            la4 = la2*la2
+            rho2 = rho0*rho0/nmode*np.sum(la2 + ga2*la4*do2)
+            rho2 = max(1.0, rho2)
+            rho = np.sqrt(rho2)
+            diff = np.sqrt((rho-rho0)*(rho-rho0))
+            if diff < eps: break
+            rho0 = rho
+            it+=1
+            logger.info(f'iter{it}: rho={rho0} diff={diff}')
+        self.rhosave.append(rho)
+        return rho * gamma
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
@@ -127,7 +162,7 @@ if __name__ == "__main__":
     #for a, b in zip(alist,blist):
     for infltype in infltypes:
         if infltype == 'const':
-            paramtype=0
+            paramtype=1
             a=0.0
             b=0.7
             label=f'Const inflation b={b:.1f}'
@@ -142,7 +177,7 @@ if __name__ == "__main__":
             b = 1.0 - a
             label=f'RTPP a,b={a:.1f},{b:.1f}'
         elif infltype == 'vary':
-            paramtype=0
+            paramtype=1
             a=0.6
             b=0.7
             label=f'PVLinear a,b={a:.1f},{b:.1f}'

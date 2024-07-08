@@ -4,7 +4,7 @@ import numpy as np
 # References: 
 #   Wang and Bishop (2003, JAS)
 #   Li et al. (2009, QJRMS)
-class infl_adap():
+class infladap():
 
     def __init__(self,sigb=0.04):
         self.sigb = sigb # 'observation' error

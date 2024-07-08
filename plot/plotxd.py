@@ -3,7 +3,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['font.size'] = 16
-from methods import perts, linecolor
+from methods import perts, linecolor, iinflist, infltype, inflcolor
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -29,9 +29,7 @@ if len(sys.argv) > 4:
     #linecolor = {"l"+pt+"1":'tab:blue', "l"+pt+"2":'tab:orange', "l"+pt+"3":'tab:green', 'letkf':'tab:red'}
 if len(sys.argv) > 5 and sys.argv[5]=='infl':
     linfl = True
-    iinflist = [-2,-1,0,1,2,3]
-    infltype = {-2:'adap-pre-mi',-1:'pre-mi',0:'post-mi', 1:'add', 2:'rtpp', 3:'rtps'}
-    linecolor = {-2:'b',-1:'tab:blue', 0:'tab:orange', 1:'tab:green', 2:'tab:red', 3:'tab:purple'}
+    linecolor = inflcolor
 
 marker = {"3d":"o","4d":"x"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \

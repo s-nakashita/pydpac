@@ -6,7 +6,6 @@ import numpy.linalg as la
 import scipy.optimize as spo
 from .chi_test import Chi
 from .minimize import Minimize
-from .infl_adap import infl_adap
 
 zetak = []
 alphak = []
@@ -18,7 +17,7 @@ class Lmlef():
 # Reference: Yokota et al. (2016,SOLA)
     def __init__(self, state_size, nmem, obs, 
         nvars=1,ndims=1,
-        iinf=None, infl_parm=1.0, infl_adap=None, inflfunc=None,
+        iinf=None, infl_parm=1.0, infladap=None, inflfunc=None,
         iloc=0, lsig=-1.0, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
         # necessary parameters
@@ -43,7 +42,7 @@ class Lmlef():
                          #      = 3   ->RTPS(Relaxation To Prior Spread)
         self.infl_parm = infl_parm # inflation parameter
         if self.iinf == -2:
-            self.infl_adap = infl_adap
+            self.infladap = infladap
             self.infl_parm_pre = np.full(self.ndim,self.infl_parm)
         # localization
         self.iloc = iloc # iloc = -1  ->CW
@@ -74,7 +73,7 @@ class Lmlef():
         #v = vt.transpose()
         #is2r = 1 / (1 + s**2)
         rho = 1.0
-        if self.iinf==-1:
+        if self.iinf<=-1:
             logger.debug("==pre multiplicative inflation==, alpha={}".format(self.infl_parm))
             rho = 1.0 / self.infl_parm
         c = zmat.transpose() @ zmat
@@ -267,7 +266,7 @@ class Lmlef():
                 di = Rmat @ obi
                 if self.iinf == -2:
                     logger.info("==adaptive pre-multiplicative inflation==")
-                    self.infl_parm = self.infl_adap(self.infl_parm_pre[i], di, zmat)
+                    self.infl_parm = self.infladap(self.infl_parm_pre[i], di, zmat)
                     self.infl_parm_pre[i] = self.infl_parm
                 tmat, heinv = self.precondition(zmat)
                 logger.debug("zmat.shape={}".format(zmat.shape))
