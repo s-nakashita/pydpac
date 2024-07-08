@@ -5,12 +5,12 @@ model="l96"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
 #perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
-datype="etkf"
+datype="envar"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
-perturbations="etkf"
-na=100 # Number of assimilation cycle
+perturbations="envar"
+na=200 # Number of assimilation cycle
 nmem=20 # ensemble size
 nobs=40 # observation volume
 linf=True  # True:Apply inflation False:Not apply
@@ -18,7 +18,7 @@ lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 #L="-1.0 0.5 1.0 2.0"
 iinf=-3
-exp="${datype}_inflfuncest"
+exp="${datype}_infl"
 echo ${exp}
 cdir=` pwd `
 rm -rf work/${model}/${exp}
@@ -32,7 +32,7 @@ touch timer
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
-    #for iinf in $(seq -2 5); do
+    for iinf in $(seq -3 5); do
     #for iinf in $(seq 4 5); do
       cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
       gsed -i -e "2i \ \"op\":\"${op}\"," config.py
@@ -115,7 +115,7 @@ for op in ${operators}; do
       #python ${cdir}/plot/plotlpf.py ${op} l96 ${na} ${pert} 
       mkdir -p data/${pert}_${iinf}
       mv l96_*_${op}_${pt}_cycle*.npy data/${pert}_${iinf}
-    #done
+    done
     python ${cdir}/plot/plote.py ${op} l96 ${na} ${pert} infl
     python ${cdir}/plot/plotxd.py ${op} l96 ${na} ${pert} infl
     python ${cdir}/plot/plotpdr.py ${op} l96 ${na} ${pert} infl

@@ -6,6 +6,8 @@ import numpy.linalg as la
 import copy
 from .chi_test import Chi
 from .minimize import Minimize
+from .infladap import infladap
+from .inflfunc import inflfunc
 
 zetak = []
 alphak = []
@@ -16,7 +18,7 @@ class EnVAR():
 
     def __init__(self, state_size, nmem, obs, pt="envar",
         nvars=1,ndims=1,
-        linf=False, infl_parm=1.0, 
+        iinf=None, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
@@ -34,8 +36,19 @@ class EnVAR():
         # for 2 or more dimensional data
         self.ndims = ndims
         # inflation
-        self.linf = linf # True->Apply inflation False->Not apply
+        self.iinf = iinf # iinf = None->No inflation
+                         #      = -3  ->Adaptive pre-multiplicative inflation (Duc et al. 2021)
+                         #      = -2  ->Adaptive pre-multiplicative inflation (Liu et al. 2009)
+                         #      = -1  ->Fixed pre-multiplicative inflation
+                         #      = 0   ->Post-multiplicative inflation
+                         #      = 1   ->Additive inflation
+                         #      = 2   ->RTPP(Relaxation To Prior Perturbations)
+                         #      = 3   ->RTPS(Relaxation To Prior Spread)
+                         #      >= 4  ->Multiplicative linear inflation (Duc et al. 2020)
         self.infl_parm = infl_parm # inflation parameter
+        if self.iinf == -2:
+            self.infladap = infladap()
+        self.inflfunc = inflfunc("mult",paramtype=self.iinf-4)
         # localization
         self.iloc = iloc # iloc = None->No localization
                          #      <=0   ->R-localization (TODO: implement)
@@ -64,7 +77,7 @@ class EnVAR():
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
+        logger.info(f"iinf={self.iinf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         if self.iloc is not None:
           #if self.iloc <= 0:
           #  from .lmlef import Lmlef
@@ -98,18 +111,45 @@ class EnVAR():
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
         return pf
 
-    def precondition(self,zmat):
+    def precondition(self,zmat,d=None,first=True):
         #u, s, vt = la.svd(zmat)
         #v = vt.transpose()
         #is2r = 1 / (1 + s**2)
         nk = zmat.shape[1]
         rho = 1.0
-        #if self.linf:
-        #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
-        #    rho = 1.0 / self.infl_parm
+        if self.iinf<=-1 and self.iinf>-3:
+            logger.info("==pre-multiplicative inflation==, alpha={}".format(self.infl_parm))
+            rho = 1.0 / self.infl_parm
         c = zmat.transpose() @ zmat
-        lam, v = la.eigh(c)
-        D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho*(nk-1)))))
+        ga2f, vf = la.eigh(c)
+        nrank = np.sum(ga2f>1.0e-10)
+        logger.info(f"size={ga2f.size} rank={nrank}")
+        ga2 = ga2f[ga2f.size-nrank:]
+        v = vf[:,ga2f.size-nrank:]
+        logger.info(f"v.shape={v.shape}")
+        ga = np.sqrt(ga2)
+        u = np.dot(zmat,v)/ga
+        if self.iinf==-3 and not first:
+            logger.info("==singular value adaptive inflation==")
+            logger.info("ga = {}".format(ga))
+            d_ = np.dot(u.transpose(),d)
+            gainf = self.inflfunc.est(d_,ga)
+            logger.info("ga inf ={}".format(gainf))
+        lam = 1.0/(np.sqrt(ga2 + np.full(ga2.size,rho)))
+        if self.iinf>=4 and not first:
+            logger.info(f"==singular value inflation==, alpha={self.infl_parm}")
+            logger.info("lam ={}".format(lam))
+            laminf = self.inflfunc(lam,alpha1=self.infl_parm)
+            logger.info("lam inf ={}".format(laminf))
+        elif self.iinf==-3 and not first:
+            laminf = self.inflfunc.g2f(ga,gainf)
+            logger.info("lam inf ={}".format(laminf))
+        else:
+            laminf = lam.copy()
+        if d is not None:
+            d_ = np.dot(u.transpose(),d)
+            self.inflfunc.pdr(d_, ga, lam, laminf)
+        D = np.diag(laminf)
         vt = v.transpose()
         tmat = v @ D @ vt
         heinv = tmat @ tmat.T
@@ -129,17 +169,17 @@ class EnVAR():
     def calc_j(self, zeta, *args, return_each=False):
         nk = zeta.size
         if not self.incremental:
-            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
             ob = y - self.obs.h_operator(yloc, x)
-            jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta
+            jb = 0.5 * zeta.transpose() @ heinv @ zeta
             jo = 0.5 * ob.transpose() @ rinv @ ob
         #    j = 0.5 * (zeta.transpose() @ heinv @ zeta + ob.transpose() @ rinv @ ob)
         else:
         ## incremental form
             d, tmat, zmat, heinv = args
             w = tmat @ zeta
-            jb = 0.5 * (nk-1) * zeta.transpose() @ heinv @ zeta 
+            jb = 0.5 * zeta.transpose() @ heinv @ zeta 
             jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
             #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
         if return_each:
@@ -152,37 +192,37 @@ class EnVAR():
     def calc_grad_j(self, zeta, *args):
         nk = zeta.size
         if not self.incremental:
-            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
             hx = self.obs.h_operator(yloc, x)
             ob = y - hx
             if self.ltlm:
-                dy = self.obs.dh_operator(yloc, x) @ dxf
+                dy = self.obs.dh_operator(yloc, x) @ pf
             else:
-                dy = self.obs.h_operator(yloc, x[:, None] + dxf) - hx[:, None]
-            grad = (nk-1) * heinv @ zeta - tmat @ dy.transpose() @ rinv @ ob
+                dy = self.obs.h_operator(yloc, x[:, None] + pf) - hx[:, None]
+            grad = heinv @ zeta - tmat @ dy.transpose() @ rinv @ ob
         else:
         ## incremental form
             d, tmat, zmat, heinv = args
             w = tmat @ zeta
-            grad = (nk-1) * heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
+            grad = heinv @ zeta + tmat @ zmat.transpose() @ (zmat@w - d)
         logger.info(f"|dj|:{np.sqrt(np.dot(grad,grad)):.6e}")
         return grad 
 
     def calc_hess(self, zeta, *args):
         nk = zeta.size
         if not self.incremental:
-            xc, dxf, y, yloc, tmat, gmat, heinv, rinv = args
+            xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
             if self.ltlm:
-                dy = self.obs.dh_operator(yloc, x) @ dxf
+                dy = self.obs.dh_operator(yloc, x) @ pf
             else:
-                dy = self.obs.h_operator(yloc, x[:, None] + dxf) - self.obs.h_operator(yloc, x)[:, None]
-            hess = tmat @ ((nk-1) * np.eye(zeta.size) + dy.transpose() @ rinv @ dy) @ tmat
+                dy = self.obs.h_operator(yloc, x[:, None] + pf) - self.obs.h_operator(yloc, x)[:, None]
+            hess = tmat @ (np.eye(zeta.size) + dy.transpose() @ rinv @ dy) @ tmat
         else:
         ## incremental form
             d, tmat, zmat, heinv = args
-            hess = tmat @ ((nk-1) * np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
+            hess = tmat @ (np.eye(zeta.size) + zmat.transpose() @ zmat) @ tmat
         return hess
 
     def cost_j(self, nx, nmem, xopt, icycle, *args):
@@ -321,11 +361,13 @@ class EnVAR():
             nmem = xf.shape[1]
             chi2_test = Chi(y.size, nmem, rmat)
             dxf = xf - xf_[:, None]
-            if self.linf:
-                logger.info("==inflation==, alpha={}".format(self.infl_parm))
-                dxf *= np.sqrt(self.infl_parm)
+            #if self.iinf==-1:
+            #    logger.info("==pre-multiplicative inflation==, alpha={}".format(self.infl_parm))
+            #    dxf *= np.sqrt(self.infl_parm)
             pf = dxf / np.sqrt(nmem-1)
             fpf = dxf @ dxf.T / (nmem-1)
+            if self.iinf == 3:
+                stdv_f = np.sqrt(np.diag(fpf))
             if save_dh:
                 np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
                 np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
@@ -357,19 +399,24 @@ class EnVAR():
                 np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dy)
                 np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
             logger.info("save_dh={}".format(save_dh))
-            zmat = rmat @ dy
+            zmat = rmat @ dy / np.sqrt(nmem-1)
             d = rmat @ ob
+            if self.iinf == -2:
+                logger.info("==adaptive pre-multiplicative inflation==")
+                self.infl_parm = self.infladap(self.infl_parm, d, zmat)
+            #    dxf *= np.sqrt(self.infl_parm)
+            #    zmat *= np.sqrt(self.infl_parm)
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
             logger.debug("dxf.shape={}".format(dxf.shape))
             logger.debug("tmat.shape={}".format(tmat.shape))
             logger.debug("heinv.shape={}".format(heinv.shape))
-            gmat = dxf @ tmat
+            gmat = pf @ tmat
             logger.debug("gmat.shape={}".format(gmat.shape))
-            x0 = np.zeros(dxf.shape[1])
+            x0 = np.zeros(pf.shape[1])
             x = x0.copy()
             if not self.incremental:
-                args_j = (xf_, dxf, y, yloc, tmat, gmat, heinv, rinv)
+                args_j = (xf_, pf, y, yloc, tmat, gmat, heinv, rinv)
             else:
                 args_j = (d, tmat, zmat, heinv)
             iprint = np.zeros(2, dtype=np.int32)
@@ -413,14 +460,14 @@ class EnVAR():
                         dy = self.obs.dh_operator(yloc, xf_) @ dxf
                     else:
                         dy = self.obs.h_operator(yloc, xf_[:, None]+dxf) - self.obs.h_operator(yloc, xf_)[:, None]
-                    zmat = rmat @ dy
+                    zmat = rmat @ dy / np.sqrt(nmem-1)
                     tmat, heinv = self.precondition(zmat)
-                    gmat = dxf @ tmat
+                    gmat = pf @ tmat
                     if update_ensemble:
-                        dxf = dxf @ tmat
+                        pf = pf @ tmat
                     # update arguments
                     if not self.incremental:
-                        args_j = (xf_, dxf, y, yloc, tmat, gmat, heinv, rinv)
+                        args_j = (xf_, pf, y, yloc, tmat, gmat, heinv, rinv)
                     else:
                         d = rmat @ (y - self.obs.h_operator(yloc,xf_))
                         args_j = (d, tmat, zmat, heinv)
@@ -481,16 +528,20 @@ class EnVAR():
                 dy = self.obs.dh_operator(yloc,xa_) @ dxf
             else:
                 dy = self.obs.h_operator(yloc, xa_[:, None] + dxf) - self.obs.h_operator(yloc, xa_)[:, None]
-            zmat = rmat @ dy
+            zmat = rmat @ dy / np.sqrt(nmem-1)
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
-            tmat, heinv = self.precondition(zmat)
+            tmat, heinv = self.precondition(zmat, d=d, first=False)
             d = y - self.obs.h_operator(yloc, xa_)
             logger.debug("zmat shape={}".format(zmat.shape))
             logger.debug("d shape={}".format(d.shape))
             innv, chi2 = chi2_test(zmat, d)
             ds = self.dfs(zmat)
             logger.debug("dfs={}".format(ds))
-            dxa = dxf @ tmat * np.sqrt(nmem-1)
+            dxa = dxf @ tmat #* np.sqrt(nmem-1)
+            if self.iinf == 2:
+                logger.info("==RTPP==, alpha={}".format(self.infl_parm))
+                dxa = (1.0 - self.infl_parm)*dxa + self.infl_parm*dxf
+            
             if self.iloc is not None:
                 nmem2 = dxf.shape[1]
                 ptrace = np.sum(np.diag(dxa @ dxa.T)/(nmem2-1))
@@ -533,9 +584,19 @@ class EnVAR():
                 logger.info("standard deviation ratio = {}".format(np.sqrt(ptrace / trace)))
                 if np.sqrt(ptrace / trace) > 1.05:
                     dxa *= np.sqrt(ptrace / trace)
-            #if self.linf:
-            #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
-            #    pa *= self.infl_parm
+            if self.iinf == 0:
+                logger.info("==multiplicative inflation==, alpha={}".format(self.infl_parm))
+                dxa *= np.sqrt(self.infl_parm)
+            if self.iinf == 1:
+                logger.info("==additive inflation==, alpha={}".format(self.infl_parm))
+                dxa += np.random.randn(dxa.shape[0], dxa.shape[1])*self.infl_parm
+            if self.iinf == 3:
+                fpa = dxa @ dxa.T / (nmem-1)
+                stdv_a = np.sqrt(np.diag(fpa))
+                logger.info("==RTPS, alpha={}".format(self.infl_parm))
+                beta = ((1.0 - self.infl_parm)*stdv_a + self.infl_parm*stdv_f)/stdv_a
+                logger.info(f"beta={beta}")
+                dxa = dxa * beta[:, None]
 
             u = np.zeros_like(xb)
             u = xa_[:, None] + dxa

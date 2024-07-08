@@ -15,7 +15,7 @@ lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 a_window=1
 ptype=infl
-iinf=3
+iinf=4
 exp="${datype}_infl${iinf}"
 echo ${exp}
 cdir=` pwd `

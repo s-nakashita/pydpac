@@ -31,7 +31,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 # inflation parameter (dictionary for each observation type)
-infl_l = {"mlef":1.05,"mlefw":1.2,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
+infl_l = {"mlef":1.05,"envar":1.1,"etkf":1.2,"po":1.2,"srf":1.2,"letkf":1.05,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 infl_q = {"mlef":1.2,"etkf":1.2,"po":1.2,"srf":1.3,"letkf":1.2,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
@@ -44,7 +44,7 @@ dict_infl = {"linear": infl_l, "quadratic": infl_q, "cubic": infl_c, \
     "quadratic-nodiff": infl_qd, "cubic-nodiff": infl_cd, \
         "test": infl_t, "abs": infl_l, "hint": infl_h}
 # localization parameter (dictionary for each observation type)
-sig_l = {"mlef":3.0,"mlefw":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,
+sig_l = {"mlef":3.0,"envar":2.0,"etkf":2.0,"po":2.0,"srf":2.0,"letkf":3.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":2.0,"4dpo":2.0,"4dsrf":2.0,"4dletkf":2.0,"4dvar":None}
 sig_q = {"mlef":2.0,"etkf":6.0,"po":6.0,"srf":8.0,"letkf":4.0,"kf":None,"var":None,
         "4dmlef":2.0,"4detkf":6.0,"4dpo":6.0,"4dsrf":8.0,"4dletkf":4.0,"4dvar":None}
@@ -56,7 +56,7 @@ dict_sig = {"linear": sig_l, "quadratic": sig_q, "cubic": sig_c, \
     "quadratic-nodiff": sig_qd, "cubic-nodiff": sig_cd, \
     "test":sig_t, "abs":sig_l, "hint": sig_l}
 # forecast type (ensemble or deterministic)
-ftype = {"mlef":"ensemble","mlefw":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
+ftype = {"mlef":"ensemble","envar":"ensemble","etkf":"ensemble","po":"ensemble","srf":"ensemble","letkf":"ensemble",\
     "kf":"deterministic","var":"deterministic",\
     "4dmlef":"ensemble","4detkf":"ensemble","4dpo":"ensemble","4dsrf":"ensemble","4dletkf":"ensemble",\
     "4dvar":"deterministic"}
@@ -169,13 +169,20 @@ if pt == "mlef":
             iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
-elif pt == "mlefw":
-    from analysis.mlefw import Mlefw
-    analysis = Mlefw(pt, state_size, nmem, obs, \
-        linf=linf, infl_parm=infl_parm, \
-        iloc=iloc, lsig=lsig, ss=False, gain=False, \
+#elif pt == "mlefw":
+#    from analysis.mlefw import Mlefw
+#    analysis = Mlefw(pt, state_size, nmem, obs, \
+#        linf=linf, infl_parm=infl_parm, \
+#        iloc=iloc, lsig=lsig, ss=False, gain=False, \
+#        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
+#        ltlm=ltlm, model=model)
+elif pt == "envar":
+    from analysis.envar import EnVAR
+    analysis = EnVAR(state_size, params["nmem"], obs, \
+        iinf=params["iinf"], infl_parm=params["infl_parm"],\
+        iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
         calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-        ltlm=ltlm, model=model)
+        ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis = EnKF(pt, state_size, params["nmem"], obs, \
