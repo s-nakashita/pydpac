@@ -12,7 +12,7 @@ logger = logging.getLogger('anl')
 # stdb = background ensemble spread
 # stda = analysis ensemble spread (before inflated)
 class inflfunc():
-    def __init__(self,infltype,paramtype=0,nit=3):
+    def __init__(self,infltype,paramtype=0,nit=20):
         self.infltype = infltype
         # inflation type
         # "const" : constant 

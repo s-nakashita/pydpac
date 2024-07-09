@@ -10,7 +10,7 @@ datype="envar"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 perturbations="envar etkf mlef"
-na=200 # Number of assimilation cycle
+na=300 # Number of assimilation cycle
 nmem=20 # ensemble size
 nobs=40 # observation volume
 linf=True  # True:Apply inflation False:Not apply
@@ -33,9 +33,9 @@ for op in ${operators}; do
   for pert0 in ${perturbations}; do
     echo $pert0
     pert=${pert0}
-    #for iinf in $(seq -3 5); do
+    for iinf in $(seq -3 5); do
     #for iinf in $(seq 4 5); do
-    #  pert=${pert0}_${iinf}
+      pert=${pert0}_${iinf}
       cp ${cdir}/analysis/config/config_${pert0}_sample.py config.py
       gsed -i -e "2i \ \"op\":\"${op}\"," config.py
       gsed -i -e "2i \ \"na\":${na}," config.py
@@ -49,9 +49,9 @@ for op in ${operators}; do
       elif [ $iinf -eq 1 ]; then
         gsed -i -e "5i \ \"infl_parm\":0.2," config.py
       elif [ $iinf -lt 4 ]; then
-        gsed -i -e "5i \ \"infl_parm\":0.8," config.py
+        gsed -i -e "5i \ \"infl_parm\":0.3," config.py
       else
-        gsed -i -e "5i \ \"infl_parm\":0.6," config.py
+        gsed -i -e "5i \ \"infl_parm\":0.3," config.py
       fi
       else
       gsed -i -e '/linf/s/True/False/' config.py
@@ -117,20 +117,20 @@ for op in ${operators}; do
       #python ${cdir}/plot/plotlpf.py ${op} l96 ${na} ${pert} 
       mkdir -p data/${pert}
       mv l96_*_${op}_${pt}_cycle*.npy data/${pert}
-    #done
-    #python ${cdir}/plot/plote.py ${op} l96 ${na} ${pert0} infl
-    #python ${cdir}/plot/plotxd.py ${op} l96 ${na} ${pert0} infl
-    #python ${cdir}/plot/plotpdr.py ${op} l96 ${na} ${pert0} infl
-    #python ${cdir}/plot/plotinfl.py ${op} l96 ${na} ${pert0} infl
+    done
+    python ${cdir}/plot/plote.py ${op} l96 ${na} ${pert0} infl
+    python ${cdir}/plot/plotxd.py ${op} l96 ${na} ${pert0} infl
+    python ${cdir}/plot/plotpdr.py ${op} l96 ${na} ${pert0} infl
+    python ${cdir}/plot/plotinfl.py ${op} l96 ${na} ${pert0} infl
   done
-  python ${cdir}/plot/plote.py ${op} l96 ${na}
-  python ${cdir}/plot/plotxd.py ${op} l96 ${na}
+  #python ${cdir}/plot/plote.py ${op} l96 ${na}
+  #python ${cdir}/plot/plotxd.py ${op} l96 ${na}
   #python ${cdir}/plot/plotchi.py ${op} l96 ${na}
   #python ${cdir}/plot/plotinnv.py ${op} l96 ${na} > innv_${op}.log
-  python ${cdir}/plot/plotxa.py ${op} l96 ${na}
+  #python ${cdir}/plot/plotxa.py ${op} l96 ${na}
   #python ${cdir}/plot/nmc.py ${op} l96 ${na}
   #python ${cdir}/plot/plotdof.py ${op} l96 ${na}
-  python ${cdir}/plot/plotinfl.py ${op} l96 ${na}
+  #python ${cdir}/plot/plotinfl.py ${op} l96 ${na}
   
   #rm obs*.npy
 done

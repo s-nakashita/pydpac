@@ -5,18 +5,18 @@ alias python=python3
 model=l96
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
-perturbations="etkf"
-datype="etkf"
-na=1000 # Number of assimilation cycle
-nmem=20
+perturbations="envar"
+datype="envar"
+na=300 # Number of assimilation cycle
+nmem=${1:-28}
 nobs=40
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 a_window=1
 ptype=infl
-iinf=4
-exp="${datype}_infl${iinf}"
+iinf=3
+exp="${datype}_nmem${nmem}_infl${iinf}"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}/${exp}
@@ -31,7 +31,7 @@ touch timer
 #sig="1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 15.0"
 #inf="1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9"
 #Nobs="40 35 30 25 20 15 10"
-#Nmem="40 35 30 25 20 15 10 5"
+Nmem="16 20 24 28 32 36 40"
 Nt="1 2 3 4 5 6 7 8"
 sigb_list="0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8"
 lb_list="-1.0 1.0 2.0 3.0 4.0 5.0"
@@ -53,6 +53,8 @@ for op in ${operators}; do
     ptmp=$infl_parm
   #for nobs in ${Nobs}; do
   #for nmem in ${Nmem}; do
+  #  echo $nmem >> params.txt
+  #  ptmp=$nmem
   #for a_window in ${Nt}; do
   #for sigb in ${sigb_list}; do
   #for lb in ${lb_list}; do
@@ -66,6 +68,18 @@ for op in ${operators}; do
       if [ $linf = True ];then
         gsed -i -e '/linf/s/False/True/' config.py
         gsed -i -e "4i \ \"iinf\":${iinf}," config.py
+        if [ $ptype != infl ]; then
+          if [ $nmem -lt 18 ]; then
+            infl_parm=0.6
+          elif [ $nmem -lt 22 ]; then
+            infl_parm=0.3
+          elif [ $nmem -lt 30 ]; then
+            infl_parm=0.2
+          else
+            infl_parm=0.1
+          fi
+          gsed -i -e "6i \ \"infl_parm\":${infl_parm}," config.py
+        fi
       else
         gsed -i -e '/linf/s/True/False/' config.py
       fi

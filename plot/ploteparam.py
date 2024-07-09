@@ -66,6 +66,8 @@ emean = []
 estd = []
 rmean = []
 rstd = []
+pmean = []
+pstd = []
 for pt in perts:
     #fig, ax = plt.subplots()
     i = 0
@@ -75,6 +77,8 @@ for pt in perts:
     es = np.zeros(len(var))
     rl = np.zeros(len(var))
     rs = np.zeros(len(var))
+    pl = np.zeros(len(var))
+    ps = np.zeros(len(var))
     for ivar in var:
     #f = "{}_e_{}_{}_{}.txt".format(model, op, pt, int(ivar))
         f = "{}_e_{}_{}_{}.txt".format(model, op, pt, ivar)
@@ -109,6 +113,21 @@ for pt in perts:
             else:
                 rl[i] = np.mean(s[0,nspinup:]/e[0,nspinup:])
                 rs[i] = np.mean(s[1,nspinup:])
+        f = "{}_pdr_{}_{}_{}.txt".format(model, op, pt, ivar)
+        if not os.path.isfile(f):
+            print("not exist {}".format(f))
+            pl[i] = np.nan
+            ps[i] = np.nan
+        else:
+            data = np.loadtxt(f)
+            p = data[:,1:]
+            if np.isnan(s).any():
+                print("divergence in {}".format(pt))
+                pl[i] = np.nan
+                ps[i] = np.nan
+            else:
+                pl[i] = np.mean(p[0,nspinup:])
+                ps[i] = np.mean(p[1,nspinup:])
         i+=1
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if j > 0:
@@ -118,8 +137,10 @@ for pt in perts:
         estd.append(es)
         rmean.append(rl)
         rstd.append(rs)
+        pmean.append(pl)
+        pstd.append(ps)
 if len(methods)==0: exit()
-fig, axs = plt.subplots(nrows=2,sharex=True,figsize=[6,6],constrained_layout=True)
+fig, axs = plt.subplots(nrows=3,sharex=True,figsize=[8,8],constrained_layout=True)
 xaxis = np.arange(len(var)) - len(methods)*0.025
 i=0
 for pt in methods:
@@ -128,13 +149,16 @@ for pt in methods:
     es = estd[i]
     rl = rmean[i]
     rs = rstd[i]
+    pl = pmean[i]
+    ps = pstd[i]
     if pt[:2] == "4d":
         mark=marker["4d"]; color=linecolor[pt[2:]]
     else:
         mark=marker["3d"]; color=linecolor[pt]
     axs[0].errorbar(xaxis, el, yerr=es, marker=mark, color=color, label=pt)
     axs[1].errorbar(xaxis, rl, yerr=rs, marker=mark, color=color, label=pt)
-    for ax in axs:
+    axs[2].errorbar(xaxis, pl, yerr=ps, marker=mark, color=color, label=pt)
+    for ax in axs[:1]:
         for j in range(ns.size):
             ax.text(xaxis[j], 0.93, f'{int(ns[j]):d}',\
             transform=ax.get_xaxis_transform(),\
@@ -143,11 +167,14 @@ for pt in methods:
     i+=1
 axs[0].set( #xlabel="{} parameter".format(ptype), \
     ylabel="RMSE")
-axs[1].set(xlabel="{} parameter".format(ptype), \
+axs[1].set( #xlabel="{} parameter".format(ptype), \
     ylabel="SPREAD/RMSE")
+axs[2].set(xlabel="{} parameter".format(ptype), \
+    ylabel="PDR")
 axs[1].hlines([1],0,1,colors='k',transform=axs[1].get_yaxis_transform())
-axs[1].set_xticks(np.arange(len(var)))
-axs[1].set_xticklabels(var)
+axs[2].hlines([1],0,1,colors='k',transform=axs[2].get_yaxis_transform())
+axs[2].set_xticks(np.arange(len(var)))
+axs[2].set_xticklabels(var)
 for ax in axs:
     ax.legend(loc='upper right')
         #fig.savefig("{}_e{}_{}_{}.png".format(model, ptype, op, pt))
