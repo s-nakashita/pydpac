@@ -7,19 +7,20 @@ model="l05nestm"
 operators="linear" # quadratic" # cubic"
 perturbations="var_nest var envar_nest envar"
 #perturbations="mlef"
-perturbations="envar_nestc"
+perturbations="envar_nest"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=1000 # Number of assimilation cycle
+na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 extfcst=False # for NMC
+iinf=-3
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
@@ -34,7 +35,8 @@ hyper_mu=0.0
 exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
-exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
+#exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
+exp="envar_infl${iinf}def_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
@@ -43,13 +45,14 @@ ddir=${cdir}/work/${model}
 #ddir=/Volumes/FF520/nested_envar/data/${model}
 preGM=True
 preGMda="envar"
-preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
+preGMdir="/Users/nakashita/Development/pydpac/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/${preGMda}_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
 wdir=${ddir}/${exp}
 #rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
+echo ` pwd `
 cp ${cdir}/logging_config.ini .
 if [ ${model} = l05nest ]; then
 ln -fs ${cdir}/data/l05III/truth.npy .
@@ -58,16 +61,18 @@ ln -fs ${cdir}/data/l05IIIm/truth.npy .
 #ln -fs ${ddir}/truth.npy .
 fi
 rm -rf obs*.npy
-rm -rf *.log
+#rm -rf *.log
 rm -rf timer
 touch timer
-#if [ $preGM = True ]; then
-#  cp ${preGMdir}/obs*.npy .
-#fi
+if [ $preGM = True ]; then
+  cp ${preGMdir}/obs*.npy .
+fi
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
 #cp ../var_vs_envar_wobc_m${nmem}obs${nobs}/obs*.npy .
+rseed=504770
+roseed=None #514
 mkdir -p data
 for op in ${operators}; do
   for pert in ${perturbations}; do
@@ -77,9 +82,11 @@ for op in ${operators}; do
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
     gsed -i -e "2i \ \"rseed\":${rseed}," config.py
+    gsed -i -e "2i \ \"roseed\":${roseed}," config.py
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
     if [ $linf = True ];then
     gsed -i -e '/linf/s/False/True/' config.py
+    gsed -i -e "4i \ \"iinf\":${iinf}," config.py
     else
     gsed -i -e '/linf/s/True/False/' config.py
     fi
@@ -93,7 +100,7 @@ for op in ${operators}; do
     if [ ! -z $lsig ]; then
     gsed -i -e "8i \ \"lsig\":${lsig}," config.py
     fi
-    gsed -i -e "5i \ \"obsloctype\":\"partial\"," config.py
+    #gsed -i -e "5i \ \"obsloctype\":\"partial\"," config.py
     mv config.py config_gm.py
     cp config_gm.py config_lam.py
     if [ ! -z $lgsig ]; then
@@ -162,28 +169,14 @@ for op in ${operators}; do
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
     echo "scale=3; (${end_time}-${start_time})/1000" | bc >> timer
-    mv ${model}_e_gm_${op}_${pt}.txt e_gm_${op}_${pert}.txt
-    mv ${model}_stda_gm_${op}_${pt}.txt stda_gm_${op}_${pert}.txt
-    mv ${model}_xdmean_gm_${op}_${pt}.txt xdmean_gm_${op}_${pert}.txt
-    mv ${model}_xsmean_gm_${op}_${pt}.txt xsmean_gm_${op}_${pert}.txt
-    mv ${model}_ef_gm_${op}_${pt}.txt ef_gm_${op}_${pert}.txt
-    mv ${model}_stdf_gm_${op}_${pt}.txt stdf_gm_${op}_${pert}.txt
-    mv ${model}_xdfmean_gm_${op}_${pt}.txt xdfmean_gm_${op}_${pert}.txt
-    mv ${model}_xsfmean_gm_${op}_${pt}.txt xsfmean_gm_${op}_${pert}.txt
-    mv ${model}_xagm_${op}_${pt}.npy xagm_${op}_${pert}.npy
-    mv ${model}_xsagm_${op}_${pt}.npy xsagm_${op}_${pert}.npy
-    mv ${model}_xfgm_${op}_${pt}.npy xfgm_${op}_${pert}.npy
-    mv ${model}_e_lam_${op}_${pt}.txt e_lam_${op}_${pert}.txt
-    mv ${model}_stda_lam_${op}_${pt}.txt stda_lam_${op}_${pert}.txt
-    mv ${model}_xdmean_lam_${op}_${pt}.txt xdmean_lam_${op}_${pert}.txt
-    mv ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam_${op}_${pert}.txt
-    mv ${model}_ef_lam_${op}_${pt}.txt ef_lam_${op}_${pert}.txt
-    mv ${model}_stdf_lam_${op}_${pt}.txt stdf_lam_${op}_${pert}.txt
-    mv ${model}_xdfmean_lam_${op}_${pt}.txt xdfmean_lam_${op}_${pert}.txt
-    mv ${model}_xsfmean_lam_${op}_${pt}.txt xsfmean_lam_${op}_${pert}.txt
-    mv ${model}_xalam_${op}_${pt}.npy xalam_${op}_${pert}.npy
-    mv ${model}_xsalam_${op}_${pt}.npy xsalam_${op}_${pert}.npy
-    mv ${model}_xflam_${op}_${pt}.npy xflam_${op}_${pert}.npy
+    for vtype in e stda xdmean xsmean ef stdf xdfmean xsfmean infl pdr; do
+      mv ${model}_${vtype}_gm_${op}_${pt}.txt ${vtype}_gm_${op}_${pert}.txt
+      mv ${model}_${vtype}_lam_${op}_${pt}.txt ${vtype}_lam_${op}_${pert}.txt
+    done
+    for vtype in xa xsa xf xsf; do
+      mv ${model}_${vtype}gm_${op}_${pt}.npy ${vtype}gm_${op}_${pert}.npy
+      mv ${model}_${vtype}lam_${op}_${pt}.npy ${vtype}lam_${op}_${pert}.npy
+    done
     loctype=`echo $pert | cut -c5-5`
     if [ "${loctype}" = "b" ]; then
       mv ${model}_gm_rho_${op}_${pt}.npy ${model}_rhogm_${op}_${pert}.npy
@@ -239,6 +232,8 @@ for op in ${operators}; do
   rm ${model}_*_jh_${op}_*_cycle*.txt && \
   rm ${model}_*_gh_${op}_*_cycle*.txt
   rm ${model}_*_alpha_${op}_*_cycle*.txt
+  python ${cdir}/plot/plotinfl_nest.py ${op} ${model} ${na}
+  python ${cdir}/plot/plotpdr_nest.py ${op} ${model} ${na}
   #rm obs*.npy
 done
 #rm ${model}*.txt 

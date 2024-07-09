@@ -81,6 +81,7 @@ class L05nest_func():
         self.preGMda = params_lam["preGMda"]
         logger.info("precomputed GM={}".format(self.preGM))
         if self.preGM:
+            logger.info(f"precomputed dir={self.preGMdir}")
             logger.info(f"precomputed pt={self.preGMda}")
     
     # generate truth

@@ -19,7 +19,7 @@ model_error=True
 functype=gc5
 a=-0.2
 #exp="var_${functype}a${a}_obs${nobs}"
-exp="envar_mem${nmem}obs${nobs}"
+exp="envar_infl_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -45,6 +45,8 @@ fi
 else
 ln -fs ${cdir}/data/${model}/truth.npy .
 fi
+rseed=514
+roseed=515
 for op in ${operators}; do
   for pert0 in ${perturbations}; do
     echo $pert0
@@ -56,6 +58,8 @@ for op in ${operators}; do
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
+    gsed -i -e "2i \ \"rseed\":${rseed}," config.py
+    gsed -i -e "2i \ \"roseed\":${roseed}," config.py
     if [ $linf = True ];then
       gsed -i -e '/linf/s/False/True/' config.py
       gsed -i -e "4i \ \"iinf\":${iinf}," config.py
@@ -140,7 +144,7 @@ for op in ${operators}; do
     python ${cdir}/plot/plote.py ${op} ${model} ${na} ${pert0} infl
     python ${cdir}/plot/plotxd.py ${op} ${model} ${na} ${pert0} infl
     python ${cdir}/plot/plotpdr.py ${op} ${model} ${na} ${pert0} infl
-    python ${cdir}/plot/plotinfl.py ${op} ${model} ${na} ${pert0}
+    python ${cdir}/plot/plotinfl.py ${op} ${model} ${na} ${pert0} infl
   done #pert
 #  python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
 #  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef

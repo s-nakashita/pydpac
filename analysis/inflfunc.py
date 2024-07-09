@@ -121,10 +121,10 @@ class inflfunc():
             rho2 = max(1.0, rho2)
             rho = np.sqrt(rho2)
             diff = np.sqrt((rho-rho0)*(rho-rho0))
+            logger.info(f'iter{it}: rho={rho0} diff={diff}')
             if diff < eps: break
             rho0 = rho
             it+=1
-            logger.info(f'iter{it}: rho={rho0} diff={diff}')
         self.rhosave.append(rho)
         return rho * gamma
 

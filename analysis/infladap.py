@@ -21,6 +21,7 @@ class infladap():
         sig2o = 2.0 / parm[2] * ((apre*parm[1] + parm[2])/parm[1])**2
         gain = self.sigb*self.sigb / (self.sigb*self.sigb + sig2o)
         anow = apre + gain*(aest - apre)
+        anow = max(1.0, anow)
         # update
         self.asave.append(anow)
         return anow

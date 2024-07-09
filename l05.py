@@ -133,6 +133,7 @@ params["getkf"]      =  False   # (For model space localization) gain form resam
 params["ltlm"]       =  True    # flag for tangent linear observation operator
 params["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
 params["rseed"] = None # random seed
+params["roseed"] = None # random seed for obsope
 params["extfcst"] = False # extended forecast
 params["model_error"] = False # valid for l05II, True: perfect model experiment, False: inperfect model experiment
 ## update from configure file
@@ -160,7 +161,7 @@ intmod = params["nx_true"]//nx
 ix = np.arange(0,params["nx_true"],intmod)
 
 # observation operator
-obs = Obs(op, sigma[op])
+obs = Obs(op, sigma[op], seed=params["roseed"])
 obs_mod = Obs(op, sigma[op], ix=ix)
 
 # assimilation class

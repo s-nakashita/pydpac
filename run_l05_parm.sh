@@ -14,12 +14,12 @@ lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 model_error=True
 #L="-1.0 0.5 1.0 2.0"
-ptype=infl
-iinf=3
+ptype=nmem
+iinf=-3
 functype=gc5
 a=-0.2
 #exp="var_${functype}a${a}_${ptype}_obs${nobs}"
-exp="envar_obs${nobs}mem${nmem}_${ptype}"
+exp="envar_infl${iinf}_obs${nobs}mem${nmem}_${ptype}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -52,18 +52,18 @@ lblist="2.0 4.0 6.0 8.0 10.0 12.0"
 touch params.txt
 for op in ${operators}; do
   echo $ptype > params.txt
-  #for nmem in ${nmemlist}; do
-  #  echo $nmem >> params.txt
-  #  ptmp=$nmem
+  for nmem in ${nmemlist}; do
+    echo $nmem >> params.txt
+    ptmp=$nmem
   #for lsig in ${lsiglist}; do
   #  echo $lsig >> params.txt
   #  ptmp=$lsig
   #for nobs in ${nobslist}; do
   #  echo $nobs >> params.txt
   #  ptmp=$nobs
-  for infl in ${infllist}; do
-    echo $infl >> params.txt
-    ptmp=$infl
+  #for infl in ${infllist}; do
+  #  echo $infl >> params.txt
+  #  ptmp=$infl
   #for sigb in ${sigblist}; do
   #  echo $sigb >> params.txt
   #  ptmp=$sigb
@@ -119,28 +119,16 @@ for op in ${operators}; do
         end_time=$(date +"%s")
         cputime=`echo "scale=3; ${end_time}-${start_time}" | bc`
         echo "${op} ${pert} ${count} ${cputime}" >> timer
-        mv ${model}_e_${op}_${pt}.txt e_${op}_${pt}_${count}.txt
-        mv ${model}_stda_${op}_${pt}.txt stda_${op}_${pt}_${count}.txt
-        mv ${model}_xdmean_${op}_${pt}.txt xdmean_${op}_${pt}_${count}.txt
-        mv ${model}_xsmean_${op}_${pt}.txt xsmean_${op}_${pt}_${count}.txt
-        mv ${model}_pdr_${op}_${pt}.txt pdr_${op}_${pt}_${count}.txt
+        for vtype in e stda xdmean xsmean pdr infl; do
+          mv ${model}_${vtype}_${op}_${pt}.txt ${vtype}_${op}_${pt}_${count}.txt
+        done
         rm obs*.npy
       done
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e ${pt}
-      rm e_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda ${pt}
-      rm stda_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean ${pt}
-      rm xdmean_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean ${pt}
-      rm xsmean_${op}_${pt}_*.txt
-      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} pdr ${pt}
-      rm pdr_${op}_${pt}_*.txt
-      mv ${model}_e_${op}_${pt}.txt ${model}_e_${op}_${pert}_${ptmp}.txt
-      mv ${model}_stda_${op}_${pt}.txt ${model}_stda_${op}_${pert}_${ptmp}.txt
-      mv ${model}_xdmean_${op}_${pt}.txt ${model}_xdmean_${op}_${pert}_${ptmp}.txt
-      mv ${model}_xsmean_${op}_${pt}.txt ${model}_xsmean_${op}_${pert}_${ptmp}.txt
-      mv ${model}_pdr_${op}_${pt}.txt ${model}_pdr_${op}_${pert}_${ptmp}.txt
+      for vtype in e stda xdmean xsmean pdr infl; do
+        python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} ${vtype} ${pt}
+        rm ${vtype}_${op}_${pt}_*.txt
+        mv ${model}_${vtype}_${op}_${pt}.txt ${model}_${vtype}_${op}_${pert}_${ptmp}.txt
+      done
     done #pert
     #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #nmem

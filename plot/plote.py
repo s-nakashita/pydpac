@@ -85,10 +85,10 @@ if model == "qg":
     fig2, ax2 = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
     figf2, axf2 = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
 else:
-    fig, ax = plt.subplots(figsize=(10,5),constrained_layout=True)
-    figf, axf = plt.subplots(figsize=(10,5),constrained_layout=True)
-    fig2, ax2 = plt.subplots(figsize=(10,5),constrained_layout=True)
-    figf2, axf2 = plt.subplots(figsize=(10,5),constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(12,5),constrained_layout=True)
+    figf, axf = plt.subplots(figsize=(12,5),constrained_layout=True)
+    fig2, ax2 = plt.subplots(figsize=(12,5),constrained_layout=True)
+    figf2, axf2 = plt.subplots(figsize=(12,5),constrained_layout=True)
 #ax2 = ax.twinx()
 nspinup = na//5
 i = 0
@@ -292,13 +292,13 @@ else:
         stda = np.loadtxt(f)
         if model == "qg":
             stda = stda.reshape(-1,2)
-            for i in range(2):
-                ax[i].plot(x, stda[:,i], linestyle="dashed", color=c) #, label=itype+" stdv.")
-        else:
-            if pt[:2] != "4d":
-                ax.plot(x, stda, linestyle="dashed", marker=marker["3ds"], color=c) #, label=itype+" stdv.")
-            else:
-                ax.plot(x, stda, linestyle="dashed", marker=marker["4ds"], color=c) #, label=itype+" stdv.")
+        #    for i in range(2):
+        #        ax[i].plot(x, stda[:,i], linestyle="dashed", color=c) #, label=itype+" stdv.")
+        #else:
+        #    if pt[:2] != "4d":
+        #        ax.plot(x, stda, linestyle="dashed", marker=marker["3ds"], color=c) #, label=itype+" stdv.")
+        #    else:
+        #        ax.plot(x, stda, linestyle="dashed", marker=marker["4ds"], color=c) #, label=itype+" stdv.")
         if model == "qg":
             if e.shape[1] > na:
                 for i in range(2):
@@ -361,13 +361,13 @@ else:
         stdf = np.loadtxt(f)
         if model == "qg":
             stdf = stdf.reshape(-1,2)
-            for i in range(2):
-                axf[i].plot(x, stdf[:,i], linestyle="dashed", color=c) #, label=label+" stdv.")
-        else:
-            if pt[:2] != "4d":
-                axf.plot(x, stdf, linestyle="dashed", marker=marker["3ds"], color=c) #, label=label+" stdv.")
-            else:
-                axf.plot(x, stdf, linestyle="dashed", marker=marker["4ds"], color=c) #, label=label+" stdv.")
+        #    for i in range(2):
+        #        axf[i].plot(x, stdf[:,i], linestyle="dashed", color=c) #, label=label+" stdv.")
+        #else:
+        #    if pt[:2] != "4d":
+        #        axf.plot(x, stdf, linestyle="dashed", marker=marker["3ds"], color=c) #, label=label+" stdv.")
+        #    else:
+        #        axf.plot(x, stdf, linestyle="dashed", marker=marker["4ds"], color=c) #, label=label+" stdv.")
         if model == "qg":
             if ef.shape[1] > na:
                 for i in range(2):
@@ -485,10 +485,10 @@ else:
         axf2.set_xticks(x[::5])
         axf2.set_xticks(x, minor=True)
     #ax2.set_yscale("log")
-    ax.legend()
-    ax2.legend()
-    axf.legend()
-    axf2.legend()
+    ax.legend(loc='upper left',bbox_to_anchor=(1.01,0.9))
+    ax2.legend(loc='upper left',bbox_to_anchor=(1.01,0.9))
+    axf.legend(loc='upper left',bbox_to_anchor=(1.01,0.9))
+    axf2.legend(loc='upper left',bbox_to_anchor=(1.01,0.9))
 if linfl:
     fig.savefig("{}_e_{}_{}.png".format(model, op, pt))
     fig2.savefig("{}_e+stda_{}_{}.png".format(model, op, pt))
