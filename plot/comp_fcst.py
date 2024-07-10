@@ -28,6 +28,11 @@ if len(sys.argv)>5:
 t = np.arange(na)+1
 ns = 40 # spinup
 
+ldble_gm  = 1.76 * 0.05 / 6 # LII Lyapunov exponent (1/hour)
+ldble_lam = 3.46 * 0.05 / 6 # LIII Lyapunov exponent (1/hour)
+print(f"GM doubling time = {np.log(2.0)/ldble_gm:.2f} [hours]")
+print(f"LAM doubling time = {np.log(2.0)/ldble_lam:.2f} [hours]")
+
 wdir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 wdir = Path(f'../work/{model}')
 dscldir = wdir / 'var_vs_envar_dscl_m80obs30'
@@ -213,7 +218,8 @@ if not preGM:
     xaxis = np.arange(1,nft+1) - xoffset
     for pt in etgm_dict.keys():
         et_gm = etgm_dict[pt]
-        bplot = axg.boxplot(et_gm.T,positions=xaxis,widths=width,patch_artist=True,whis=(0,100))
+        bplot = axg.boxplot(et_gm.T,positions=xaxis,widths=width,patch_artist=True,\
+        whis=0.0,showfliers=False,medianprops={"color":linecolor[pt]})
         for patch in bplot['boxes']:
             patch.set_facecolor(linecolor[pt])
             patch.set_alpha(0.3)
@@ -221,6 +227,11 @@ if not preGM:
     axg.hlines([1.0],0,1,colors='gray',ls='dotted',transform=axg.get_yaxis_transform())
     axg.set_ylabel('GM Forecast RMSE')
     ymin, ylim = axg.get_ylim()
+    y0 = 1.0
+    y = y0 * np.exp(np.array(ft)*ldble_gm)
+    axg.plot(np.arange(1,nft+1),y,c='gray',lw=2.0,alpha=0.5,zorder=0)
+    axg.set_ylim(ymin,ylim)
+    axg.grid(which='both')
     axl.set_ylim(ymin,ylim)
 nmethods = len(etlam_dict)
 if ldscl:
@@ -236,6 +247,9 @@ for pt in etlam_dict.keys():
         patch.set_facecolor(linecolor[pt])
         patch.set_alpha(0.3)
     xaxis = xaxis + width
+y0 = 1.0
+y = y0 * np.exp(np.array(ft)*ldble_lam)
+axl.plot(np.arange(1,nft+1),y,c='gray',lw=2.0,alpha=0.5,zorder=0)
 axl.set_ylabel('LAM Forecast RMSE')
 axl.set_xticks(np.arange(1,nft+1,2))
 axl.set_xticks(np.arange(1,nft+1),minor=True)

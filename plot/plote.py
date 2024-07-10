@@ -8,6 +8,7 @@ from methods import perts, linecolor
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+nspinup = na // 5
 marker = {"3d":"o","4d":"x","3ds":"x","4ds":"^"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
@@ -97,7 +98,7 @@ try:
     if np.isnan(e).any():
         print("divergence in NoDA")
     else:
-        print("NoDA, mean RMSE = {}".format(np.mean(e[int(na/3):])))
+        print("NoDA, mean RMSE = {}".format(np.mean(e[nspinup:])))
         ax.plot(x, e, linestyle='dotted', color='gray', label='NoDA')
 except OSError or FileNotFoundError:
     print("not exist {}".format(f))
@@ -113,9 +114,9 @@ for pt in perts:
         continue
     if model == "qg":
         e = e.reshape(-1,2)
-        print("{}, analysis RMSE = {}".format(pt,np.mean(e[int(na/3):,1])))
+        print("{}, analysis RMSE = {}".format(pt,np.mean(e[nspinup:,1])))
     else:
-        print("{}, analysis RMSE = {}".format(pt,np.mean(e[int(na/3):])))
+        print("{}, analysis RMSE = {}".format(pt,np.mean(e[nspinup:])))
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if model == "qg":
         if pt[:2] != "4d":
@@ -179,9 +180,9 @@ for pt in perts:
         continue
     if model == "qg":
         ef = ef.reshape(-1,2)
-        print("{}, forecast RMSE = {}".format(pt,np.mean(ef[int(na/3):,1])))
+        print("{}, forecast RMSE = {}".format(pt,np.mean(ef[nspinup:,1])))
     else:
-        print("{}, forecast RMSE = {}".format(pt,np.mean(ef[int(na/3):])))
+        print("{}, forecast RMSE = {}".format(pt,np.mean(ef[nspinup:])))
     #ax.plot(x, e, linestyle=linestyle[pt], color=linecolor[pt], label=pt)
     if model == "qg":
         if pt[:2] != "4d":

@@ -7,16 +7,16 @@ model="l05nestm"
 operators="linear" # quadratic" # cubic"
 perturbations="var_nest var envar_nest envar"
 #perturbations="mlef"
-perturbations="envar_nestc"
+perturbations="envar_nest envar"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
 #perturbations="etkfbm"
-na=1000 # Number of assimilation cycle
+na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
-linf=True # True:Apply inflation False:Not apply
+linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 extfcst=False # for NMC
@@ -34,7 +34,8 @@ hyper_mu=0.0
 exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
-exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
+#exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
+exp="envar_nest_noinfl_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
@@ -61,13 +62,15 @@ rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
 touch timer
-#if [ $preGM = True ]; then
-#  cp ${preGMdir}/obs*.npy .
-#fi
+if [ $preGM = True ]; then
+  cp ${preGMdir}/obs*.npy .
+fi
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
 #cp ../var_vs_envar_wobc_m${nmem}obs${nobs}/obs*.npy .
+rseed=504770
+roseed=None #514
 mkdir -p data
 for op in ${operators}; do
   for pert in ${perturbations}; do
@@ -77,6 +80,7 @@ for op in ${operators}; do
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
     gsed -i -e "2i \ \"rseed\":${rseed}," config.py
+    gsed -i -e "2i \ \"roseed\":${roseed}," config.py
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
     if [ $linf = True ];then
     gsed -i -e '/linf/s/False/True/' config.py

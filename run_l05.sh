@@ -2,23 +2,23 @@
 # This is a run script for Lorenz05 experiment
 export OMP_NUM_THREADS=4
 #alias python=python3.9
-model="l05II"
+model="l05IIm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var envar"
+perturbations="mlef envar"
 na=240 # Number of assimilation cycle
-nmem=480 # ensemble size
-nobs=30 # observation volume
-linf=True # True:Apply inflation False:Not apply
+nmem=80 # ensemble size
+nobs=15 # observation volume
+linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-model_error=True
+model_error=False
 #L="-1.0 0.5 1.0 2.0"
 #lsig=120
 functype=gc5
 a=-0.2
 #exp="var_${functype}a${a}_obs${nobs}"
-exp="var+envar_mem${nmem}obs${nobs}"
+exp="mlef+envar_noinfl_mem${nmem}obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
@@ -44,6 +44,8 @@ fi
 else
 ln -fs ${cdir}/data/${model}/truth.npy .
 fi
+rseed=509
+roseed=517
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
@@ -52,6 +54,8 @@ for op in ${operators}; do
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
+    gsed -i -e "2i \ \"rseed\":${rseed}," config.py
+    gsed -i -e "2i \ \"roseed\":${roseed}," config.py
     if [ $linf = True ];then
     gsed -i -e '/linf/s/False/True/' config.py
     else
