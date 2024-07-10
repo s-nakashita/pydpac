@@ -97,14 +97,22 @@ for ax in np.concatenate((axsdJ.flatten(),axsdx.flatten())):
     ax.fill_between(x[i0:i1],0,1,\
         color='gray',alpha=0.5,transform=ax.get_xaxis_transform(),zorder=0)
 
-for ax in axsdJ.flatten():
-    ax.set_ylim(-dJlim[vt],dJlim[vt])
-    ax.grid()
-for ax in axsdx.flatten():
-    ax.set_ylim(-dxlim[vt],dxlim[vt])
-    ax.grid()
+#for ax in axsdJ.flatten():
+#    ax.set_ylim(-dJlim[vt],dJlim[vt])
+#    ax.grid()
+#for ax in axsdx.flatten():
+#    ax.set_ylim(-dxlim[vt],dxlim[vt])
+#    ax.grid()
+for axs in [axsdJ,axsdx]:
+    for i,ax in enumerate(axs.flatten()):
+        if i==0:
+            ymin,ymax = ax.get_ylim()
+        else:
+            ax.set_ylim(ymin,ymax)
+        ax.grid()
+
 figdJ.suptitle(r'$\frac{\partial J}{\partial \mathbf{x}_0}$'+f" FT{vt} {nens} member")
 figdx.suptitle(r'$\delta\mathbf{x}_0^\mathrm{opt}$'+f" FT{vt} {nens} member")
 figdJ.savefig(figdir/f"composite_dJdx0_vt{vt}nens{nens}.png",dpi=300)
 figdx.savefig(figdir/f"composite_dx0opt_vt{vt}nens{nens}.png",dpi=300)
-plt.show()
+#plt.show()
