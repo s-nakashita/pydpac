@@ -15,12 +15,12 @@ enasas = ['minnorm','diag','pcr','ridge','pls']
 enasa_colors = {'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
 enasa_markers = {'minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
 
-nens = 20
-if len(sys.argv)>1:
-    nens = int(sys.argv[1])
 vt = 24
+if len(sys.argv)>1:
+    vt = int(sys.argv[1])
+nens = 8
 if len(sys.argv)>2:
-    vt = int(sys.argv[2])
+    nens = int(sys.argv[2])
 # load results
 ds_asa = xr.open_dataset(datadir/f'asa_vt{vt}nens{nens}.nc')
 print(ds_asa)
