@@ -7,7 +7,6 @@ from enasa import EnASA
 import sys
 sys.path.append('../model')
 from lorenz import L96
-plt.rcParams['font.size'] = 16
 
 # forecast model
 nx = 40
@@ -25,7 +24,7 @@ def cost(x,*args):
     nxh = x.size // 2
     i0 = nxh - hwidth
     i1 = nxh + hwidth + 1
-    xd = np.roll(x,nxh-ic)[i0:i1] - np.roll(xa,nxh-ic)[i0:i1]
+    xd = np.roll(x,nxh-ic,axis=0)[i0:i1] - np.roll(xa,nxh-ic,axis=0)[i0:i1]
     return 0.5*np.dot(xd,xd)
 def jac(x,*args):
     xa, ic, hwidth = args
@@ -33,8 +32,8 @@ def jac(x,*args):
     i0 = nxh - hwidth
     i1 = nxh + hwidth + 1
     dJdxtmp = np.zeros_like(x)
-    dJdxtmp[i0:i1] = np.roll(x,nxh-ic)[i0:i1] - np.roll(xa,nxh-ic)[i0:i1]
-    dJdx = np.roll(dJdxtmp,-nxh+ic)
+    dJdxtmp[i0:i1] = np.roll(x,nxh-ic,axis=0)[i0:i1] - np.roll(xa,nxh-ic,axis=0)[i0:i1]
+    dJdx = np.roll(dJdxtmp,-nxh+ic,axis=0)
     return dJdx
 
 # load data
@@ -43,7 +42,10 @@ pt = 'letkf'
 nens = 20
 if len(sys.argv)>2:
     nens=int(sys.argv[2])
-datadir = Path(f'/Volumes/dandelion/pyesa/data/{modelname}/extfcst_m{nens}')
+if nens==200:
+    datadir = Path(f'/Volumes/dandelion/pyesa/data/{modelname}/extfcst_letkf_m{nens}')
+else:
+    datadir = Path(f'/Volumes/dandelion/pyesa/data/{modelname}/extfcst_m{nens}')
 xf00 = np.load(datadir/f"{modelname}_xf00_linear_{pt}.npy")
 xfv  = np.load(datadir/f"{modelname}_xf{vt:02d}_linear_{pt}.npy")
 
@@ -55,7 +57,8 @@ res_dict={'asa':[]}
 rmsdJ_dict = {}
 rmsdx_dict = {}
 corrdJ_dict = {}
-solverlist=['minnorm','diag','pcr','ridge','pls']
+#solverlist=['minnorm','diag','pcr','ridge','pls']
+solverlist=['pcr','pls']
 for solver in solverlist:
     dJdx0_dict[solver] = []
     dx0opt_dict[solver] = []
@@ -69,10 +72,12 @@ cmap = plt.get_cmap('tab10')
 
 cycles = []
 ics = []
+Jes = []
 for i in range(nsample):
     icyc = icyc0 + i
     cycles.append(icyc)
     xa = xf00[icyc+ioffset].mean(axis=1)
+    #xa[:] = 0.0
     xf = xfv [icyc+ioffset].mean(axis=1)
     ic = np.argmax(np.abs(xa - xf)) # center of verification region
     hwidth = 1 # half-width of verification region
@@ -105,114 +110,79 @@ for i in range(nsample):
     Je = np.zeros(nens)
     for k in range(nens):
         Je[k] = cost(xev[:,k],*args)
+    Jes.append(Je)
+    Jeest = {}
 
-    enasa = EnASA(vt,X0,Je)
     for solver in solverlist:
-        dJedx0 = enasa(solver=solver)
+        enasa = EnASA(vt,X0,Je,solver=solver)
+        dJedx0 = enasa()
         dxe0opt = asa.calc_dxopt(xb,dJedx0)
         dJdx0_dict[solver].append(dJedx0)
         dx0opt_dict[solver].append(dxe0opt)
         res_nl, res_tl = asa.check_djdx(xb,dJedx0,dxe0opt,\
             model,model.step_t,plot=False)
         res_dict[solver].append([res_nl,res_tl])
+        Jeest[solver] = enasa.estimate()
         rmsdJ_dict[solver].append(np.sqrt(np.mean((dJedx0-dJdx0)**2)))
         rmsdx_dict[solver].append(np.sqrt(np.mean((dxe0opt-dx0opt)**2)))
         corr=np.correlate(dJedx0,dJdx0)/np.linalg.norm(dJedx0,ord=2)/np.linalg.norm(dJdx0,ord=2)
         corrdJ_dict[solver].append(corr[0])
+        if i==0: print(f"{solver} score={enasa.score()}")
     if i<0:
         print(f"ic={ic}")
-        fig, ax = plt.subplots()
+        fig, axs = plt.subplots(nrows=3,sharex=True,figsize=[8,8],constrained_layout=True)
+        axs[0].plot(xa,label='analysis')
+        axs[0].plot(xf,label='forecast')
+        axs[0].plot(xf-xa,ls='dotted',label='diff')
         for j,key in enumerate(dJdx0_dict.keys()):
             if key=='asa':
-                ax.plot(dJdx0_dict[key][i],label=key,lw=2.0)
+                axs[1].plot(dJdx0_dict[key][i],label=key,lw=2.0)
+                axs[2].plot(dx0opt_dict[key][i],label=key,lw=2.0)
             else:
-                ax.plot(dJdx0_dict[key][i],ls='dashed',marker=markers[j],label=f'EnASA,{key}',**marker_style)
-        ax.legend()
-        ax.grid()
-        ax.set_title('dJ/dx0')
+                axs[1].plot(dJdx0_dict[key][i],ls='dashed',marker=markers[j],label=f'EnASA,{key}',**marker_style)
+                axs[2].plot(dx0opt_dict[key][i],ls='dashed',marker=markers[j],label=f'EnASA,{key}',**marker_style)
+        for ax in axs:
+            ax.vlines([ic],0,1,colors='r',transform=ax.get_xaxis_transform())
+            ax.legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
+            ax.grid()
+        axs[1].set_title('dJ/dx0')
+        axs[2].set_title('dxopt')
+        fig.suptitle(f'vt={vt}h, Nens={nens}')
         plt.show()
 
-        fig, ax = plt.subplots()
-        for j,key in enumerate(dx0opt_dict.keys()):
-            if key=='asa':
-                ax.plot(dx0opt_dict[key][i],label=key,lw=2.0)
+        fig, axs = plt.subplots(ncols=2,constrained_layout=True)
+        for i,key in enumerate(Jeest.keys()):
+            if key=='diag':
+                axs[0].plot(Je,Jeest[key],lw=0.0,marker=markers[i],c=cmap(i+1),label=key,**marker_style)
             else:
-                ax.plot(dx0opt_dict[key][i],ls='dashed',marker=markers[j],label=f'EnASA,{key}',**marker_style)
-        ax.legend()
-        ax.grid()
-        ax.set_title('dxopt')
+                axs[1].plot(Je,Jeest[key],lw=0.0,marker=markers[i],c=cmap(i+1),label=key,**marker_style)
+        for ax in axs:
+            ymin, ymax = ax.get_ylim()
+            line = np.linspace(ymin,ymax,100)
+            ax.plot(line,line,color='k',zorder=0)
+            ax.set_xlabel('observed')
+            ax.set_ylabel('estimated')
+            ax.set_title(f'Je, vt={vt}h, Nens={nens}')
+            ax.legend()
+            #ax.set_title(key)
+            ax.grid()
+            ax.set_aspect(1.0)
         plt.show()
-
-figdir = Path("fig")
-if not figdir.exists(): figdir.mkdir()
-nrows=2
-ncols=int(np.ceil(len(res_dict.keys())/2))
-fig, axs = plt.subplots(ncols=ncols,nrows=nrows,figsize=[10,8],constrained_layout=True)
-for i,key in enumerate(res_dict.keys()):
-    res = np.array(res_dict[key])
-    ax = axs.flatten()[i]
-    ax.plot(res[:,0],res[:,1],marker=markers[i],lw=0.0, c=cmap(i),#ms=10,\
-        **marker_style)
-    ax.set_title(key)
-#ymin, ymax = ax.get_ylim()
-ymin = -1.1
-ymax = 1.1
-line = np.linspace(ymin,ymax,100)
-for ax in axs.flatten():
-    ax.plot(line,line,color='k',zorder=0)
-    ax.grid()
-    ax.set_ylim(ymin,ymax)
-    ax.set_xlim(ymin,ymax)
-    ax.set_aspect(1.0)
-axs[-1,1].set_xlabel(r'NLM: $\frac{J(M(\mathbf{x}_0+\delta\mathbf{x}_0^\mathrm{opt}))-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$')
-axs[0,0].set_ylabel(r'TLM: $\frac{J(\mathbf{x}_T+\mathbf{M}\delta\mathbf{x}_0^\mathrm{opt})-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$')
-fig.suptitle(r'$\delta J/J$'+f', FT{vt} {nens} member')
-fig.savefig(figdir/f"res_vt{vt}nens{nens}.png",dpi=300)
-plt.show()
-
-fig, ax = plt.subplots(figsize=[10,8],constrained_layout=True)
-for i,key in enumerate(rmsdJ_dict.keys()):
-    marker_style['markerfacecolor']=cmap(i+1)
-    marker_style['markeredgecolor']='k'
-    x = np.array(rmsdJ_dict[key])
-    y = np.array(rmsdx_dict[key])
-    ax.plot(x,y,lw=0.0,marker='.',ms=5,c=cmap(i+1),zorder=0)
-    xm = x.mean()
-    ym = y.mean()
-    ax.plot([xm],[ym],lw=0.0,marker=markers[i+1],ms=10,c=cmap(i+1),label=f'{key}=({xm:.2e},{ym:.2e})',**marker_style)
-ax.set_xlabel('dJdx0')
-ax.set_ylabel('dxopt')
-ax.grid()
-ax.legend()
-fig.suptitle(f'RMSD against ASA, FT{vt} {nens} member')
-fig.savefig(figdir/f"rms_vt{vt}nens{nens}.png",dpi=300)
-plt.show()
-plt.close()
-
-fig, ax = plt.subplots(figsize=[8,8],constrained_layout=True)
-for i,key in enumerate(corrdJ_dict.keys()):
-    marker_style['markerfacecolor']=cmap(i+1)
-    marker_style['markeredgecolor']='k'
-    data = np.array(corrdJ_dict[key])
-    bplot = ax.boxplot(data,positions=[i+1],patch_artist=True,whis=(0,100))
-    for patch in bplot['boxes']:
-        patch.set_facecolor(cmap(i+1))
-        patch.set_alpha(0.3)
-    ym = data.mean()
-    ax.plot([i+1],[ym],lw=0.0,marker=markers[i+1],ms=10,c=cmap(i+1),**marker_style)
-ax.set_xticks(np.arange(1,len(corrdJ_dict.keys())+1))
-ax.set_xticklabels(corrdJ_dict.keys())
-ax.set_ylabel('spatial correlation')
-ax.grid(axis='y')
-#ax.legend()
-fig.suptitle(f'Spatial correlation of dJdx0 against ASA, FT{vt} {nens} member')
-fig.savefig(figdir/f"corr_vt{vt}nens{nens}.png",dpi=300)
-plt.show()
-plt.close()
+if nsample < 1000: exit()
 
 # save results to netcdf
 savedir = Path('data')
 if not savedir.exists(): savedir.mkdir(parents=True)
+Jes = np.array(Jes)
+member = np.arange(1,Jes.shape[1]+1)
+ds = xr.Dataset.from_dict(
+    {
+        "cycle":{"dims":("cycle"),"data":cycles},
+        "member":{"dims":("member"),"data":member},
+        "Je":{"dims":("cycle","member"),"data":Jes}
+    }
+)
+ds.to_netcdf(savedir/f"Je_vt{vt}nens{nens}.nc")
 for key in res_dict.keys():
     res = np.array(res_dict[key])
     dJdx0 = np.array(dJdx0_dict[key])

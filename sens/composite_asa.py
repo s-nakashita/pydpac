@@ -8,7 +8,6 @@ from pathlib import Path
 import sys
 
 datadir = Path('data')
-figdir = Path('fig')
 
 cmap = plt.get_cmap('tab10')
 enasas = ['minnorm','diag','pcr','ridge','pls']
@@ -24,6 +23,9 @@ if len(sys.argv)>1:
 nens = 8
 if len(sys.argv)>2:
     nens = int(sys.argv[2])
+figdir = Path(f"fig/vt{vt}ne{nens}")
+if not figdir.exists(): figdir.mkdir()
+
 # load results
 ds_dict = {}
 ds_asa = xr.open_dataset(datadir/f'asa_vt{vt}nens{nens}.nc')

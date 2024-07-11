@@ -4,9 +4,11 @@ from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.cross_decomposition import PLSRegression
+import matplotlib.pyplot as plt
 
 class EnASA():
-    def __init__(self,vt,X0,Je):
+    def __init__(self,vt,X0,Je,solver='minnorm'):
+        self.solver = solver
         self.vt = vt
         self.X = X0.T # (nsample, nstate)
         self.nx = self.X.shape[1]
@@ -26,21 +28,20 @@ class EnASA():
         self.sJe = yscaler.transform(self.y[:,None])[:,0]
         #print(f"Jem.shape={self.Jem.shape} Jes.shape={self.Jes.shape} sJe.shape={self.sJe.shape}")
 
-    def __call__(self,solver='minnorm',n_components=None,mu=0.01):
-        self.solver = solver
-        if solver=='minnorm':
+    def __call__(self,n_components=None,mu=0.01):
+        if self.solver=='minnorm':
             dJedx0_s = self.enasa_minnorm()
-        elif solver=='minvar':
+        elif self.solver=='minvar':
             dJedx0_s = self.enasa_minvar()
-        elif solver=='diag':
+        elif self.solver=='diag':
             dJedx0_s = self.enasa_diag()
-        elif solver=='psd':
+        elif self.solver=='psd':
             dJedx0_s = self.enasa_psd()
-        elif solver=='pcr':
+        elif self.solver=='pcr':
             dJedx0_s = self.enasa_pcr(n_components=n_components)
-        elif solver=='ridge':
+        elif self.solver=='ridge':
             dJedx0_s = self.enasa_ridge(mu=mu)
-        elif solver=='pls':
+        elif self.solver=='pls':
             dJedx0_s = self.enasa_pls(n_components=n_components)
         #print(f"dJedx0_s.shape={dJedx0_s.shape}")
         self.rescaling(dJedx0_s)
@@ -49,33 +50,35 @@ class EnASA():
 
     def rescaling(self,dJedx0_s):
         if self.solver == 'pcr':
-            self.dJedx0 = dJedx0_s.copy()
-            self.err = self.reg.intercept_
+            #self.dJedx0 = dJedx0_s.copy()
+            self.dJedx0 = dJedx0_s / self.X0s
+            self.err = self.reg.intercept_ - np.dot(self.X0m, dJedx0_s)
         elif self.solver == 'pls':
-            self.dJedx0 = dJedx0_s.copy()
-            self.err = self.pls.intercept_
+            #self.dJedx0 = dJedx0_s.copy()
+            self.dJedx0 = dJedx0_s / self.X0s
+            self.err = self.pls.intercept_ - np.dot(self.X0m, dJedx0_s)
         else:
             self.dJedx0 = dJedx0_s * self.Jes / self.X0s
             self.err = self.Jem - np.dot(self.X0m,self.dJedx0)
     
     def estimate(self):
-        if self.solver == 'pls':
-            Je_est = self.pls.predict(self.X)
-        elif self.solver == 'pcr':
-            Je_est = self.pcr.predict(self.X)
-        else:
-            Je_est = np.dot(self.X,self.dJedx0) + self.err
-        return Je_est
+        #if self.solver == 'pcr':
+        #    Je_est1 = self.pcr.predict(self.X)
+        #elif self.solver == 'pls':
+        #    Je_est1 = self.pls.predict(self.X)
+        #else:
+        Je_est = np.dot(self.X,self.dJedx0) + self.err
+        return Je_est.ravel()
 
     def score(self):
-        if self.solver == 'pls':
-            return self.pls.score(self.X,self.y)
-        elif self.solver == 'pcr':
-            return self.pcr.score(self.X,self.y)
-        else:
-            u = np.sum((self.y - self.estimate())**2)
-            v = np.sum((self.y - self.Jem)**2)
-            return 1.0 - u/v
+        #if self.solver == 'pls':
+        #    print(self.pls.score(self.X,self.y))
+        #elif self.solver == 'pcr':
+        #    print(self.pcr.score(self.X,self.y))
+        #else:
+        u = np.sum((self.y - self.estimate())**2)
+        v = np.sum((self.y - self.Jem)**2)
+        return 1.0 - u/v
 
     def enasa_minnorm(self):
         dJedx0_s = np.dot(np.dot(self.sX0,np.linalg.pinv(np.dot(self.sX0.T,self.sX0))),self.sJe)
@@ -91,11 +94,11 @@ class EnASA():
 
     def enasa_psd(self):
         dJedx0_s = np.dot(np.dot(np.linalg.pinv(np.dot(self.sX0,self.sX0.T)),self.sX0),self.sJe)
-    
+        return dJedx0_s
+
     def enasa_pcr(self,n_components=None):
         # n_components: number of PCA modes
-        self.pcr = make_pipeline(StandardScaler(),PCA(n_components=n_components), LinearRegression())
-        self.pcr.fit(self.X,self.y)
+        self.pcr = make_pipeline(StandardScaler(),PCA(n_components=n_components), LinearRegression()).fit(self.X,self.y)
         self.reg = self.pcr.named_steps["linearregression"]
         self.pca = self.pcr.named_steps["pca"]
         dJedx0_s = self.pca.inverse_transform(self.reg.coef_[None,:])[0,]
@@ -109,7 +112,6 @@ class EnASA():
         # n_components: number of PCA modes
         if n_components is None:
             n_components = min(self.nx,self.nens-1)
-        self.pls = PLSRegression(n_components=n_components)
-        self.pls.fit(self.X,self.y)
+        self.pls = PLSRegression(n_components=n_components,copy=True).fit(self.X,self.y)
         dJedx0_s = self.pls.coef_[0,:]
         return dJedx0_s
