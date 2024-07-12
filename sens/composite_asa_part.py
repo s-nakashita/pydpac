@@ -10,7 +10,7 @@ import sys
 datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
-enasas = ['minnorm','diag','pcr','ridge','pls']
+enasas = ['minnorm','diag','ridge','pcr','pls']
 colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
 markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
 ms = {'asa':8,'minnorm':5,'diag':5,'pcr':5,'ridge':5,'pls':5}

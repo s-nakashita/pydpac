@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import linalg as la
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
@@ -81,7 +82,15 @@ class EnASA():
         return 1.0 - u/v
 
     def enasa_minnorm(self):
-        dJedx0_s = np.dot(np.dot(self.sX0,np.linalg.pinv(np.dot(self.sX0.T,self.sX0))),self.sJe)
+        try:
+            u, s, vt = la.svd(self.sX0)
+        except la.LinAlgError:
+            dJedx0_s = np.full(self.nx,np.nan)
+        else:
+            nrank = np.sum(s>s[0]*1.0e-15)
+            v = vt.transpose()
+            pinv = v[:,:nrank] @ np.diag(1.0/s[:nrank]/s[:nrank]) @ vt[:nrank,:]
+            dJedx0_s = np.dot(np.dot(self.sX0,pinv),self.sJe)
         return dJedx0_s
 
     def enasa_minvar(self):
@@ -93,7 +102,15 @@ class EnASA():
         return dJedx0_s
 
     def enasa_psd(self):
-        dJedx0_s = np.dot(np.dot(np.linalg.pinv(np.dot(self.sX0,self.sX0.T)),self.sX0),self.sJe)
+        try:
+            u, s, vt = la.svd(self.sX0)
+        except la.LinAlgError:
+            dJedx0_s = np.full(self.nx,np.nan)
+        else:
+            nrank = np.sum(s>s[0]*1.0e-15)
+            ut = u.transpose()
+            pinv = u[:,:nrank] @ np.diag(1.0/s[:nrank]/s[:nrank]) @ ut[:nrank,:]
+            dJedx0_s = np.dot(np.dot(pinv,self.sX0),self.sJe)
         return dJedx0_s
 
     def enasa_pcr(self,n_components=None):

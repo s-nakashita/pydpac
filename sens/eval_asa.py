@@ -10,7 +10,7 @@ import sys
 datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
-enasas = ['minnorm','diag','pcr','ridge','pls']
+enasas = ['minnorm','diag','ridge','pcr','pls']
 colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
 markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
 marker_style=dict(markerfacecolor='none')
@@ -21,17 +21,20 @@ if len(sys.argv)>1:
 nens = 8
 if len(sys.argv)>2:
     nens = int(sys.argv[2])
-figdir = Path(f"fig/vt{vt}ne{nens}")
+metric = ''
+if len(sys.argv)>3:
+    metric = sys.argv[3]
+figdir = Path(f"fig/vt{vt}ne{nens}{metric}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results
-ds_asa = xr.open_dataset(datadir/f'asa_vt{vt}nens{nens}.nc')
+ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nens}.nc')
 print(ds_asa)
 ds_dict = {'asa':ds_asa}
 
 ds_enasa = {}
 for solver in enasas:
-    ds = xr.open_dataset(datadir/f'{solver}_vt{vt}nens{nens}.nc')
+    ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
     ds_enasa[solver] = ds
     ds_dict[solver] = ds
 
@@ -45,9 +48,11 @@ for i,key in enumerate(ds_dict.keys()):
     ax.plot(res_nl,res_tl,marker=markers[key],lw=0.0, c=colors[key],#ms=10,\
         **marker_style)
     ax.set_title(key)
-#ymin, ymax = ax.get_ylim()
-ymin = -1.1
-ymax = 1.1
+if metric=='_en':
+    ymin, ymax = axs[0,0].get_ylim()
+else:
+    ymin = -1.1
+    ymax = 1.1
 line = np.linspace(ymin,ymax,100)
 for ax in axs.flatten():
     ax.plot(line,line,color='k',zorder=0)
@@ -106,8 +111,8 @@ nrows = 3
 figtl, axstl = plt.subplots(figsize=[8,10],nrows=nrows,ncols=ncols,constrained_layout=True)
 fignl, axsnl = plt.subplots(figsize=[8,10],nrows=nrows,ncols=ncols,constrained_layout=True)
 
-ymin = -1.1
-ymax = 1.1
+#ymin = -1.1
+#ymax = 1.1
 line = np.linspace(ymin,ymax,100)
 for axtl, axnl, solver in zip(axstl.flatten(),axsnl.flatten(),enasas):
     marker_style = dict(markerfacecolor=colors[solver],markeredgecolor='k',ms=10)

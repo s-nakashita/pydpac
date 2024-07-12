@@ -20,19 +20,19 @@ if len(sys.argv)>1:
     vt = int(sys.argv[1])
 ioffset = vt // 6
 def cost(x,*args):
-    xa, ic, hwidth = args
+    ic, hwidth = args
     nxh = x.size // 2
     i0 = nxh - hwidth
     i1 = nxh + hwidth + 1
-    xd = np.roll(x,nxh-ic,axis=0)[i0:i1] - np.roll(xa,nxh-ic,axis=0)[i0:i1]
+    xd = np.roll(x,nxh-ic,axis=0)[i0:i1]
     return 0.5*np.dot(xd,xd)
 def jac(x,*args):
-    xa, ic, hwidth = args
+    ic, hwidth = args
     nxh = x.size // 2
     i0 = nxh - hwidth
     i1 = nxh + hwidth + 1
     dJdxtmp = np.zeros_like(x)
-    dJdxtmp[i0:i1] = np.roll(x,nxh-ic,axis=0)[i0:i1] - np.roll(xa,nxh-ic,axis=0)[i0:i1]
+    dJdxtmp[i0:i1] = np.roll(x,nxh-ic,axis=0)[i0:i1]
     dJdx = np.roll(dJdxtmp,-nxh+ic,axis=0)
     return dJdx
 
@@ -57,7 +57,7 @@ res_dict={'asa':[]}
 rmsdJ_dict = {}
 rmsdx_dict = {}
 corrdJ_dict = {}
-solverlist=['minnorm','diag','pcr','ridge','pls']
+solverlist=['minnorm'] #,'diag','pcr','ridge','pls']
 #solverlist=['pcr','pls']
 n_components = None
 if len(sys.argv)>3:
@@ -80,18 +80,16 @@ Jes = []
 for i in range(nsample):
     icyc = icyc0 + i
     cycles.append(icyc)
-    xa = xf00[icyc+ioffset].mean(axis=1)
-    #xa[:] = 0.0
     xf = xfv [icyc+ioffset].mean(axis=1)
-    ic = np.argmax(np.abs(xa - xf)) # center of verification region
+    ic = np.argmax(np.abs(xf)) # center of verification region
     hwidth = 1 # half-width of verification region
     ics.append(ic)
-    args = (xa,ic,hwidth)
+    args = (ic,hwidth)
 
     # ASA
     asa = ASA(vt,cost,jac,model.step_adj,*args)
     # base trajectory
-    nx = xa.size
+    nx = xf.size
     xb0 = xf00[icyc].mean(axis=1)
     xb = [xb0]
     for j in range(vt):
@@ -186,7 +184,7 @@ ds = xr.Dataset.from_dict(
         "Je":{"dims":("cycle","member"),"data":Jes}
     }
 )
-ds.to_netcdf(savedir/f"Je_vt{vt}nens{nens}.nc")
+ds.to_netcdf(savedir/f"Je_en_vt{vt}nens{nens}.nc")
 for key in res_dict.keys():
     res = np.array(res_dict[key])
     dJdx0 = np.array(dJdx0_dict[key])
@@ -251,6 +249,6 @@ for key in res_dict.keys():
     ds = xr.Dataset.from_dict(datadict)
     print(ds)
     if (key == 'pls' or key == 'pcr') and n_components is not None:
-        ds.to_netcdf(savedir/f"{key}nc{n_components}_vt{vt}nens{nens}.nc")
+        ds.to_netcdf(savedir/f"{key}nc{n_components}_en_vt{vt}nens{nens}.nc")
     else:
-        ds.to_netcdf(savedir/f"{key}_vt{vt}nens{nens}.nc")
+        ds.to_netcdf(savedir/f"{key}_en_vt{vt}nens{nens}.nc")

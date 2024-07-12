@@ -10,7 +10,7 @@ import sys
 datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
-enasas = ['minnorm','diag','pcr','ridge','pls']
+enasas = ['minnorm','diag','ridge','pcr','pls']
 colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
 markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
 ms = {'asa':8,'minnorm':5,'diag':5,'pcr':5,'ridge':5,'pls':5}
@@ -23,16 +23,19 @@ if len(sys.argv)>1:
 nens = 8
 if len(sys.argv)>2:
     nens = int(sys.argv[2])
-figdir = Path(f"fig/vt{vt}ne{nens}")
+metric = ''
+if len(sys.argv)>3:
+    metric = sys.argv[3]
+figdir = Path(f"fig/vt{vt}ne{nens}{metric}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results
 ds_dict = {}
-ds_asa = xr.open_dataset(datadir/f'asa_vt{vt}nens{nens}.nc')
+ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nens}.nc')
 print(ds_asa)
 ds_dict['asa'] = ds_asa
 for solver in enasas:
-    ds = xr.open_dataset(datadir/f'{solver}_vt{vt}nens{nens}.nc')
+    ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
     ds_dict[solver] = ds
 
 ncols = 2
@@ -115,6 +118,6 @@ for axs in [axsdJ,axsdx]:
 
 figdJ.suptitle(r'$\frac{\partial J}{\partial \mathbf{x}_0}$'+f" FT{vt} {nens} member")
 figdx.suptitle(r'$\delta\mathbf{x}_0^\mathrm{opt}$'+f" FT{vt} {nens} member")
-figdJ.savefig(figdir/f"composite_dJdx0_vt{vt}nens{nens}.png",dpi=300)
-figdx.savefig(figdir/f"composite_dx0opt_vt{vt}nens{nens}.png",dpi=300)
+figdJ.savefig(figdir/f"composite_dJdx0{metric}_vt{vt}nens{nens}.png",dpi=300)
+figdx.savefig(figdir/f"composite_dx0opt{metric}_vt{vt}nens{nens}.png",dpi=300)
 #plt.show()
