@@ -110,7 +110,7 @@ contains
       elseif(i3>l3%nx) then
         i3=i3-l3%nx
       end if
-      yadv(i) = -1.0d0*l3%y(i1)*l3%y(i2) + l3%y(i2)*l3%y(i3)
+      yadv(i) = (-1.0d0*l3%y(i1)*l3%y(i2)) + (l3%y(i2)*l3%y(i3))
     end do
     xyadv(:) = 0.0d0
     do i=1,l3%nx
@@ -132,10 +132,10 @@ contains
       elseif(i3>l3%nx) then
         i3=i3-l3%nx
       end if
-      xyadv(i) = -1.0d0*l3%y(i1)*l3%x(i2) + l3%y(i2)*l3%x(i3)
+      xyadv(i) = (-1.0d0*l3%y(i1)*l3%x(i2)) + (l3%y(i2)*l3%x(i3))
     end do
-    l3%ztend = xadv + l3%b*l3%b*yadv + l3%c*xyadv &
-    & - l3%x - l3%b*l3%y + l3%F
+    l3%ztend = xadv + (l3%b*l3%b*yadv) + (l3%c*xyadv) &
+    & - l3%x - (l3%b*l3%y) + l3%F
 
   end subroutine lorenz3_tend
 
@@ -147,17 +147,17 @@ contains
     allocate(k1(l3%nx),k2(l3%nx),k3(l3%nx),k4(l3%nx),ztmp(l3%nx))
     call l3%tend(l3%z)
     k1 = l3%ztend * l3%dt
-    ztmp = l3%z + 0.5d0*k1
+    ztmp = l3%z + (0.5d0*k1)
     call l3%tend(ztmp)
     k2 = l3%ztend * l3%dt
-    ztmp = l3%z + 0.5d0*k2
+    ztmp = l3%z + (0.5d0*k2)
     call l3%tend(ztmp)
     k3 = l3%ztend * l3%dt
     ztmp = l3%z + k3
     call l3%tend(ztmp)
     k4 = l3%ztend * l3%dt
     
-    l3%z = l3%z + (0.5d0*k1 + k2 + k3 + 0.5d0*k4)/3.0d0
+    l3%z = l3%z + ((0.5d0*k1) + k2 + k3 + (0.5d0*k4))/3.0d0
     deallocate(k1,k2,k3,k4,ztmp)
 
   end subroutine lorenz3_run
@@ -228,7 +228,7 @@ contains
       elseif(i3>l3%nx) then
         i3=i3-l3%nx
       end if
-      yadv(i) = -1.0d0*l3%y(i1)*l3%y(i2) + l3%y(i2)*l3%y(i3)
+      yadv(i) = (-1.0d0*l3%y(i1)*l3%y(i2)) + (l3%y(i2)*l3%y(i3))
     end do
     xyadv(:) = 0.0d0
     do i=1,l3%nx
@@ -250,10 +250,10 @@ contains
       elseif(i3>l3%nx) then
         i3=i3-l3%nx
       end if
-      xyadv(i) = -1.0d0*l3%y(i1)*l3%x(i2) + l3%y(i2)*l3%x(i3)
+      xyadv(i) = (-1.0d0*l3%y(i1)*l3%x(i2)) + (l3%y(i2)*l3%x(i3))
     end do
-    l3%ztend = xadv + l3%b*l3%b*yadv + l3%c*xyadv &
-    & - l3%x - l3%b*l3%y + l3%F
+    l3%ztend = xadv + (l3%b*l3%b*yadv) + (l3%c*xyadv) &
+    & - l3%x - (l3%b*l3%y) + l3%F
 
   end subroutine lorenz3m_tend
 
@@ -265,17 +265,17 @@ contains
     allocate(k1(l3%nx),k2(l3%nx),k3(l3%nx),k4(l3%nx),ztmp(l3%nx))
     call l3%tend(l3%z)
     k1 = l3%ztend * l3%dt
-    ztmp = l3%z + 0.5d0*k1
+    ztmp = l3%z + (0.5d0*k1)
     call l3%tend(ztmp)
     k2 = l3%ztend * l3%dt
-    ztmp = l3%z + 0.5d0*k2
+    ztmp = l3%z + (0.5d0*k2)
     call l3%tend(ztmp)
     k3 = l3%ztend * l3%dt
     ztmp = l3%z + k3
     call l3%tend(ztmp)
     k4 = l3%ztend * l3%dt
     
-    l3%z = l3%z + (0.5d0*k1 + k2 + k3 + 0.5d0*k4)/3.0d0
+    l3%z = l3%z + ((0.5d0*k1) + k2 + k3 + (0.5d0*k4))/3.0d0
     deallocate(k1,k2,k3,k4,ztmp)
 
   end subroutine lorenz3m_run
@@ -294,8 +294,8 @@ contains
     fi2 = real(ni*ni,kind=dp)
     fi3 = fi2*real(ni,kind=dp)
     fi4 = fi3*real(ni,kind=dp)
-    al = (3.0d0*fi2+3.0d0)/(2.0d0*fi3+4.0d0*real(ni,kind=dp))
-    be = (2.0d0*fi2+1.0d0)/(fi4+2.0d0*fi2)
+    al = ((3.0d0*fi2)+3.0d0)/((2.0d0*fi3)+(4.0d0*real(ni,kind=dp)))
+    be = ((2.0d0*fi2)+1.0d0)/(fi4+(2.0d0*fi2))
     do i=1,nifil
       js = i - ni
       je = i + ni
@@ -334,7 +334,7 @@ contains
     x(:) = 0.0d0
     do j=1,nx
       do i=1,nx
-        x(i) = x(i) + filmat(i,j)*z(j)
+        x(i) = x(i) + (filmat(i,j)*z(j))
       end do
     end do
     y(:) = z(:) - x(:)

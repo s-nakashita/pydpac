@@ -15,7 +15,7 @@ class L05II():
         return self.nx, self.nk, self.dt, self.F
 
     def adv(self,K,x,y=None):
-        ## calcurate [X,Y] terms
+        ## calculate [X,Y] terms
         if K%2==0:
             sumdiff = True
             J = K // 2
@@ -63,6 +63,10 @@ class L05II():
     
         return x + (0.5*k1 + k2 + k3 + 0.5*k4)/3.0
 
+    # debug
+    def euler(self,x):
+        return x + self.tend(x)*self.dt
+    
     def calc_dist(self, iloc):
         dist = np.zeros(self.nx)
         for j in range(self.nx):
@@ -79,10 +83,13 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from pathlib import Path
     plt.rcParams['font.size'] = 16
-    nx = 960
-    nk = 32
-    F = 15.0
-    h = 0.001
+    #nx = 240
+    #nk = 8
+    #F = 15.0
+    nx = 40
+    nk = 1
+    F = 1.0
+    h = 0.05
     nt6h = int(0.05 / h)
     tmax = 20.0
     nt = int(tmax/h)
@@ -94,17 +101,24 @@ if __name__ == "__main__":
     l2 = L05II(nx, nk, h, F)
     x0 = np.ones(nx)*F
     x0[nx//2-1] += 0.0001*F
+    x0.astype('<d').tofile(figdir/f'x0_n{nx}k{nk}F{int(F)}.npy')
     #print(x0)
     x=[x0]
+    xt=[l2.tend(x0)]
     for k in range(nt):
-        x0 = l2(x0)
+        #x0 = l2(x0)
+        x0 = l2.euler(x0)
         x.append(x0)
+        xt.append(l2.tend(x0))
         #if k==0: print(x0)
     #print(x0)
     x = np.array(x)
+    xt = np.array(xt)
     #print(x.shape)
-    #np.save(figdir/f"n{nx}k{nk}F{int(F)}.npy",x)
-    #exit()
+    np.save(figdir/f"euler_n{nx}k{nk}F{int(F)}.npy",x)
+    np.save(figdir/f"euler_tend_n{nx}k{nk}F{int(F)}.npy",xt)
+    exit()
+    
     fig, ax = plt.subplots(figsize=[6,12],constrained_layout=True)
     cmap = plt.get_cmap('tab10')
     xaxis = np.arange(nx)

@@ -92,6 +92,7 @@ class L96j():
 
 if __name__ == "__main__":
     import numpy as np
+    import jax
     import matplotlib.pyplot as plt
     plt.rcParams['font.size'] = 16
     from lorenz import L96
@@ -122,6 +123,8 @@ if __name__ == "__main__":
         xj = xj.at[k+1,:].set(x0j)
         adjauto.append(dfT)
 
+    print(f"initial diff={jnp.dot((x[0]-xj[0]),(x[0]-xj[0])):.4e}")
+
     fig, axs = plt.subplots(figsize=[8,6],ncols=3,constrained_layout=True)
     xaxis = np.arange(n)
     taxis = np.arange(nt+1)
@@ -134,19 +137,30 @@ if __name__ == "__main__":
     axs[0].set_title('numpy')
     axs[1].set_title('jax.numpy')
     axs[2].set_title('diff')
+    fig.savefig('lorenz/test_l96_jnp.png')
     plt.show()
-    exit()
+    #exit()
 
     a = 1e-5
-    x0 = np.ones(n)
-    dx = np.random.randn(x0.size)
-    adx = l96(x0+a*dx)
-    ax = l96(x0)
-    jax = l96.step_t(x0, dx)
-    d = np.sqrt(np.sum((adx-ax)**2)) / a / (np.sqrt(np.sum(jax**2)))
-    print("TLM check diff.={}".format(d-1))
+    x0 = jnp.ones(n)
+    seed = 514
+    key = jax.random.key(seed)
+    dx = jax.random.normal(key,x0.shape)
+    adx = l96j(x0+a*dx)
+    ax = l96j(x0)
+    axj = l96j.step_t(x0, dx)
+    d = jnp.sqrt(jnp.sum((adx-ax)**2)) / a / (jnp.sqrt(jnp.sum(axj**2)))
+    print("TLM (manual) check diff.={}".format(d-1.0))
 
-    ax = l96.step_t(x0, dx)
-    atax = l96.step_adj(x0, ax)
+    ax = l96j.step_t(x0, dx)
+    atax = l96j.step_adj(x0, ax)
     d = (ax.T @ ax) - (dx.T @ atax)
-    print("ADJ check diff.={}".format(d))
+    print("ADJ (manual) check diff.={}".format(d))
+
+    xp, dfT = vjp(l96j, x0)
+    print(f"manual = {l96j(x0)}")
+    print(f"vjp = {xp}")
+    print(f"manual ADJ = {atax}")
+    print(f"dfT = {dfT(ax)[0]}")
+    d = (ax.T @ ax) - (dx.T @ dfT(ax)[0])
+    print("ADJ (auto) check diff.={}".format(d))

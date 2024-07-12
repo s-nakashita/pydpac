@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(L05 LANGUAGES Fortran)
-set(CMAKE_Fortran_FLAGS "-O3")
+set(CMAKE_Fortran_FLAGS "-O0")
 add_subdirectory(src)
 
 add_executable(lorenz2_test lorenz2_test.f90)

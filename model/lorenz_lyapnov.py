@@ -16,7 +16,7 @@ from lorenz2m import L05IIm
 from lorenz3m import L05IIIm
 import sys
 sys.path.append('../plot')
-from nmc_tools import psd, wnum2wlen, wlen2wnum
+from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
 from pathlib import Path
 
 def fit_func(x, a, b):
@@ -110,6 +110,7 @@ nsave = nt//isave+1
 
 ix = np.arange(nx) 
 ix_rad = ix * 2.0 * np.pi / nx
+nmc = NMC_tools(ix_rad)
 x0 = random.normal(0, scale=1.0, size=nx)
 for j in range(500*isave): # spin up
     x0 = step(x0)
@@ -120,14 +121,14 @@ time = []
 time.append(0.0)
 x1 = x0.copy()
 xc.append(x1)
-wnum, sp1 = psd(x1,ix_rad)
+wnum, sp1 = nmc.psd(x1)
 sp.append(sp1)
 for k in range(nt):
     x1 = step(x1)
     if k%isave==0:
         time.append(dt*(k+1))
         xc.append(x1)
-        wnum, sp1 = psd(x1,ix_rad)
+        wnum, sp1 = nmc.psd(x1)
         sp.append(sp1)
 
 day = np.array(time) / 0.05 / 4

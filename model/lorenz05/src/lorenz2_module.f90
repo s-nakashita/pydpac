@@ -17,6 +17,7 @@ module lorenz2_module
       procedure :: init => lorenz2_init
       procedure :: tend => lorenz2_tend
       procedure :: run => lorenz2_run
+      procedure :: run_euler => lorenz2_run_euler ! debug
   end type lorenz2_type
 
   ! Lorenz II with multiple advection terms
@@ -90,6 +91,15 @@ contains
     deallocate(k1,k2,k3,k4,xtmp)
 
   end subroutine lorenz2_run
+
+  ! Euler
+  subroutine lorenz2_run_euler(l2)
+    class(lorenz2_type) :: l2 
+    
+    call l2%tend(l2%x)
+    l2%x = l2%x + l2%xtend*l2%dt
+
+  end subroutine lorenz2_run_euler
 
 ! Lorenz II with multiple advection terms
   subroutine lorenz2m_init(l2,nx,nks,dt,F)
@@ -296,7 +306,7 @@ contains
     end if
     xadv = xadv / float(nk)
     do i=1,n 
-      jj=i-2*nk
+      jj=i-(2*nk)
       if(jj.le.0) then
         jj=jj+n
       elseif(jj.gt.n) then
