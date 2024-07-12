@@ -134,6 +134,7 @@ params_gm["saveGM"]     = False # preparing precomputed GM forecasts for LBC of 
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
+params_lam["brending"]  = False # large-scale background blending (Milan et al. 2023)
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  0.8     # (For var & 4dvar) background error standard deviation
 params_lam["sigv"]      =  1.8     # (For var_nest) GM background error standard deviation in LAM space
@@ -490,6 +491,17 @@ elif pt == "4dmlef":
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
 """
 
+if params_lam["blending"]:
+    from analysis.trunc1d import Trunc1d
+    from scipy.interpolate import interp1d
+    # interpolation operator from GM to LAM
+    tmp_gm2lam = interp1d(step.ix_gm,np.eye(nx_gm),axis=0)
+    H_gm2lam = tmp_gm2lam(step.ix_lam)
+    logger = logging.getLogger("anl")
+    logger.info(f"H_gm2lam.shape={H_gm2lam.shape}")
+    # truncation operator using DCT
+    trunc_operator = Trunc1d(step.ix_lam,ntrunc=params_lam["ntrunc"],cyclic=False,ttype='c',resample=False)
+
 # functions load
 func = L05nest_func(step,obs,params_gm,params_lam,model=model)
 
@@ -646,6 +658,10 @@ if __name__ == "__main__":
             dof_gm[i:min(i+a_window,na)] = ds
             innov_gm[i:min(i+a_window,na),:innv.size] = innv
         if i >= params_lam["lamstart"]:
+            if params_lam["blending"]:
+                logger.info("large-scale background blending")
+                udf = trunc_operator(H_gm2lam@u_gm - u_lam)
+                u_lam = u_lam + udf
             if params_lam["anlsp"]:
                 #if pt == "var_nest":
                 #    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)
