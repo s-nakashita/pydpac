@@ -6,7 +6,7 @@ model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
 #perturbations="var_nest var envar_nest envar"
-perturbations="envar"
+perturbations="envar var"
 #perturbations="envar_nestc"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
@@ -30,9 +30,10 @@ ntrunc=12
 coef_a=None
 hyper_mu=0.0
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
-exp="var_vs_envar_dscl_m${nmem}obs${nobs}"
+#exp="var_vs_envar_dscl_m${nmem}obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_shrink_dct_preGM_m${nmem}obs${nobs}"
+exp="var_vs_envar_lsb_preGM_partiall_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
 #exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
@@ -75,6 +76,8 @@ for op in ${operators}; do
     if [ $pert = mlef_nest ] || [ $pert = mlef_nestc ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"mlef\"/" config_gm.py
     fi
+    #gsed -i -e "3i \ \"ntmax\":8," config_gm.py
+    #gsed -i -e "4i \ \"save1h\":True," config_gm.py
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ### precomputed GM

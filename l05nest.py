@@ -134,7 +134,7 @@ params_gm["saveGM"]     = False # preparing precomputed GM forecasts for LBC of 
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
-params_lam["brending"]  = False # large-scale background blending (Milan et al. 2023)
+params_lam["blending"]  = False # large-scale background blending (Milan et al. 2023)
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  0.8     # (For var & 4dvar) background error standard deviation
 params_lam["sigv"]      =  1.8     # (For var_nest) GM background error standard deviation in LAM space
@@ -534,6 +534,8 @@ if __name__ == "__main__":
     xsa_lam = np.zeros((xa_lam.shape[0],pa_lam.shape[0]))
 
     a_time = range(0, na, a_window)
+    if params_lam["preGM"]:
+        a_time = range(params_lam["lamstart"], na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e_gm = np.zeros(na)
     stda_gm = np.zeros(na)

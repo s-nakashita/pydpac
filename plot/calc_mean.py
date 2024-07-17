@@ -100,7 +100,8 @@ else:
         i += 1
     emean /= i
     estd /= i
-    estd = np.sqrt(estd - emean**2)
+    estd = estd - emean**2
+    estd = np.where(estd>0.0,np.sqrt(estd),0.0)
     data = np.hstack((np.array([i,i]).reshape(-1,1),np.vstack((emean,estd))))
     if i>0:
         np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), data)

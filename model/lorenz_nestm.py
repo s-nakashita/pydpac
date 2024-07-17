@@ -32,8 +32,10 @@ class L05nestm():
         self.lamstep = lamstep
         self.dt_gm = dt
         self.nt6h_gm = int(self.dt6h/self.dt_gm)
+        self.nt1h_gm = self.nt6h_gm//6
         self.dt_lam = self.dt_gm / self.lamstep
         self.nt6h_lam = int(self.dt6h/self.dt_lam)
+        self.nt1h_lam = self.nt6h_lam//6
         self.F = F
         self.ix_lam = np.arange(ist_lam,ist_lam+self.nx_lam,dtype=np.int32)
         self.xaxis_lam = self.nx_true / np.pi * np.sin(np.pi * self.ix_lam / self.nx_true)
@@ -121,7 +123,7 @@ class L05nestm():
                 self.gm2lamext[i,ig] = 1.0 - ai
                 self.gm2lamext[i,0] = ai
 
-    def __call__(self,x_gm,x_lam,xf_gm_pre=None):
+    def __call__(self,x_gm,x_lam,xf_gm_pre=None,save1h=False):
         ## boundary conditions from previous step
         #gm2lam0 = interp1d(self.ix_gm, x_gm, axis=0)
         x0_gm2lamext = np.dot(self.gm2lamext,x_gm)
@@ -134,10 +136,16 @@ class L05nestm():
         #    self.bound_rlx(x_lam_ext,t_wgt,x0_gm2lamext,x0_gm2lamext)
         ## integration for 6 hours
         x0_gm = x_gm.copy()
+        if save1h:
+            if xf_gm_pre is None:
+                xf_gm_1h = []
+            xf_lam_1h = []
         for k in range(self.nt6h_gm):
             #GM
             if xf_gm_pre is None:
                 xf_gm = self.gm(x_gm)
+                if save1h and (k+1)%self.nt1h_gm == 0:
+                    xf_gm_1h.append(xf_gm)
             else:
                 # precomputed 6-hourly GM analysis
                 t_wgt = float(k+1) / float(self.nt6h_gm)
@@ -164,6 +172,8 @@ class L05nestm():
                 ## boundary conditions
                 x_lam_ext[:self.lghost] = (1.0-t_wgt)*x0_gm2lamext[:self.lghost] + t_wgt*x1_gm2lamext[:self.lghost]
                 x_lam_ext[-self.rghost:] = (1.0-t_wgt)*x0_gm2lamext[-self.rghost:] + t_wgt*x1_gm2lamext[-self.rghost:]
+                if save1h and (k*self.lamstep+i+1)%self.nt1h_lam == 0:
+                    xf_lam_1h.append(x_lam_ext[self.lghost:-self.rghost])
             x_gm = xf_gm.copy()
             #xl_lam_ext, xs_lam_ext = self.lam.decomp(x_lam_ext)
             #x0l_gm2lamext, x0s_gm2lamext = self.lam.decomp(x0_gm2lamext)
@@ -175,7 +185,13 @@ class L05nestm():
             #x_lam_ext = xl_lam_ext + xs_lam_ext
             #x_lam = self.lam(x_lam_ext)
         xf_lam = x_lam_ext[self.lghost:-self.rghost]
-        return xf_gm, xf_lam
+        if save1h:
+            if xf_gm_pre is None:
+                return xf_gm, xf_lam, xf_gm_1h, xf_lam_1h
+            else:
+                return xf_gm, xf_lam, xf_lam_1h
+        else:
+            return xf_gm, xf_lam
 
     # Davies relaxation
     def bound_rlx(self,x_lam_ext,t_wgt,x0_gm2lamext,x1_gm2lamext):
@@ -359,7 +375,8 @@ if __name__ == "__main__":
         x_gm = x0_gm.copy()
         for i in range(step.nt6h_gm):
             x_gm = step.gm(x_gm)
-        _, x_lam = step(x0_gm,x0_lam,xf_gm_pre=x_gm)
+        _, x_lam, x_lam_1h = step(x0_gm,x0_lam,xf_gm_pre=x_gm,save1h=True)
+        #print(np.array(x_lam_1h).shape)
         x0_gm = x_gm.copy()
         x0_lam = x_lam.copy()
         #gm2lam = interp1d(step.ix_gm, x0_gm)

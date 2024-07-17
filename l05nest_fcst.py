@@ -78,6 +78,7 @@ params_gm["t0off"]      =  step.nt6h_gm * 4          # initial offset between ad
 params_gm["t0c"]        =  step.nt6h_gm * 4 * 60     # t0 for control
 params_gm["na"]         =  100     # number of analysis cycle
 params_gm["nt"]         =  1       # number of step per forecast (=6 hour)
+params_gm["save1h"]     =  False   # save forecast per 1 hour
 params_gm["ntmax"]      =  20      # number of forecast steps (=120 hour)
 params_gm["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 params_gm["rseed"]      = None # random seed
@@ -188,27 +189,50 @@ if __name__ == "__main__":
         if params_lam["preGM"]:
             uf1_gm = uf_gm[i,]
         else:
-            uf1_gm = np.zeros((params_gm["ntmax"]+1,nx_gm))
+            if params_gm["save1h"]:
+                uf1_gm = np.zeros((params_gm["ntmax"]*6+1,nx_gm))
+            else:
+                uf1_gm = np.zeros((params_gm["ntmax"]+1,nx_gm))
             uf1_gm[0,:] = ua_gm[i,]
-        logger.info("cycle{} extended forecast length {}".format(i,uf1_gm.shape[0]))
-        uf1_lam = np.zeros((params_gm["ntmax"]+1,nx_lam))
+        if params_gm["save1h"]:
+            uf1_lam = np.zeros((params_gm["ntmax"]*6+1,nx_lam))
+        else:
+            uf1_lam = np.zeros((params_gm["ntmax"]+1,nx_lam))
         uf1_lam[0,:] = ua_lam[i,]
+        logger.info("cycle{} extended forecast length {}".format(i,uf1_lam.shape[0]))
         
         for j in range(params_gm["ntmax"]):
-            if params_lam["preGM"]:
-                _, uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,])
+            if params_gm["save1h"]:
+                if params_lam["preGM"]:
+                    _, uf1_lam[j+6,],uf1_lam_1h = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,],save1h=params_gm["save1h"])
+                else:
+                    uf1_gm[j+6,], uf1_lam[j+6,], uf1_gm_1h, uf_lam_1h, = func.forecast(uf1_gm[j,],uf1_lam[j,],save1h=params_gm["save1h"])
+                    uf1_gm[j+1:j+6,] = uf1_gm_1h[:5,]
+                uf1_lam[j+1:j+6,] = uf1_lam_1h[:5,]
             else:
-                uf1_gm[j+1,], uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,])
+                if params_lam["preGM"]:
+                    _, uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,])
+                else:
+                    uf1_gm[j+1,], uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,])
         if not params_lam["preGM"]:
             uf_gm.append(uf1_gm)
         uf_lam.append(uf1_lam)
     if not params_lam["preGM"]:
         uf_gm = np.array(uf_gm)
         logger.info(f"uf_gm.shape={uf_gm.shape}")
-        np.save("{}_gm_ufext_{}_{}.npy".format(model, op, pt), uf_gm)
+        if params_gm["save1h"]:
+            np.save("{}_gm_ufext_p1h_{}_{}.npy".format(model, op, pt), uf_gm)
+        else:
+            np.save("{}_gm_ufext_{}_{}.npy".format(model, op, pt), uf_gm)
     uf_lam = np.array(uf_lam)
     logger.info(f"uf_lam.shape={uf_lam.shape}")
     if params_lam["preGM"]:
-        np.save("{}_lam_ufext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+        if params_gm["save1h"]:
+            np.save("{}_lam_ufext_p1h_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+        else:
+            np.save("{}_lam_ufext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
     else:
-        np.save("{}_lam_ufext_{}_{}.npy".format(model, op, pt), uf_lam)
+        if params_gm["save1h"]:
+            np.save("{}_lam_ufext_p1h_{}_{}.npy".format(model, op, pt), uf_lam)
+        else:
+            np.save("{}_lam_ufext_{}_{}.npy".format(model, op, pt), uf_lam)

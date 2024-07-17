@@ -236,7 +236,7 @@ class L05nest_func():
             for j in range(self.t0c):
                 X0c_gm = self.step.gm(X0c_gm)
         else:
-            X0c_gm = np.load(self.preGMdir/f"{self.model}_gm_uf_{self.op}_{self.preGMda}_cycle0.npy")
+            X0c_gm = np.load(self.preGMdir/f"{self.model}_gm_uf_{self.op}_{self.preGMda}_cycle{self.lamstart}.npy")
             if X0c_gm.ndim == 2:
                 X0c_gm = np.mean(X0c_gm, axis=1)
         gm2lam = interp1d(self.step.ix_gm,X0c_gm,axis=0)
@@ -254,7 +254,7 @@ class L05nest_func():
             t0f = [self.t0c] + t0m
         maxiter = np.max(np.array(t0f))+1
         if self.preGM:
-            X0_gm = np.load(self.preGMdir/f"{self.model}_gm_uf_{self.op}_{self.preGMda}_cycle0.npy")
+            X0_gm = np.load(self.preGMdir/f"{self.model}_gm_uf_{self.op}_{self.preGMda}_cycle{self.lamstart}.npy")
         else:
             if(opt==0): # random
                 logger.info("spin up max = {}".format(self.t0c))
@@ -319,26 +319,60 @@ class L05nest_func():
         return u_gm, xa_gm, xf_gm, u_lam, xa_lam, xf_lam #, savepa
 
     # forecast
-    def forecast(self, u_gm, u_lam, u_gm_pre=None):
+    def forecast(self, u_gm, u_lam, u_gm_pre=None, save1h=False):
         if self.ft == "ensemble":
             uf_gm = np.zeros((self.a_window, u_gm.shape[0], u_gm.shape[1]))
             uf_lam = np.zeros((self.a_window, u_lam.shape[0], u_lam.shape[1]))
         else:
             uf_gm = np.zeros((self.a_window, u_gm.size))
             uf_lam = np.zeros((self.a_window, u_lam.size))
+        if save1h:
+            uf_gm_1h = []
+            uf_lam_1h = []
         for l in range(self.a_window):
             for k in range(self.nt):
                 if self.preGM:
-                    u_gm,u_lam = self.step(u_gm,u_lam,xf_gm_pre=u_gm_pre)
+                    if save1h:
+                        u_gm,u_lam,u_lam_1h = self.step(u_gm,u_lam,xf_gm_pre=u_gm_pre,save1h=save1h)
+                        uf_lam_1h.append(u_lam_1h)
+                    else:
+                        u_gm,u_lam = self.step(u_gm,u_lam,xf_gm_pre=u_gm_pre)
                 else:
-                    u_gm,u_lam = self.step(u_gm,u_lam)
+                    if save1h:
+                        u_gm,u_lam,u_gm_1h,u_lam_1h = self.step(u_gm,u_lam,save1h=save1h)
+                        uf_gm_1h.append(u_gm_1h)
+                        uf_lam_1h.append(u_lam_1h)
+                    else:
+                        u_gm,u_lam = self.step(u_gm,u_lam)
             uf_gm[l] = u_gm
             uf_lam[l] = u_lam
-        
-        if self.a_window > 1:
-            return uf_gm, uf_lam
+        if save1h:
+            if not self.preGM:
+                uf_gm_1h = np.array(uf_gm_1h)
+                if self.ft == "ensemble":
+                    uf_gm_1h = uf_gm_1h.reshape(-1,u_gm.shape[0],u_gm.shape[1])
+                else:
+                    uf_gm_1h = uf_gm_1h.reshape(-1,u_gm.size)
+            uf_lam_1h = np.array(uf_lam_1h)
+            if self.ft == "ensemble":
+                uf_lam_1h = uf_lam_1h.reshape(-1,u_lam.shape[0],u_lam.shape[1])
+            else:
+                uf_lam_1h = uf_lam_1h.reshape(-1,u_lam.size)
+            if not self.preGM:
+                if self.a_window > 1:
+                    return uf_gm, uf_lam, uf_gm_1h, uf_lam_1h
+                else:
+                    return u_gm, u_lam, uf_gm_1h, uf_lam_1h
+            else:
+                if self.a_window > 1:
+                    return uf_gm, uf_lam, uf_lam_1h
+                else:
+                    return u_gm, u_lam, uf_lam_1h
         else:
-            return u_gm, u_lam
+            if self.a_window > 1:
+                return uf_gm, uf_lam
+            else:
+                return u_gm, u_lam
 
     # (not used) plot initial state
     def plot_initial(self, uc_gm, uc_lam, ut, uens_gm=None, uens_lam=None, method=""):
