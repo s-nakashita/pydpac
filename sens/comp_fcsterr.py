@@ -8,7 +8,7 @@ plt.rcParams['font.size'] = 16
 model = 'l96'
 pt = 'letkf'
 wdir = Path(f'/Volumes/dandelion/pyesa/data/{model}')
-nenslist = [8,20,40,80]
+nenslist = [8,12,16,20,24,28,32,36] #,40,80]
 ftlist = [0,24,48,72,96,120]
 offsets = [0,4,8,12,16,20]
 nft = len(ftlist)
@@ -35,7 +35,7 @@ for nens in nenslist:
 cmap = plt.get_cmap('tab20')
 fig, (axfe, axfs) = plt.subplots(ncols=2,sharey=True,figsize=[10,6])
 nbox = len(fedict)
-width = 0.5 / nbox
+width = 0.75 / nbox
 xoffset = 0.5 * width * (nbox - 1)
 xaxis = np.arange(1,nft+1) - xoffset
 for nens in nenslist:
@@ -54,6 +54,7 @@ for nens in nenslist:
 for ax in [axfe,axfs]:
     ax.set_xticks(np.arange(1,nft+1))
     ax.set_xticklabels(ftlist)
+    ax.grid()
 axfe.set(xlabel='forecast hours',title='Forecast error against analysis')
 axfe.legend()
 axfs.set(xlabel='forecast hours',title='Ensemble spread')

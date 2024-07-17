@@ -11,7 +11,7 @@ perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
 #perturbations="mlef 4dmlef mlefbe"
 perturbations="letkf mlefbm"
 na=1460 # Number of assimilation cycle
-nmem=8  # ensemble size
+nmem=12 # ensemble size
 nobs=40 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=True # True:Apply localization False:Not apply
@@ -22,7 +22,7 @@ exp="extfcst_m${nmem}"
 echo ${exp}
 cdir=` pwd `
 #wdir=work/${model}/${exp}
-wdir=/Volumes/FF520/pyesa/data/${model}/${exp}
+wdir=/Volumes/dandelion/pyesa/data/${model}/${exp}
 rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
