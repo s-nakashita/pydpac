@@ -9,9 +9,9 @@ perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
 #perturbations="mlef 4dmlef mlefbe"
-perturbations="letkf mlefbm"
+perturbations="letkf"
 na=1460 # Number of assimilation cycle
-nmem=12 # ensemble size
+nmem=32 # ensemble size
 nobs=40 # observation volume
 linf=True  # True:Apply inflation False:Not apply
 lloc=True # True:Apply localization False:Not apply
@@ -22,6 +22,7 @@ exp="extfcst_m${nmem}"
 echo ${exp}
 cdir=` pwd `
 #wdir=work/${model}/${exp}
+ddir=/Volumes/dandelion/pyesa/data/${model}/extfcst_m8
 wdir=/Volumes/dandelion/pyesa/data/${model}/${exp}
 rm -rf $wdir
 mkdir -p $wdir
@@ -31,6 +32,8 @@ rm -rf *.npy
 rm -rf *.log
 rm -rf timer
 touch timer
+ln -s $ddir/truth.npy .
+ln -s $ddir/obs*.npy .
 for op in ${operators}; do
   for pert in ${perturbations}; do
     echo $pert
@@ -58,6 +61,7 @@ for op in ${operators}; do
     echo $pt
     start_time=$(gdate +"%s.%5N")
     python ${cdir}/l96.py > l96_${op}_${pert}.log 2>&1
+    python ${cdir}/l96_fcst.py > l96_fcst_${op}_${pert}.log 2>&1
     #python ${cdir}/l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${a_window} ${iloc} > l96_${op}_${pert}.log 2>&1
     #python ${cdir}/l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${lb} > l96_${op}_${pt}_${lb}.log 2>&1
     wait

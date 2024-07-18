@@ -15,22 +15,22 @@ F = 8.0
 model = L96(nx,dt,F)
 
 # SA settings
-vt = 48 # hours
+vt = 24 # hours
 if len(sys.argv)>1:
     vt = int(sys.argv[1])
 ioffset = vt // 6
-nens = 20
+nens = 8
 if len(sys.argv)>2:
     nens=int(sys.argv[2])
-n_components = None
+lag = 0
 if len(sys.argv)>3:
-    n_components=int(sys.argv[3])
-metric = ''
+    lag=int(sys.argv[3])
+n_components = None
 if len(sys.argv)>4:
-    metric = sys.argv[4]
-
-recomp_asa = False
-nensbase = 8
+    n_components=int(sys.argv[4])
+metric = ''
+if len(sys.argv)>5:
+    metric = sys.argv[5]
 
 def cost(x,*args):
     xa, ic, hwidth = args
@@ -65,19 +65,14 @@ if not savedir.exists(): savedir.mkdir(parents=True)
 
 icyc0 = 50
 nsample = 1000
-if not recomp_asa:
-    dJdx0_dict={}
-    dx0opt_dict={}
-    res_dict={}
-    # ASA data
-    ds_asa = xr.open_dataset(savedir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
-    dJdx0_dict['asa'] = ds_asa.dJdx0.values
-    dx0opt_dict['asa'] = ds_asa.dx0opt.values
-    res_dict['asa'] = np.stack([ds_asa.res_nl.values,ds_asa.res_tl.values],axis=1)
-else:
-    dJdx0_dict={'asa':[]}
-    dx0opt_dict={'asa':[]}
-    res_dict={'asa':[]}
+dJdx0_dict={}
+dx0opt_dict={}
+res_dict={}
+# ASA (not recomputed)
+ds_asa = xr.open_dataset(savedir/f'asa{metric}_vt{vt}nens{nens}.nc')
+dJdx0_dict['asa'] = ds_asa.dJdx0.values
+dx0opt_dict['asa'] = ds_asa.dx0opt.values
+res_dict['asa'] = np.stack([ds_asa.res_nl.values,ds_asa.res_tl.values],axis=1)
 rmsdJ_dict = {}
 rmsdx_dict = {}
 corrdJ_dict = {}
@@ -96,11 +91,8 @@ marker_style=dict(markerfacecolor='none')
 cmap = plt.get_cmap('tab10')
 
 cycles = []
-if not recomp_asa:
-    ics = ds_asa.ic.values
-    ic_list = ics.tolist()
-else:
-    ic_list = []
+ics = ds_asa.ic.values
+ic_list = ics.tolist()
 Je_list = []
 x0s_list = []
 for i in range(nsample):
@@ -108,17 +100,15 @@ for i in range(nsample):
     cycles.append(icyc)
     xa = xf00[icyc+ioffset].mean(axis=1)
     if metric=='_en': xa[:] = 0.0
-    xf = xfv [icyc+ioffset].mean(axis=1)
-    if not recomp_asa:
-        ic = ic_list[i]
-    else:
-        ic = np.argmax(np.abs(xa - xf)) # center of verification region
-        ic_list.append(ic)
+    ic = ic_list[i] # center of verification region
     hwidth = 1 # half-width of verification region
+    ic_list.append(ic)
     args = (xa,ic,hwidth)
 
-    # ASA
+    # ASA (only for validation)
     asa = ASA(vt,cost,jac,model.step_adj,*args)
+    dJdx0 = dJdx0_dict['asa'][i,]
+    dx0opt = dx0opt_dict['asa'][i,]
     # base trajectory
     nx = xa.size
     xb0 = xf00[icyc].mean(axis=1)
@@ -127,28 +117,22 @@ for i in range(nsample):
     for j in range(vt):
         xb1 = model(xb1)
         xb.append(xb1)
-    if recomp_asa:
-        # analysis
-        dJdx0 = asa(xb)
-        dx0opt = asa.calc_dxopt(xb,dJdx0)
-        dJdx0_dict['asa'].append(dJdx0)
-        dx0opt_dict['asa'].append(dx0opt)
-        #asa.plot_hov()
-        res_nl, res_tl = asa.check_djdx(xb,dJdx0,dx0opt,\
-            model,model.step_t,plot=False)
-        res_dict['asa'].append([res_nl,res_tl])
-    else:
-        dJdx0 = dJdx0_dict['asa'][i,]
-        dx0opt = dx0opt_dict['asa'][i,]
     
     # EnASA
-    xe0 = xf00[icyc]
+    xe0 = xfall[icyc,0,:,:]
+    if lag>0:
+        for j in range(1,lag+1):
+            xe0 = np.concatenate([xe0,xfall[icyc-2*j,2*j,:,:]],axis=-1)
     X0 = xe0 - xe0.mean(axis=1)[:,None]
     x0s_list.append(X0.std(axis=1))
-    #xev = xfv[icyc+ioffset]
     xev = xfall[icyc,ioffset,:,:]
-    Je = np.zeros(nens)
-    for k in range(nens):
+    if lag>0:
+        for j in range(1,lag+1):
+            xev = np.concatenate([xev,xfall[icyc-2*j,ioffset+2*j,:,:]],axis=-1)
+    xf = xev.mean(axis=1)
+    nensmod = xev.shape[1]
+    Je = np.zeros(nensmod)
+    for k in range(nensmod):
         Je[k] = cost(xev[:,k],*args)
     Je_list.append(Je)
     Jem = Je.mean()
@@ -156,9 +140,9 @@ for i in range(nsample):
     Jeest = {}
 
     for solver in solverlist:
-        logfile = f"{solver}_vt{vt}ne{nens}{metric}"
+        logfile = f"{solver}_vt{vt}ne{nens}lag{lag}{metric}"
         if n_components is not None:
-            logfile = f"{solver}_vt{vt}ne{nens}nc{n_components}{metric}"
+            logfile = f"{solver}_vt{vt}ne{nens}lag{lag}nc{n_components}{metric}"
         enasa = EnASA(vt,X0,Je,solver=solver,logfile=logfile)
         dJedx0 = enasa(n_components=n_components)
         dxe0opt = asa.calc_dxopt(xb,dJedx0)
@@ -177,9 +161,9 @@ for i in range(nsample):
             if solver=='minnorm': print(f"nrank={enasa.nrank}")
     if i<10:
         print(f"ic={ic}")
-        figdir = Path(f"fig/vt{vt}ne{nens}{metric}/c{icyc}")
+        figdir = Path(f"fig/vt{vt}ne{nens}lag{lag}{metric}/c{icyc}")
         if n_components is not None:
-            figdir = Path(f"fig/vt{vt}ne{nens}nc{n_components}{metric}/c{icyc}")
+            figdir = Path(f"fig/vt{vt}ne{nens}lag{lag}nc{n_components}{metric}/c{icyc}")
         if not figdir.exists(): figdir.mkdir(parents=True)
         nxh = xa.size // 2
         fig, axs = plt.subplots(nrows=3,sharex=True,figsize=[8,8],constrained_layout=True)
@@ -200,7 +184,7 @@ for i in range(nsample):
             ax.grid()
         axs[1].set_title('dJ/dx0')
         axs[2].set_title('dxopt')
-        fig.suptitle(f'vt={vt}h, Nens={nens}')
+        fig.suptitle(f'vt={vt}h, Nens={nens}*{lag+1}')
         fig.savefig(figdir/'x+dJdx0+dxopt.png')
         plt.close()
         fig, axs = plt.subplots(nrows=2,sharex=True,figsize=[8,6],constrained_layout=True)
@@ -213,7 +197,7 @@ for i in range(nsample):
             ax.grid()
         axs[0].set_title('FT00')
         axs[1].set_title(f'FT{vt}')
-        fig.suptitle(f'vt={vt}h, Nens={nens}')
+        fig.suptitle(f'vt={vt}h, Nens={nens}*{lag+1}')
         fig.savefig(figdir/'xe.png')
         plt.close()
         fig, axs = plt.subplots(ncols=2,constrained_layout=True)
@@ -228,7 +212,7 @@ for i in range(nsample):
             ax.plot(line,line,color='k',zorder=0)
             ax.set_xlabel('observed (centering)')
             ax.set_ylabel('estimated (centering)')
-            ax.set_title(f'Je, vt={vt}h, Nens={nens}')
+            ax.set_title(f'Je, vt={vt}h, Nens={nens}*{lag+1}')
             ax.legend()
             #ax.set_title(key)
             ax.grid()
@@ -247,7 +231,7 @@ ds = xr.Dataset.from_dict(
         "Je":{"dims":("cycle","member"),"data":Jes}
     }
 )
-ds.to_netcdf(savedir/f"Je_vt{vt}nens{nens}.nc")
+ds.to_netcdf(savedir/f"Je_vt{vt}nens{nens}lag{lag}.nc")
 x0s = np.array(x0s_list)
 member = np.arange(1,x0s.shape[1]+1)
 ds = xr.Dataset.from_dict(
@@ -257,35 +241,14 @@ ds = xr.Dataset.from_dict(
         "x0s":{"dims":("cycle","member"),"data":x0s}
     }
 )
-ds.to_netcdf(savedir/f"x0s_nens{nens}.nc")
+ds.to_netcdf(savedir/f"x0s_nens{nens}lag{lag}.nc")
 for key in res_dict.keys():
     res = np.array(res_dict[key])
     dJdx0 = np.array(dJdx0_dict[key])
     dx0opt = np.array(dx0opt_dict[key])
     ix = np.arange(dJdx0.shape[1])
     if key == 'asa':
-        if not recomp_asa: continue
-        datadict = {
-            "cycle":{"dims":("cycle"),"data":cycles},
-            "x":{"dims":("x"),"data":ix},
-            "ic":{
-                "dims":("cycle"),"data":ics
-            },
-            "dJdx0":{
-                "dims":("cycle","x"),
-                "data":dJdx0
-            },
-            "dx0opt":{
-                "dims":("cycle","x"),
-                "data":dx0opt
-            },
-            "res_nl":{
-                "dims":("cycle"),"data":res[:,0]
-            },
-            "res_tl":{
-                "dims":("cycle"),"data":res[:,1]
-            },
-        }
+        continue
     else:
         rmsdJ = rmsdJ_dict[key]
         rmsdx = rmsdx_dict[key]
@@ -323,6 +286,6 @@ for key in res_dict.keys():
     ds = xr.Dataset.from_dict(datadict)
     print(ds)
     if (key == 'pls' or key == 'pcr' or key == 'minnorm') and n_components is not None:
-        ds.to_netcdf(savedir/f"{key}nc{n_components}{metric}_vt{vt}nens{nens}.nc")
+        ds.to_netcdf(savedir/f"{key}nc{n_components}{metric}_vt{vt}nens{nens}lag{lag}.nc")
     else:
-        ds.to_netcdf(savedir/f"{key}{metric}_vt{vt}nens{nens}.nc")
+        ds.to_netcdf(savedir/f"{key}{metric}_vt{vt}nens{nens}lag{lag}.nc")

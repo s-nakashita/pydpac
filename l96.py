@@ -15,12 +15,16 @@ global nx, F, dt, dx
 
 model = "l96"
 # model parameter
-nx = 40     # number of points
-F  = 8.0    # forcing
-dt = 0.05 / 6  # time step (=1 hour)
+nx    = 40     # number of points
+Ftrue = 8.0    # true forcing
+Fmodel= 8.0    # model forcing
+dt    = 0.05 / 6  # time step (=1 hour)
+
+# nature model forward operator
+naturestep = L96(nx, dt, Ftrue)
 
 # forecast model forward operator
-step = L96(nx, dt, F)
+step = L96(nx, dt, Fmodel)
 
 x = np.arange(nx)
 dx = x[1] - x[0]
@@ -211,7 +215,7 @@ elif pt == "4dmlef":
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 
 # functions load
-func = L96_func(step,obs,analysis,params)
+func = L96_func(naturestep,step,obs,params)
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)

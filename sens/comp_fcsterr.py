@@ -8,9 +8,9 @@ plt.rcParams['font.size'] = 16
 model = 'l96'
 pt = 'letkf'
 wdir = Path(f'/Volumes/dandelion/pyesa/data/{model}')
-nenslist = [8,12,16,20,24,28,32,36] #,40,80]
-ftlist = [0,24,48,72,96,120]
-offsets = [0,4,8,12,16,20]
+nenslist = [8,16,24,32] #,40,80]
+ftlist = [0,24,48,72,96] #,120]
+offsets = [0,4,8,12,16] #,20]
 nft = len(ftlist)
 icyc = 50
 ncyc = 1000
@@ -26,8 +26,8 @@ for nens in nenslist:
     fslist = []
     for ft in ftlist:
         xf = np.load(datadir/f"{model}_xf{ft:02d}_linear_{pt}.npy")
-        xd = xf[icyc:ncyc,:,:].mean(axis=2) - xa[icyc:ncyc,:,:].mean(axis=2)
-        felist.append(np.sqrt(np.mean(xd**2,axis=1)))
+        xd = xf[icyc:ncyc,:,:] - xa[icyc:ncyc,:,:].mean(axis=2)[:,:,None]
+        felist.append(np.std(np.sqrt(np.mean(xd**2,axis=1)),axis=1))
         fslist.append(np.mean(np.std(xf[icyc:ncyc],axis=2),axis=1))
     fedict[nens] = felist
     fsdict[nens] = fslist
@@ -40,7 +40,7 @@ xoffset = 0.5 * width * (nbox - 1)
 xaxis = np.arange(1,nft+1) - xoffset
 for nens in nenslist:
     icol = nenslist.index(nens)
-    fe = np.array(fedict[nens])
+    fe = np.array(fedict[nens]) #.reshape(nft,-1)
     fs = np.array(fsdict[nens])
     bplot1 = axfe.boxplot(fe.T,positions=xaxis,widths=width,patch_artist=True,whis=(0,100))
     for patch in bplot1['boxes']:
@@ -55,7 +55,7 @@ for ax in [axfe,axfs]:
     ax.set_xticks(np.arange(1,nft+1))
     ax.set_xticklabels(ftlist)
     ax.grid()
-axfe.set(xlabel='forecast hours',title='Forecast error against analysis')
+axfe.set(xlabel='forecast hours',title='Ensemble standard deviation of \nforecast error against analysis')
 axfe.legend()
 axfs.set(xlabel='forecast hours',title='Ensemble spread')
 axfs.legend()

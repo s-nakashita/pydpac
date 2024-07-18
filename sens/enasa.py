@@ -6,9 +6,10 @@ from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.cross_decomposition import PLSRegression
 import matplotlib.pyplot as plt
+import logging
 
 class EnASA():
-    def __init__(self,vt,X0,Je,solver='minnorm'):
+    def __init__(self,vt,X0,Je,solver='minnorm',logfile='minnorm'):
         self.solver = solver
         self.vt = vt
         self.X0 = X0 #centered
@@ -16,6 +17,9 @@ class EnASA():
         self.X = X0.T # (n_samples, n_features)
         self.nx = self.X.shape[1]
         self.nens = self.X.shape[0]
+        self.logger = logging.getLogger(__name__)
+        self.logfile = logfile
+        logging.basicConfig(filename=f'{self.logfile}.log', encoding='utf-8', level=logging.INFO)
         
     def __call__(self,n_components=None,mu=0.01):
         if self.solver=='minnorm':
@@ -79,6 +83,9 @@ class EnASA():
                 self.nrank = np.sum(s>s[0]*1.0e-10)
             else:
                 self.nrank = nrank
+            lam = s*s
+            contrib = np.sum(lam[:self.nrank])/np.sum(lam)
+            self.logger.info(f"nrank={self.nrank} contrib={contrib*1e2:.2f}%")
             v = vt.transpose()
             pinv = v[:,:self.nrank] @ np.diag(1.0/s[:self.nrank]/s[:self.nrank]) @ vt[:self.nrank,:]
             dJedx0_s = np.dot(np.dot(self.X0,pinv),self.Je)

@@ -11,11 +11,12 @@ logger = logging.getLogger('param')
 
 class L96_func():
 
-    def __init__(self, step, obs, analysis, params):
+    def __init__(self, naturestep, step, obs, params):
+        self.naturestep = naturestep
+        self.nx_t, self.dt_t, self.F_t = self.naturestep.get_params()
         self.step = step
         self.nx, self.dt, self.F = self.step.get_params()
         self.obs = obs
-        self.analysis = analysis
         self.nobs = params["nobs"]
         self.nmem = params["nmem"]
         self.t0c = params["t0c"]
@@ -32,7 +33,8 @@ class L96_func():
         self.ltlm = params["ltlm"]
         self.infl_parm = params["infl_parm"]
         self.lsig = params["lsig"]
-        logger.info("nx={} F={} dt={:7.3e}".format(self.nx, self.F, self.dt))
+        logger.info("nature: nx={} F={} dt={:7.3e}".format(self.nx_t, self.F_t, self.dt_t))
+        logger.info("model: nx={} F={} dt={:7.3e}".format(self.nx, self.F, self.dt))
         logger.info("nobs={}".format(self.nobs))
         logger.info("nt={} na={}".format(self.nt, self.na))
         logger.info("operator={} perturbation={} sig_obs={} ftype={}".format\
@@ -51,12 +53,12 @@ class L96_func():
         # spin up for 1 years
         logger.debug(self.namax*self.nt)
         for k in range(self.namax*self.nt):
-            tmp = self.step(x)
+            tmp = self.naturestep(x)
             x[:] = tmp[:]
         xt[0, :] = x
         for i in range(self.na-1):
             for k in range(self.nt):
-                tmp = self.step(x)
+                tmp = self.naturestep(x)
                 x[:] = tmp[:]
             xt[i+1, :] = x
         return xt
