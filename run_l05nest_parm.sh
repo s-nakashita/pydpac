@@ -28,7 +28,7 @@ preGM=True
 preGMda="envar"
 preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
 wdir=${ddir}/${exp}
-rm -rf ${wdir}
+#rm -rf ${wdir}
 mkdir -p ${wdir}
 cd ${wdir}
 cp ${cdir}/logging_config.ini .
@@ -47,7 +47,8 @@ nobslist="480 240 120 60 30 15"
 sigolist="1.0 0.5 0.3 0.1 0.05 0.03"
 infllist="1.0 1.05 1.1 1.15 1.2 1.25"
 sigblist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
-sigvlist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
+#sigvlist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
+sigvlist="0.2"
 #sigblist="0.8 1.0 1.2 1.6"
 lblist="2.0 4.0 6.0 8.0 10.0 12.0"
 ## create seeds
@@ -62,7 +63,7 @@ done
 touch params.txt
 set -e
 for op in ${operators}; do
-  echo $ptype > params.txt
+  #echo $ptype > params.txt
   #for nmem in ${nmemlist}; do
   #  echo $nmem >> params.txt
   #  ptmp=$nmem
@@ -82,7 +83,8 @@ for op in ${operators}; do
   #  echo $sigb >> params.txt
   #  ptmp=$sigb
   for sigv in ${sigvlist}; do
-    echo $sigv >> params.txt
+    #echo $sigv >> params.txt
+    gsed -i -e "2i ${sigv}" params.txt
     ptmp=$sigv
   #for gsigb in ${sigblist}; do
   #for lsigb in ${sigblist}; do

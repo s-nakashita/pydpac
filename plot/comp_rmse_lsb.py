@@ -15,18 +15,20 @@ pt = 'var' #var or envar
 if len(sys.argv)>4:
     pt = sys.argv[4]
 anl = True
-if len(sys.argv)>5:
-    anl = (sys.argv[5]=='T')
+#if len(sys.argv)>5:
+#    anl = (sys.argv[5]=='T')
 
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 ldscl=True
-#obsloc = ''
+obsloc = ''
+if len(sys.argv)>5:
+    obsloc = sys.argv[5]
 #obsloc = '_partiall'
 #obsloc = '_partialc'
 #obsloc = '_partialr'
-obsloc = '_partialm'
+#obsloc = '_partialm'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lsbdir  = datadir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
 lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
@@ -39,12 +41,14 @@ ptlong = {"envar":"EnVar","var":"3DVar"}
 labels = {"conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
 linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
-fig0, ax0 = plt.subplots(figsize=[12,6],constrained_layout=True)
+fig0, (ax00,ax01,ax02) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
 fig1, ax1 = plt.subplots(figsize=[12,6],constrained_layout=True)
 
 tc = np.arange(na)+1 # cycles
 t = tc / 4. # days
 ns = 40 # spinup
+ntime = na - ns
+nt1 = ntime // 3
 errors = {}
 if ldscl:
     # downscaling
@@ -63,7 +67,9 @@ if ldscl:
         print("dscl, forecast RMSE = {}".format(np.mean(e_dscl[ns:])))
         f = dscldir / f"stdf_lam_{op}_{preGMpt}.txt"
     stda_dscl = np.loadtxt(f)
-    ax0.plot(t,e_dscl,c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    ax00.plot(t[ns:ns+nt1],e_dscl[ns:ns+nt1],c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    ax01.plot(t[ns+nt1:ns+2*nt1],e_dscl[ns+nt1:ns+2*nt1],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    ax02.plot(t[ns+2*nt1:],e_dscl[ns+2*nt1:],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
     ax1.plot(t,stda_dscl,c='k',label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
     errors['dscl'] = e_dscl[ns:]
 for key in ['conv','lsb','nest']:
@@ -97,17 +103,21 @@ for key in ['conv','lsb','nest']:
     else:
         print("{}, forecast RMSE = {}".format(key,np.mean(e[ns:])))
     stda = np.loadtxt(fs)
-    ax0.plot(t,e,c=linecolor[key],label=labels[key]+f'={np.mean(e[ns:]):.3f}')
+    ax00.plot(t[ns:ns+nt1],e[ns:ns+nt1],c=linecolor[key],label=labels[key]+f'={np.mean(e[ns:]):.3f}')
+    ax01.plot(t[ns+nt1:ns+2*nt1],e[ns+nt1:ns+2*nt1],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
+    ax02.plot(t[ns+2*nt1:],e[ns+2*nt1:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     ax1.plot(t,stda,c=linecolor[key],label=labels[key]+f'={np.mean(stda[ns:]):.3f}')
     errors[key] = e[ns:]
-for ax in [ax0,ax1]:
+for ax in [ax00,ax01,ax02,ax1]:
     ax.hlines([1.0],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
-    ax.set_xlim(t[ns],t[-1])
-ax0.set_ylim(0.0,1.5)
+for ax0 in [ax00,ax01,ax02]:
+    ax0.set_ylim(0.0,1.5)
+    ax0.set_ylabel('RMSE') #,title=op)
+ax02.set_xlabel('days')
+ax1.set_xlim(t[ns],t[-1])
 ax1.set_ylim(0.0,1.5)
-ax0.set(xlabel='days',ylabel='RMSE') #,title=op)
 ax1.set(xlabel='days',ylabel='STD') #,title=op)
-ax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
+ax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=f'{ptlong[pt]} time average')
 ax1.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=ptlong[pt])
@@ -123,6 +133,7 @@ else:
     fig1.savefig(figdir/'{}_stdf_lam_{}_{}.pdf'.format(model,op,pt))
 plt.show()
 plt.close()
+exit()
 
 # t-test
 import matplotlib as mpl

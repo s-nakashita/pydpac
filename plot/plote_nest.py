@@ -324,7 +324,8 @@ if nmethod > 1:
         fig.savefig("{}_e_t-test_for_gm_{}_nospinup.png".format(model, op))
     else:
         fig.savefig("{}_e_t-test_for_gm_{}.png".format(model, op))
-    plt.show()
+    #plt.show()
+    plt.close()
 
 methods = errors_lam.keys()
 nmethod = len(methods)
@@ -366,4 +367,5 @@ if nmethod > 1:
         fig.savefig("{}_e_t-test_for_lam_{}_nospinup.png".format(model, op))
     else:
         fig.savefig("{}_e_t-test_for_lam_{}.png".format(model, op))
-    plt.show()
+    #plt.show()
+    plt.close()

@@ -18,8 +18,8 @@ pt = 'var' #var or envar
 if len(sys.argv)>4:
     pt = sys.argv[4]
 anl = True
-if len(sys.argv)>5:
-    anl = (sys.argv[5]=='T')
+#if len(sys.argv)>5:
+#    anl = (sys.argv[5]=='T')
 
 t = np.arange(na)+1
 ns = 40 # spinup
@@ -28,11 +28,13 @@ datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 ldscl=True
-#obsloc = ''
+obsloc = ''
+if len(sys.argv)>5:
+    obsloc = sys.argv[5]
 #obsloc = '_partiall'
 #obsloc = '_partialc'
 #obsloc = '_partialr'
-obsloc = '_partialm'
+#obsloc = '_partialm'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lsbdir  = datadir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
 lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
@@ -153,7 +155,7 @@ for key in ['conv','lsb','nest']:
     #else:
     #    ax.plot(ix_lam, np.mean(xsalam,axis=0),\
     #    c=linecolor[pt],ls='dashed')
-#ax.set_ylabel('RMSE')
+ax.set_ylabel('Error')
 ax.set_xlabel('grid')
 ax.set_xlim(ix_t[0],ix_t[-1])
 #ax.hlines([1],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
@@ -173,6 +175,7 @@ else:
 
 axsp.grid()
 axsp.legend()
+axsp.set_ylabel('Error')
 axsp.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
 #axsp.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
 #axsp.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))

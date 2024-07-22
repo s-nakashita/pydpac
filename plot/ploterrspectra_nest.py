@@ -258,7 +258,8 @@ for i,m1 in enumerate(methods):
         fig.suptitle(f"GM {op}: {m1} - {m2}")
         fig.tight_layout()
         fig.savefig("{}_errspectra_gm_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
-        plt.show()
+        #plt.show()
+        plt.close()
 ##LAM
 methods = psdlam_dict.keys()
 for i,m1 in enumerate(methods):
@@ -302,4 +303,5 @@ for i,m1 in enumerate(methods):
             fig.savefig("{}_errspectra_lam_t-test_{}_{}-{}_detrend.png".format(model,op,m1,m2),dpi=300)
         else:
             fig.savefig("{}_errspectra_lam_t-test_{}_{}-{}.png".format(model,op,m1,m2),dpi=300)
-        plt.show()
+        #plt.show()
+        plt.close()

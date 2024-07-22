@@ -5,9 +5,9 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var_nest var envar_nest envar"
+#perturbations="var_nest var" # envar_nest envar"
 #perturbations="mlef"
-perturbations="var envar"
+perturbations="var"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
@@ -30,13 +30,14 @@ functype=gc5
 ntrunc=12
 coef_a=None
 hyper_mu=0.0
+obsloc=${1}
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
-exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
+#exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
 #exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
-exp="var_vs_envar_lsb_partialr_preGM_m${nmem}obs${nobs}"
+exp="var_vs_envar_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
@@ -49,6 +50,10 @@ preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/${preGMda}_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
 wdir=${ddir}/${exp}
+if [ ! -d $wdir ]; then
+  echo "No such directory ${wdir}"
+  exit
+fi
 #rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
@@ -59,18 +64,18 @@ elif [ ${model} = l05nestm ]; then
 ln -fs ${cdir}/data/l05IIIm/truth.npy .
 #ln -fs ${ddir}/truth.npy .
 fi
-rm -rf obs*.npy
-rm -rf *.log
-rm -rf timer
-touch timer
+#rm -rf obs*.npy
+#rm -rf *.log
+#rm -rf timer
+#touch timer
 #if [ $preGM = True ]; then
 #  cp ${preGMdir}/obs*.npy .
 #fi
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
-cp ../var_vs_envar_shrink_dct_preGM_partialr_m${nmem}obs${nobs}/obs*.npy .
-rseed=504770
+#cp ../var_vs_envar_shrink_dct_preGM_partialr_m${nmem}obs${nobs}/obs*.npy .
+#rseed=504770
 roseed=None #514
 mkdir -p data
 for op in ${operators}; do
@@ -98,7 +103,7 @@ for op in ${operators}; do
     if [ ! -z $lsig ]; then
     gsed -i -e "8i \ \"lsig\":${lsig}," config.py
     fi
-    gsed -i -e "5i \ \"obsloctype\":\"partial\"," config.py
+    #gsed -i -e "5i \ \"obsloctype\":\"partial\"," config.py
     mv config.py config_gm.py
     cp config_gm.py config_lam.py
     if [ ! -z $lgsig ]; then

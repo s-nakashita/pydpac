@@ -136,8 +136,8 @@ params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
 params_lam["blending"]  = False # large-scale background blending (Milan et al. 2023)
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
-params_lam["sigb"]      =  0.8     # (For var & 4dvar) background error standard deviation
-params_lam["sigv"]      =  1.8     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["sigb"]      =  0.6 # (For var & 4dvar) background error standard deviation
+params_lam["sigv"]      =  0.4 # (For var_nest) GM background error standard deviation in LAM space
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 if model=="l05nest":
     params_lam["lb"]    = 26.5     # (For var & 4dvar) correlation length for background error covariance in degree

@@ -184,7 +184,10 @@ for pt in perts:
         xdgm_dict[pt] = xd_gm
         psdgm_dict[pt] = psd_gm
     # LAM
-    f = datadir/"{}_lam_ufext_{}_{}.npy".format(model,op,pt)
+    if preGM:
+        f = datadir/"{}_lam_ufext_preGM_{}_{}.npy".format(model,op,pt)
+    else:
+        f = datadir/"{}_lam_ufext_{}_{}.npy".format(model,op,pt)
     if not f.exists():
         print("not exist {}".format(f))
         continue
@@ -273,7 +276,7 @@ fig.savefig(figdir/f"{model}_efcst48_{op}.png",dpi=300)
 #fig.savefig(figdir/f"{model}_efcst_{op}.pdf")
 plt.show()
 plt.close()
-exit()
+#exit()
 
 cmap=plt.get_cmap("PiYG_r")
 cl0 = cmap(cmap.N//2)

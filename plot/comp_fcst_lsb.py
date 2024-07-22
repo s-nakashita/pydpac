@@ -35,11 +35,13 @@ print(f"LAM doubling time = {np.log(2.0)/ldble_lam:.2f} [hours]")
 
 wdir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 wdir = Path(f'../work/{model}')
-#obsloc = ''
+obsloc = ''
+if len(sys.argv)>5:
+    obsloc = sys.argv[5]
 #obsloc = '_partiall'
 #obsloc = '_partialc'
 #obsloc = '_partialr'
-obsloc = '_partialm'
+#obsloc = '_partialm'
 dscldir = wdir / 'var_vs_envar_dscl_m80obs30'
 preGMpt = "envar"
 lsbdir  = wdir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
@@ -149,12 +151,12 @@ if preGM:
 for key in ['conv','lsb','nest']:
     # LAM
     if key=='conv':
-        f = lamdir/"{}_lam_ufext_{}_{}.npy".format(model,op,pt)
+        f = lamdir/"{}_lam_ufext_preGM_{}_{}.npy".format(model,op,pt)
         if not f.exists():
             print("not exist {}".format(f))
             continue
     elif key=='nest':
-        f = lamdir/"{}_lam_ufext_{}_{}_nest.npy".format(model,op,pt)
+        f = lamdir/"{}_lam_ufext_preGM_{}_{}_nest.npy".format(model,op,pt)
         if not f.exists():
             print("not exist {}".format(f))
             continue
