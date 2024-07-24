@@ -6,6 +6,7 @@ import xarray as xr
 from sklearn.linear_model import LinearRegression
 from pathlib import Path
 import sys
+import argparse
 
 datadir = Path('data')
 
@@ -24,26 +25,32 @@ for nc in nclist:
 colors['all'] = cmap(i)
 markers['all'] = cmap(i)
 
-vt = 24
-if len(sys.argv)>1:
-    vt = int(sys.argv[1])
-nensbase = 8
-nens = 8
-if len(sys.argv)>2:
-    nens = int(sys.argv[2])
-solver = 'pcr'
-if len(sys.argv)>3:
-    solver = sys.argv[3]
-lag = 0
-if len(sys.argv)>4:
-    lag = int(sys.argv[4])
-figdir = Path(f"fig/vt{vt}ne{nens}/{solver}")
+parser = argparse.ArgumentParser()
+parser.add_argument("-vt","--vt",type=int,default=24,\
+    help="verification time (hours)")
+parser.add_argument("-ne","--nens",type=int,default=8,\
+    help="ensemble size")
+parser.add_argument("-s","--solver",type=str,\
+    help="EnASA type (minnorm,pcr,pls)")
+parser.add_argument("-m","--metric",type=str,default="",\
+    help="forecast metric type")
+parser.add_argument("-l","--lag",type=int,default=0,\
+    help="lag of time-lag ensemble")
+argsin = parser.parse_args()
+vt = argsin.vt # hours
+ioffset = vt // 6
+nens = argsin.nens
+metric = argsin.metric
+solver = argsin.solver
+lag = argsin.lag
+figdir = Path(f"fig/vt{vt}ne{nens}{metric}/{solver}")
 if lag>0:
-    figdir = Path(f"fig/vt{vt}ne{nens}lag{lag}/{solver}")
+    figdir = Path(f"fig/vt{vt}ne{nens}lag{lag}{metric}/{solver}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results
-ds_asa = xr.open_dataset(datadir/f'asa_vt{vt}nens{nensbase}.nc')
+nensbase = 8
+ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict = {'asa':ds_asa}
 
@@ -51,17 +58,17 @@ ds_enasa = {}
 for nc in nclist:
     if nc >= nens*(lag+1):
         if lag>0:
-            ds = xr.open_dataset(datadir/f'{solver}_vt{vt}nens{nens}lag{lag}.nc')
+            ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}lag{lag}.nc')
         else:
-            ds = xr.open_dataset(datadir/f'{solver}_vt{vt}nens{nens}.nc')
+            ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
         ds_enasa[f'all'] = ds
         ds_dict[f'all'] = ds
         break
     else:
         if lag>0:
-            ds = xr.open_dataset(datadir/f'{solver}nc{nc}_vt{vt}nens{nens}lag{lag}.nc')
+            ds = xr.open_dataset(datadir/f'{solver}{metric}nc{nc}_vt{vt}nens{nens}lag{lag}.nc')
         else:
-            ds = xr.open_dataset(datadir/f'{solver}nc{nc}_vt{vt}nens{nens}.nc')
+            ds = xr.open_dataset(datadir/f'{solver}{metric}nc{nc}_vt{vt}nens{nens}.nc')
         ds_enasa[f'nc{nc}'] = ds
         ds_dict[f'nc{nc}'] = ds
 

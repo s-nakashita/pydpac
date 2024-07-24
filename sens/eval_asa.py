@@ -5,7 +5,7 @@ plt.rcParams['axes.titlesize'] = 14
 import xarray as xr
 from sklearn.linear_model import LinearRegression
 from pathlib import Path
-import sys
+import argparse
 
 datadir = Path('data')
 
@@ -15,20 +15,24 @@ colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':c
 markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
 marker_style=dict(markerfacecolor='none')
 
-vt = 24
-if len(sys.argv)>1:
-    vt = int(sys.argv[1])
-nens = 8
-if len(sys.argv)>2:
-    nens = int(sys.argv[2])
-metric = ''
-if len(sys.argv)>3:
-    metric = sys.argv[3]
+parser = argparse.ArgumentParser()
+parser.add_argument("-vt","--vt",type=int,default=24,\
+    help="verification time (hours)")
+parser.add_argument("-ne","--nens",type=int,default=8,\
+    help="ensemble size")
+parser.add_argument("-m","--metric",type=str,default="",\
+    help="forecast metric type")
+argsin = parser.parse_args()
+vt = argsin.vt # hours
+ioffset = vt // 6
+nens = argsin.nens
+metric = argsin.metric
 figdir = Path(f"fig/vt{vt}ne{nens}{metric}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results
-ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nens}.nc')
+nensbase = 8
+ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict = {'asa':ds_asa}
 
@@ -50,6 +54,10 @@ for i,key in enumerate(ds_dict.keys()):
     ax.set_title(key)
 if metric=='_en':
     ymin, ymax = axs[0,0].get_ylim()
+    for ax in axs.flatten()[1:]:
+        ymintmp, ymaxtmp = ax.get_ylim()
+        ymin = min(ymin,ymintmp)
+        ymax = max(ymax,ymaxtmp)
 else:
     ymin = -1.1
     ymax = 1.1

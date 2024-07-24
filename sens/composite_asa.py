@@ -5,7 +5,7 @@ plt.rcParams['axes.titlesize'] = 14
 import xarray as xr
 from scipy.stats import ttest_1samp
 from pathlib import Path
-import sys
+import argparse
 
 datadir = Path('data')
 
@@ -17,21 +17,26 @@ ms = {'asa':8,'minnorm':5,'diag':5,'pcr':5,'ridge':5,'pls':5}
 dJlim = {24:0.2,48:1.0,72:2.0,96:3.6}
 dxlim = {24:0.02,48:0.02,72:0.02,96:0.02}
 
-vt = 24
-if len(sys.argv)>1:
-    vt = int(sys.argv[1])
-nens = 8
-if len(sys.argv)>2:
-    nens = int(sys.argv[2])
-metric = ''
-if len(sys.argv)>3:
-    metric = sys.argv[3]
+parser = argparse.ArgumentParser()
+parser.add_argument("-vt","--vt",type=int,default=24,\
+    help="verification time (hours)")
+parser.add_argument("-ne","--nens",type=int,default=8,\
+    help="ensemble size")
+parser.add_argument("-m","--metric",type=str,default="",\
+    help="forecast metric type")
+argsin = parser.parse_args()
+vt = argsin.vt # hours
+ioffset = vt // 6
+nens = argsin.nens
+metric = argsin.metric
+
 figdir = Path(f"fig/vt{vt}ne{nens}{metric}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results
+nensbase = 8
 ds_dict = {}
-ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nens}.nc')
+ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict['asa'] = ds_asa
 for solver in enasas:
@@ -82,6 +87,12 @@ for axdJ, axdx, solver in zip(axsdJ.flatten(),axsdx.flatten(),ds_dict.keys()):
     #dx0optstd[dx0optstd<0.0]=0.0
     #dx0optstd = np.sqrt(dx0optstd)
     
+    if solver=='asa':
+        dJdx0ref = dJdx0mean.copy()
+        dx0optref = dx0optmean.copy()
+    else:
+        axdJ.plot(x,dJdx0ref,c='k')
+        axdx.plot(x,dx0optref,c='k')
     #axdJ.fill_between(x,dJdx0mean-dJdx0std,dJdx0mean+dJdx0std,color=colors[solver],alpha=0.5)
     axdJ.plot(x,dJdx0mean,c=colors[solver],**marker_style)
     #axdx.fill_between(x,dx0optmean-dx0optstd,dx0optmean+dx0optstd,color=colors[solver],alpha=0.5)
@@ -110,10 +121,10 @@ for ax in np.concatenate((axsdJ.flatten(),axsdx.flatten())):
 #    ax.grid()
 for axs in [axsdJ,axsdx]:
     for i,ax in enumerate(axs.flatten()):
-        if i==0:
-            ymin,ymax = ax.get_ylim()
-        else:
-            ax.set_ylim(ymin,ymax)
+        #if i==0:
+        #    ymin,ymax = ax.get_ylim()
+        #else:
+        #    ax.set_ylim(ymin,ymax)
         ax.grid()
 
 figdJ.suptitle(r'$\frac{\partial J}{\partial \mathbf{x}_0}$'+f" FT{vt} {nens} member")

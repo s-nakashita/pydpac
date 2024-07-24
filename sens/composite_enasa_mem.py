@@ -5,7 +5,7 @@ plt.rcParams['axes.titlesize'] = 14
 import xarray as xr
 from scipy.stats import ttest_1samp
 from pathlib import Path
-import sys
+import argparse
 
 datadir = Path('data')
 
@@ -15,20 +15,23 @@ colors = {'asa':cmap(0),'mem8':cmap(1),'mem16':cmap(2),'mem24':cmap(3),'mem32':c
 markers = {'asa':'*','mem8':'o','mem16':'v','mem24':'s','mem32':'P','mem40':'X'}
 ms = {'asa':8,'mem8':5,'mem16':5,'mem24':5,'mem32':5,'mem40':5}
 marker_style=dict(markerfacecolor='none')
-nenslist = [8,16,24,32]
+nenslist = [8,16,24,32,40]
 nensbase = 8
 dJlim = {24:0.2,48:1.0,72:2.0,96:3.6}
 dxlim = {24:0.02,48:0.02,72:0.02,96:0.02}
 
-vt = 24
-if len(sys.argv)>1:
-    vt = int(sys.argv[1])
-solver = 'minnorm'
-if len(sys.argv)>2:
-    solver = sys.argv[2]
-metric = ''
-if len(sys.argv)>3:
-    metric = sys.argv[3]
+parser = argparse.ArgumentParser()
+parser.add_argument("-vt","--vt",type=int,default=24,\
+    help="verification time (hours)")
+parser.add_argument("-s","--solver",type=str,\
+    help="EnASA type (minnorm,pcr,pls)")
+parser.add_argument("-m","--metric",type=str,default="",\
+    help="forecast metric type")
+argsin = parser.parse_args()
+vt = argsin.vt # hours
+ioffset = vt // 6
+metric = argsin.metric
+solver = argsin.solver
 figdir = Path(f"fig/vt{vt}{solver}{metric}")
 if not figdir.exists(): figdir.mkdir()
 
@@ -51,8 +54,10 @@ for i, key in enumerate(ds_dict.keys()):
         axdJ = axsdJ[0,0]
         axdx = axsdx[0,0]
     else:
-        axdJ = axsdJ[1:,:].flatten()[i-1]
-        axdx = axsdx[1:,:].flatten()[i-1]
+        #axdJ = axsdJ[1:,:].flatten()[i-1]
+        #axdx = axsdx[1:,:].flatten()[i-1]
+        axdJ = axsdJ.flatten()[i]
+        axdx = axsdx.flatten()[i]
     marker_style = dict(markerfacecolor=colors[key],markeredgecolor='k',ms=ms[key])
     ds = ds_dict[key]
     x = ds.x
@@ -90,7 +95,12 @@ for i, key in enumerate(ds_dict.keys()):
     #dx0optstd = dx0optstd/ncycle - dx0optmean**2
     #dx0optstd[dx0optstd<0.0]=0.0
     #dx0optstd = np.sqrt(dx0optstd)
-    
+    if key=='asa':
+        dJdx0ref = dJdx0mean.copy()
+        dx0optref = dx0optmean.copy()
+    else:
+        axdJ.plot(x,dJdx0ref,c='k')
+        axdx.plot(x,dx0optref,c='k')
     #axdJ.fill_between(x,dJdx0mean-dJdx0std,dJdx0mean+dJdx0std,color=colors[key],alpha=0.5)
     axdJ.plot(x,dJdx0mean,c=colors[key],**marker_style)
     #axdx.fill_between(x,dx0optmean-dx0optstd,dx0optmean+dx0optstd,color=colors[key],alpha=0.5)
@@ -119,15 +129,15 @@ for ax in np.concatenate((axsdJ.flatten(),axsdx.flatten())):
 #    ax.grid()
 for axs in [axsdJ,axsdx]:
     for i,ax in enumerate(axs.flatten()):
-        if i==0:
-            ymin,ymax = ax.get_ylim()
-        else:
-            ax.set_ylim(ymin,ymax)
+        #if i==0:
+        #    ymin,ymax = ax.get_ylim()
+        #else:
+        #    ax.set_ylim(ymin,ymax)
         ax.grid()
-axsdJ[0,1].remove()
-axsdx[0,1].remove()
+#axsdJ[0,1].remove()
+#axsdx[0,1].remove()
 figdJ.suptitle(r'$\frac{\partial J}{\partial \mathbf{x}_0}$'+f" FT{vt} {solver}")
 figdx.suptitle(r'$\delta\mathbf{x}_0^\mathrm{opt}$'+f" FT{vt} {solver}")
 figdJ.savefig(figdir/f"composite_dJdx0{metric}_vt{vt}{solver}.png",dpi=300)
 figdx.savefig(figdir/f"composite_dx0opt{metric}_vt{vt}{solver}.png",dpi=300)
-#plt.show()
+plt.show()

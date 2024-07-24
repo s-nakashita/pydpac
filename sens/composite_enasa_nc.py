@@ -5,7 +5,7 @@ plt.rcParams['axes.titlesize'] = 14
 import xarray as xr
 from scipy.stats import ttest_1samp
 from pathlib import Path
-import sys
+import argparse
 
 datadir = Path('data')
 
@@ -17,6 +17,7 @@ ms = {'asa':8}
 markerlist = ['*','o','v','s','P','X','d']
 marker_style=dict(markerfacecolor='none')
 nclist = [2,4,8,16,24]
+nensbase = 8
 i=1
 for nc in nclist:
     colors[f'nc{nc}'] = cmap(i)
@@ -29,19 +30,24 @@ ms['all'] = 5
 dJlim = {24:0.2,48:1.0,72:2.0,96:3.6}
 dxlim = {24:0.02,48:0.02,72:0.02,96:0.02}
 
-vt = 24
-if len(sys.argv)>1:
-    vt = int(sys.argv[1])
-nensbase = 8
-nens = 8
-if len(sys.argv)>2:
-    nens = int(sys.argv[2])
-solver = 'pcr'
-if len(sys.argv)>3:
-    solver = sys.argv[3]
-lag = 0
-if len(sys.argv)>4:
-    lag = int(sys.argv[4])
+parser = argparse.ArgumentParser()
+parser.add_argument("-vt","--vt",type=int,default=24,\
+    help="verification time (hours)")
+parser.add_argument("-ne","--nens",type=int,default=8,\
+    help="ensemble size")
+parser.add_argument("-s","--solver",type=str,\
+    help="EnASA type (minnorm,pcr,pls)")
+parser.add_argument("-m","--metric",type=str,default="",\
+    help="forecast metric type")
+parser.add_argument("-l","--lag",type=int,default=0,\
+    help="lag of time-lag ensemble")
+argsin = parser.parse_args()
+vt = argsin.vt # hours
+ioffset = vt // 6
+nens = argsin.nens
+metric = argsin.metric
+solver = argsin.solver
+lag = argsin.lag
 figdir = Path(f"fig/vt{vt}ne{nens}/{solver}")
 if lag>0:
     figdir = Path(f"fig/vt{vt}ne{nens}lag{lag}/{solver}")

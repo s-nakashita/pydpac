@@ -5,7 +5,7 @@ plt.rcParams['axes.titlesize'] = 14
 import xarray as xr
 from scipy.stats import ttest_1samp
 from pathlib import Path
-import sys
+import argparse
 
 datadir = Path('data')
 
@@ -17,22 +17,30 @@ ms = {'asa':8,'minnorm':5,'diag':5,'pcr':5,'ridge':5,'pls':5}
 dJlim = {24:0.2,48:1.0,72:2.0,96:3.6}
 dxlim = {24:0.02,48:0.02,72:0.02,96:0.02}
 
-vt = 24
-if len(sys.argv)>1:
-    vt = int(sys.argv[1])
-nens = 8
-if len(sys.argv)>2:
-    nens = int(sys.argv[2])
-figdir = Path(f"fig/vt{vt}ne{nens}")
+parser = argparse.ArgumentParser()
+parser.add_argument("-vt","--vt",type=int,default=24,\
+    help="verification time (hours)")
+parser.add_argument("-ne","--nens",type=int,default=8,\
+    help="ensemble size")
+parser.add_argument("-m","--metric",type=str,default="",\
+    help="forecast metric type")
+argsin = parser.parse_args()
+vt = argsin.vt # hours
+ioffset = vt // 6
+nens = argsin.nens
+metric = argsin.metric
+
+figdir = Path(f"fig/vt{vt}ne{nens}{metric}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results
+nensbase = 8
 ds_dict = {}
-ds_asa = xr.open_dataset(datadir/f'asa_vt{vt}nens{nens}.nc')
+ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict['asa'] = ds_asa
 for solver in enasas:
-    ds = xr.open_dataset(datadir/f'{solver}_vt{vt}nens{nens}.nc')
+    ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
     ds_dict[solver] = ds
 
 # determine best and worst 10% cases based on nonlinear forecast responses to ASA
@@ -103,7 +111,16 @@ for axdJb, axdxb, axdJw, axdxw, solver in \
     #dx0optstd = dx0optstd/ncycle - dx0optmean**2
     #dx0optstd[dx0optstd<0.0]=0.0
     #dx0optstd = np.sqrt(dx0optstd)
-    
+    if solver=='asa':
+        dJdx0bref = dJdx0best.copy()
+        dx0optbref = dx0optbest.copy()
+        dJdx0wref = dJdx0worst.copy()
+        dx0optwref = dx0optworst.copy()
+    else:
+        axdJb.plot(x,dJdx0bref,c='k')
+        axdxb.plot(x,dx0optbref,c='k')
+        axdJw.plot(x,dJdx0wref,c='k')
+        axdxw.plot(x,dx0optwref,c='k')
     axdJb.plot(x,dJdx0best,c=colors[solver],**marker_style)
     axdxb.plot(x,dx0optbest,c=colors[solver],**marker_style)
     axdJb.set_title(f'#{nbest} '+r'$\delta J/J=$'+f'{resbest:.2f}')
@@ -136,10 +153,10 @@ for ax in np.concatenate(\
 
 for axs in [axsdJb,axsdxb,axsdJw,axsdxw]:
     for i,ax in enumerate(axs.flatten()):
-        if i==0:
-            ymin,ymax = ax.get_ylim()
-        else:
-            ax.set_ylim(ymin,ymax)
+        #if i==0:
+        #    ymin,ymax = ax.get_ylim()
+        #else:
+        #    ax.set_ylim(ymin,ymax)
         ax.grid()
 figdJb.suptitle(r'$\frac{\partial J}{\partial \mathbf{x}_0}$'+f" best 10% for ASA FT{vt} {nens} member")
 figdxb.suptitle(r'$\delta\mathbf{x}_0^\mathrm{opt}$'+f" best 10% for ASA FT{vt} {nens} member")

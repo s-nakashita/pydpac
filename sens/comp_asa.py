@@ -4,6 +4,7 @@ from pathlib import Path
 import xarray as xr
 from asa import ASA
 from enasa import EnASA
+import argparse
 import sys
 sys.path.append('../model')
 from lorenz import L96
@@ -12,22 +13,25 @@ from lorenz import L96
 nx = 40
 dt = 0.05 / 6 # 1 hour
 F = 8.0
+ldble = 2.3 * dt # Lyapunov exponent (1/hour)
 model = L96(nx,dt,F)
 
 # SA settings
-vt = 48 # hours
-if len(sys.argv)>1:
-    vt = int(sys.argv[1])
+parser = argparse.ArgumentParser()
+parser.add_argument("-vt","--vt",type=int,default=24,\
+    help="verification time (hours)")
+parser.add_argument("-ne","--nens",type=int,default=8,\
+    help="ensemble size")
+parser.add_argument("-nc","--n_components",type=int,\
+    help="(minnorm,pcr,pls) number of components to keep")
+parser.add_argument("-m","--metric",type=str,default="",\
+    help="forecast metric type")
+argsin = parser.parse_args()
+vt = argsin.vt # hours
 ioffset = vt // 6
-nens = 20
-if len(sys.argv)>2:
-    nens=int(sys.argv[2])
-n_components = None
-if len(sys.argv)>3:
-    n_components=int(sys.argv[3])
-metric = ''
-if len(sys.argv)>4:
-    metric = sys.argv[4]
+nens = argsin.nens
+n_components = argsin.n_components
+metric = argsin.metric
 
 recomp_asa = False
 nensbase = 8
@@ -81,8 +85,8 @@ else:
 rmsdJ_dict = {}
 rmsdx_dict = {}
 corrdJ_dict = {}
-#solverlist=['minnorm','diag','ridge','pcr','pls']
-solverlist=['minnorm'] #,'pcr','pls']
+solverlist=['minnorm','diag','ridge','pcr','pls']
+#solverlist=['pcr','minnorm'] #,'pls']
 
 for solver in solverlist:
     dJdx0_dict[solver] = []
@@ -131,6 +135,9 @@ for i in range(nsample):
         # analysis
         dJdx0 = asa(xb)
         dx0opt = asa.calc_dxopt(xb,dJdx0)
+        if metric=='_en':
+            scale = 0.1/np.linalg.norm(dx0opt,ord=2)/np.exp((vt-24)*ldble)
+            dx0opt = dx0opt * scale
         dJdx0_dict['asa'].append(dJdx0)
         dx0opt_dict['asa'].append(dx0opt)
         #asa.plot_hov()
@@ -160,8 +167,11 @@ for i in range(nsample):
         if n_components is not None:
             logfile = f"{solver}_vt{vt}ne{nens}nc{n_components}{metric}"
         enasa = EnASA(vt,X0,Je,solver=solver,logfile=logfile)
-        dJedx0 = enasa(n_components=n_components)
+        dJedx0 = enasa(n_components=n_components,cthres=0.99)
         dxe0opt = asa.calc_dxopt(xb,dJedx0)
+        if metric=='_en':
+            scale = 0.1/np.linalg.norm(dxe0opt,ord=2)/np.exp((vt-24)*ldble)
+            dxe0opt = dxe0opt * scale
         dJdx0_dict[solver].append(dJedx0)
         dx0opt_dict[solver].append(dxe0opt)
         res_nl, res_tl = asa.check_djdx(xb,dJedx0,dxe0opt,\
@@ -175,7 +185,7 @@ for i in range(nsample):
         if i==0: 
             print(f"{solver} score={enasa.score()} err={enasa.err}")
             if solver=='minnorm': print(f"nrank={enasa.nrank}")
-    if i<10:
+    if i<0:
         print(f"ic={ic}")
         figdir = Path(f"fig/vt{vt}ne{nens}{metric}/c{icyc}")
         if n_components is not None:
@@ -258,6 +268,8 @@ ds = xr.Dataset.from_dict(
     }
 )
 ds.to_netcdf(savedir/f"x0s_nens{nens}.nc")
+if recomp_asa:
+    ics = np.array(ic_list)
 for key in res_dict.keys():
     res = np.array(res_dict[key])
     dJdx0 = np.array(dJdx0_dict[key])

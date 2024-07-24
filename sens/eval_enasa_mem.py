@@ -5,7 +5,7 @@ plt.rcParams['axes.titlesize'] = 14
 import xarray as xr
 from sklearn.linear_model import LinearRegression
 from pathlib import Path
-import sys
+import argparse
 
 datadir = Path('data')
 
@@ -14,18 +14,21 @@ enasas = ['minnorm','diag','ridge','pcr','pls']
 colors = {'asa':cmap(0),'mem8':cmap(1),'mem16':cmap(2),'mem24':cmap(3),'mem32':cmap(4),'mem40':cmap(5)}
 markers = {'asa':'*','mem8':'o','mem16':'v','mem24':'s','mem32':'P','mem40':'X'}
 marker_style=dict(markerfacecolor='none')
-nenslist = [8,16,24,32]
+nenslist = [8,16,24,32,40]
 nensbase = 8
 
-vt = 24
-if len(sys.argv)>1:
-    vt = int(sys.argv[1])
-solver = 'minnorm'
-if len(sys.argv)>2:
-    solver = sys.argv[2]
-metric = ''
-if len(sys.argv)>3:
-    metric = sys.argv[3]
+parser = argparse.ArgumentParser()
+parser.add_argument("-vt","--vt",type=int,default=24,\
+    help="verification time (hours)")
+parser.add_argument("-s","--solver",type=str,\
+    help="EnASA type (minnorm,pcr,pls)")
+parser.add_argument("-m","--metric",type=str,default="",\
+    help="forecast metric type")
+argsin = parser.parse_args()
+vt = argsin.vt # hours
+ioffset = vt // 6
+metric = argsin.metric
+solver = argsin.solver
 figdir = Path(f"fig/vt{vt}{solver}{metric}")
 if not figdir.exists(): figdir.mkdir()
 
@@ -52,12 +55,18 @@ axs[0,0].set_title('asa')
 for i,key in enumerate(ds_enasa.keys()):
     res_nl = ds_enasa[key].res_nl.values
     res_tl = ds_enasa[key].res_tl.values
-    ax = axs[:,1:].flatten()[i]
+    #ax = axs[:,1:].flatten()[i]
+    ax = axs.flatten()[i+1]
     ax.plot(res_nl,res_tl,marker=markers[key],lw=0.0, c=colors[key],#ms=10,\
         **marker_style)
     ax.set_title(key)
 if metric=='_en':
     ymin, ymax = axs[0,0].get_ylim()
+    #for ax in axs[:,1:].flatten():
+    for ax in axs.flatten()[1:]:
+        ymintmp, ymaxtmp = ax.get_ylim()
+        ymin = min(ymin,ymintmp)
+        ymax = max(ymax,ymaxtmp)
 else:
     ymin = -1.1
     ymax = 1.1
@@ -68,7 +77,7 @@ for ax in axs.flatten():
     ax.set_ylim(ymin,ymax)
     ax.set_xlim(ymin,ymax)
     ax.set_aspect(1.0)
-axs[1,0].remove()
+#axs[1,0].remove()
 axs[0,0].set_xlabel(r'NLM: $\frac{J(M(\mathbf{x}_0+\delta\mathbf{x}_0^\mathrm{opt}))-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$')
 axs[0,0].set_ylabel(r'TLM: $\frac{J(\mathbf{x}_T+\mathbf{M}\delta\mathbf{x}_0^\mathrm{opt})-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$')
 fig.suptitle(r'$\delta J/J$'+f', FT{vt} {solver}')
