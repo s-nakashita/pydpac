@@ -163,9 +163,9 @@ for i in range(nsample):
     Jeest = {}
 
     for solver in solverlist:
-        logfile = f"{solver}_vt{vt}ne{nens}{metric}"
+        logfile = f"log/{solver}_vt{vt}ne{nens}{metric}"
         if n_components is not None:
-            logfile = f"{solver}_vt{vt}ne{nens}nc{n_components}{metric}"
+            logfile = f"log/{solver}_vt{vt}ne{nens}nc{n_components}{metric}"
         enasa = EnASA(vt,X0,Je,solver=solver,logfile=logfile)
         dJedx0 = enasa(n_components=n_components,cthres=0.99)
         dxe0opt = asa.calc_dxopt(xb,dJedx0)
