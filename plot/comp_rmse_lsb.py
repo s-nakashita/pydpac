@@ -2,11 +2,60 @@ import os
 import sys
 import numpy as np 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator, FixedFormatter
 from pathlib import Path
 plt.rcParams['font.size'] = 16
 plt.rcParams['axes.labelsize'] = 20
 plt.rcParams['legend.fontsize'] = 20
 plt.rcParams['legend.title_fontsize'] = 24
+from matplotlib.patches import FancyArrowPatch
+
+# autocorrelation estimation using jackknife method
+def forward(x):
+    x = np.array(x, int)
+    near_zero = np.isclose(x, 0)
+    x[near_zero] = 0
+    x[~near_zero] = 960 / x[~near_zero]
+    return x
+backward = forward
+def jackknife(e,t,key):
+    nws = [2,3,4,6,8,10,12,15,16,20,24,30,32,40,48,64,80,96,120,160,240,320,480]
+    fall = np.mean(e[ns:])
+    fest = []
+    jerr = []
+    ngroups = []
+    for nw in nws:
+        ngroup = e[ns:].size // nw
+        ngroups.append(ngroup)
+        ftmp = np.array([np.sum(e[ns+l*nw:ns+(l+1)*nw])/nw for l in range(ngroup)])
+        fest.append(np.mean(ftmp))
+        jerr.append(np.sqrt(np.sum((ftmp - fall)**2)/ngroup/(ngroup-1)))
+    figj, axj = plt.subplots(figsize=[8,6],constrained_layout=True)
+    axj.errorbar(np.arange(1,len(fest)+1),fest,yerr=jerr)
+    axj.set_xlim(0,len(fest)+1)
+    axj.set_xlabel('w')
+    axj.xaxis.set_major_locator(FixedLocator(np.arange(1,len(fest)+1,2)))
+    axj.xaxis.set_major_formatter(FixedFormatter([f'{nw}\n{ng}' for nw, ng in zip(nws[::2],ngroups[::2])]))
+    axj.set_ylabel('<e>')
+    if key=='dscl':
+        axj.set_title(labels[key])
+    else:
+        axj.set_title(ptlong[pt]+' '+labels[key])
+    axj.grid()
+    #sax = axj.secondary_xaxis('top', functions=(forward,backward))
+    #sax.set_xlabel('n')
+    #sax.xaxis.set_major_locator(FixedLocator(forward(nws[::2])))
+    if key=='dscl':
+        figj.savefig(figdir/f'e_lam_jk_{key}.png')
+    else:
+        figj.savefig(figdir/f'e_lam_jk_{pt}_{key}.png')
+    plt.close(fig=figj)
+    # resampling
+    nwc = 32
+    n_resample = e[ns:].size // nwc
+    e_resample = np.array([np.sum(e[ns+l*nwc:ns+(l+1)*nwc])/nwc for l in range(n_resample)])
+    t_resample = np.array([t[ns+nwc//2+nwc*l] for l in range(n_resample)])
+    return nwc, e_resample, t_resample
 
 op = sys.argv[1]
 model = sys.argv[2]
@@ -38,11 +87,12 @@ lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 figdir = lsbdir
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
-linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
+labels = {"dscl":"Dscl","conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
+linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 fig0, (ax00,ax01,ax02) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
-fig1, ax1 = plt.subplots(figsize=[12,6],constrained_layout=True)
+fig1, (ax10,ax11,ax12) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
+figs, (sax0,sax1,sax2) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
 
 tc = np.arange(na)+1 # cycles
 t = tc / 4. # days
@@ -67,11 +117,21 @@ if ldscl:
         print("dscl, forecast RMSE = {}".format(np.mean(e_dscl[ns:])))
         f = dscldir / f"stdf_lam_{op}_{preGMpt}.txt"
     stda_dscl = np.loadtxt(f)
-    ax00.plot(t[ns:ns+nt1],e_dscl[ns:ns+nt1],c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    ax00.plot(t[ns:ns+nt1],e_dscl[ns:ns+nt1],c='k',label=f'Downscaling={np.mean(e_dscl[ns:]):.3f}')
     ax01.plot(t[ns+nt1:ns+2*nt1],e_dscl[ns+nt1:ns+2*nt1],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
     ax02.plot(t[ns+2*nt1:],e_dscl[ns+2*nt1:],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-    ax1.plot(t,stda_dscl,c='k',label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
-    errors['dscl'] = e_dscl[ns:]
+    #sax.plot(t[ns:],stda_dscl[ns:],c='k',ls='dashed') #,label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
+    sratio = stda_dscl/e_dscl
+    sax0.plot(t[ns:ns+nt1],sratio[ns:ns+nt1],c='k',label=f'Downscaling={np.mean(sratio[ns:]):.3f}')
+    sax1.plot(t[ns+nt1:ns+2*nt1],sratio[ns+nt1:ns+2*nt1],c='k') #,label=f'downscaling={np.mean(sratio):.3f}')
+    sax2.plot(t[ns+2*nt1:],sratio[ns+2*nt1:],c='k') #,label=f'downscaling={np.mean(sratio):.3f}')
+    # autocorrelation estimation using jackknife method
+    nwc, e_resample, t_resample = jackknife(e_dscl,t,'dscl')
+    nt2 = t_resample.size // 3
+    ax10.plot(t_resample[:nt2],e_resample[:nt2],c='k',label=f'Downscaling={np.mean(e_resample):.3f}')
+    ax11.plot(t_resample[nt2:2*nt2],e_resample[nt2:2*nt2],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    errors['dscl'] = e_resample #e_dscl[ns:]
 for key in ['conv','lsb','nest']:
     if key=='conv':
         if anl:
@@ -106,33 +166,154 @@ for key in ['conv','lsb','nest']:
     ax00.plot(t[ns:ns+nt1],e[ns:ns+nt1],c=linecolor[key],label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     ax01.plot(t[ns+nt1:ns+2*nt1],e[ns+nt1:ns+2*nt1],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     ax02.plot(t[ns+2*nt1:],e[ns+2*nt1:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
-    ax1.plot(t,stda,c=linecolor[key],label=labels[key]+f'={np.mean(stda[ns:]):.3f}')
-    errors[key] = e[ns:]
-for ax in [ax00,ax01,ax02,ax1]:
+    #sax.plot(t[ns:],stda[ns:],c=linecolor[key],ls='dashed') #,label=labels[key]+f'={np.mean(stda[ns:]):.3f}')
+    sratio = stda/e
+    sax0.plot(t[ns:ns+nt1],sratio[ns:ns+nt1],c=linecolor[key],label=labels[key]+f'={np.mean(sratio[ns:]):.3f}')
+    sax1.plot(t[ns+nt1:ns+2*nt1],sratio[ns+nt1:ns+2*nt1],c=linecolor[key]) #,label=labels[key]+f'={np.mean(sratio):.3f}')
+    sax2.plot(t[ns+2*nt1:],sratio[ns+2*nt1:],c=linecolor[key]) #,label=labels[key]+f'={np.mean(sratio):.3f}')
+    # autocorrelation length estimation using jackknife method
+    nwc, e_resample, t_resample = jackknife(e,t,key)
+    nt2 = t_resample.size // 3
+    ax10.plot(t_resample[:nt2],e_resample[:nt2],c=linecolor[key],label=labels[key]+f'={np.mean(e_resample):.3f}')
+    ax11.plot(t_resample[nt2:2*nt2],e_resample[nt2:2*nt2],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
+    ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
+    errors[key] = e_resample #e[ns:]
+for ax in [ax00,ax01,ax02,ax10,ax11,ax12]:
     ax.hlines([1.0],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
-for ax0 in [ax00,ax01,ax02]:
-    ax0.set_ylim(0.0,1.5)
-    ax0.set_ylabel('RMSE') #,title=op)
+for ax in [ax00,ax01,ax02,ax10,ax11,ax12]:
+    ax.set_ylim(0.0,1.5)
+    ax.set_ylabel('RMSE') #,title=op)
 ax02.set_xlabel('days')
-ax1.set_xlim(t[ns],t[-1])
-ax1.set_ylim(0.0,1.5)
-ax1.set(xlabel='days',ylabel='STD') #,title=op)
 ax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=f'{ptlong[pt]} time average')
-ax1.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
-    title=ptlong[pt])
+ax12.set_xlabel('days (resampling)')
+ax10.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
+    title=f'{ptlong[pt]} time average\n(resampling)')
+#sax.set_xlim(t[ns],t[-1])
+for sax in [sax0,sax1,sax2]:
+    sax.hlines([1],0,1,colors='gray',transform=sax.get_yaxis_transform(),zorder=0)
+    sax.set_ylim(0.0,2.0)
+    sax.set(ylabel='STD/RMSE') #,title=op)
+sax2.set_xlabel('days')
+sax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
+    title=ptlong[pt]+' time average \nof STD/RMSE')
 if anl:
     fig0.savefig(figdir/'{}_e_lam_{}_{}.png'.format(model,op,pt),dpi=300)
-    fig1.savefig(figdir/'{}_stda_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+    fig1.savefig(figdir/'{}_e_lam_resample_{}_{}.png'.format(model,op,pt),dpi=300)
+    figs.savefig(figdir/'{}_stda_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     fig0.savefig(figdir/'{}_e_lam_{}_{}.pdf'.format(model,op,pt))
-    fig1.savefig(figdir/'{}_stda_lam_{}_{}.pdf'.format(model,op,pt))
+    fig1.savefig(figdir/'{}_e_lam_resample_{}_{}.pdf'.format(model,op,pt))
+    figs.savefig(figdir/'{}_stda_lam_{}_{}.pdf'.format(model,op,pt))
 else:
     fig0.savefig(figdir/'{}_ef_lam_{}_{}.png'.format(model,op,pt),dpi=300)
-    fig1.savefig(figdir/'{}_stdf_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+#    fig1.savefig(figdir/'{}_stdf_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     fig0.savefig(figdir/'{}_ef_lam_{}_{}.pdf'.format(model,op,pt))
-    fig1.savefig(figdir/'{}_stdf_lam_{}_{}.pdf'.format(model,op,pt))
+#    fig1.savefig(figdir/'{}_stdf_lam_{}_{}.pdf'.format(model,op,pt))
 plt.show()
+plt.close(fig=fig0)
+plt.close(fig=fig1)
+plt.close(fig=figs)
+exit()
+
+# bootstrap
+fig, ax = plt.subplots(figsize=[10,6],constrained_layout=True)
+cmap = plt.get_cmap('tab10')
+i=0
+thetas = {}
+barlabels = {}
+height = 0.9
+for key in errors.keys():
+    e = errors[key]
+    ### calculate autocorrelation
+    #ax.acorr(e,maxlags=e.size-1,usevlines=False,label=key)
+    ## bootstrap sampling
+    nb = 2000
+    nparts = e.size
+    nsample = e.size
+    theta = []
+    for n in range(nb):
+        index = np.sort(np.random.choice(nparts,size=nsample,replace=True))
+        esample = [e[i] for i in index]
+        theta.append(np.mean(np.array(esample)))
+    ## estimate confidence interval
+    theta = np.sort(np.array(theta))
+    alphalist = [5.0e-3,2.5e-2,5.0e-2] # 99, 95, 90%
+    conf = []
+    for alpha in alphalist:
+        nlow = int(nb*alpha)+1
+        nhigh = int(nb*(1-alpha))
+        conf.append([theta[nlow],theta[nhigh]])
+    label = labels[key] + f'\n99[{conf[0][0]:.3f},{conf[0][1]:.3f}]'\
+        + f'\n95[{conf[1][0]:.3f},{conf[1][1]:.3f}]' \
+        + f'\n90[{conf[2][0]:.3f},{conf[2][1]:.3f}]'
+    ax.hist(theta,bins=20,histtype='bar',color=cmap(i),alpha=0.3,label=label)
+    ax.vlines(conf[0],0,1,colors=cmap(i),ls='dashed',transform=ax.get_xaxis_transform(),zorder=0)
+    mscale = 30
+    y = height
+    for j in range(len(conf)):
+        c1 = conf[j]
+        interval = FancyArrowPatch((c1[0],y),(c1[1],y),\
+        arrowstyle='<|-|>',mutation_scale=mscale,color=cmap(i),transform=ax.get_xaxis_transform())
+        ax.add_patch(interval)
+        y-=0.03
+        mscale-=10
+    ax.text(np.mean(conf[0]),height+0.01,labels[key],ha='center',va='bottom',fontsize=14,transform=ax.get_xaxis_transform())
+    thetas[key] = theta
+    barlabels[key] = label
+    i+=1
+    height -= 0.15
+ax.set_title(f'{ptlong[pt]} #replace={nb} #sample={e.size}')
+ax.legend(loc='upper left',bbox_to_anchor=(1.01,1.0),fontsize=16,\
+    title='confidence interval',title_fontsize=16)
+fig.savefig(figdir/'{}_e_lam_bs_{}_{}.png'.format(model,op,pt),dpi=300)
+#plt.show()
 plt.close()
+
+# bootstrap for difference
+plt.rcParams['xtick.labelsize'] = 'medium'
+plt.rcParams['ytick.labelsize'] = 'medium'
+for i,k1 in enumerate(thetas.keys()):
+    for j,k2 in enumerate(thetas.keys()):
+        if k1==k2 or i>j: continue
+        th1 = thetas[k1]
+        th2 = thetas[k2]
+        nb = 2000
+        dth = []
+        for n in range(nb):
+            ii = np.random.choice(th1.size,size=1)
+            jj = np.random.choice(th2.size,size=1)
+            dth.append(th1[ii]-th2[jj])
+        dth = np.sort(np.array(dth).ravel())
+        conf=[]
+        for alpha in alphalist:
+            nlow = int(nb*alpha)+1
+            nhigh = int(nb*(1-alpha))
+            conf.append([dth[nlow],dth[nhigh]])
+        title=f'{ptlong[pt]} ({labels[k1]}) - ({labels[k2]})'
+        label = f'99[{conf[0][0]:.3f},{conf[0][1]:.3f}]'\
+        + f'\n95[{conf[1][0]:.3f},{conf[1][1]:.3f}]' \
+        + f'\n90[{conf[2][0]:.3f},{conf[2][1]:.3f}]'
+        fig, ax = plt.subplots(figsize=[6,4],constrained_layout=True)
+        ax.hist(dth,bins=20,histtype='bar',color=cmap(0),alpha=0.3,label=label)
+        ax.vlines(conf[0],0,1,colors=cmap(0),ls='dashed',transform=ax.get_xaxis_transform(),zorder=0)
+        xmin, xmax = ax.get_xlim()
+        if xmin*xmax<0.0:
+            ax.vlines([0],0,1,colors='k',ls='dotted',transform=ax.get_xaxis_transform(),zorder=0)
+        mscale = 30
+        y = 0.9
+        for ii in range(len(conf)):
+            c1 = conf[ii]
+            interval = FancyArrowPatch((c1[0],y),(c1[1],y),\
+            arrowstyle='<|-|>',mutation_scale=mscale,color=cmap(0),transform=ax.get_xaxis_transform())
+            ax.add_patch(interval)
+            y-=0.03
+            mscale-=10
+        ax.set_title(title,fontsize=17)
+        ax.legend(loc='upper left',bbox_to_anchor=(0.85,1.0),fontsize=14,\
+            title='confidence interval',title_fontsize=14)
+        fig.savefig(figdir/'{}_ediff{}-{}_lam_bs_{}_{}.png'.format(model,k1,k2,op,pt),dpi=300)
+        #plt.show()
+        plt.close()
 exit()
 
 # t-test

@@ -42,8 +42,8 @@ lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 figdir = lsbdir
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
-linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
+labels = {"dscl":"Downscaling","conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
+linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
 ix_gm = np.loadtxt(dscldir/"ix_gm.txt")
@@ -84,7 +84,10 @@ fig, (axb,axa,axi) = plt.subplots(nrows=3,sharex=True,figsize=[8,8],constrained_
 #wnum_gm, psd_gm = nmc_gm.psd(incrgm,axis=1)
 #axi.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
+psd_incr = {}
+psd_sprd = {}
 if ldscl:
+    key='dscl'
     # downscaling
     fa = dscldir/"xalam_{}_{}.npy".format(op,preGMpt)
     fb = dscldir/"{}_xflam_{}_{}.npy".format(model,op,preGMpt)
@@ -95,13 +98,25 @@ if ldscl:
     xbdscl = np.load(fb)
     incrdscl = xadscl[ns:na,:] - xbdscl[ns:na,:]
     wnum, psd_dscl = nmc_lam.psd(xbdscl,axis=1)
-    axb.loglog(wnum,psd_dscl,c='k',lw=2.0,label='Downscaling')
+    axb.loglog(wnum,psd_dscl,c=linecolor[key],lw=2.0,label=labels[key])
     wnum, psd_dscl = nmc_lam.psd(xadscl,axis=1)
-    axa.loglog(wnum,psd_dscl,c='k',lw=2.0,label='Downscaling')
+    axa.loglog(wnum,psd_dscl,c=linecolor[key],lw=2.0,label=labels[key])
     wnum, psd_dscl = nmc_lam.psd(incrdscl,axis=1)
-    axi.loglog(wnum,psd_dscl,c='k',lw=2.0,label='Downscaling')
-    #f = dscldir/"xsalam_{}_{}.npy".format(op,preGMpt)
-    #xsadscl = np.load(f)
+    axi.loglog(wnum,psd_dscl,c=linecolor[key],lw=2.0,label=labels[key])
+    psd_incr[key] = psd_dscl
+    if pt=='envar':
+        psds_dscl = np.zeros_like(psd_dscl)
+        for i in range(ns,na):
+            f = dscldir/"data/{2}/{0}_gm_ua_{1}_{2}_cycle{3}.npy".format(model,op,preGMpt,i)
+            xa1 = np.load(f)
+            gm2lam = interp1d(ix_gm,xa1,axis=0)
+            xadscl = gm2lam(ix_lam)
+            xadscl = xadscl - np.mean(xadscl,axis=1)[:,None]
+            _, psd1 = nmc_lam.psd(xadscl,axis=0)
+            psds_dscl = psds_dscl + psd1
+        #xsadscl = np.load(f)
+        #wnum, psds_dscl = nmc_lam.psd(xsadscl,axis=1)
+        psd_sprd[key] = psds_dscl / float(na-ns)
     #ax.plot(ix_lam, np.mean(xsadscl,axis=0),\
     #    c='k',ls='dashed')
 # LAM
@@ -127,8 +142,29 @@ for key in ['conv','lsb','nest']:
     axa.loglog(wnum,psd_lam,c=linecolor[key],lw=2.0,label=labels[key])
     wnum, psd_lam = nmc_lam.psd(incrlam,axis=1)
     axi.loglog(wnum,psd_lam,c=linecolor[key],lw=2.0,label=labels[key])
-    #f = lamdir/"xsalam_{}_{}.npy".format(op,pt)
-    #xsalam = np.load(f)
+    psd_incr[key] = psd_lam
+    if pt=='envar':
+        #if key=='conv':
+        #    f = lamdir/"xsalam_{}_{}.npy".format(op,pt)
+        #elif key=='nest':
+        #    f = lamdir/"xsalam_{}_{}_nest.npy".format(op,pt)
+        #else:
+        #    f = lsbdir/"xsalam_{}_{}.npy".format(op,pt)
+        psds_lam = np.zeros(psd_lam.size-1)
+        for i in range(ns,na):
+            if key=='conv':
+                f = lamdir/"data/{2}/{0}_lam_ua_{1}_{2}_cycle{3}.npy".format(model,op,pt,i)
+            elif key=='nest':
+                f = lamdir/"data/{2}_nest/{0}_lam_ua_{1}_{2}_nest_cycle{3}.npy".format(model,op,pt,i)
+            else:
+                f = lsbdir/"data/{2}/{0}_lam_ua_{1}_{2}_cycle{3}.npy".format(model,op,pt,i)
+            xalam = np.load(f)
+            xalam = xalam - np.mean(xalam,axis=1)[:,None]
+            wnum_s, psd1 = nmc_lam.psd(xalam,axis=0)
+            psds_lam = psds_lam + psd1
+        #xsalam = np.load(f)
+        #wnum, psds_lam = nmc_lam.psd(xsalam,axis=1)
+        psd_sprd[key] = psds_lam / float(na-ns)
     #if pt == 'var' or pt == 'var_nest':
     #    ax.plot(ix_lam[1:-1], np.mean(xsalam,axis=0),\
     #    c=linecolor[pt],ls='dashed')
@@ -166,5 +202,40 @@ axi.set_ylabel('increment')
 fig.suptitle(ptlong[pt])
 fig.savefig(figdir/f"{model}_incrspectra_{op}_{pt}.png",dpi=300)
 fig.savefig(figdir/f"{model}_incrspectra_{op}_{pt}.pdf")
-plt.show()
+plt.show(block=False)
 plt.close()
+
+if pt=='envar':
+    fig, (axs,axi) = plt.subplots(nrows=2,sharex=True,figsize=[8,6],constrained_layout=True)
+    for key in psd_incr.keys():
+        if key=='dscl':
+            axs.loglog(wnum,psd_sprd[key],c=linecolor[key],lw=2.0,label=labels[key])
+        else:
+            axs.loglog(wnum_s,psd_sprd[key],c=linecolor[key],lw=2.0,label=labels[key])
+        axi.loglog(wnum,psd_incr[key],c=linecolor[key],lw=2.0,label=labels[key])
+    for i,ax in enumerate([axs,axi]):
+        ax.grid()
+        ax.vlines([24],0,1,colors='magenta',ls='dashed',zorder=0,transform=ax.get_xaxis_transform())
+        #ax.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+        #ax.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+        ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,12,2]))
+        secax = ax.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
+        secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+        if i==1:
+            ax.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
+            ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','12','2']))
+        else:
+            ax.xaxis.set_major_formatter(NullFormatter())
+        if i==0:
+            secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+            secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+        else:
+            secax.xaxis.set_major_formatter(NullFormatter())
+    axs.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+    axs.set_ylabel('spread')
+    axi.set_ylabel('increment')
+    fig.suptitle(ptlong[pt])
+    fig.savefig(figdir/f"{model}_incr+sprdspectra_{op}_{pt}.png",dpi=300)
+    fig.savefig(figdir/f"{model}_incr+sprdspectra_{op}_{pt}.pdf")
+    plt.show(block=False)
+    plt.close()

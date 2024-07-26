@@ -94,8 +94,8 @@ xagm = np.load(f)
 xdgm = xagm[ns:na,:] - xt2x(ix_gm)
 ax.plot(ix_gm, np.sqrt(np.mean(xdgm**2,axis=0)),\
     c='gray',lw=4.0,label='GM')
-wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
-axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
+#wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
+#axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
 if ldscl:
     # downscaling
@@ -174,6 +174,7 @@ else:
     fig.savefig(figdir/f"{model}_xdf_{op}_{pt}.pdf")
 
 axsp.grid()
+axsp.vlines([24],0,1,colors='magenta',ls='dashed',zorder=0,transform=axsp.get_xaxis_transform())
 axsp.legend()
 axsp.set_ylabel('Error')
 axsp.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
@@ -192,8 +193,9 @@ if anl:
 else:
     figsp.savefig(figdir/f"{model}_errspectra_f_{op}_{pt}.png",dpi=300)
     figsp.savefig(figdir/f"{model}_errspectra_f_{op}_{pt}.pdf")
-plt.show()
+plt.show(block=False)
 plt.close()
+exit()
 
 # t-test
 from scipy import stats

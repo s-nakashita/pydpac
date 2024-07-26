@@ -5,9 +5,9 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-#perturbations="var_nest var" # envar_nest envar"
+perturbations="envar_nest envar" # var_nest var"
 #perturbations="mlef"
-perturbations="var"
+#perturbations="envar"
 #datype="4dmlef"
 #perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
 #perturbations="lmlefcw lmlefy mlef"
@@ -16,11 +16,11 @@ perturbations="var"
 na=1000 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
-linf=True # True:Apply inflation False:Not apply
+linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 extfcst=False # for NMC
-blending=True # LSB
+blending=False # LSB
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
@@ -34,10 +34,12 @@ obsloc=${1}
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
+exp="envar_noinfl_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
 #exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
-exp="var_vs_envar_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
+#exp="var_vs_envar_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
+#exp="envar_noinfl_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
@@ -50,10 +52,10 @@ preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/${preGMda}_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
 wdir=${ddir}/${exp}
-if [ ! -d $wdir ]; then
-  echo "No such directory ${wdir}"
-  exit
-fi
+#if [ ! -d $wdir ]; then
+#  echo "No such directory ${wdir}"
+#  exit
+#fi
 #rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
@@ -64,17 +66,17 @@ elif [ ${model} = l05nestm ]; then
 ln -fs ${cdir}/data/l05IIIm/truth.npy .
 #ln -fs ${ddir}/truth.npy .
 fi
-#rm -rf obs*.npy
-#rm -rf *.log
-#rm -rf timer
-#touch timer
+rm -rf obs*.npy
+rm -rf *.log
+rm -rf timer
+touch timer
 #if [ $preGM = True ]; then
 #  cp ${preGMdir}/obs*.npy .
 #fi
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
-#cp ../var_vs_envar_shrink_dct_preGM_partialr_m${nmem}obs${nobs}/obs*.npy .
+cp ../var_vs_envar_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}/obs*.npy .
 #rseed=504770
 roseed=None #514
 mkdir -p data
