@@ -201,29 +201,89 @@ for ii,k1 in enumerate(errors.keys()):
         ar2y = ar2s[k2]
         yp = y - y.mean()
         vary = np.sum(yp**2)
-        # adjusted t-test (Zwiers and von Storch 1995)
-        vix = 1.0 + 2.0 * np.sum((1.0-np.arange(1,x.size)/x.size)*ar1x[:x.size-1])
-        nex = x.size / vix
-        viy = 1.0 + 2.0 * np.sum((1.0-np.arange(1,y.size)/y.size)*ar1y[:y.size-1])
-        ney = y.size / viy
-        if (nex + ney) < 30.0: continue
-        rmod1 = (np.sum(xp[1:]*xp[:-1])+np.sum(yp[1:]*yp[:-1]))/(varx+vary)
-        nex = x.size * (1-rmod1) / (1+rmod1)
-        nex = max(2,nex)
-        nex = min(x.size,nex)
-        ney = y.size * (1-rmod1) / (1+rmod1)
-        ney = max(2,ney)
-        ney = min(y.size,ney)
-        std = np.sqrt((varx + vary)/(x.size+y.size-2))
-        tval = (y.mean() - x.mean()) / std / (1.0/np.sqrt(nex) + 1.0/np.sqrt(ney))
-        df = nex + ney
-        res=f"ZvS test: ne={df:.2f} r1={rmod1:.2f} tval={tval:.3e}"+\
+        # adjusted t-test (Zwiers and von Storch 1995; Wilks 2011, Section 5.2)
+        d = y - x
+        dmean = d.mean()
+        vard = np.sum((d-dmean)**2)
+        dm = d[:-1] - d[:-1].mean()
+        dp = d[1:] - d[1:].mean()
+        r1 = np.sum(dm*dp)/np.sqrt(np.sum(dm*dm))/np.sqrt(np.sum(dp*dp))
+        ne = d.size * (1-r1) / (1+r1)
+        """
+        fig, axs = plt.subplots(nrows=3,constrained_layout=True)
+        axs[0].plot(t,d)
+        axs[0].set_xlabel('days')
+        axs[0].set_ylabel('RMSE diff')
+        dt = 6
+        d_f = fft.rfft(d)
+        freq = fft.rfftfreq(d.size,1./dt)
+        p = 2.0 / d_f.size * np.abs(d_f)
+        pra = [np.mean(p[max(0,i-4):min(p.size-1,i+1)]) for i in range(p.size)]
+        axs[1].plot(freq,p,lw=0.0,marker='.')
+        axs[1].plot(freq,pra)
+        axs[1].set_xlabel('frequency (1/h)')
+        axs[1].set_ylabel('Power')
+        d_c = np.correlate(d-dmean,d-dmean,mode='full')
+        rall = d_c / vard
+        # autocorrelation model for 1st and 2nd orders (Zwiers and von Storch 1995; Wilks 1997)
+        tau = np.arange(-d.size+1,d.size)
+        ar1d = r1**np.abs(tau)
+        dm2 = e[:-2] - e[:-2].mean()
+        dp2 = e[2:] - e[2:].mean()
+        vardm2 = np.sum(dm2**2)
+        vardp2 = np.sum(dp2**2)
+        r2 = np.correlate(dm2,dp2)/np.sqrt(vardm2*vardp2)
+        phi1 = r1 * (1-r2) / (1-r1**2)
+        phi2 = (r2-r1**2) / (1-r1**2)
+        ar2d = np.zeros_like(ar1d)
+        ar2d[0] = 1.0
+        ar2d[1] = r1; ar2d[-1] = r1
+        ar2d[2] = r2; ar2d[-2] = r2
+        for k in range(d.size-1):
+            ar2d[k+2] = phi1*ar2d[k+1]+phi2*ar2d[k]
+            ar2d[-(k+2)] = phi1*ar2d[-(k+1)]+phi2*ar2d[-k]
+        axs[2].plot(tau,rall,label='raw')
+        axs[2].plot(tau,ar1d,ls='dashed',label='AR(1)')
+        axs[2].plot(tau,np.roll(ar2d,ar2d.size//2),ls='dotted',label='AR(2)')
+        axs[2].set_ylabel('autocorrelation')
+        axs[2].set_xlabel('lag')
+        axs[2].set_xlim(-30,30)
+        axs[2].legend(loc='upper right') #,bbox_to_anchor=(0.8,0.9))
+        fig.suptitle(f'{ptlong[pt]} ({labels[k2]}) - ({labels[k1]})')
+        fig.savefig(figdir/f'acorr_rmse_{pt}_{k2}-{k1}.png')
+        #plt.show()
+        plt.close()
+        """
+        std = np.sqrt(vard/(d.size-1))
+        tval = dmean / (std / np.sqrt(ne))
+        df = ne
+        if tval > 0.0:
+            pval = 1.0 - statt.cdf(tval,df)
+        else:
+            pval = statt.cdf(tval,df)
+        print(f"dmean={dmean:.3e} std={std:.3e} r1={r1:.2f} ne={ne:.2f}")
+#        vix = 1.0 + 2.0 * np.sum((1.0-np.arange(1,x.size)/x.size)*ar1x[:x.size-1])
+#        nex = x.size / vix
+#        viy = 1.0 + 2.0 * np.sum((1.0-np.arange(1,y.size)/y.size)*ar1y[:y.size-1])
+#        ney = y.size / viy
+#        if (nex + ney) < 30.0: continue
+#        rmod1 = (np.sum(xp[1:]*xp[:-1])+np.sum(yp[1:]*yp[:-1]))/(varx+vary)
+#        nex = x.size * (1-rmod1) / (1+rmod1)
+#        nex = max(2,nex)
+#        nex = min(x.size,nex)
+#        ney = y.size * (1-rmod1) / (1+rmod1)
+#        ney = max(2,ney)
+#        ney = min(y.size,ney)
+#        std = np.sqrt((varx + vary)/(x.size+y.size-2))
+#        tval = (y.mean() - x.mean()) / std / (1.0/np.sqrt(nex) + 1.0/np.sqrt(ney))
+#        df = nex + ney
+        res=f"ZvS test: ne={df:.2f} r1={r1:.2f} tval={tval:.3e} pval={pval:.3e}"+\
             f" 10%={statt.ppf(0.95,df):.3e}"+\
             f" 5%={statt.ppf(0.975,df):.3e}"+\
             f" 1%={statt.ppf(0.995,df):.3e}"
         print(res)
         f.write(res+'\n')
-
+        continue
         """
         # moving block bootstrap test for AR(1) (Wilks 1997)
         vmodx = vix * np.exp(2.0*vix/x.size)
@@ -300,7 +360,8 @@ for ii,k1 in enumerate(errors.keys()):
         viy = 1.0 + 2.0 * np.sum((1.0-np.arange(1,y.size)/y.size)*ar2y[:y.size-1])
         vmodx = vix * np.exp(3.0*vix/x.size)
         vmody = viy * np.exp(3.0*viy/y.size)
-        alp = 2.0*(1-1/np.sqrt(4*vmodx))/3.0
+        #alp = 2.0*(1-1/np.sqrt(4*vmodx))/3.0
+        alp = 2.0*(1-1/vix)/3.0
         l0 = np.sqrt(float(x.size))
         niter = 0
         while niter < 10:
@@ -316,7 +377,8 @@ for ii,k1 in enumerate(errors.keys()):
         nbx = int(x.size / l0x)
         print(f"lx={l0x}, nby={nbx}")
 
-        alp = 2.0*(1-1/np.sqrt(4*vmody))/3.0
+        #alp = 2.0*(1-1/np.sqrt(4*vmody))/3.0
+        alp = 2.0*(1-1/viy)/3.0
         l0 = np.sqrt(float(y.size))
         niter = 0
         while niter < 10:
