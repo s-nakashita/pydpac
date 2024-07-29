@@ -5,7 +5,7 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var_nest"
+perturbations="envar_nest"
 na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
@@ -13,12 +13,13 @@ linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 ntest=10
-ptype=sigv
+ptype=infl
 functype=gc5
 #lgsig=110
 #llsig=70
+obsloc=${1}
 #exp="letkf_K15_${ptype}_mem${nmem}obs${nobs}"
-exp="var_nest_preGM_${ptype}_mem${nmem}obs${nobs}"
+exp="envar_nest_preGM${obsloc}_${ptype}_mem${nmem}obs${nobs}"
 #exp="var_nest_${functype}nmc_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
@@ -45,7 +46,7 @@ nmemlist="40 80 120 160 200 240"
 lsiglist="20 30 40 50 60 70 80 90 100"
 nobslist="480 240 120 60 30 15"
 sigolist="1.0 0.5 0.3 0.1 0.05 0.03"
-infllist="1.0 1.05 1.1 1.15 1.2 1.25"
+infllist="1.0 1.05 1.1 1.15 1.2 1.25 1.3 1.35 1.4 1.45 1.5"
 sigblist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
 #sigvlist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
 sigvlist="0.2"
@@ -76,16 +77,16 @@ for op in ${operators}; do
   #for sigo in ${sigolist}; do
   #  echo $sigo >> params.txt
   #  ptmp=$sigo
-  #for infl in ${infllist}; do
-  #  echo $infl >> params.txt
-  #  ptmp=$infl
+  for infl in ${infllist}; do
+    echo $infl >> params.txt
+    ptmp=$infl
   #for sigb in ${sigblist}; do
   #  echo $sigb >> params.txt
   #  ptmp=$sigb
-  for sigv in ${sigvlist}; do
-    #echo $sigv >> params.txt
-    gsed -i -e "2i ${sigv}" params.txt
-    ptmp=$sigv
+  #for sigv in ${sigvlist}; do
+  #  #echo $sigv >> params.txt
+  #  gsed -i -e "2i ${sigv}" params.txt
+  #  ptmp=$sigv
   #for gsigb in ${sigblist}; do
   #for lsigb in ${sigblist}; do
   #  echo $gsigb $lsigb >> params.txt
