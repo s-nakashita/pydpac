@@ -9,7 +9,7 @@ logger = logging.getLogger('anl')
 
 # 1-dimensional truncation module using FFT
 class Trunc1d:
-    def __init__(self,ix,ntrunc=None,ftrunc=None,cyclic=True,resample=True,nghost=None,nglobal=None,ttype='f'):
+    def __init__(self,ix,ntrunc=None,ftrunc=None,cyclic=True,resample=True,nghost=None,nglobal=None,ttype='f',filter=False):
         # cyclic=False: assuming that input data does not include boundary points
         self.ix = ix
         self.nx = ix.size
@@ -25,6 +25,7 @@ class Trunc1d:
         if self.detrend:
             self.nx -= 1 # DOF reduces due to detrending
         logger.info(f"Trunc1d: Transform type = {self.tname[self.ttype]} cyclic={self.cyclic} detrend={self.detrend}")
+        self.filter = filter # spectral filter
         self.first = True
         self._setope(ntrunc=ntrunc,ftrunc=ftrunc)
 
@@ -197,6 +198,12 @@ class Trunc1d:
             self.f_trunc  = self.f.copy()
             self.T = np.eye(self.F.shape[0])
             if self.ntrunc < self.T.shape[0]:
+                if self.filter:
+                    self.specfil = self._raymond_filter()
+                    self.ntrunc = min(2*self.ntrunc,self.T.shape[0])
+                else:
+                    self.specfil = np.ones(self.T.shape[0])
+                    self.specfil[self.ntrunc:] = 0.
                 if self.resample:
                     self.nx_trunc = self.ntrunc
                     if self.cyclic:
@@ -210,10 +217,10 @@ class Trunc1d:
                             self.nx_trunc,endpoint=True)
                     self.f_trunc = np.arange(self.ntrunc)*np.pi/self.dx_trunc/self.nx_trunc
                     self.T = np.zeros((self.ntrunc,self.F.shape[0]))
-                    self.T[:,:self.ntrunc] = np.eye(self.ntrunc)
+                    self.T[:,:self.ntrunc] = np.eye(self.ntrunc)*np.diag(self.specfil[:self.ntrunc])
                     #self.T *= dx / self.dx_trunc
                 else:
-                    self.T[self.ntrunc:] = 0.
+                    self.T = self.T * np.diag(self.specfil)
             logger.debug(f"Trunc1d: f_trunc={self.f_trunc}")
             self.Fi = fft.idct(np.eye(self.T.shape[0]),axis=0,norm='forward',type=2)
             self.Ei = np.eye(self.ix_trunc.size)
@@ -250,6 +257,11 @@ class Trunc1d:
         #    self.Ei = np.zeros((ix.size,nx))
         #    self.Ei[:,nghost:nghost+ix.size] = np.eye(ix.size)[:,:]
     
+    def _raymond_filter(self,p=6):
+        eps = (np.tan(0.5*self.ftrunc*self.dx))**(-p)
+        tmp = 1. + eps*((np.tan(0.5*self.f*self.dx))**p)
+        return 1./tmp
+
     def _preprocess(self,x,axis=0):
         global xmean, trend
         if self.ttype == 's':

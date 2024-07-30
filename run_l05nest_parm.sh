@@ -64,7 +64,7 @@ done
 touch params.txt
 set -e
 for op in ${operators}; do
-  #echo $ptype > params.txt
+  echo $ptype > params.txt
   #for nmem in ${nmemlist}; do
   #  echo $nmem >> params.txt
   #  ptmp=$nmem

@@ -191,35 +191,35 @@ if __name__ == "__main__":
     for i in range(nspinup,na):
         if params_lam["preGM"]:
             #ua_gm = np.load(func.preGMdir/f"data/{func.preGMda}/{model}_gm_ua_{op}_{func.preGMda}_cycle{i}.npy")
-            uf1_gm = uf_gm[i,]
+            uf1_gm = uf_gm[i-nspinup,]
         else:
             ua_gm = np.load(f"data/{pt}/{model}_gm_ua_{op}_{pt}_cycle{i}.npy")
             if ft=="ensemble":
-                #if params_gm["save1h"]:
-                #    uf1_gm = np.zeros((params_gm["ntmax"]*6+1,ua_gm.shape[0],ua_gm.shape[1]))
-                #else:
-                uf1_gm = np.zeros((params_gm["ntmax"]+1,ua_gm.shape[0],ua_gm.shape[1]))
+                if params_gm["save1h"]:
+                    uf1_gm = np.zeros((params_gm["ntmax"]*6+1,ua_gm.shape[0],ua_gm.shape[1]))
+                else:
+                    uf1_gm = np.zeros((params_gm["ntmax"]+1,ua_gm.shape[0],ua_gm.shape[1]))
             else:
-                uf1_gm = np.zeros((params_gm["ntmax"]+1,nx_gm))
+                if params_gm["save1h"]:
+                    uf1_gm = np.zeros((params_gm["ntmax"]*6+1,nx_gm))
+                else:
+                    uf1_gm = np.zeros((params_gm["ntmax"]+1,nx_gm))
             uf1_gm[0,] = ua_gm #[i,]
-        if i<=params_lam["lamstart"]:
-            gm2lam = interp1d(step.ix_gm,uf1_gm[0,],axis=0)
-            ua_lam = gm2lam(step.ix_lam)
-        else:
-            ua_lam = np.load(f"data/{pt}/{model}_lam_ua_{op}_{pt}_cycle{i}.npy")
-            upre = np.load(f"data/{pt}/{model}_lam_uf_{op}_{pt}_cycle{i}.npy")
-            ua_lam[0,] = upre[0,]
-            ua_lam[-1,] = upre[-1,]
+        gm2lam = interp1d(step.ix_gm,uf1_gm[0,],axis=0)
+        ua_lam = gm2lam(step.ix_lam)
+        if i>=params_lam["lamstart"]:
+            uanl = np.load(f"data/{pt}/{model}_lam_ua_{op}_{pt}_cycle{i}.npy")
+            ua_lam[1:-1,] = uanl[:]
         if ft=='ensemble':
-            #if params_gm["save1h"]:
-            #    uf1_lam = np.zeros((params_gm["ntmax"]*6+1,nx_lam))
-            #else:
-            uf1_lam = np.zeros((params_gm["ntmax"]+1,ua_lam.shape[0],ua_gm.shape[1]))
+            if params_gm["save1h"]:
+                uf1_lam = np.zeros((params_gm["ntmax"]*6+1,ua_lam.shape[0],ua_lam.shape[1]))
+            else:
+                uf1_lam = np.zeros((params_gm["ntmax"]+1,ua_lam.shape[0],ua_lam.shape[1]))
         else:
-            #if params_gm["save1h"]:
-            #    uf1_lam = np.zeros((params_gm["ntmax"]*6+1,nx_lam))
-            #else:
-            uf1_lam = np.zeros((params_gm["ntmax"]+1,nx_lam))
+            if params_gm["save1h"]:
+                uf1_lam = np.zeros((params_gm["ntmax"]*6+1,nx_lam))
+            else:
+                uf1_lam = np.zeros((params_gm["ntmax"]+1,nx_lam))
         uf1_lam[0,] = ua_lam #[i,]
         logger.info("cycle{} extended forecast length {}".format(i,uf1_lam.shape[0]))
         
@@ -243,24 +243,36 @@ if __name__ == "__main__":
         uf_gm = np.array(uf_gm)
         logger.info(f"uf_gm.shape={uf_gm.shape}")
         if ft=='ensemble':
-#        if params_gm["save1h"]:
-#            np.save("{}_gm_ufext_p1h_{}_{}.npy".format(model, op, pt), uf_gm)
-            np.save("{}_gm_ufeext_{}_{}.npy".format(model, op, pt), uf_gm)
+            if params_gm["save1h"]:
+                np.save("{}_gm_ufeext_p1h_{}_{}.npy".format(model, op, pt), uf_gm)
+            else:
+                np.save("{}_gm_ufeext_{}_{}.npy".format(model, op, pt), uf_gm)
         else:
-            np.save("{}_gm_ufext_{}_{}.npy".format(model, op, pt), uf_gm)
+            if params_gm["save1h"]:
+                np.save("{}_gm_ufext_p1h_{}_{}.npy".format(model, op, pt), uf_gm)
+            else:
+                np.save("{}_gm_ufext_{}_{}.npy".format(model, op, pt), uf_gm)
     uf_lam = np.array(uf_lam)
     logger.info(f"uf_lam.shape={uf_lam.shape}")
     if params_lam["preGM"]:
-#        if params_gm["save1h"]:
-#            np.save("{}_lam_ufext_p1h_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
         if ft=='ensemble':
-            np.save("{}_lam_ufeext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+            if params_gm["save1h"]:
+                np.save("{}_lam_ufeext_p1h_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+            else:
+                np.save("{}_lam_ufeext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
         else:
-            np.save("{}_lam_ufext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+            if params_gm["save1h"]:
+                np.save("{}_lam_ufext_p1h_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+            else:
+                np.save("{}_lam_ufext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
     else:
-        #if params_gm["save1h"]:
-        #    np.save("{}_lam_ufext_p1h_{}_{}.npy".format(model, op, pt), uf_lam)
         if ft=='ensemble':
-            np.save("{}_lam_ufeext_{}_{}.npy".format(model, op, pt), uf_lam)
+            if params_gm["save1h"]:
+                np.save("{}_lam_ufeext_p1h_{}_{}.npy".format(model, op, pt), uf_lam)
+            else:
+                np.save("{}_lam_ufeext_{}_{}.npy".format(model, op, pt), uf_lam)
         else:
-            np.save("{}_lam_ufext_{}_{}.npy".format(model, op, pt), uf_lam)
+            if params_gm["save1h"]:
+                np.save("{}_lam_ufext_p1h_{}_{}.npy".format(model, op, pt), uf_lam)
+            else:
+                np.save("{}_lam_ufext_{}_{}.npy".format(model, op, pt), uf_lam)
