@@ -6,6 +6,8 @@ import numpy.linalg as la
 import copy
 from .chi_test import Chi
 from .minimize import Minimize
+from .infladap import infladap
+from .inflfunc import inflfunc
 
 zetak = []
 alphak = []
@@ -13,29 +15,44 @@ fileConfig("./logging_config.ini")
 logger = getLogger('anl')
         
 class Mlef():
-
-    def __init__(self, state_size, nmem, obs, 
+    def __init__(self, state_size, nmem, obs, pt="mlef",
         nvars=1,ndims=1,
-        linf=False, infl_parm=1.0, 
+        iinf=None, infl_parm=1.0, 
         iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
         # necessary parameters
-        self.pt = "mlef" # DA type 
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
         self.sig = obs.get_sig() # observation error standard deviation
         # optional parameters
+        self.pt = pt # DA type 
         # for 2 or more variables
         self.nvars = nvars
         # for 2 or more dimensional data
         self.ndims = ndims
         # inflation
-        self.linf = linf # True->Apply inflation False->Not apply
+        self.iinf = iinf # iinf = None->No inflation
+                         #      = -3  ->Adaptive pre-multiplicative inflation (Duc et al. 2021)
+                         #      = -2  ->Adaptive pre-multiplicative inflation (Liu et al. 2009)
+                         #      = -1  ->Fixed pre-multiplicative inflation
+                         #      = 0   ->Post-multiplicative inflation
+                         #      = 1   ->Additive inflation
+                         #      = 2   ->RTPP(Relaxation To Prior Perturbations)
+                         #      = 3   ->RTPS(Relaxation To Prior Spread)
+                         #      >= 4  ->Multiplicative linear inflation (Duc et al. 2020)
         self.infl_parm = infl_parm # inflation parameter
+        if self.iinf is None:
+            self.iinf = -99
+        if self.iinf == -2:
+            self.infladap = infladap()
+        else:
+            self.infladap = None
+        paramtype = self.iinf - 4
+        self.inflfunc = inflfunc("mult",paramtype=paramtype)
         # localization
         self.iloc = iloc # iloc = None->No localization
                          #      <=0   ->R-localization (in lmlef.py)
@@ -45,16 +62,11 @@ class Mlef():
         self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
         self.getkf = getkf # ensemble reduction method : True->Use reduced gain (Bishop et al. 2017)
         if calc_dist is None:
-            def calc_dist(self, i):
-                dist = np.zeros(self.ndim)
-                for j in range(self.ndim):
-                    dist[j] = min(abs(j-i),self.ndim-abs(j-i))
-                return dist
+            self.calc_dist = self._calc_dist
         else:
             self.calc_dist = calc_dist # distance calculation routine
         if calc_dist1 is None:
-            def calc_dist1(self, i, j):
-                return min(abs(j-i),self.ndim-abs(j-i))
+            self.calc_dist1 = self._calc_dist1
         else:
             self.calc_dist1 = calc_dist1 # distance calculation routine
         self.rs = np.random.default_rng() # random generator
@@ -67,13 +79,13 @@ class Mlef():
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
+        logger.info(f"iinf={self.iinf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
         if self.iloc is not None:
           if self.iloc <= 0:
             from .lmlef import Lmlef
-            self.lmlef = Lmlef(self.nmem,self.obs,
+            self.lmlef = Lmlef(self.ndim,self.nmem,self.obs,
             nvars=self.nvars,ndims=self.ndims,
-            linf=self.linf,infl_parm=self.infl_parm,
+            iinf=self.iinf,infl_parm=self.infl_parm,infladap=self.infladap,inflfunc=self.inflfunc,
             iloc=self.iloc,lsig=self.lsig,calc_dist1=self.calc_dist1,
             ltlm=self.ltlm,incremental=self.incremental,model=self.model)
           else:
@@ -86,23 +98,62 @@ class Mlef():
                 self.nmode = l_sqrt.shape[1]
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
 
-    def calc_pf(self, xf, pa, cycle):
+    def _calc_dist(self, i):
+        dist = np.zeros(self.ndim)
+        for j in range(self.ndim):
+            dist[j] = min(abs(j-i),self.ndim-abs(j-i))
+        return dist
+    
+    def _calc_dist1(self, i, j):
+        return min(abs(j-i),self.ndim-abs(j-i))
+
+    def calc_pf(self, xf, **kwargs):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
         pf = spf @ spf.transpose()
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
         return pf
 
-    def precondition(self,zmat):
-        #u, s, vt = la.svd(zmat)
-        #v = vt.transpose()
-        #is2r = 1 / (1 + s**2)
+    def precondition(self,zmat,d=None,first=True):
         rho = 1.0
-        if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
+        if self.iinf<=-1 and self.iinf>-3:
+            logger.info("==pre multiplicative inflation==, alpha={}".format(self.infl_parm))
             rho = 1.0 / self.infl_parm
         c = zmat.transpose() @ zmat
-        lam, v = la.eigh(c)
-        D = np.diag(1.0/(np.sqrt(lam + np.full(lam.size,rho))))
+        ga2f, vf = la.eigh(c)
+        #u, ga, vt = la.svd(zmat) #,full_matrices=False)
+        #ga2 = ga*ga
+        nrank = np.sum(ga2f>1.0e-10)
+        logger.info("ga2full = {}".format(ga2f))
+        logger.info(f"size={ga2f.size} rank={nrank}")
+        ga2 = ga2f[::-1]
+        v = vf[:,::-1]
+        ga = np.where(ga2>1.0e-10,np.sqrt(ga2),0.0)
+        u = np.dot(zmat,v[:,:nrank])/ga[:nrank]
+        logger.info(f"u.shape={u.shape}")
+        logger.info(f"v.shape={v.shape}")
+        logger.info("ga ={}".format(ga))
+        if self.iinf==-3 and not first:
+            logger.info("==singular value adaptive inflation ==")
+            d_ = np.dot(u.transpose(),d)
+            gainf = np.zeros_like(ga)
+            gainf[:nrank] = self.inflfunc.est(d_,ga[:nrank])
+            logger.info("ga inf ={}".format(gainf))
+        #is2r = 1 / (1 + s**2)
+        lam = 1.0 / (np.sqrt(ga2 + np.full(ga2.size,rho)))
+        logger.info("lam ={}".format(lam))
+        if self.iinf>=4 and not first:
+            logger.info("==singular value inflation==, alpha={}".format(self.infl_parm))
+            laminf = self.inflfunc(lam,alpha1=self.infl_parm)
+            logger.info("lam inf ={}".format(laminf))
+        elif self.iinf==-3 and not first:
+            laminf = self.inflfunc.g2f(ga,gainf)
+            logger.info("lam inf ={}".format(laminf))
+        else:
+            laminf = lam.copy()
+        if d is not None:
+            d_ = np.dot(u.transpose(),d)
+            self.inflfunc.pdr(d_, ga[:nrank], lam[:nrank], laminf[:nrank])
+        D = np.diag(laminf)
         vt = v.transpose()
         tmat = v @ D @ vt
         heinv = tmat @ tmat.T
@@ -119,7 +170,7 @@ class Mlef():
         if alpha is not None:
             alphak.append(alpha)
 
-    def calc_j(self, zeta, *args):
+    def calc_j(self, zeta, *args, return_each=False):
         if not self.incremental:
             xc, pf, y, yloc, tmat, gmat, heinv, rinv = args
             x = xc + gmat @ zeta
@@ -135,9 +186,12 @@ class Mlef():
             jb = 0.5 * zeta.transpose() @ heinv @ zeta 
             jo = 0.5 * (zmat@w - d).transpose() @ (zmat@w - d)
             #j = 0.5 * (zeta.transpose() @ heinv @ zeta + (zmat@w - d).transpose() @ (zmat@w - d))
-        logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
-        j = jb + jo
-        return j
+        if return_each:
+            return jb, jo
+        else:
+            logger.info(f"jb:{jb:.6e} jo:{jo:.6e}")
+            j = jb + jo
+            return j
 
     def calc_grad_j(self, zeta, *args):
         if not self.incremental:
@@ -300,6 +354,8 @@ class Mlef():
                 r, rmat, rinv = self.obs.set_r(yloc)
             else:
                 logger.info("use input R")
+            logger.debug("r={}".format(r))
+            logger.debug("r^[-1/2]={}".format(rmat))
             xf = xb[:, 1:]
             xc = xb[:, 0]
             nmem = xf.shape[1]
@@ -309,6 +365,8 @@ class Mlef():
             #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
             #    pf *= self.infl_parm
             fpf = pf @ pf.T
+            if self.iinf >= 3:
+                stdv_f = np.sqrt(np.diag(fpf))
             if save_dh:
                 np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
                 np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
@@ -332,12 +390,18 @@ class Mlef():
             else:
                 dh = self.obs.h_operator(yloc,xc[:, None]+pf) - self.obs.h_operator(yloc,xc)[:, None]
             ob = y - self.obs.h_operator(yloc,xc)
+            logger.debug("ob={}".format(ob))
+            logger.debug("dh={}".format(dh))
             if save_dh:
                 np.save("{}_dh_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), dh)
                 np.save("{}_d_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), ob)
             logger.info("save_dh={}".format(save_dh))
             zmat = rmat @ dh
             d = rmat @ ob
+            if self.iinf == -2:
+                logger.info("==adaptive pre-multiplicative inflation==")
+                self.infl_parm = self.infladap(self.infl_parm, d, zmat)
+            
             #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
             tmat, heinv = self.precondition(zmat)
             logger.debug("pf.shape={}".format(pf.shape))
@@ -354,10 +418,10 @@ class Mlef():
             iprint = np.zeros(2, dtype=np.int32)
             irest = 0 # restart counter
             flg = -1  # optimilation result flag
-            options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+            options = {'iprint':iprint, 'method':method, 'cgtype':cgtype, \
+                    'gtol':gtol, 'disp':disp, 'maxiter':maxiter, 'restart':restart}
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter, restart=restart)
+                            args=args_j, **options)
             logger.info("save_hist={}".format(save_hist))
             if restart:
                 if save_hist:
@@ -409,7 +473,7 @@ class Mlef():
                     logger.debug("zetak={} alpha={}".format(len(zetak), len(alphak)))
                     np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
                     np.savetxt("{}_gh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), gh)
-                    np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
+                    if len(alphak)>0: np.savetxt("{}_alpha_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), alphak)
                     if self.model=="z08":
                         xmax = max(np.abs(np.min(x)),np.max(x))
                         logger.debug("resx max={}".format(xmax))
@@ -424,10 +488,14 @@ class Mlef():
             else:
                 if save_hist:
                     x, flg = minimize(x0, callback=self.callback)
-                    jh = np.zeros(len(zetak))
+                    jh = np.zeros((len(zetak),2))
                     gh = np.zeros(len(zetak))
                     for i in range(len(zetak)):
-                        jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                        #jh[i] = self.calc_j(np.array(zetak[i]), *args_j)
+                        # calculate jb and jo separately
+                        jb, jo = self.calc_j(np.array(zetak[i]), *args_j, return_each=True)
+                        jh[i,0] = jb
+                        jh[i,1] = jo
                         g = self.calc_grad_j(np.array(zetak[i]), *args_j)
                         gh[i] = np.sqrt(g.transpose() @ g)
                     np.savetxt("{}_jh_{}_{}_cycle{}.txt".format(self.model, self.op, self.pt, icycle), jh)
@@ -454,15 +522,19 @@ class Mlef():
             else:
                 dh = self.obs.h_operator(yloc, xa[:, None] + pf) - self.obs.h_operator(yloc, xa)[:, None]
             zmat = rmat @ dh
-            logger.debug("cond(zmat)={}".format(la.cond(zmat)))
-            tmat, heinv = self.precondition(zmat)
+            #logger.debug("cond(zmat)={}".format(la.cond(zmat)))
+            tmat, heinv = self.precondition(zmat, d=d, first=False)
             d = y - self.obs.h_operator(yloc, xa)
             logger.info("zmat shape={}".format(zmat.shape))
             logger.info("d shape={}".format(d.shape))
             innv, chi2 = chi2_test(zmat, d)
-            ds = self.dof(zmat)
-            logger.info("dof={}".format(ds))
+            ds = self.dfs(zmat)
+            logger.info("dfs={}".format(ds))
             pa = pf @ tmat
+            if self.iinf == 2:
+                logger.info("==RTPP==, alpha={}".format(self.infl_parm))
+                pa = (1.0 - self.infl_parm)*pa + self.infl_parm * pf
+        
             if self.iloc is not None:
                 nmem2 = pf.shape[1]
                 ptrace = np.sum(np.diag(pa @ pa.T))
@@ -508,6 +580,19 @@ class Mlef():
             #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
             #    pa *= self.infl_parm
 
+            if self.iinf == 0:
+                logger.info("==multiplicative inflation==, alpha={}".format(self.infl_parm))
+                pa *= self.infl_parm
+            if self.iinf == 1:
+                logger.info("==additive inflation==, alpha={}".format(self.infl_parm))
+                pa += np.random.randn(pa.shape[0], pa.shape[1])*self.infl_parm
+            if self.iinf == 3:
+                fpa = pa @ pa.T
+                stdv_a = np.sqrt(np.diag(fpa))
+                logger.info("==RTPS, alpha={}".format(self.infl_parm))
+                beta = ((1.0 - self.infl_parm)*stdv_a + self.infl_parm*stdv_f)/stdv_a
+                logger.info(f"beta={beta}")
+                pa = pa * beta[:, None]
             u = np.zeros_like(xb)
             u[:, 0] = xa
             u[:, 1:] = xa[:, None] + pa

@@ -95,6 +95,7 @@ class L96():
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.rcParams['font.size'] = 16
+    from pathlib import Path
     n = 40
     F = 8.0
     h = 0.05
@@ -112,7 +113,8 @@ if __name__ == "__main__":
     cmap = plt.get_cmap('tab10')
     xaxis = np.arange(n)
     ydiff = 100.0
-    nt5d = 5 * 4
+    nt6h = int(h / 0.05)
+    nt5d = 5 * 4 * nt6h
     icol=0
     for k in range(nt5d):
         x0 = l96(x0)
@@ -124,6 +126,19 @@ if __name__ == "__main__":
     ax.set_title(f"Lorenz I, N={n}, F={F}")
     fig.savefig(f"l96_n{n}F{int(F)}.png",dpi=300)
     plt.show()
+
+    # create nature run
+    nt1yr = nt6h * 4 * 365 # 1 year
+    ksave = nt6h 
+    xsave = []
+    for k in range(nt1yr):
+        x0 = l96(x0)
+        if k%ksave == 0:
+            xsave.append(x0)
+    datadir = Path('../data/l96')
+    if not datadir.exists():
+        datadir.mkdir(parents=True)
+    np.save(datadir/f'truth.npy',np.array(xsave))
 
     a = 1e-5
     x0 = np.ones(n)

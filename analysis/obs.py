@@ -1,7 +1,6 @@
 import numpy as np
 # numpy 1.17.0 or later
 from numpy.random import default_rng
-rng = default_rng()
 #from numpy import random
 import math
 import logging
@@ -11,16 +10,22 @@ logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
 
 class Obs():
-    def __init__(self, operator, sigma, nvars=1, ndims=1, ni=0, nj=0):
+    def __init__(self, operator, sigma, seed=None, nvars=1, ndims=1, ni=0, nj=0, ix=None, jx=None, icyclic=True, jcyclic=True):
         self.operator = operator
         self.sigma = sigma
         self.gamma = 3
+        self.seed = seed
+        self.rng = default_rng(seed=self.seed)
         logger.info(f"operator={self.operator}, obserr={self.sigma}")#, gamma={self.gamma}")
         self.nvars = nvars
         logger.info(f"nvars={self.nvars}")
         self.ndims = ndims
+        self.ix = ix
+        self.icyclic = icyclic
         if self.ndims == 2:
             self.ni, self.nj = ni,nj
+            self.jx = jx
+            self.jcyclic = jcyclic
             logger.info(f"ni={self.ni} nj={self.nj}")
 
     def get_op(self):
@@ -136,18 +141,19 @@ class Obs():
                 else:
                     ivar = int(obsloc[k,0])
                     ri = obsloc[k,1]
-                i = math.floor(ri)
-                ai = ri - float(i)
-                if i < nx-1:
-                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
-                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
-                    #jach[k,i+1] = ai*dhdxf[i+1]
-                    itpl_mat[k,ivar*nx+i+1] = ai
-                else:
-                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
-                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
-                    #jach[k,0] = ai*dhdxf[0]
-                    itpl_mat[k,ivar*nx] = ai
+                itpl_mat[k,ivar*nx:(ivar+1)*nx] = self.itpl1drow(ri, x)
+#                i = math.floor(ri)
+#                ai = ri - float(i)
+#                if i < nx-1:
+#                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
+#                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
+#                    #jach[k,i+1] = ai*dhdxf[i+1]
+#                    itpl_mat[k,ivar*nx+i+1] = ai
+#                else:
+#                    #jach[k,i] = (1.0 - ai)*dhdxf[i]
+#                    itpl_mat[k,ivar*nx+i] = (1.0 - ai)
+#                    #jach[k,0] = ai*dhdxf[0]
+#                    itpl_mat[k,ivar*nx] = ai
         elif self.ndims==2:
             for k in range(nobs):
                 if self.nvars==1:
@@ -210,25 +216,73 @@ class Obs():
                     else:
                         dhdx[i, j] = val
             return dhdx
+
     def add_noise(self, x):
 # numpy 1.17.0 or later
-        return x + rng.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
-        #np.random.seed(514)
+        return x + self.rng.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
+        #np.random.seed(self.seed)
         #return x + random.normal(0, scale=self.sigma, size=x.size).reshape(x.shape)
 
     def itpl1d(self, ri, x):
-        i = math.floor(ri)
-        ai = ri - float(i)
+        if self.ix is None:
+            ix = np.arange(len(x))
+        else:
+            ix = self.ix
+        dx = float(ix[1]) - float(ix[0])
+        ii = math.floor(ri)
+        i = np.argmin(np.abs(ix - ii))
+        if ix[i] > ii:
+            i = i - 1
+        ai = (ri - float(ix[i]))/dx
+        #logger.debug(f"ri={ri} i={i} ai={ai}")
         if i < len(x) - 1:
             return (1.0 - ai)*x[i] + ai*x[i+1]
         else:
-            return (1.0 - ai)*x[i] + ai*x[0]
+            if self.icyclic:
+                return (1.0 - ai)*x[i] + ai*x[0]
+            else:
+                return (1.0 - ai)*x[i]
+
+    def itpl1drow(self, ri, x):
+        if self.ix is None:
+            ix = np.arange(len(x))
+        else:
+            ix = self.ix
+        dx = float(ix[1]) - float(ix[0])
+        ii = math.floor(ri)
+        i = np.argmin(np.abs(ix - ii))
+        if ix[i] > ii:
+            i = i - 1
+        ai = (ri - float(ix[i]))/dx
+        #logger.debug(f"ri={ri} i={i} ai={ai}")
+        jhrow = np.zeros(ix.size)
+        if i < len(x) - 1:
+            jhrow[i] = 1.0 - ai
+            jhrow[i+1] = ai
+        else:
+            if self.icyclic:
+                jhrow[i] = 1.0 - ai
+                jhrow[0] = ai
+            else:
+                jhrow[i] = 1.0 - ai
+        return jhrow
+
     def itpl2d(self, ri, rj, x):
         x2d = x.reshape(self.ni,self.nj)
-        i = math.floor(ri)
-        j = math.floor(rj)
-        ai = ri - float(i)
-        aj = rj - float(j)
+        if self.ix is None:
+            ix = np.arange(self.ni)
+        else:
+            ix = self.ix
+        if self.jx is None:
+            jx = np.arange(self.nj)
+        else:
+            jx = self.jx
+        ii = math.floor(ri)
+        jj = math.floor(rj)
+        ai = ri - float(ii)
+        aj = rj - float(jj)
+        i = np.argmin(np.abs(ix - ii))
+        j = np.argmin(np.abs(jx - jj))
         logger.debug(f"ri={ri} i={i} ai={ai}")
         logger.debug(f"rj={rj} j={j} aj={aj}")
         if i+1>=self.ni and j+i>=self.nj:

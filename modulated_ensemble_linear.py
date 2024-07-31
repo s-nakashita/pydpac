@@ -221,7 +221,7 @@ if __name__ == "__main__":
                 'po':('po',None,False,False),'po-mod':('po',2,False,False),'po-kloc':('po',0,False,False),
                 'srf':('srf',None,False,False),'srf-ss':('srf',2,True,False),'srf-rg':('srf',2,False,True),'srf-kloc':('srf',0,False,False),
                 'letkf':('letkf',0,False,False)}
-        names = ['mod','etkf','etkf-ss','etkf-rg','etkf-kloc','po','po-mod','po-kloc','srf','srf-ss','srf-rg','srf-kloc','letkf']
+        names = ['mod','etkf','etkf-ss','etkf-rg','etkf-kloc','letkf','po','po-mod','po-kloc','srf','srf-ss','srf-rg','srf-kloc']
         xa_list = []
         Pa_app_list = [Pam]
         for ptype in names[1:]:

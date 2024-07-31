@@ -1,4 +1,5 @@
 import numpy as np 
+import logging
 # Lorenz II model
 # Reference : Lorenz (2005, JAS) Section 3
 class L05II():
@@ -7,8 +8,8 @@ class L05II():
         self.nk = nk
         self.dt = dt
         self.F = F
-        print(f"nx={self.nx} nk={self.nk}")
-        print(f"F={self.F} dt={self.dt:.3e}")
+        logging.info(f"nx={self.nx} nk={self.nk}")
+        logging.info(f"F={self.F} dt={self.dt:.3e}")
 
     def get_params(self):
         return self.nx, self.nk, self.dt, self.F
@@ -65,29 +66,45 @@ class L05II():
     def calc_dist(self, iloc):
         dist = np.zeros(self.nx)
         for j in range(self.nx):
-            dist[j] = abs(self.nx / np.pi * np.sin(np.pi * (iloc - float(j)) / self.nx))
+            dist[j] = abs(iloc - float(j))
+            dist[j] = min(dist[j],self.nx-dist[j])
         return dist
     
     def calc_dist1(self, iloc, jloc):
-        dist = abs(self.nx / np.pi * np.sin(np.pi * (iloc - jloc) / self.nx))
+        dist = abs(iloc - jloc)
+        dist = min(dist,self.nx-dist)
         return dist
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+    from pathlib import Path
     plt.rcParams['font.size'] = 16
-    nx = 240
-    nk = 8
+    nx = 960
+    nk = 32
     F = 15.0
-    h = 0.05
-    tmax = 200.0
-    nt = int(tmax/h) + 1
+    h = 0.001
+    nt6h = int(0.05 / h)
+    tmax = 20.0
+    nt = int(tmax/h)
     xaxis = np.arange(nx)
+    figdir = Path('lorenz/l05II')
+    if not figdir.exists():
+        figdir.mkdir(parents=True)
 
     l2 = L05II(nx, nk, h, F)
     x0 = np.ones(nx)*F
-    x0[nx//2-1] += 0.001*F
+    x0[nx//2-1] += 0.0001*F
+    #print(x0)
+    x=[x0]
     for k in range(nt):
         x0 = l2(x0)
+        x.append(x0)
+        #if k==0: print(x0)
+    #print(x0)
+    x = np.array(x)
+    #print(x.shape)
+    #np.save(figdir/f"n{nx}k{nk}F{int(F)}.npy",x)
+    #exit()
     fig, ax = plt.subplots(figsize=[6,12],constrained_layout=True)
     cmap = plt.get_cmap('tab10')
     xaxis = np.arange(nx)
@@ -102,7 +119,7 @@ if __name__ == "__main__":
             icol += 1
     ax.set_xlim(0.0,nx-1)
     ax.set_title(f"Lorenz II, N={nx}, K={nk}, F={F}")
-    fig.savefig(f"l05II_n{nx}k{nk}F{int(F)}.png",dpi=300)
+    fig.savefig(figdir/f"n{nx}k{nk}F{int(F)}.png",dpi=300)
 
     fig, ax = plt.subplots(figsize=[8,8],constrained_layout=True)
     ydiff = 100.0
@@ -120,5 +137,17 @@ if __name__ == "__main__":
     ax.set_title(f"Lorenz II, N={nx}, F={F}")
     ax.legend(loc='upper left',bbox_to_anchor=(1.0,0.8))
     #print(x0)
-    fig.savefig(f"l05II_n{nx}F{int(F)}.png",dpi=300)
+    fig.savefig(figdir/f"n{nx}F{int(F)}.png",dpi=300)
     plt.show()
+
+    nt1yr = nt6h * 4 * 365 # 1 year
+    ksave = nt6h # 6 hours
+    zsave = []
+    for k in range(nt1yr):
+        x0 = l2(x0)
+        if k%ksave==0:
+            zsave.append(x0)
+    datadir = Path('../data/l05II')
+    if not datadir.exists():
+        datadir.mkdir(parents=True)
+    np.save(datadir/f'truth_n{nx}k{nk}F{int(F)}.npy',np.array(zsave))

@@ -1,6 +1,8 @@
-PFC = python -m numpy.f2py
+PFC = python3 -m numpy.f2py
 LDFLAGS = -L/opt/local/lib
 LIBS = -lblas
+
+all: lbfgs cgf file_utility
 
 lbfgs: lbfgs.f
 	$(PFC) $< -h lbfgs.pyf -m $@

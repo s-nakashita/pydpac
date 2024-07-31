@@ -59,7 +59,7 @@ class Lmlef4d():
         logger.info(f"R-localization type : {self.pt}")
         logger.info(f"nt={self.nt} a_window={self.a_window}")
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
         pf = spf @ spf.transpose()
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
@@ -195,8 +195,8 @@ class Lmlef4d():
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
-    def dof(self, zmat):
-        return self.lmlef.dof(zmat)
+    def dfs(self, zmat):
+        return self.lmlef.dfs(zmat)
 
     def r_loc(self, sigma, obsloc, xloc):
         return self.lmlef.r_loc(sigma, obsloc, xloc)
@@ -438,8 +438,8 @@ class Lmlef4d():
         logger.info("zmat shape={}".format(zmat.shape))
         logger.info("d shape={}".format(d.shape))
         innv, chi2 = chi2_test(zmat, d)
-        ds = self.dof(zmat)
-        logger.info("dof={}".format(ds))
+        ds = self.dfs(zmat)
+        logger.info("dfs={}".format(ds))
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xa - xc)
         #if self.linf:

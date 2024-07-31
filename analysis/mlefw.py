@@ -72,7 +72,7 @@ class Mlefw():
                 self.nmode = l_sqrt.shape[1]
             np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
         pf = spf @ spf.transpose()
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")

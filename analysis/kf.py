@@ -21,7 +21,8 @@ class Kf():
         self.model = model
         logger.info(f"pt=kf op={self.op} sig={self.sig} infl_parm={self.infl_parm} linf={self.linf}")
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
+        cycle = kwargs['cycle']
         if cycle == 0:
             if self.model == "l96" or self.model == "hs00":
                 return np.eye(xf.size)*25.0
@@ -30,6 +31,7 @@ class Kf():
             elif self.model == "tc87":
                 return np.eye(xf.size)*1.0
         else:
+            pa = kwargs['pa']
             M = np.eye(xf.shape[0])
             MT = np.eye(xf.shape[0])
             E = np.eye(xf.shape[0])
@@ -63,7 +65,7 @@ class Kf():
         spa = v @ np.diag(np.sqrt(lam)) @ v.transpose()
 
         innv, chi2 = self.chi2(pf, JH, R, ob)
-        ds = self.dof(K, JH)
+        ds = self.dfs(K, JH)
 
         if evalout:
             tmp = np.dot(np.dot(Rsqrtinv,JH),spa)
@@ -85,7 +87,7 @@ class Kf():
         M[:,:] = (self.step(xa[:,None]+E) - xf[:,None])/eps
         return M @ Mb
 
-    def dof(self, K, JH):
+    def dfs(self, K, JH):
         A = K @ JH
         ds = np.sum(np.diag(A))
         logger.info("dfs={}".format(ds))

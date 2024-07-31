@@ -13,10 +13,9 @@ fileConfig("./logging_config.ini")
 logger = getLogger('anl')
         
 class Mlef_rloc():
-
     def __init__(self, pt, nmem, obs, 
         nvars=1,ndims=1,
-        linf=False, infl_parm=1.0, 
+        iinf=None, infl_parm=1.0, 
         lsig=-1.0, calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
         # necessary parameters
@@ -31,7 +30,12 @@ class Mlef_rloc():
         # for 2 or more dimensional data
         self.ndims = ndims
         # inflation
-        self.linf = linf # True->Apply inflation False->Not apply
+        self.iinf = iinf # iinf = None->No inflation
+                         #      = -1  ->Pre-multiplicative inflation
+                         #      = 0   ->Post-multiplicative inflation
+                         #      = 1   ->Additive inflation
+                         #      = 2   ->RTPP(Relaxation To Prior Perturbations)
+                         #      = 3   ->RTPS(Relaxation To Prior Spread)
         self.infl_parm = infl_parm # inflation parameter
         # localization
         self.lsig = lsig # localization parameter
@@ -55,9 +59,9 @@ class Mlef_rloc():
         self.model = model
         logger.info(f"model : {self.model}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} ltlm={self.ltlm} incremental={self.incremental}")
+        logger.info(f"iinf={self.iinf} ltlm={self.ltlm} incremental={self.incremental}")
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
         pf = spf @ spf.transpose()
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
@@ -156,7 +160,7 @@ class Mlef_rloc():
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
-    def dof(self, zmat):
+    def dfs(self, zmat):
         u, s, vt = la.svd(zmat)
         ds = np.sum(s**2/(1.0+s**2))
         return ds
@@ -209,6 +213,8 @@ class Mlef_rloc():
         #    logger.info("==inflation==, alpha={}".format(self.infl_parm))
         #    pf *= self.infl_parm
         fpf = pf @ pf.T
+        if self.iinf == 3:
+            stdv_f = np.sqrt(np.diag(fpf))
         if save_dh:
             np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)
             np.save("{}_spf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), pf)
@@ -281,9 +287,10 @@ class Mlef_rloc():
             x = x0.copy()
             irest = 0 # restart counter
             flg = -1  # optimization result flag
+            options={'iprint':iprint, 'method':method, 'cgtype':cgtype, \
+                    'gtol':gtol, 'desp':desp, 'maxiter':maxiter, 'restart':restart}
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter, restart=restart)
+                            args=args_j, **options)
             if save_hist:
                 x, flg = minimize(x0, callback=self.callback)
                 jh = np.zeros(len(zetak))
@@ -354,14 +361,25 @@ class Mlef_rloc():
         logger.info("zmat shape={}".format(zmat.shape))
         logger.info("d shape={}".format(d.shape))
         innv, chi2 = chi2_test(zmat, d)
-        ds = self.dof(zmat)
-        logger.info("dof={}".format(ds))
+        ds = self.dfs(zmat)
+        logger.info("dfs={}".format(ds))
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xa - xc)
-        if self.linf:
-            logger.info("==inflation==, alpha={}".format(self.infl_parm))
+        if self.iinf == 0:
+            logger.info("==multiplicative inflation==, alpha={}".format(self.infl_parm))
             pa *= self.infl_parm
-
+        if self.iinf == 1:
+            logger.info("==additive inflation==, alpha={}".format(self.infl_parm))
+            pa += np.random.randn(pa.shape[0], pa.shape[1])*self.infl_parm
+        if self.iinf == 2:
+            logger.info("==RTPP, alpha={}".format(self.infl_parm))
+            pa = (1.0 - self.infl_parm)*pa + self.infl_parm * pf
+        if self.iinf == 3:
+            logger.info("==RTPS, alpha={}".format(self.infl_parm))
+            fpa = pa @ pa.T
+            stdv_a = np.sqrt(np.diag(fpa))
+            pa = ((1.0 - self.infl_parm)*stdv_a[:, None] + self.infl_parm*stdv_f[:, None])*pa / stdv_a[:, None]
+        
         u = np.zeros_like(xb)
         u[:, 0] = xa
         u[:, 1:] = xa[:, None] + pa

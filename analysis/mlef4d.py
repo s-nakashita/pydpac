@@ -90,7 +90,7 @@ class Mlef4d():
                 np.save("{}_rho_{}_{}.npy".format(self.model, self.op, self.pt), self.l_mat)
         logger.info(f"nt={self.nt} a_window={self.a_window}")
 
-    def calc_pf(self, xf, pa, cycle):
+    def calc_pf(self, xf, **kwargs):
         spf = xf[:, 1:] - xf[:, 0].reshape(-1,1)
         pf = spf @ spf.transpose()
         logger.debug(f"pf max{np.max(pf)} min{np.min(pf)}")
@@ -209,8 +209,8 @@ class Mlef4d():
                 jvalb[i+1,k] = j
         np.save("{}_cJ_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), jvalb)
 
-    def dof(self, zmat):
-        return self.mlef.dof(zmat)
+    def dfs(self, zmat):
+        return self.mlef.dfs(zmat)
 
     def pfloc(self, sqrtpf, l_mat, save_dh, icycle,\
         op="linear",pt="4dmlefbe",model="model"):
@@ -301,10 +301,10 @@ class Mlef4d():
             else:
                 args_j = (d, tmat, zmat)
             iprint = np.zeros(2, dtype=np.int32)
-            options = {'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
+            options = {'iprint':iprint, 'method':method, 'cgtype':cgtype, \
+                    'gtol':gtol, 'disp':disp, 'maxiter':maxiter}
             minimize = Minimize(x0.size, self.calc_j, jac=self.calc_grad_j, hess=self.calc_hess,
-                            args=args_j, iprint=iprint, method=method, cgtype=cgtype,
-                            maxiter=maxiter)
+                            args=args_j, **options)
             logger.info("save_hist={}".format(save_hist))
             if save_hist:
                 x, flg = minimize(x0, callback=self.callback)
@@ -361,8 +361,8 @@ class Mlef4d():
             logger.info("zmat shape={}".format(zmat.shape))
             logger.info("d shape={}".format(d.shape))
             innv, chi2 = chi2_test(zmat, d)
-            ds = self.dof(zmat)
-            logger.info("dof={}".format(ds))
+            ds = self.dfs(zmat)
+            logger.info("dfs={}".format(ds))
             pa = pf @ tmat 
             if self.iloc is not None:
                 # random sampling
