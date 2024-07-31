@@ -77,6 +77,8 @@ if len(sys.argv)>5:
 #obsloc = '_partialm'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lsbdir  = datadir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
+if pt=='envar':
+    lsbdir = datadir / f'envar_noinfl_lsb_preGM{obsloc}_m80obs30'
 lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 #if ldscl:
 #    figdir = datadir

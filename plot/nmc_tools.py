@@ -110,6 +110,8 @@ class NMC_tools:
                 psd = np.mean(np.abs(sp)**2*wgt[:,None],axis=1)
             else:
                 psd = np.mean(np.abs(sp)**2*wgt[None,:],axis=0)
+        elif x.ndim==2 and axis==0:
+                psd = np.abs(sp)**2*wgt[:,None]
         else:
             psd = np.abs(sp)**2*wgt
         if self.ttype == 'c':

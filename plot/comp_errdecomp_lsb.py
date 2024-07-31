@@ -213,12 +213,15 @@ for key in xds.keys():
     msemean = np.mean(mse)
     msesum = np.zeros_like(mse)
     scalelist=['large','middle','small']
+    mselist = [mse]
     for k, xdd in enumerate(xddecomp):
         mse1 = np.mean(xdd.T[ns:]**2,axis=1)
         mse1mean = np.mean(mse1)
         ratio = mse1mean / msemean
         print("{}, {} analysis MSE = {:.3e} ({:.3f})".format(key,scalelist[k],mse1mean,ratio))
         msesum = msesum + mse1
+        mselist.append(mse1)
     rmsesum = np.sqrt(msesum)
     print("{}, analysis MSE = {:.3e} ({:.3e})".format(key,msemean,np.mean(msesum)))
     print("{}, analysis RMSE = {:.3e} ({:.3e})".format(key,np.mean(rmse),np.mean(rmsesum)))
+    np.savetxt(figdir/f"msedecomp_{pt}_{key}.txt",np.array(mselist))

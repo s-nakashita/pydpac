@@ -184,3 +184,24 @@ for i in range(3):
     figp.savefig(figdir/'{}_xsadecomp{}_lam_{}_{}.png'.format(model,i+1,op,pt),dpi=300)
     plt.show(block=False)
     plt.close()
+
+for key in xds.keys():
+    xd = xds[key]
+    xddecomp = xddecomps[key]
+    var = np.mean(xd**2,axis=1)
+    sprd = np.sqrt(var)
+    varmean = var.mean()
+    varsum = np.zeros_like(var)
+    scalelist=['large','middle','small']
+    varlist = [var]
+    for k, xdd in enumerate(xddecomp):
+        var1 = np.mean(xdd**2,axis=1)
+        var1mean = np.mean(var1)
+        ratio = var1mean / varmean
+        print("{}, {} analysis variance = {:.3e} ({:.3f})".format(key,scalelist[k],var1mean,ratio))
+        varsum = varsum + var1
+        varlist.append(var1)
+    sprdsum = np.sqrt(varsum)
+    print("{}, analysis variance = {:.3e} ({:.3e})".format(key,varmean,np.mean(varsum)))
+    print("{}, analysis spread = {:.3e} ({:.3e})".format(key,np.mean(sprd),np.mean(sprdsum)))
+    np.savetxt(figdir/f"vardecomp_{pt}_{key}.txt",np.array(varlist))

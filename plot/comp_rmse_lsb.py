@@ -80,6 +80,8 @@ if len(sys.argv)>5:
 #obsloc = '_partialm'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lsbdir  = datadir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
+if pt=='envar':
+    lsbdir = datadir / f'envar_noinfl_lsb_preGM{obsloc}_m80obs30'
 lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 #if ldscl:
 #    figdir = datadir
@@ -91,7 +93,7 @@ labels = {"dscl":"Dscl","conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 fig0, (ax00,ax01,ax02) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
-fig1, (ax10,ax11,ax12) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
+#fig1, (ax10,ax11,ax12) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
 figs, (sax0,sax1,sax2) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
 
 tc = np.arange(na)+1 # cycles
@@ -125,13 +127,13 @@ if ldscl:
     sax0.plot(t[ns:ns+nt1],sratio[ns:ns+nt1],c='k',label=f'Downscaling={np.mean(sratio[ns:]):.3f}')
     sax1.plot(t[ns+nt1:ns+2*nt1],sratio[ns+nt1:ns+2*nt1],c='k') #,label=f'downscaling={np.mean(sratio):.3f}')
     sax2.plot(t[ns+2*nt1:],sratio[ns+2*nt1:],c='k') #,label=f'downscaling={np.mean(sratio):.3f}')
-    # autocorrelation estimation using jackknife method
-    nwc, e_resample, t_resample = jackknife(e_dscl,t,'dscl')
-    nt2 = t_resample.size // 3
-    ax10.plot(t_resample[:nt2],e_resample[:nt2],c='k',label=f'Downscaling={np.mean(e_resample):.3f}')
-    ax11.plot(t_resample[nt2:2*nt2],e_resample[nt2:2*nt2],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-    ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-    errors['dscl'] = e_resample #e_dscl[ns:]
+    ## autocorrelation estimation using jackknife method
+    #nwc, e_resample, t_resample = jackknife(e_dscl,t,'dscl')
+    #nt2 = t_resample.size // 3
+    #ax10.plot(t_resample[:nt2],e_resample[:nt2],c='k',label=f'Downscaling={np.mean(e_resample):.3f}')
+    #ax11.plot(t_resample[nt2:2*nt2],e_resample[nt2:2*nt2],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    #ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
+    #errors['dscl'] = e_resample #e_dscl[ns:]
 for key in ['conv','lsb','nest']:
     if key=='conv':
         if anl:
@@ -171,24 +173,24 @@ for key in ['conv','lsb','nest']:
     sax0.plot(t[ns:ns+nt1],sratio[ns:ns+nt1],c=linecolor[key],label=labels[key]+f'={np.mean(sratio[ns:]):.3f}')
     sax1.plot(t[ns+nt1:ns+2*nt1],sratio[ns+nt1:ns+2*nt1],c=linecolor[key]) #,label=labels[key]+f'={np.mean(sratio):.3f}')
     sax2.plot(t[ns+2*nt1:],sratio[ns+2*nt1:],c=linecolor[key]) #,label=labels[key]+f'={np.mean(sratio):.3f}')
-    # autocorrelation length estimation using jackknife method
-    nwc, e_resample, t_resample = jackknife(e,t,key)
-    nt2 = t_resample.size // 3
-    ax10.plot(t_resample[:nt2],e_resample[:nt2],c=linecolor[key],label=labels[key]+f'={np.mean(e_resample):.3f}')
-    ax11.plot(t_resample[nt2:2*nt2],e_resample[nt2:2*nt2],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
-    ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
-    errors[key] = e_resample #e[ns:]
-for ax in [ax00,ax01,ax02,ax10,ax11,ax12]:
+    ## autocorrelation length estimation using jackknife method
+    #nwc, e_resample, t_resample = jackknife(e,t,key)
+    #nt2 = t_resample.size // 3
+    #ax10.plot(t_resample[:nt2],e_resample[:nt2],c=linecolor[key],label=labels[key]+f'={np.mean(e_resample):.3f}')
+    #ax11.plot(t_resample[nt2:2*nt2],e_resample[nt2:2*nt2],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
+    #ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
+    #errors[key] = e_resample #e[ns:]
+for ax in [ax00,ax01,ax02]: #,ax10,ax11,ax12]:
     ax.hlines([1.0],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
-for ax in [ax00,ax01,ax02,ax10,ax11,ax12]:
+for ax in [ax00,ax01,ax02]: #,ax10,ax11,ax12]:
     ax.set_ylim(0.0,1.5)
     ax.set_ylabel('RMSE') #,title=op)
 ax02.set_xlabel('days')
 ax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=f'{ptlong[pt]} time average')
-ax12.set_xlabel('days (resampling)')
-ax10.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
-    title=f'{ptlong[pt]} time average\n(resampling)')
+#ax12.set_xlabel('days (resampling)')
+#ax10.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
+#    title=f'{ptlong[pt]} time average\n(resampling)')
 #sax.set_xlim(t[ns],t[-1])
 for sax in [sax0,sax1,sax2]:
     sax.hlines([1],0,1,colors='gray',transform=sax.get_yaxis_transform(),zorder=0)
@@ -199,10 +201,10 @@ sax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=ptlong[pt]+' time average \nof STD/RMSE')
 if anl:
     fig0.savefig(figdir/'{}_e_lam_{}_{}.png'.format(model,op,pt),dpi=300)
-    fig1.savefig(figdir/'{}_e_lam_resample_{}_{}.png'.format(model,op,pt),dpi=300)
+    #fig1.savefig(figdir/'{}_e_lam_resample_{}_{}.png'.format(model,op,pt),dpi=300)
     figs.savefig(figdir/'{}_stda_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     fig0.savefig(figdir/'{}_e_lam_{}_{}.pdf'.format(model,op,pt))
-    fig1.savefig(figdir/'{}_e_lam_resample_{}_{}.pdf'.format(model,op,pt))
+    #fig1.savefig(figdir/'{}_e_lam_resample_{}_{}.pdf'.format(model,op,pt))
     figs.savefig(figdir/'{}_stda_lam_{}_{}.pdf'.format(model,op,pt))
 else:
     fig0.savefig(figdir/'{}_ef_lam_{}_{}.png'.format(model,op,pt),dpi=300)
@@ -211,7 +213,7 @@ else:
 #    fig1.savefig(figdir/'{}_stdf_lam_{}_{}.pdf'.format(model,op,pt))
 plt.show()
 plt.close(fig=fig0)
-plt.close(fig=fig1)
+#plt.close(fig=fig1)
 plt.close(fig=figs)
 exit()
 
