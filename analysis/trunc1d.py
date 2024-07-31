@@ -26,6 +26,8 @@ class Trunc1d:
             self.nx -= 1 # DOF reduces due to detrending
         logger.info(f"Trunc1d: Transform type = {self.tname[self.ttype]} cyclic={self.cyclic} detrend={self.detrend}")
         self.filter = filter # spectral filter
+        if self.filter:
+            logger.info(f"Trunc1d: apply Raymond low-pass filter")
         self.first = True
         self._setope(ntrunc=ntrunc,ftrunc=ftrunc)
 
@@ -260,10 +262,11 @@ class Trunc1d:
         eps = (np.tan(0.5*self.ftrunc*self.dx))**(-p)
         tmp = 1. + eps*((np.tan(0.5*self.f*self.dx))**p)
         # modify truncation number
-        n = 0
-        while n<self.f.size:
-            if 1./tmp[n] < 1e-3: break
-            n+=1
+        #n = 0
+        #while n<self.f.size:
+        #    if 1./tmp[n] < 1e-3: break
+        #    n+=1
+        n = self.ntrunc * 3
         self.ntrunc = min(n,self.f.size)
         return 1./tmp
 

@@ -665,7 +665,7 @@ class EnVAR_nest():
                 c = c[:,::-1]
                 npos = int(np.sum(lam>0.0))
                 #npos = lam.size
-                print(npos)
+                logger.info(f"#positive eigenvalues={npos}")
                 schurinv = c[:,:npos] @ np.diag(1.0/lam[:npos]) @ c[:,:npos].T
                 args_prec = (zmat, zbmat, schurinv, coef_a)
                 if save_dh:
