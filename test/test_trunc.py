@@ -66,7 +66,7 @@ if ntrunc is not None:
 if ix.size == trunc1d.ix_trunc.size:
     ax0.plot(ix,x-xtrunc+r,ls='dashed')
 #ax1.set_title("diff")
-width=0.8
+width=0.5
 if trunc1d.ttype!='c':
     ax2.bar(f,np.abs(y*dx)**2,width=width,alpha=0.5)
 else:

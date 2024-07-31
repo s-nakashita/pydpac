@@ -201,6 +201,8 @@ params_lam["nt"] = params_lam["nt"] * step.lamstep
 params_gm["lb"] = params_gm["lb"] * np.pi / 180.0 # degree => radian
 params_lam["lb"] = params_lam["lb"] * np.pi / 180.0 # degree => radian
 params_lam["lv"] = params_lam["lv"] * np.pi / 180.0 # degree => radian
+# keyword arguments for truncation operator
+trunc_kwargs = {'ntrunc':params_lam['ntrunc'],'cyclic':False,'ttype':'c','nghost':0}
 
 # observation operator
 obs = Obs(op, sigo, seed=params_gm["roseed"]) # for make observations
@@ -306,7 +308,7 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     if params_lam["anlsp"]:
         analysis_lam = EnVAR_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
-            step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
+            step.ix_gm, step.ix_lam[1:-1], \
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
@@ -314,10 +316,11 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam",\
+            **trunc_kwargs)
     else:
         analysis_lam = EnVAR_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
-            step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
+            step.ix_gm, step.ix_lam[nsp:-nsp], \
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
@@ -325,7 +328,8 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam",\
+            **trunc_kwargs)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis_gm = EnKF(pt, nx_gm, params_gm["nmem"], obs_gm, \
@@ -441,19 +445,19 @@ elif pt == "var_nest":
         ebkmat=None
         ekbmat=None
     if params_lam["anlsp"]:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1,
-        sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
-        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1, cyclic=False, 
+        bmat=bmat_lam, sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"],
+        vmat=vmat, sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], 
         crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
-        model=model+"_lam")
+        model=model+"_lam",**trunc_kwargs)
     else:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp,
-        sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
-        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp, cyclic=False, 
+        bmat=bmat_lam, sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"],
+        vmat=vmat, sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], 
         crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
-        model=model+"_lam")
+        model=model+"_lam",**trunc_kwargs)
 else:
     print("not implemented yet")
     exit()
@@ -500,7 +504,8 @@ if params_lam["blending"]:
     logger = logging.getLogger("anl")
     logger.info(f"H_gm2lam.shape={H_gm2lam.shape}")
     # truncation operator using DCT
-    trunc_operator = Trunc1d(step.ix_lam,ntrunc=params_lam["ntrunc"],cyclic=False,ttype='c',resample=False)
+    trunc_kwargs.update({'resample':False})
+    trunc_operator = Trunc1d(step.ix_lam,**trunc_kwargs)
 
 # functions load
 func = L05nest_func(step,obs,params_gm,params_lam,model=model)

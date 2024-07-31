@@ -20,7 +20,7 @@ logger = getLogger('anl')
 class EnVAR_nest():
 
     def __init__(self, state_size, nmem, obs, ix_gm, ix_lam,
-        pt="envar_nest", ntrunc=None, ftrunc=None, cyclic=False, 
+        pt="envar_nest", cyclic=False, #ntrunc=None, ftrunc=None, 
         crosscov=False, ortho=True, coef_a=None, \
         ridge=False, ridge_dx=False, reg=False, mu=0.1,
         nvars=1, ndims=1, 
@@ -28,7 +28,7 @@ class EnVAR_nest():
         iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
-        ltlm=False, incremental=True, model="model"):
+        ltlm=False, incremental=True, model="model", **trunc_kwargs):
         # essential parameters
         self.ndim = state_size # state size
         self.nmem = nmem # ensemble size
@@ -44,9 +44,10 @@ class EnVAR_nest():
         self.i0 = i0 # GM first index within LAM domain
         self.i1 = i1 # GM last index within LAM domain
         self.nv = self.i1 - self.i0 + 1
-        self.ntrunc = ntrunc # truncation number for GM
-        self.ftrunc = ftrunc # truncation wavenumber for GM
-        self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='c',nghost=0)
+        #self.ntrunc = ntrunc # truncation number for GM
+        #self.ftrunc = ftrunc # truncation wavenumber for GM
+        #self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='c',nghost=0)
+        self.trunc_operator = Trunc1d(self.ix_lam,**trunc_kwargs)
         self.nv = min(self.nv,self.trunc_operator.ix_trunc.size)
         # optional parameters
         self.pt = pt # DA type 

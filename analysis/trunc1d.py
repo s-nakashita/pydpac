@@ -200,7 +200,6 @@ class Trunc1d:
             if self.ntrunc < self.T.shape[0]:
                 if self.filter:
                     self.specfil = self._raymond_filter()
-                    self.ntrunc = min(2*self.ntrunc,self.T.shape[0])
                 else:
                     self.specfil = np.ones(self.T.shape[0])
                     self.specfil[self.ntrunc:] = 0.
@@ -260,6 +259,12 @@ class Trunc1d:
     def _raymond_filter(self,p=6):
         eps = (np.tan(0.5*self.ftrunc*self.dx))**(-p)
         tmp = 1. + eps*((np.tan(0.5*self.f*self.dx))**p)
+        # modify truncation number
+        n = 0
+        while n<self.f.size:
+            if 1./tmp[n] < 1e-3: break
+            n+=1
+        self.ntrunc = min(n,self.f.size)
         return 1./tmp
 
     def _preprocess(self,x,axis=0):
