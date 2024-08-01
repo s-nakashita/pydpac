@@ -25,7 +25,7 @@ parser.add_argument("-m","--metric",type=str,default="",\
 argsin = parser.parse_args()
 nens = argsin.nens
 metric = argsin.metric
-figdir = Path(f"fig/ne{nens}{metric}")
+figdir = Path(f"fig{metric}/ne{nens}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results
@@ -49,6 +49,10 @@ xoffset = 0.5 * bwidth * (len(ds_dict.keys()) - 1)
 fig0, ax0 = plt.subplots(figsize=[8,6],constrained_layout=True)
 fig1, ax1 = plt.subplots(figsize=[8,6],constrained_layout=True)
 patchs = []
+if metric=='':
+    ylims = [-1.1,1.1]
+else:
+    ylims = [-0.08,0.02]
 for j,vt in enumerate(vtlist):
     pos0 = j+1 - xoffset
     ds_dict = ds_all[vt]
@@ -63,9 +67,13 @@ for j,vt in enumerate(vtlist):
         for patch in bplot1['boxes']:
             patch.set_facecolor(colors[key])
             #patch.set_alpha(0.3)
-        nout = np.sum(data1>1.1)
-        if nout>0:
-            ax0.text(pos0,0.95,f'{nout}',transform=ax0.get_xaxis_transform(),\
+        nlower = np.sum(data1<ylims[0])
+        nupper = np.sum(data1>ylims[1])
+        if nlower>0:
+            ax0.text(pos0,0.05,f'{nlower}',transform=ax0.get_xaxis_transform(),\
+                ha='center',size='small',weight='bold',color=colors[key])
+        if nupper>0:
+            ax0.text(pos0,0.95,f'{nupper}',transform=ax0.get_xaxis_transform(),\
                 ha='center',size='small',weight='bold',color=colors[key])
         #ym = data1.mean()
         #p,=axs[0].plot([pos0],[ym],lw=0.0,marker=markers[key],ms=10,c=colors[key],**marker_style)
@@ -74,21 +82,23 @@ for j,vt in enumerate(vtlist):
         for patch in bplot2['boxes']:
             patch.set_facecolor(colors[key])
             #patch.set_alpha(0.3)
-        nout = np.sum(data2>1.1)
-        if nout>0:
-            ax1.text(pos0,0.95,f'{nout}',transform=ax1.get_xaxis_transform(),\
-                ha='center',size='x-small',weight='bold',color=colors[key])
-        #ym = data2.mean()
+        nlower = np.sum(data2<ylims[0])
+        nupper = np.sum(data2>ylims[1])
+        if nlower>0:
+            ax1.text(pos0,0.05,f'{nlower}',transform=ax1.get_xaxis_transform(),\
+                ha='center',size='small',weight='bold',color=colors[key])
+        if nupper>0:
+            ax1.text(pos0,0.95,f'{nupper}',transform=ax1.get_xaxis_transform(),\
+                ha='center',size='small',weight='bold',color=colors[key])#ym = data2.mean()
         #p,=axs[1].plot([pos0],[ym],lw=0.0,marker=markers[key],ms=10,c=colors[key],**marker_style)
         pos0 = pos0 + bwidth
         if j==0:
             patchs.append(Patch(color=colors[key],label=key))
 for ax in [ax0,ax1]:
     ax.set_xticks(np.arange(1,len(vtlist)+1))
-    ax.set_xticklabels(vtlist)
+    ax.set_xticklabels([f'FT{v}' for v in vtlist])
     ax.grid(axis='y')
-    if metric == '':
-        ax.set_ylim(-1.1,1.1)
+    ax.set_ylim(ylims)
     ax.legend(handles=patchs,loc='upper left',bbox_to_anchor=(1.0,1.0))
 ax0.set_title(r'Nonlinear forecast response: $\frac{J(M(\mathbf{x}_0+\delta\mathbf{x}_0^\mathrm{opt}))-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$'+f', {nens} member')
 ax1.set_title(r'Tangent linear response: $\frac{J(\mathbf{x}_T+\mathbf{M}\delta\mathbf{x}_0^\mathrm{opt})-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$'+f', {nens} member')
@@ -119,7 +129,7 @@ for j,vt in enumerate(vtlist):
             patchs.append(Patch(color=colors[key],label=key))
         pos0 = pos0 + bwidth
 ax.set_xticks(np.arange(1,len(vtlist)+1))
-ax.set_xticklabels(vtlist)
+ax.set_xticklabels([f'FT{v}' for v in vtlist])
 #ax.set_ylabel('spatial correlation')
 ax.grid(axis='y')
 ax.set_ylim(-1.0,1.0)

@@ -32,7 +32,7 @@ vt = argsin.vt # hours
 ioffset = vt // 6
 metric = argsin.metric
 solver = argsin.solver
-figdir = Path(f"fig/vt{vt}{solver}{metric}")
+figdir = Path(f"fig{metric}/vt{vt}{solver}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results

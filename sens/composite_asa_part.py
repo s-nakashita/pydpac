@@ -30,7 +30,7 @@ ioffset = vt // 6
 nens = argsin.nens
 metric = argsin.metric
 
-figdir = Path(f"fig/vt{vt}ne{nens}{metric}")
+figdir = Path(f"fig{metric}/vt{vt}ne{nens}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results

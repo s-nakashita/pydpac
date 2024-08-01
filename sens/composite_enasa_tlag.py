@@ -29,7 +29,7 @@ if len(sys.argv)>2:
 metric = ''
 if len(sys.argv)>3:
     metric = sys.argv[3]
-figdir = Path(f"fig/vt{vt}{solver}{metric}")
+figdir = Path(f"fig{metric}/vt{vt}{solver}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results

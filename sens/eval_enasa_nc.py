@@ -43,9 +43,9 @@ nens = argsin.nens
 metric = argsin.metric
 solver = argsin.solver
 lag = argsin.lag
-figdir = Path(f"fig/vt{vt}ne{nens}{metric}/{solver}")
+figdir = Path(f"fig{metric}/vt{vt}ne{nens}/{solver}")
 if lag>0:
-    figdir = Path(f"fig/vt{vt}ne{nens}lag{lag}{metric}/{solver}")
+    figdir = Path(f"fig{metric}/vt{vt}ne{nens}lag{lag}/{solver}")
 if not figdir.exists(): figdir.mkdir()
 
 # load results
