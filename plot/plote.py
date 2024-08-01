@@ -8,7 +8,7 @@ from methods import perts, linecolor, iinflist, infltype, inflcolor
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-linfl = False
+nspinup = na // 5
 marker = {"3d":"o","4d":"x","3ds":"x","4ds":"^"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \

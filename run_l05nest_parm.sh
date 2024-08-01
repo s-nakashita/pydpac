@@ -13,18 +13,23 @@ linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 ntest=10
-ptype=infl_lrg
+ptype=infl
 functype=gc5
 #lgsig=110
 #llsig=70
+obsloc=${1}
 #exp="letkf_K15_${ptype}_mem${nmem}obs${nobs}"
-exp="envar_nest_${ptype}_mem${nmem}obs${nobs}"
+exp="envar_nest_preGM${obsloc}_${ptype}_mem${nmem}obs${nobs}"
 #exp="var_nest_${functype}nmc_${ptype}_obs${nobs}"
 #exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
-wdir=work/${model}/${exp}
-rm -rf ${wdir}
+ddir=${cdir}/work/${model}
+preGM=True
+preGMda="envar"
+preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
+wdir=${ddir}/${exp}
+#rm -rf ${wdir}
 mkdir -p ${wdir}
 cd ${wdir}
 cp ${cdir}/logging_config.ini .
@@ -41,9 +46,10 @@ nmemlist="40 80 120 160 200 240"
 lsiglist="20 30 40 50 60 70 80 90 100"
 nobslist="480 240 120 60 30 15"
 sigolist="1.0 0.5 0.3 0.1 0.05 0.03"
-infllist="1.0 1.05 1.1 1.15 1.2 1.25"
-sigblist="0.4 0.6 0.8 1.0 1.2 1.6"
-sigvlist="0.4 0.6 0.8 1.0 1.2 1.6"
+infllist="1.0 1.05 1.1 1.15 1.2 1.25 1.3 1.35 1.4 1.45 1.5"
+sigblist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
+#sigvlist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
+sigvlist="0.2"
 #sigblist="0.8 1.0 1.2 1.6"
 lblist="2.0 4.0 6.0 8.0 10.0 12.0"
 ## create seeds
@@ -78,7 +84,8 @@ for op in ${operators}; do
   #  echo $sigb >> params.txt
   #  ptmp=$sigb
   #for sigv in ${sigvlist}; do
-  #  echo $sigv >> params.txt
+  #  #echo $sigv >> params.txt
+  #  gsed -i -e "2i ${sigv}" params.txt
   #  ptmp=$sigv
   #for gsigb in ${sigblist}; do
   #for lsigb in ${sigblist}; do
@@ -153,19 +160,27 @@ for op in ${operators}; do
         gsed -i -e "6i \ \"lv\":${glb}," config_lam.py
       fi
       if [ $ptype = sigv ]; then
+        gsed -i -e "6i \ \"sigb\":0.6," config_lam.py
         gsed -i -e "6i \ \"sigv\":${sigv}," config_lam.py
       fi
       ###
       gsed -i -e "6i \ \"functype\":\"${functype}\"," config_gm.py
       gsed -i -e "6i \ \"functype\":\"${functype}\"," config_lam.py
-      ### gmonly
-      #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
-      ###
       if [ $pert = var_nest ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"var\"/" config_gm.py
       fi
       if [ $pert = envar_nest ]; then
         gsed -i -e "/pt/s/\"${pert}\"/\"envar\"/" config_gm.py
+      fi
+      ### gmonly
+      #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
+      ###
+      ### precomputed GM
+      if [ $preGM = True ]; then
+        gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup
+        gsed -i -e "6i \ \"preGM\":${preGM}," config_lam.py
+        gsed -i -e "6i \ \"preGMdir\":\"${preGMdir}/data/${preGMda}\"," config_lam.py
+        gsed -i -e "6i \ \"preGMda\":\"${preGMda}\"," config_lam.py
       fi
       cat config_gm.py
       cat config_lam.py

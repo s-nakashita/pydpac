@@ -5,7 +5,7 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="var_nest var envar_nest envar"
+#perturbations="envar_nest envar" # var_nest var"
 #perturbations="mlef"
 perturbations="envar_nest"
 #datype="4dmlef"
@@ -21,6 +21,7 @@ lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 extfcst=False # for NMC
 iinf=-3
+blending=False # LSB
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
@@ -30,13 +31,17 @@ functype=gc5
 ntrunc=12
 coef_a=None
 hyper_mu=0.0
+obsloc=${1}
 #exp="var+var_nest_${functype}nmc_obs${nobs}"
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
-exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
+#exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
+#exp="envar_noinfl_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}"
 #exp="mlef_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
 #exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
 exp="envar_infl${iinf}def_preGM_m${nmem}obs${nobs}"
+#exp="var_vs_envar_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
+#exp="envar_noinfl_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
@@ -49,6 +54,10 @@ preGMdir="/Users/nakashita/Development/pydpac/work/${model}/var_vs_envar_dscl_m$
 #preGMdir="${ddir}/${preGMda}_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
 wdir=${ddir}/${exp}
+#if [ ! -d $wdir ]; then
+#  echo "No such directory ${wdir}"
+#  exit
+#fi
 #rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
@@ -70,7 +79,9 @@ fi
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
-#cp ../var_vs_envar_wobc_m${nmem}obs${nobs}/obs*.npy .
+cp ../var_vs_envar_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}/obs*.npy .
+#rseed=504770
+roseed=None #514
 rseed=504770
 roseed=None #514
 mkdir -p data
@@ -148,6 +159,10 @@ for op in ${operators}; do
     fi
     ### gmonly
     #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
+    ### LSB
+    if [ $blending = True ]; then
+      gsed -i -e "6i \ \"blending\":${blending}," config_lam.py
+    fi
     ### precomputed GM
     if [ $preGM = True ]; then
       gsed -i -e "6i \ \"lamstart\":40," config_lam.py # spinup

@@ -14,9 +14,12 @@ plt.rcParams['font.size'] = 16
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-anl = True
+pt = 'var' #var or envar
 if len(sys.argv)>4:
-    anl = (sys.argv[4]=='T')
+    pt = sys.argv[4]
+anl = True
+#if len(sys.argv)>5:
+#    anl = (sys.argv[5]=='T')
 
 t = np.arange(na)+1
 ns = 40 # spinup
@@ -25,21 +28,24 @@ datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 ldscl=True
-#obsloc = ''
+obsloc = ''
+if len(sys.argv)>5:
+    obsloc = sys.argv[5]
 #obsloc = '_partiall'
 #obsloc = '_partialc'
 #obsloc = '_partialr'
-obsloc = '_partialm'
+#obsloc = '_partialm'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
+lsbdir  = datadir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
 lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 #if ldscl:
 #    figdir = datadir
 #else:
-figdir = lamdir
+figdir = lsbdir
 
-perts = ["envar", "envar_nest","var","var_nest"]
-labels = {"envar":"EnVar", "envar_nest":"Nested EnVar", "var":"3DVar", "var_nest":"Nested 3DVar"}
-linecolor = {"envar":'tab:orange',"envar_nest":'tab:green',"var":"tab:olive","var_nest":"tab:brown"}
+ptlong = {"envar":"EnVar","var":"3DVar"}
+labels = {"conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
+linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
 ix_gm = np.loadtxt(dscldir/"ix_gm.txt")
@@ -59,8 +65,8 @@ nmc_t = NMC_tools(ix_t_rad,cyclic=True,ttype='c')
 nmc_gm = NMC_tools(ix_gm_rad,cyclic=True,ttype='c')
 nmc_lam = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 
-fig, ax = plt.subplots(figsize=[8,5],constrained_layout=True)
-figsp, axsp = plt.subplots(figsize=[8,6],constrained_layout=True)
+fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
+figsp, axsp = plt.subplots(figsize=[8,7],constrained_layout=True)
 psd_dict = {}
 
 # nature background psd
@@ -74,7 +80,7 @@ print(xt.shape)
 nx_t = xt.shape[1]
 xt2x = interp1d(ix_t,xt)
 wnum_t, psd_bg = nmc_t.psd(xt,axis=1)
-axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
+#axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
 
 # GM
 if anl:
@@ -88,8 +94,8 @@ xagm = np.load(f)
 xdgm = xagm[ns:na,:] - xt2x(ix_gm)
 ax.plot(ix_gm, np.sqrt(np.mean(xdgm**2,axis=0)),\
     c='gray',lw=4.0,label='GM')
-wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
-axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
+#wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
+#axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
 if ldscl:
     # downscaling
@@ -112,24 +118,35 @@ if ldscl:
     #ax.plot(ix_lam, np.mean(xsadscl,axis=0),\
     #    c='k',ls='dashed')
 # LAM
-for pt in perts:
-    if anl:
-        f = lamdir/"xalam_{}_{}.npy".format(op,pt)
+for key in ['conv','lsb','nest']:
+    if key=='conv':
+        if anl:
+            f = lamdir/"xalam_{}_{}.npy".format(op,pt)
+        else:
+            f = lamdir/"xflam_{}_{}.npy".format(op,pt)
+    elif key=='nest':
+        if anl:
+            f = lamdir/"xalam_{}_{}_nest.npy".format(op,pt)
+        else:
+            f = lamdir/"xflam_{}_{}_nest.npy".format(op,pt)
     else:
-        f = lamdir/"xflam_{}_{}.npy".format(op,pt)
+        if anl:
+            f = lsbdir/"xalam_{}_{}.npy".format(op,pt)
+        else:
+            f = lsbdir/"xflam_{}_{}.npy".format(op,pt)
     if not f.exists():
         print("not exist {}".format(f))
         exit()
     xalam = np.load(f)
     xdlam = xalam[ns:na,:] - xt2x(ix_lam)
     xdlam1d = np.sqrt(np.mean(xdlam**2,axis=0))
-    print(f"{pt}, RMSE={np.mean(xdlam1d)}")
+    print(f"{key}, RMSE={np.mean(xdlam1d)}")
     ax.plot(ix_lam,xdlam1d,\
-    c=linecolor[pt],lw=2.0,label=labels[pt])
+    c=linecolor[key],lw=2.0,label=labels[key])
     wnum, psd_lam = nmc_lam.psd(xdlam,axis=1,average=False)
     axsp.loglog(wnum,psd_lam.mean(axis=0),\
-        c=linecolor[pt],lw=2.0,label=labels[pt])
-    psd_dict[pt] = psd_lam
+        c=linecolor[key],lw=2.0,label=labels[key])
+    psd_dict[key] = psd_lam
     #f = lamdir/"xsalam_{}_{}.npy".format(op,pt)
     #xsalam = np.load(f)
     #if pt == 'var' or pt == 'var_nest':
@@ -138,24 +155,28 @@ for pt in perts:
     #else:
     #    ax.plot(ix_lam, np.mean(xsalam,axis=0),\
     #    c=linecolor[pt],ls='dashed')
-#ax.set_ylabel('RMSE')
+ax.set_ylabel('Error')
 ax.set_xlabel('grid')
 ax.set_xlim(ix_t[0],ix_t[-1])
 #ax.hlines([1],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
 ax.legend(loc='upper right')
 #ymin, ymax = ax.get_ylim()
-ymax = 1.0
-ymin = 0.15
-ax.set_ylim(ymin,ymax)
+if obsloc != '':
+    ymax = 1.0
+    ymin = 0.15
+    ax.set_ylim(ymin,ymax)
+fig.suptitle(ptlong[pt])
 if anl:
-    fig.savefig(figdir/f"{model}_xd_{op}.png",dpi=300)
-    fig.savefig(figdir/f"{model}_xd_{op}.pdf")
+    fig.savefig(figdir/f"{model}_xd_{op}_{pt}.png",dpi=300)
+    fig.savefig(figdir/f"{model}_xd_{op}_{pt}.pdf")
 else:
-    fig.savefig(figdir/f"{model}_xdf_{op}.png",dpi=300)
-    fig.savefig(figdir/f"{model}_xdf_{op}.pdf")
+    fig.savefig(figdir/f"{model}_xdf_{op}_{pt}.png",dpi=300)
+    fig.savefig(figdir/f"{model}_xdf_{op}_{pt}.pdf")
 
 axsp.grid()
+axsp.vlines([24],0,1,colors='magenta',ls='dashed',zorder=0,transform=axsp.get_xaxis_transform())
 axsp.legend()
+axsp.set_ylabel('Error')
 axsp.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
 #axsp.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
 #axsp.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
@@ -165,14 +186,16 @@ secax = axsp.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
 secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
 secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
 secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+figsp.suptitle(ptlong[pt])
 if anl:
-    figsp.savefig(figdir/f"{model}_errspectra_{op}.png",dpi=300)
-    figsp.savefig(figdir/f"{model}_errspectra_{op}.pdf")
+    figsp.savefig(figdir/f"{model}_errspectra_{op}_{pt}.png",dpi=300)
+    figsp.savefig(figdir/f"{model}_errspectra_{op}_{pt}.pdf")
 else:
-    figsp.savefig(figdir/f"{model}_errspectra_f_{op}.png",dpi=300)
-    figsp.savefig(figdir/f"{model}_errspectra_f_{op}.pdf")
-plt.show()
+    figsp.savefig(figdir/f"{model}_errspectra_f_{op}_{pt}.png",dpi=300)
+    figsp.savefig(figdir/f"{model}_errspectra_f_{op}_{pt}.pdf")
+plt.show(block=False)
 plt.close()
+exit()
 
 # t-test
 from scipy import stats

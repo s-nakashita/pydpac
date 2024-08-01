@@ -21,11 +21,11 @@ alphak = []
 
 class Var_nest():
     def __init__(self, obs, ix_gm, ix_lam, ioffset=0, \
-        sigb=1.0, lb=-1.0, functype="gauss", a=0.5, bmat=None, bsqrt=None, \
-        sigv=1.0, lv=-1.0, a_v=0.5, ntrunc=None, ftrunc=None, vmat=None, \
+        bmat=None, bsqrt=None, sigb=1.0, lb=-1.0, functype="gauss", a=0.5, \
+        vmat=None, sigv=1.0, lv=-1.0, a_v=0.5, #ntrunc=None, ftrunc=None, \
         crosscov=False, coef_a=0.0, ekbmat=None, ebkmat=None, cyclic=False, \
         calc_dist1=None, calc_dist1_gm=None, verbose=True, \
-        model="model"):
+        model="model",**trunc_kwargs):
         self.pt = "var_nest" # DA type 
         self.obs = obs # observation operator
         self.op = obs.get_op() # observation type
@@ -44,28 +44,29 @@ class Var_nest():
         self.ioffset = ioffset # LAM index offset (for sponge)
         self.cyclic = cyclic
         # LAM background error covariance
+        self.bmat = bmat # prescribed background error covariance
+        self.bsqrt = bsqrt # prescribed preconditioning matrix
         self.sigb = sigb # error variance
         self.lb = lb # error correlation length (< 0.0 : diagonal)
         self.functype = functype # correlation function type (gauss or gc5 or tri)
         self.a = a # correlation function shape parameter
         self.corrfunc = Corrfunc(self.lb,a=self.a)
-        self.bmat = bmat # prescribed background error covariance
-        self.bsqrt = bsqrt # prescribed preconditioning matrix
         if calc_dist1 is None:
             self.calc_dist1 = self._calc_dist1
         else:
             self.calc_dist1 = calc_dist1
         # GM background error covariance within LAM domain
+        self.vmat = vmat # prescribed background error covariance
         self.sigv = sigv # error variance
         self.lv = lv # error correlation length (< 0.0 : diagonal)
         self.a_v = a_v # correlation function shape parameter
-        self.ntrunc = ntrunc # truncation number for GM
-        self.ftrunc = ftrunc # truncation wavenumber for GM
-        self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='c',nghost=0)
+        #self.ntrunc = ntrunc # truncation number for GM
+        #self.ftrunc = ftrunc # truncation wavenumber for GM
+        #self.trunc_operator = Trunc1d(self.ix_lam,ntrunc=self.ntrunc,ftrunc=self.ftrunc,cyclic=False,ttype='c',nghost=0)
+        self.trunc_operator = Trunc1d(self.ix_lam,**trunc_kwargs)
         self.ix_trunc = self.trunc_operator.ix_trunc
         self.nv = self.ix_trunc.size
         self.corrfuncv = Corrfunc(self.lv,a=self.a_v)
-        self.vmat = vmat # prescribed background error covariance
         if calc_dist1_gm is None:
             self.calc_dist1_gm = self._calc_dist1_gm
         else:

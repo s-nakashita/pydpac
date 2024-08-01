@@ -15,10 +15,13 @@ if not figdir.exists(): figdir.mkdir()
 rng = default_rng(509)
 ttype = 'c'
 ntrunc = 12
+filter = False
 if len(sys.argv)>1:
     ttype = sys.argv[1]
 if len(sys.argv)>2:
     ntrunc = int(sys.argv[2])
+if len(sys.argv)>3:
+    filter = (sys.argv[3]=='T' or sys.argv[3]=='True')
 
 nx_true = 960
 intgm = 4
@@ -40,11 +43,17 @@ n = np.array([2.,6.,12.,20.,30.,40.])
 phi = rng.random(n.size)*np.pi
 #x = np.sum(np.sin(n[None,:]*ix[:,None])/np.sqrt(n[None,:]),axis=1)
 x = np.sum(np.exp(1.0j*(n[None,:]*ix[:,None]+phi[None,:])).real/np.sqrt(n[None,:]),axis=1)
-trunc1d = Trunc1d(ix,ntrunc,cyclic=True,ttype=ttype)
+trunc1d = Trunc1d(ix,ntrunc,cyclic=True,ttype=ttype,filter=filter)
+if trunc1d.filter:
+    fig, ax = plt.subplots()
+    ax.plot(trunc1d.f,trunc1d.specfil)
+    ax.vlines([trunc1d.ftrunc,trunc1d.f[trunc1d.ntrunc]],0,1,ls='dashed',colors=['r','g'],transform=ax.get_xaxis_transform())
+    plt.show()
+    plt.close()
 xtrunc,f,y,f_trunc,ytrunc = trunc1d(x,return_coef=True)
 print(trunc1d.ix_trunc)
 if ntrunc is not None:
-    trunc1d_nor = Trunc1d(ix,ntrunc,cyclic=True,resample=False,ttype=ttype)
+    trunc1d_nor = Trunc1d(ix,ntrunc,cyclic=True,resample=False,ttype=ttype,filter=filter)
     xtrunc2 = trunc1d_nor(x)
 fig = plt.figure(figsize=[8,4],constrained_layout=True)
 ax0 = fig.add_subplot(121,projection='polar')
@@ -57,7 +66,7 @@ if ntrunc is not None:
 if ix.size == trunc1d.ix_trunc.size:
     ax0.plot(ix,x-xtrunc+r,ls='dashed')
 #ax1.set_title("diff")
-width=0.8
+width=0.5
 if trunc1d.ttype!='c':
     ax2.bar(f,np.abs(y*dx)**2,width=width,alpha=0.5)
 else:
@@ -75,12 +84,17 @@ elif trunc1d.ttype=='s':
 else:
     ax2.bar(f_trunc,np.abs(ytrunc)**2,width=width,alpha=0.5)
 ax2.set_xlabel(r'$\omega$')
+ax2.set_xlim(-0.5,50.0)
 #for ax in [ax0,ax1]:
 #    #ax.grid()
 #    ax.set_ylim(0,2*r)
 ax0.set_ylim(0,2*r)
-fig.suptitle(f"transform={trunc1d.tname[trunc1d.ttype]}")
-fig.savefig(figdir/f"test_{trunc1d.ttype}_gm_ntrunc{trunc1d.ntrunc}.png",dpi=300)
+if trunc1d.filter:
+    fig.suptitle(f"transform={trunc1d.tname[trunc1d.ttype]}, filtered")
+    fig.savefig(figdir/f"test_{trunc1d.ttype}_gm_ntrunc{trunc1d.ntrunc}fil.png",dpi=300)
+else:
+    fig.suptitle(f"transform={trunc1d.tname[trunc1d.ttype]}")
+    fig.savefig(figdir/f"test_{trunc1d.ttype}_gm_ntrunc{trunc1d.ntrunc}.png",dpi=300)
 plt.show()
 plt.close()
 #exit()
@@ -90,11 +104,17 @@ i0 = np.argmin(np.abs(ix-ix_lam[0]))
 i1 = np.argmin(np.abs(ix-ix_lam[-1]))
 x_lam = x[i0:i1+1]
 ftrunc = trunc1d.ftrunc
-trunc1d = Trunc1d(ix_lam,ftrunc=ftrunc,cyclic=False,ttype=ttype)#,nglobal=nx_true)
+trunc1d = Trunc1d(ix_lam,ftrunc=ftrunc,cyclic=False,ttype=ttype,filter=filter)#,nglobal=nx_true)
+if trunc1d.filter:
+    fig, ax = plt.subplots()
+    ax.plot(trunc1d.f,trunc1d.specfil)
+    ax.vlines([trunc1d.ftrunc,trunc1d.f[trunc1d.ntrunc]],0,1,ls='dashed',colors=['r','g'],transform=ax.get_xaxis_transform())
+    plt.show()
+    plt.close()
 xtrunc,f,y,f_trunc,ytrunc = trunc1d(x_lam,return_coef=True)
 print(trunc1d.ix_trunc)
 if ntrunc is not None:
-    trunc1d_nor = Trunc1d(ix_lam,ftrunc=ftrunc,cyclic=False,ttype=ttype,resample=False)
+    trunc1d_nor = Trunc1d(ix_lam,ftrunc=ftrunc,cyclic=False,ttype=ttype,resample=False,filter=filter)
     xtrunc2 = trunc1d_nor(x_lam)
 fig = plt.figure(figsize=[8,4],constrained_layout=True)
 ax0 = fig.add_subplot(121,projection='polar')
@@ -126,10 +146,15 @@ elif trunc1d.ttype=='s':
 else:
     ax2.bar(f_trunc,np.abs(ytrunc)**2,width=width,alpha=0.5)
 ax2.set_xlabel(r'$\omega$')
+ax2.set_xlim(-0.5,50.0)
 #for ax in [ax0,ax1]:
 #    #ax.grid()
 #    ax.set_ylim(0,2*r)
 ax0.set_ylim(0,2*r)
-fig.suptitle(f"transform={trunc1d.tname[trunc1d.ttype]}")
-fig.savefig(figdir/f"test_{trunc1d.ttype}_lam_ntrunc{trunc1d.ntrunc}.png",dpi=300)
+if trunc1d.filter:
+    fig.suptitle(f"transform={trunc1d.tname[trunc1d.ttype]}, filtered")
+    fig.savefig(figdir/f"test_{trunc1d.ttype}_lam_ntrunc{trunc1d.ntrunc}fil.png",dpi=300)
+else:
+    fig.suptitle(f"transform={trunc1d.tname[trunc1d.ttype]}")
+    fig.savefig(figdir/f"test_{trunc1d.ttype}_lam_ntrunc{trunc1d.ntrunc}.png",dpi=300)
 plt.show()

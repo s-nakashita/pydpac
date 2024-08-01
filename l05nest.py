@@ -70,7 +70,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
 infl_gm_l = {"mlef":1.1,"envar":1.1,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_gm = {"linear": infl_gm_l}
-infl_lam_l = {"mlef":1.05,"mlef_nest":1.1,"mlef_nestc":1.1,"envar":1.05,"envar_nest":1.25,"envar_nestc":1.0,\
+infl_lam_l = {"mlef":1.05,"mlef_nest":1.1,"mlef_nestc":1.1,"envar":1.05,"envar_nest":1.2,"envar_nestc":1.0,\
     "etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_lam = {"linear": infl_lam_l}
@@ -136,9 +136,10 @@ params_gm["saveGM"]     = False # preparing precomputed GM forecasts for LBC of 
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
+params_lam["blending"]  = False # large-scale background blending (Milan et al. 2023)
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
-params_lam["sigb"]      =  0.8     # (For var & 4dvar) background error standard deviation
-params_lam["sigv"]      =  1.8     # (For var_nest) GM background error standard deviation in LAM space
+params_lam["sigb"]      =  0.6 # (For var & 4dvar) background error standard deviation
+params_lam["sigv"]      =  0.4 # (For var_nest) GM background error standard deviation in LAM space
 params_lam["functype"]  = "gc5"  # (For var & 4dvar) background error correlation function
 if model=="l05nest":
     params_lam["lb"]    = 26.5     # (For var & 4dvar) correlation length for background error covariance in degree
@@ -202,6 +203,8 @@ params_lam["nt"] = params_lam["nt"] * step.lamstep
 params_gm["lb"] = params_gm["lb"] * np.pi / 180.0 # degree => radian
 params_lam["lb"] = params_lam["lb"] * np.pi / 180.0 # degree => radian
 params_lam["lv"] = params_lam["lv"] * np.pi / 180.0 # degree => radian
+# keyword arguments for truncation operator
+trunc_kwargs = {'ntrunc':params_lam['ntrunc'],'cyclic':False,'ttype':'c','nghost':0}
 
 # observation operator
 obs = Obs(op, sigo, seed=params_gm["roseed"]) # for make observations
@@ -307,7 +310,7 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     if params_lam["anlsp"]:
         analysis_lam = EnVAR_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
-            step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
+            step.ix_gm, step.ix_lam[1:-1], \
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
@@ -315,10 +318,11 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam",\
+            **trunc_kwargs)
     else:
         analysis_lam = EnVAR_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
-            step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
+            step.ix_gm, step.ix_lam[nsp:-nsp], \
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
@@ -326,7 +330,8 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
-            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
+            ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam",\
+            **trunc_kwargs)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis_gm = EnKF(pt, nx_gm, params_gm["nmem"], obs_gm, \
@@ -442,19 +447,19 @@ elif pt == "var_nest":
         ebkmat=None
         ekbmat=None
     if params_lam["anlsp"]:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1,
-        sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
-        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1, cyclic=False, 
+        bmat=bmat_lam, sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"],
+        vmat=vmat, sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], 
         crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
-        model=model+"_lam")
+        model=model+"_lam",**trunc_kwargs)
     else:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp,
-        sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"], bmat=bmat_lam, cyclic=False, 
-        sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], ntrunc=params_lam["ntrunc"], vmat=vmat, 
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp, cyclic=False, 
+        bmat=bmat_lam, sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"],
+        vmat=vmat, sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], 
         crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
-        model=model+"_lam")
+        model=model+"_lam",**trunc_kwargs)
 else:
     print("not implemented yet")
     exit()
@@ -492,6 +497,18 @@ elif pt == "4dmlef":
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
 """
 
+if params_lam["blending"]:
+    from analysis.trunc1d import Trunc1d
+    from scipy.interpolate import interp1d
+    # interpolation operator from GM to LAM
+    tmp_gm2lam = interp1d(step.ix_gm,np.eye(nx_gm),axis=0)
+    H_gm2lam = tmp_gm2lam(step.ix_lam)
+    logger = logging.getLogger("anl")
+    logger.info(f"H_gm2lam.shape={H_gm2lam.shape}")
+    # truncation operator using DCT
+    trunc_kwargs.update({'resample':False})
+    trunc_operator = Trunc1d(step.ix_lam,**trunc_kwargs)
+
 # functions load
 func = L05nest_func(step,obs,params_gm,params_lam,model=model)
 
@@ -524,6 +541,8 @@ if __name__ == "__main__":
     xsa_lam = np.zeros((xa_lam.shape[0],pa_lam.shape[0]))
 
     a_time = range(0, na, a_window)
+    if params_lam["preGM"]:
+        a_time = range(params_lam["lamstart"], na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e_gm = np.zeros(na)
     stda_gm = np.zeros(na)
@@ -648,6 +667,10 @@ if __name__ == "__main__":
             dof_gm[i:min(i+a_window,na)] = ds
             innov_gm[i:min(i+a_window,na),:innv.size] = innv
         if i >= params_lam["lamstart"]:
+            if params_lam["blending"]:
+                logger.info("large-scale background blending")
+                udf = trunc_operator(H_gm2lam@u_gm - u_lam)
+                u_lam = u_lam + udf
             if params_lam["anlsp"]:
                 #if pt == "var_nest":
                 #    args_lam = (u_lam,pf_lam,y_lam,yloc_lam,u_gm) #,step.ix_lam)

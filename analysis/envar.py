@@ -603,7 +603,7 @@ class EnVAR():
                 logger.info("==RTPS, alpha={}".format(self.infl_parm))
                 beta = ((1.0 - self.infl_parm)*stdv_a + self.infl_parm*stdv_f)/stdv_a
                 logger.info(f"beta={beta}")
-                dxa = dxa * np.mean(beta) #[:, None]
+                dxa = dxa * beta[:, None]
 
             u = np.zeros_like(xb)
             u = xa_[:, None] + dxa

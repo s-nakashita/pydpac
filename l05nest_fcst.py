@@ -78,7 +78,8 @@ params_gm["t0off"]      =  step.nt6h_gm * 4          # initial offset between ad
 params_gm["t0c"]        =  step.nt6h_gm * 4 * 60     # t0 for control
 params_gm["na"]         =  100     # number of analysis cycle
 params_gm["nt"]         =  1       # number of step per forecast (=6 hour)
-params_gm["ntmax"]      =  20      # number of forecast steps (=120 hour)
+params_gm["save1h"]     =  False   # save forecast per 1 hour
+params_gm["ntmax"]      =  8       # number of forecast steps (=48 hour)
 params_gm["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 params_gm["rseed"]      = None # random seed
 params_gm["op"]         = "linear" # observation operator type
@@ -153,10 +154,10 @@ except ImportError:
 global op, pt, ft
 op  = params_lam["op"]
 pt  = params_lam["pt"]
-ft  = "deterministic" #ftype[pt]
+ft  = ftype[pt]
 global na
 na = params_lam["na"]
-nspinup = na // 5
+nspinup = 40 #na // 5
 params_gm["ft"] = ft
 params_lam["ft"] = ft
 params_lam["nt"] = params_lam["nt"] * step.lamstep
@@ -177,35 +178,101 @@ if __name__ == "__main__":
     
     nanl = 0
     if params_lam["preGM"]:
-        uf_gm = np.load(func.preGMdir/f"{model}_gm_ufext_{op}_{func.preGMda}.npy")
+        if ft=='ensemble':
+            uf_gm = np.load(func.preGMdir/f"{model}_gm_ufeext_{op}_{func.preGMda}.npy")
+        else:
+            uf_gm = np.load(func.preGMdir/f"{model}_gm_ufext_{op}_{func.preGMda}.npy")
         logger.info(f"uf_gm.shape={uf_gm.shape}")
     else:
         uf_gm = []
-        ua_gm = np.load(f"xagm_{op}_{pt}.npy")
+        #ua_gm = np.load(f"xagm_{op}_{pt}.npy")
     uf_lam = []
-    ua_lam = np.load(f"xalam_{op}_{pt}.npy")
-    for i in range(na):
+    #ua_lam = np.load(f"xalam_{op}_{pt}.npy")
+    for i in range(nspinup,na):
         if params_lam["preGM"]:
-            uf1_gm = uf_gm[i,]
+            #ua_gm = np.load(func.preGMdir/f"data/{func.preGMda}/{model}_gm_ua_{op}_{func.preGMda}_cycle{i}.npy")
+            uf1_gm = uf_gm[i-nspinup,]
         else:
-            uf1_gm = np.zeros((params_gm["ntmax"]+1,nx_gm))
-            uf1_gm[0,:] = ua_gm[i,]
-        logger.info("cycle{} extended forecast length {}".format(i,uf1_gm.shape[0]))
-        uf1_lam = np.zeros((params_gm["ntmax"]+1,nx_lam))
-        uf1_lam[0,:] = ua_lam[i,]
+            ua_gm = np.load(f"data/{pt}/{model}_gm_ua_{op}_{pt}_cycle{i}.npy")
+            if ft=="ensemble":
+                if params_gm["save1h"]:
+                    uf1_gm = np.zeros((params_gm["ntmax"]*6+1,ua_gm.shape[0],ua_gm.shape[1]))
+                else:
+                    uf1_gm = np.zeros((params_gm["ntmax"]+1,ua_gm.shape[0],ua_gm.shape[1]))
+            else:
+                if params_gm["save1h"]:
+                    uf1_gm = np.zeros((params_gm["ntmax"]*6+1,nx_gm))
+                else:
+                    uf1_gm = np.zeros((params_gm["ntmax"]+1,nx_gm))
+            uf1_gm[0,] = ua_gm #[i,]
+        gm2lam = interp1d(step.ix_gm,uf1_gm[0,],axis=0)
+        ua_lam = gm2lam(step.ix_lam)
+        if i>=params_lam["lamstart"]:
+            uanl = np.load(f"data/{pt}/{model}_lam_ua_{op}_{pt}_cycle{i}.npy")
+            ua_lam[1:-1,] = uanl[:]
+        if ft=='ensemble':
+            if params_gm["save1h"]:
+                uf1_lam = np.zeros((params_gm["ntmax"]*6+1,ua_lam.shape[0],ua_lam.shape[1]))
+            else:
+                uf1_lam = np.zeros((params_gm["ntmax"]+1,ua_lam.shape[0],ua_lam.shape[1]))
+        else:
+            if params_gm["save1h"]:
+                uf1_lam = np.zeros((params_gm["ntmax"]*6+1,nx_lam))
+            else:
+                uf1_lam = np.zeros((params_gm["ntmax"]+1,nx_lam))
+        uf1_lam[0,] = ua_lam #[i,]
+        logger.info("cycle{} extended forecast length {}".format(i,uf1_lam.shape[0]))
         
         for j in range(params_gm["ntmax"]):
-            if params_lam["preGM"]:
-                _, uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,])
+            if params_gm["save1h"]:
+                if params_lam["preGM"]:
+                    _, uf1_lam[j+6,],uf1_lam_1h = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,],save1h=params_gm["save1h"])
+                else:
+                    uf1_gm[j+6,], uf1_lam[j+6,], uf1_gm_1h, uf_lam_1h, = func.forecast(uf1_gm[j,],uf1_lam[j,],save1h=params_gm["save1h"])
+                    uf1_gm[j+1:j+6,] = uf1_gm_1h[:5,]
+                uf1_lam[j+1:j+6,] = uf1_lam_1h[:5,]
             else:
-                uf1_gm[j+1,], uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,])
+                if params_lam["preGM"]:
+                    _, uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,])
+                else:
+                    uf1_gm[j+1,], uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,])
         if not params_lam["preGM"]:
             uf_gm.append(uf1_gm)
         uf_lam.append(uf1_lam)
     if not params_lam["preGM"]:
         uf_gm = np.array(uf_gm)
         logger.info(f"uf_gm.shape={uf_gm.shape}")
-        np.save("{}_gm_ufext_{}_{}.npy".format(model, op, pt), uf_gm)
+        if ft=='ensemble':
+            if params_gm["save1h"]:
+                np.save("{}_gm_ufeext_p1h_{}_{}.npy".format(model, op, pt), uf_gm)
+            else:
+                np.save("{}_gm_ufeext_{}_{}.npy".format(model, op, pt), uf_gm)
+        else:
+            if params_gm["save1h"]:
+                np.save("{}_gm_ufext_p1h_{}_{}.npy".format(model, op, pt), uf_gm)
+            else:
+                np.save("{}_gm_ufext_{}_{}.npy".format(model, op, pt), uf_gm)
     uf_lam = np.array(uf_lam)
     logger.info(f"uf_lam.shape={uf_lam.shape}")
-    np.save("{}_lam_ufext_{}_{}.npy".format(model, op, pt), uf_lam)
+    if params_lam["preGM"]:
+        if ft=='ensemble':
+            if params_gm["save1h"]:
+                np.save("{}_lam_ufeext_p1h_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+            else:
+                np.save("{}_lam_ufeext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+        else:
+            if params_gm["save1h"]:
+                np.save("{}_lam_ufext_p1h_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+            else:
+                np.save("{}_lam_ufext_preGM_{}_{}.npy".format(model, op, pt), uf_lam)
+    else:
+        if ft=='ensemble':
+            if params_gm["save1h"]:
+                np.save("{}_lam_ufeext_p1h_{}_{}.npy".format(model, op, pt), uf_lam)
+            else:
+                np.save("{}_lam_ufeext_{}_{}.npy".format(model, op, pt), uf_lam)
+        else:
+            if params_gm["save1h"]:
+                np.save("{}_lam_ufext_p1h_{}_{}.npy".format(model, op, pt), uf_lam)
+            else:
+                np.save("{}_lam_ufext_{}_{}.npy".format(model, op, pt), uf_lam)
