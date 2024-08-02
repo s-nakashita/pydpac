@@ -141,18 +141,40 @@ def plot_spectra(data,labels,colors=None,styles=None,markers=None):
     secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
     return fig, ax
 
-def plot_state(u_lam,u_dict,u_fil_dict,ntrunc_list,pt,yloc_lam=None,yobs_lam=None):
+def plot_state(u_lam,u_dict,u_fil_dict,ntrunc_list,pt,ua_lam=None,yloc_lam=None,yobs_lam=None):
     fig, axs = plt.subplots(nrows=2,ncols=1+len(ntrunc_list),figsize=[12,6],\
         sharex=True,sharey=True,constrained_layout=True)
-    figd,axsd = plt.subplots(nrows=2,ncols=len(ntrunc_list),figsize=[10,6],\
-        sharex=True,sharey=True,constrained_layout=True)
 
-    if pt=='envar':
-        axs[0,0].plot(ix_lam,u_lam,c='gray',lw=0.5)
-        axs[0,0].plot(ix_lam,u_lam.mean(axis=1),c='b',lw=2.0,label='mean')
+    if ua_lam is not None:
+        if pt=='envar':
+            axs[0,0].plot(ix_lam,ua_lam,c='gray',lw=0.5)
+            axs[0,0].plot(ix_lam,ua_lam.mean(axis=1),c='b',lw=2.0,label='mean')
+        else:
+            axs[0,0].plot(ix_lam,ua_lam,c='b',lw=2.0)
+        axs[0,0].set_title('DA')
+        figd, axsd = plt.subplots(nrows=2,ncols=len(ntrunc_list)+1,figsize=[12,6],\
+        sharex=True,sharey=True,constrained_layout=True)
+        u_dif = ua_lam - u_lam
+        if pt=='envar':
+            axsd[0,0].plot(ix_lam,u_dif,c='gray',lw=0.5)
+            axsd[0,0].plot(ix_lam,u_dif.mean(axis=1),c='b',lw=2.0,label='mean')
+        else:
+            axsd[0,0].plot(ix_lam,u_dif,c='b',lw=2.0)
+        axsd[0,0].set_title('DA increment')
+        axsd[1,0].remove()
+        icol = 1
     else:
-        axs[0,0].plot(ix_lam,u_lam,c='b',lw=2.0)
+        if pt=='envar':
+            axs[0,0].plot(ix_lam,u_lam,c='gray',lw=0.5)
+            axs[0,0].plot(ix_lam,u_lam.mean(axis=1),c='b',lw=2.0,label='mean')
+        else:
+            axs[0,0].plot(ix_lam,u_lam,c='b',lw=2.0)
+        axs[0,0].set_title('LAM (original)')
+        figd, axsd = plt.subplots(nrows=2,ncols=len(ntrunc_list),figsize=[10,6],\
+        sharex=True,sharey=True,constrained_layout=True)
+        icol = 0
     axs[1,0].remove()
+
     for i, ntrunc in enumerate(ntrunc_list):
         u = u_dict[ntrunc]
         u_fil = u_fil_dict[ntrunc]
@@ -161,21 +183,21 @@ def plot_state(u_lam,u_dict,u_fil_dict,ntrunc_list,pt,yloc_lam=None,yobs_lam=Non
         if pt=='envar':
             axs[0,i+1].plot(ix_lam,u,c='gray',lw=0.5)
             axs[0,i+1].plot(ix_lam,u.mean(axis=1),c='b',lw=2.0,label='mean')
-            axsd[0,i].plot(ix_lam,u_dif,c='gray',lw=0.5)
-            axsd[0,i].plot(ix_lam,u_dif.mean(axis=1),c='b',lw=2.0,label='mean')
+            axsd[0,i+icol].plot(ix_lam,u_dif,c='gray',lw=0.5)
+            axsd[0,i+icol].plot(ix_lam,u_dif.mean(axis=1),c='b',lw=2.0,label='mean')
             axs[1,i+1].plot(ix_lam,u_fil,c='gray',lw=0.5)
             axs[1,i+1].plot(ix_lam,u_fil.mean(axis=1),c='b',lw=2.0,label='mean')
-            axsd[1,i].plot(ix_lam,u_diffil,c='gray',lw=0.5)
-            axsd[1,i].plot(ix_lam,u_diffil.mean(axis=1),c='b',lw=2.0,label='mean')
+            axsd[1,i+icol].plot(ix_lam,u_diffil,c='gray',lw=0.5)
+            axsd[1,i+icol].plot(ix_lam,u_diffil.mean(axis=1),c='b',lw=2.0,label='mean')
         else:
             axs[0,i+1].plot(ix_lam,u,c='b',lw=2.0)
-            axsd[0,i].plot(ix_lam,u_dif,c='b',lw=2.0)
+            axsd[0,i+icol].plot(ix_lam,u_dif,c='b',lw=2.0)
             axs[1,i+1].plot(ix_lam,u_fil,c='b',lw=2.0)
-            axsd[1,i].plot(ix_lam,u_diffil,c='b',lw=2.0)
+            axsd[1,i+icol].plot(ix_lam,u_diffil,c='b',lw=2.0)
         axs[0,i+1].set_title(f'ntrunc={ntrunc}')
-        axsd[0,i].set_title(f'diff, ntrunc={ntrunc}')
+        axsd[0,i+icol].set_title(f'diff, ntrunc={ntrunc}')
         axs[1,i+1].set_title(f'ntrunc={ntrunc}, filtered')
-        axsd[1,i].set_title(f'diff, ntrunc={ntrunc}, filtered')
+        axsd[1,i+icol].set_title(f'diff, ntrunc={ntrunc}, filtered')
     if yloc_lam is not None and yobs_lam is not None:
         for ax in axs.ravel():
             ax.plot(yloc_lam,yobs_lam,lw=0.0,marker='x',c='r',zorder=0,label='obs')
@@ -236,14 +258,14 @@ if __name__=="__main__":
         axs[0].legend()
     fig.suptitle('background')
     fig.savefig(figdir/f'bg_c{icycle}.png')
-    plt.show()
+    #plt.show()
     plt.close()
 
     if pt=='envar':
         fig, ax = plot_spectra([u_dscl,u_lam],['GM','LAM'],colors=['b','r'])
         fig.suptitle('background ensemble spread')
         fig.savefig(figdir/f'bg_psd_c{icycle}.png')
-        plt.show()
+        #plt.show()
         plt.close()
 
     # conventional DA
@@ -287,6 +309,7 @@ if __name__=="__main__":
         else:
             var_nest_kwargs.update(**trunc_kwargs)
             nest = Var_nest(*var_nest_initargs,**var_nest_kwargs)
+            pf_lam = nest.calc_pf(u_lam,cycle=0)
         args = (u_lam[1:-1],pf_lam,yobs_lam,yloc_lam,u_gm)
         u_anl, pa_nest, _, _, _, _ = nest(*args,icycle=icycle)
         ua_nest = u_lam.copy()
@@ -316,6 +339,7 @@ if __name__=="__main__":
         else:
             var_nest_kwargs.update(**trunc_kwargs)
             nest = Var_nest(*var_nest_initargs,**var_nest_kwargs)
+            pf_lam = nest.calc_pf(u_lam,cycle=0)
         args = (u_lam[1:-1],pf_lam,yobs_lam,yloc_lam,u_gm)
         u_anl, pa_nest, _, _, _, _ = nest(*args,icycle=icycle)
         ua_nest = u_lam.copy()
@@ -328,7 +352,6 @@ if __name__=="__main__":
     markers = ['o'] + ['^','x']*len(ntrunc_list)
     ## background blending
     fig, axs, figd, axsd = plot_state(u_lam,u_bld_dict,u_bldfil_dict,ntrunc_list,pt)
-    axs[0,0].set_title('LAM (original)')
     fig.suptitle('background blending')
     figd.suptitle('background blending')
     fig.savefig(figdir/f"bg_bld_c{icycle}.png")
@@ -352,8 +375,8 @@ if __name__=="__main__":
         plt.close()
 
     ## background blending + DA
-    fig, axs, figd, axsd = plot_state(ua_lam,ua_bld_dict,ua_bldfil_dict,ntrunc_list,pt,yloc_lam,yobs_lam)
-    axs[0,0].set_title('conventional DA')
+    fig, axs, figd, axsd = plot_state(u_lam,ua_bld_dict,ua_bldfil_dict,ntrunc_list,pt,\
+        ua_lam,yloc_lam,yobs_lam)
     fig.suptitle('background blending + DA')
     figd.suptitle('background blending + DA')
     fig.savefig(figdir/f"anl_bld_c{icycle}.png")
@@ -377,8 +400,8 @@ if __name__=="__main__":
         plt.close()
 
     ## Nested DA
-    fig, axs, figd, axsd = plot_state(ua_lam,ua_nest_dict,ua_nestfil_dict,ntrunc_list,pt,yloc_lam,yobs_lam)
-    axs[0,0].set_title('conventional DA')
+    fig, axs, figd, axsd = plot_state(u_lam,ua_nest_dict,ua_nestfil_dict,ntrunc_list,pt,\
+        ua_lam,yloc_lam,yobs_lam)
     fig.suptitle('Nested DA')
     figd.suptitle('Nested DA')
     fig.savefig(figdir/f"anl_nest_c{icycle}.png")

@@ -15,12 +15,12 @@ perturbations="envar"
 #perturbations="etkfbm"
 na=1000 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=30 # observation volume
-linf=False # True:Apply inflation False:Not apply
+nobs=15 # observation volume
+linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 extfcst=False # for NMC
-blending=True # LSB
+blending=False # LSB
 #lgsig=110
 #llsig=70
 #L="-1.0 0.5 1.0 2.0"
@@ -35,18 +35,18 @@ obsloc=${1}
 #exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
 #exp="envar_noinfl_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}"
-#exp="mlef_dscl_m${nmem}obs${nobs}"
+exp="envar_dscl_m${nmem}obs${nobs}"
 #exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
 #exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
 #exp="var_vs_envar_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
-exp="envar_noinfl_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
+#exp="envar_noinfl_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
 #exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
 #exp="var_nmc6_obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 ddir=${cdir}/work/${model}
 #ddir=/Volumes/FF520/nested_envar/data/${model}
-preGM=True
+preGM=False
 preGMda="envar"
 preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/${preGMda}_dscl_m${nmem}obs${nobs}"
@@ -76,7 +76,7 @@ touch timer
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
 #rseed=92863
-cp ../var_vs_envar_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}/obs*.npy .
+#cp ../var_vs_envar_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}/obs*.npy .
 #rseed=504770
 roseed=None #514
 mkdir -p data
@@ -151,8 +151,8 @@ for op in ${operators}; do
     if [ $pert = mlef_nest ] || [ $pert = mlef_nestc ]; then
       gsed -i -e "/pt/s/\"${pert}\"/\"mlef\"/" config_gm.py
     fi
-    ### gmonly
-    #gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
+    ## gmonly
+    gsed -i -e "3i \ \"lamstart\":2000," config_lam.py
     ### LSB
     if [ $blending = True ]; then
       gsed -i -e "6i \ \"blending\":${blending}," config_lam.py
