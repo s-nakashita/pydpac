@@ -42,10 +42,22 @@ lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 #    figdir = datadir
 #else:
 figdir = lsbdir
+figpngdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpng')
+figpdfdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpdf')
+if obsloc == '':
+    figpngdir = figpngdir / 'uniform'
+    figpdfdir = figpdfdir / 'uniform'
+else:
+    figpngdir = figpngdir / obsloc[1:]
+    figpdfdir = figpdfdir / obsloc[1:]
+if not figpngdir.exists():
+    figpngdir.mkdir(parents=True)
+if not figpdfdir.exists():
+    figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
-linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
+labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BBL+DA", "nest":"Nested DA"}
+linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
 ix_gm = np.loadtxt(dscldir/"ix_gm.txt")
@@ -82,58 +94,56 @@ xt2x = interp1d(ix_t,xt)
 wnum_t, psd_bg = nmc_t.psd(xt,axis=1)
 #axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
 
-# GM
-if anl:
-    f = dscldir/"xagm_{}_{}.npy".format(op,preGMpt)
-else:
-    f = dscldir/"{}_xfgm_{}_{}.npy".format(model,op,preGMpt)
-if not f.exists():
-    print("not exist {}".format(f))
-    exit()
-xagm = np.load(f)
-xdgm = xagm[ns:na,:] - xt2x(ix_gm)
-ax.plot(ix_gm, np.sqrt(np.mean(xdgm**2,axis=0)),\
-    c='gray',lw=4.0,label='GM')
-#wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
-#axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
+## GM
+#if anl:
+#    f = dscldir/"xagm_{}_{}.npy".format(op,preGMpt)
+#else:
+#    f = dscldir/"{}_xfgm_{}_{}.npy".format(model,op,preGMpt)
+#if not f.exists():
+#    print("not exist {}".format(f))
+#    exit()
+#xagm = np.load(f)
+#xdgm = xagm[ns:na,:] - xt2x(ix_gm)
+#ax.plot(ix_gm, np.sqrt(np.mean(xdgm**2,axis=0)),\
+#    c='gray',lw=4.0,label='GM')
+##wnum_gm, psd_gm = nmc_gm.psd(xdgm,axis=1)
+##axsp.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
 if ldscl:
-    # downscaling
-    if anl:
-        f = dscldir/"xalam_{}_{}.npy".format(op,preGMpt)
-    else:
-        f = dscldir/"{}_xflam_{}_{}.npy".format(model,op,preGMpt)
-    if not f.exists():
-        print("not exist {}".format(f))
-        exit()
-    xadscl = np.load(f)
-    xddscl = xadscl[ns:na,:] - xt2x(ix_lam)
-    ax.plot(ix_lam, np.sqrt(np.mean(xddscl**2,axis=0)),\
-        c='k',lw=2.0,label='downscaling')
-    wnum, psd_dscl = nmc_lam.psd(xddscl,axis=1,average=False)
-    axsp.loglog(wnum,psd_dscl.mean(axis=0),c='k',lw=2.0,label='Downscaling')
-    psd_dict["dscl"] = psd_dscl
-    #f = dscldir/"xsalam_{}_{}.npy".format(op,preGMpt)
-    #xsadscl = np.load(f)
-    #ax.plot(ix_lam, np.mean(xsadscl,axis=0),\
-    #    c='k',ls='dashed')
+    keys = ['dscl','conv','lsb','nest']
+else:
+    keys = ['conv','lsb','nest']
 # LAM
-for key in ['conv','lsb','nest']:
-    if key=='conv':
+for key in keys:
+    if key=='dscl':
+        # downscaling
+        if anl:
+            f = dscldir/"xalam_{}_{}.npy".format(op,preGMpt)
+            fs = dscldir/"xsalam_{}_{}.npy".format(op,preGMpt)
+        else:
+            f = dscldir/"{}_xflam_{}_{}.npy".format(model,op,preGMpt)
+            fs = dscldir/"{}_xsflam_{}_{}.npy".format(model,op,preGMpt)
+    elif key=='conv':
         if anl:
             f = lamdir/"xalam_{}_{}.npy".format(op,pt)
+            fs = lamdir/"xsalam_{}_{}.npy".format(op,pt)
         else:
             f = lamdir/"xflam_{}_{}.npy".format(op,pt)
+            fs = lamdir/"xsflam_{}_{}.npy".format(op,pt)
     elif key=='nest':
         if anl:
             f = lamdir/"xalam_{}_{}_nest.npy".format(op,pt)
+            fs = lamdir/"xsalam_{}_{}_nest.npy".format(op,pt)
         else:
             f = lamdir/"xflam_{}_{}_nest.npy".format(op,pt)
+            fs = lamdir/"xsflam_{}_{}_nest.npy".format(op,pt)
     else:
         if anl:
             f = lsbdir/"xalam_{}_{}.npy".format(op,pt)
+            fs = lsbdir/"xsalam_{}_{}.npy".format(op,pt)
         else:
             f = lsbdir/"xflam_{}_{}.npy".format(op,pt)
+            fs = lsbdir/"xsflam_{}_{}.npy".format(op,pt)
     if not f.exists():
         print("not exist {}".format(f))
         exit()
@@ -147,31 +157,28 @@ for key in ['conv','lsb','nest']:
     axsp.loglog(wnum,psd_lam.mean(axis=0),\
         c=linecolor[key],lw=2.0,label=labels[key])
     psd_dict[key] = psd_lam
-    #f = lamdir/"xsalam_{}_{}.npy".format(op,pt)
-    #xsalam = np.load(f)
-    #if pt == 'var' or pt == 'var_nest':
-    #    ax.plot(ix_lam[1:-1], np.mean(xsalam,axis=0),\
-    #    c=linecolor[pt],ls='dashed')
-    #else:
-    #    ax.plot(ix_lam, np.mean(xsalam,axis=0),\
-    #    c=linecolor[pt],ls='dashed')
+    if pt=='envar':
+        xslam = np.load(fs)
+        xslam1d = np.mean(xslam,axis=0)
+        ax.plot(ix_lam,xslam1d,\
+        c=linecolor[key],lw=2.0,ls='dashed')
 ax.set_ylabel('Error')
 ax.set_xlabel('grid')
-ax.set_xlim(ix_t[0],ix_t[-1])
+#ax.set_xlim(ix_t[0],ix_t[-1])
+ax.set_xlim(ix_lam[0],ix_lam[-1])
 #ax.hlines([1],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
-ax.legend(loc='upper right')
-#ymin, ymax = ax.get_ylim()
-if obsloc != '':
-    ymax = 1.0
-    ymin = 0.15
-    ax.set_ylim(ymin,ymax)
+ax.legend(loc='upper left') #loc='upper right')
+ymin, ymax = ax.get_ylim()
+#if ymax > 1.0:
+ymax = 0.8
+ax.set_ylim(ymin,ymax)
 fig.suptitle(ptlong[pt])
 if anl:
-    fig.savefig(figdir/f"{model}_xd_{op}_{pt}.png",dpi=300)
-    fig.savefig(figdir/f"{model}_xd_{op}_{pt}.pdf")
+    fig.savefig(figpngdir/f"{model}_xd_{op}_{pt}.png",dpi=300)
+    fig.savefig(figpdfdir/f"{model}_xd_{op}_{pt}.pdf")
 else:
-    fig.savefig(figdir/f"{model}_xdf_{op}_{pt}.png",dpi=300)
-    fig.savefig(figdir/f"{model}_xdf_{op}_{pt}.pdf")
+    fig.savefig(figpngdir/f"{model}_xdf_{op}_{pt}.png",dpi=300)
+    fig.savefig(figpdfdir/f"{model}_xdf_{op}_{pt}.pdf")
 
 axsp.grid()
 axsp.vlines([24],0,1,colors='magenta',ls='dashed',zorder=0,transform=axsp.get_xaxis_transform())
@@ -188,12 +195,12 @@ secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,n
 secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
 figsp.suptitle(ptlong[pt])
 if anl:
-    figsp.savefig(figdir/f"{model}_errspectra_{op}_{pt}.png",dpi=300)
-    figsp.savefig(figdir/f"{model}_errspectra_{op}_{pt}.pdf")
+    figsp.savefig(figpngdir/f"{model}_errspectra_{op}_{pt}.png",dpi=300)
+    figsp.savefig(figpdfdir/f"{model}_errspectra_{op}_{pt}.pdf")
 else:
-    figsp.savefig(figdir/f"{model}_errspectra_f_{op}_{pt}.png",dpi=300)
-    figsp.savefig(figdir/f"{model}_errspectra_f_{op}_{pt}.pdf")
-plt.show(block=False)
+    figsp.savefig(figpngdir/f"{model}_errspectra_f_{op}_{pt}.png",dpi=300)
+    figsp.savefig(figpdfdir/f"{model}_errspectra_f_{op}_{pt}.pdf")
+plt.show() #block=False)
 plt.close()
 exit()
 

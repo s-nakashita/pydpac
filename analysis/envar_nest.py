@@ -704,6 +704,8 @@ class EnVAR_nest():
             #    dxf *= np.sqrt(self.infl_parm)
             pf = dxf / np.sqrt(nmem-1)
             fpf = dxf @ dxf.T / (nmem-1)
+            if self.iinf == 3:
+                stdv_f = np.sqrt(np.diag(fpf))
             if save_dh:
                 np.save("{}_uf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xb)
                 np.save("{}_pf_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpf)

@@ -80,21 +80,35 @@ if len(sys.argv)>5:
 #obsloc = '_partialm'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lsbdir  = datadir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
-if pt=='envar':
-    lsbdir = datadir / f'envar_noinfl_lsb_preGM{obsloc}_m80obs30'
+#if pt=='envar':
+#    lsbdir = datadir / f'envar_noinfl_lsb_preGM{obsloc}_m80obs30'
 lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 #if ldscl:
 #    figdir = datadir
 #else:
 figdir = lsbdir
+figpngdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpng')
+figpdfdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpdf')
+if obsloc == '':
+    figpngdir = figpngdir / 'uniform'
+    figpdfdir = figpdfdir / 'uniform'
+else:
+    figpngdir = figpngdir / obsloc[1:]
+    figpdfdir = figpdfdir / obsloc[1:]
+if not figpngdir.exists():
+    figpngdir.mkdir(parents=True)
+if not figpdfdir.exists():
+    figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"dscl":"Dscl","conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
+labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BBL+DA", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
+fig, ax = plt.subplots(figsize=[12,6],constrained_layout=True)
+figs, sax = plt.subplots(figsize=[12,6],constrained_layout=True)
 fig0, (ax00,ax01,ax02) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
 #fig1, (ax10,ax11,ax12) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
-figs, (sax0,sax1,sax2) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
+figs0, (sax00,sax01,sax02) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
 
 tc = np.arange(na)+1 # cycles
 t = tc / 4. # days
@@ -103,39 +117,19 @@ ntime = na - ns
 nt1 = ntime // 3
 errors = {}
 if ldscl:
-    # downscaling
-    if anl:
-        f = dscldir / f"e_lam_{op}_{preGMpt}.txt"
-    else:
-        f = dscldir / f"ef_lam_{op}_{preGMpt}.txt"
-    if not f.exists():
-        print("not exist {}".format(f))
-        exit()
-    e_dscl = np.loadtxt(f)
-    if anl:
-        print("dscl, analysis RMSE = {}".format(np.mean(e_dscl[ns:])))
-        f = dscldir / f"stda_lam_{op}_{preGMpt}.txt"
-    else:
-        print("dscl, forecast RMSE = {}".format(np.mean(e_dscl[ns:])))
-        f = dscldir / f"stdf_lam_{op}_{preGMpt}.txt"
-    stda_dscl = np.loadtxt(f)
-    ax00.plot(t[ns:ns+nt1],e_dscl[ns:ns+nt1],c='k',label=f'Downscaling={np.mean(e_dscl[ns:]):.3f}')
-    ax01.plot(t[ns+nt1:ns+2*nt1],e_dscl[ns+nt1:ns+2*nt1],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-    ax02.plot(t[ns+2*nt1:],e_dscl[ns+2*nt1:],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-    #sax.plot(t[ns:],stda_dscl[ns:],c='k',ls='dashed') #,label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
-    sratio = stda_dscl/e_dscl
-    sax0.plot(t[ns:ns+nt1],sratio[ns:ns+nt1],c='k',label=f'Downscaling={np.mean(sratio[ns:]):.3f}')
-    sax1.plot(t[ns+nt1:ns+2*nt1],sratio[ns+nt1:ns+2*nt1],c='k') #,label=f'downscaling={np.mean(sratio):.3f}')
-    sax2.plot(t[ns+2*nt1:],sratio[ns+2*nt1:],c='k') #,label=f'downscaling={np.mean(sratio):.3f}')
-    ## autocorrelation estimation using jackknife method
-    #nwc, e_resample, t_resample = jackknife(e_dscl,t,'dscl')
-    #nt2 = t_resample.size // 3
-    #ax10.plot(t_resample[:nt2],e_resample[:nt2],c='k',label=f'Downscaling={np.mean(e_resample):.3f}')
-    #ax11.plot(t_resample[nt2:2*nt2],e_resample[nt2:2*nt2],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-    #ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c='k') #,label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-    #errors['dscl'] = e_resample #e_dscl[ns:]
-for key in ['conv','lsb','nest']:
-    if key=='conv':
+    keys = ['dscl','conv','lsb','nest']
+else:
+    keys = ['conv','lsb','nest']
+for key in keys:
+    if key=='dscl':
+        # downscaling
+        if anl:
+            f = dscldir / f"e_lam_{op}_{preGMpt}.txt"
+            fs = dscldir / f"stda_lam_{op}_{preGMpt}.txt"
+        else:
+            f = dscldir / f"ef_lam_{op}_{preGMpt}.txt"
+            fs = dscldir / f"stdf_lam_{op}_{preGMpt}.txt"
+    elif key=='conv':
         if anl:
             f = lamdir / f"e_lam_{op}_{pt}.txt"
             fs = lamdir / f"stda_lam_{op}_{pt}.txt"
@@ -165,14 +159,16 @@ for key in ['conv','lsb','nest']:
     else:
         print("{}, forecast RMSE = {}".format(key,np.mean(e[ns:])))
     stda = np.loadtxt(fs)
+    ax.plot(t[ns:],e[ns:],c=linecolor[key],label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     ax00.plot(t[ns:ns+nt1],e[ns:ns+nt1],c=linecolor[key],label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     ax01.plot(t[ns+nt1:ns+2*nt1],e[ns+nt1:ns+2*nt1],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     ax02.plot(t[ns+2*nt1:],e[ns+2*nt1:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
-    #sax.plot(t[ns:],stda[ns:],c=linecolor[key],ls='dashed') #,label=labels[key]+f'={np.mean(stda[ns:]):.3f}')
+    sax.plot(t[ns:],stda[ns:],c=linecolor[key],label=labels[key]+f'={np.mean(stda[ns:]):.3f}')
     sratio = stda/e
-    sax0.plot(t[ns:ns+nt1],sratio[ns:ns+nt1],c=linecolor[key],label=labels[key]+f'={np.mean(sratio[ns:]):.3f}')
-    sax1.plot(t[ns+nt1:ns+2*nt1],sratio[ns+nt1:ns+2*nt1],c=linecolor[key]) #,label=labels[key]+f'={np.mean(sratio):.3f}')
-    sax2.plot(t[ns+2*nt1:],sratio[ns+2*nt1:],c=linecolor[key]) #,label=labels[key]+f'={np.mean(sratio):.3f}')
+    sax00.plot(t[ns:ns+nt1],sratio[ns:ns+nt1],c=linecolor[key],label=labels[key]+f'={np.mean(sratio[ns:]):.3f}')
+    sax01.plot(t[ns+nt1:ns+2*nt1],sratio[ns+nt1:ns+2*nt1],c=linecolor[key]) #,label=labels[key]+f'={np.mean(sratio):.3f}')
+    sax02.plot(t[ns+2*nt1:],sratio[ns+2*nt1:],c=linecolor[key]) #,label=labels[key]+f'={np.mean(sratio):.3f}')
+    errors[key] = e[ns:]
     ## autocorrelation length estimation using jackknife method
     #nwc, e_resample, t_resample = jackknife(e,t,key)
     #nt2 = t_resample.size // 3
@@ -180,41 +176,83 @@ for key in ['conv','lsb','nest']:
     #ax11.plot(t_resample[nt2:2*nt2],e_resample[nt2:2*nt2],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     #ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     #errors[key] = e_resample #e[ns:]
-for ax in [ax00,ax01,ax02]: #,ax10,ax11,ax12]:
-    ax.hlines([1.0],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
-for ax in [ax00,ax01,ax02]: #,ax10,ax11,ax12]:
-    ax.set_ylim(0.0,1.5)
-    ax.set_ylabel('RMSE') #,title=op)
+for ax1 in [ax,ax00,ax01,ax02]: #,ax10,ax11,ax12]:
+    ax1.hlines([1.0],0,1,colors='gray',ls='dotted',transform=ax1.get_yaxis_transform())
+for ax1 in [ax,ax00,ax01,ax02]: #,ax10,ax11,ax12]:
+    ax1.set_ylim(0.0,2.0)
+    ax1.set_ylabel('RMSE') #,title=op)
+ax.set_xlabel('days')
+ax.legend(loc='upper left',bbox_to_anchor=(0.82,1.0),\
+    title=f'{ptlong[pt]} time average')
 ax02.set_xlabel('days')
 ax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=f'{ptlong[pt]} time average')
 #ax12.set_xlabel('days (resampling)')
 #ax10.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
 #    title=f'{ptlong[pt]} time average\n(resampling)')
+sax.set_ylabel('spread')
+sax.set_xlabel('days')
+sax.legend(loc='upper left',bbox_to_anchor=(0.82,1.0),\
+    title=f'{ptlong[pt]} time average')
 #sax.set_xlim(t[ns],t[-1])
-for sax in [sax0,sax1,sax2]:
-    sax.hlines([1],0,1,colors='gray',transform=sax.get_yaxis_transform(),zorder=0)
-    sax.set_ylim(0.0,2.0)
-    sax.set(ylabel='STD/RMSE') #,title=op)
-sax2.set_xlabel('days')
-sax0.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
+for sax0 in [sax00,sax01,sax02]:
+    sax0.hlines([1],0,1,colors='gray',transform=sax0.get_yaxis_transform(),zorder=0)
+    sax0.set_ylim(0.0,2.0)
+    sax0.set(ylabel='STD/RMSE') #,title=op)
+sax02.set_xlabel('days')
+sax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=ptlong[pt]+' time average \nof STD/RMSE')
 if anl:
-    fig0.savefig(figdir/'{}_e_lam_{}_{}.png'.format(model,op,pt),dpi=300)
-    #fig1.savefig(figdir/'{}_e_lam_resample_{}_{}.png'.format(model,op,pt),dpi=300)
-    figs.savefig(figdir/'{}_stda_lam_{}_{}.png'.format(model,op,pt),dpi=300)
-    fig0.savefig(figdir/'{}_e_lam_{}_{}.pdf'.format(model,op,pt))
-    #fig1.savefig(figdir/'{}_e_lam_resample_{}_{}.pdf'.format(model,op,pt))
-    figs.savefig(figdir/'{}_stda_lam_{}_{}.pdf'.format(model,op,pt))
+    fig.savefig(figpngdir/'{}_e_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+    fig0.savefig(figpngdir/'{}_e3_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+    #fig1.savefig(figpngdir/'{}_e_lam_resample_{}_{}.png'.format(model,op,pt),dpi=300)
+    figs.savefig(figpngdir/'{}_stda_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+    figs0.savefig(figpngdir/'{}_ss3_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+    fig.savefig(figpdfdir/'{}_e_lam_{}_{}.pdf'.format(model,op,pt))
+    fig0.savefig(figpdfdir/'{}_e3_lam_{}_{}.pdf'.format(model,op,pt))
+    #fig1.savefig(figpdfdir/'{}_e_lam_resample_{}_{}.pdf'.format(model,op,pt))
+    figs.savefig(figpdfdir/'{}_stda_lam_{}_{}.pdf'.format(model,op,pt))
+    figs0.savefig(figpdfdir/'{}_ss3_lam_{}_{}.pdf'.format(model,op,pt))
 else:
-    fig0.savefig(figdir/'{}_ef_lam_{}_{}.png'.format(model,op,pt),dpi=300)
-#    fig1.savefig(figdir/'{}_stdf_lam_{}_{}.png'.format(model,op,pt),dpi=300)
-    fig0.savefig(figdir/'{}_ef_lam_{}_{}.pdf'.format(model,op,pt))
-#    fig1.savefig(figdir/'{}_stdf_lam_{}_{}.pdf'.format(model,op,pt))
-plt.show()
+    fig0.savefig(figpngdir/'{}_ef_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+#    fig1.savefig(figpngdir/'{}_stdf_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+    fig0.savefig(figpdfdir/'{}_ef_lam_{}_{}.pdf'.format(model,op,pt))
+#    fig1.savefig(figpdfdir/'{}_stdf_lam_{}_{}.pdf'.format(model,op,pt))
+#plt.show()
+plt.close(fig=fig)
 plt.close(fig=fig0)
 #plt.close(fig=fig1)
 plt.close(fig=figs)
+plt.close(fig=figs0)
+
+# error statistics
+fig, ax = plt.subplots(figsize=[6,8],constrained_layout=True)
+for i,key in enumerate(errors.keys()):
+    e = errors[key]
+    ax.boxplot(e,positions=[i+1],meanline=True,showmeans=True)
+    nout = np.sum(e>2.0)
+    if nout>0:
+        ax.text(i+0.9,0.95,f'{nout}',transform=ax.get_xaxis_transform(),\
+            ha='center',size='x-small',weight='bold',color='r')
+    emean = np.mean(e)
+    emin = np.min(e)
+    emax = np.max(e)
+    estd = np.std(e)
+    nbust = np.sum(e>1.0)
+    print(f"{key}: min={emin:.3e} mean={emean:.3e} max={emax:.3e} std={estd:.3e}")
+    print(f"# of bust = {nbust}")
+    if key=='dscl':
+        eref = e.copy()
+    corr = np.correlate(eref,e)/np.linalg.norm(eref,ord=2)/np.linalg.norm(e,ord=2)
+    print(f"corr between dscl = {corr[0]:.3e}")
+ax.set_xticks(np.arange(1,len(errors.keys())+1))
+ax.set_xticklabels(errors.keys())
+ax.set_ylabel('RMSE')
+ax.set_ylim(0.0,2.0)
+ax.grid(axis='y')
+ax.set_title(ptlong[pt])
+fig.savefig(figpngdir/'{}_ebox_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+plt.show()
 exit()
 
 # bootstrap
