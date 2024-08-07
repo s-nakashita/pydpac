@@ -28,25 +28,36 @@ if not figdir.exists(): figdir.mkdir()
 
 # load results
 nensbase = 8
-for vt in vtlist:
+kld = dict()
+kld_gauss = dict()
+if metric=='':
     success = dict()
     failure = dict()
+    success['asa'] = []
+    failure['asa'] = []
+for key in enasas:
+    kld[key] = dict()
+    kld_gauss[key] = dict()
+    for ne in nelist:
+        kld[key][ne] = []
+        kld_gauss[key][ne] = []
+    if metric=='':
+        success[key] = dict()
+        failure[key] = dict()
+        for ne in nelist:
+            success[key][ne] = []
+            failure[key][ne] = []
+for i,vt in enumerate(vtlist):
     ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
     print(ds_asa)
-    f = open(figdir/f'nsucess_failure_vt{vt}.txt',mode='w')
-    nsuccess = np.sum(ds_asa.res_nl.values<=-0.5)
-    nfailure = np.sum(ds_asa.res_nl.values>0.0)
-    f.write(f"asa: #success={nsuccess} #failure={nfailure}\n")
-    success['asa'] = nsuccess / ds_asa.res_nl.size
-    failure['asa'] = nfailure / ds_asa.res_nl.size
+    if metric=='':
+        f = open(figdir/f'nsucess_failure_vt{vt}.txt',mode='w')
+        nsuccess = np.sum(ds_asa.res_nl.values<=-0.5)
+        nfailure = np.sum(ds_asa.res_nl.values>0.0)
+        f.write(f"asa: #success={nsuccess} #failure={nfailure}\n")
+        success['asa'].append(nsuccess / ds_asa.res_nl.size)
+        failure['asa'].append(nfailure / ds_asa.res_nl.size)
 
-    kld_dict = {}
-    kld_gauss_dict = {}
-    for key in enasas:
-        success[key] = []
-        failure[key] = []
-        kld_dict[key] = []
-        kld_gauss_dict[key] = []
     for ne in nelist:
         figr, axr = plt.subplots(figsize=[8,6],constrained_layout=True)
         figc, axc = plt.subplots(figsize=[8,6],constrained_layout=True)
@@ -72,17 +83,18 @@ for vt in vtlist:
             label=key #+'\n'+r'$\mu$='+f'{rmean2:.2f}, '+r'$\sigma$='+f'{rstd2:.2f}'
             n_enasa, bins, _ = axr.hist(r,bins=x,histtype='step',density=True,color=colors[key],label=label) #,alpha=0.3)
             #axr.plot(x,norm.pdf(x,loc=rmean2,scale=rstd2),c=colors[key],label=label)
-            kld = entropy(n_asa*np.diff(x),n_enasa*np.diff(x))
-            print(f"KLD(asa||{key})={kld}")
-            kld_dict[key].append(kld)
+            kld1 = entropy(n_asa*np.diff(x),n_enasa*np.diff(x))
+            print(f"KLD(asa||{key})={kld1}")
+            kld[key][ne].append(kld1)
             kld_g = np.log(rstd2/rstd1) - 0.5 + (rstd1**2 + rmean1**2 + rmean2**2 - 2*rmean1*rmean2)/2/rstd2/rstd2
             print(f"KLD_gauss(asa||{key})={kld_g}")
-            kld_gauss_dict[key].append(kld_g)
-            nsuccess = np.sum(r<=-0.5)
-            nfailure = np.sum(r>0.0)
-            f.write(f"{key} ne{ne}: #success={nsuccess} #failure={nfailure}\n")
-            success[key].append(nsuccess/r.size)
-            failure[key].append(nfailure/r.size)
+            kld_gauss[key][ne].append(kld_g)
+            if metric=='':
+                nsuccess = np.sum(r<=-0.5)
+                nfailure = np.sum(r>0.0)
+                f.write(f"{key} ne{ne}: #success={nsuccess} #failure={nfailure}\n")
+                success[key][ne].append(nsuccess/r.size)
+                failure[key][ne].append(nfailure/r.size)
             c = ds.corrdJ.values
             cmean = c.mean()
             cstd = c.std()
@@ -106,31 +118,15 @@ for vt in vtlist:
         plt.close(fig=figc)
     f.close()
 
-    fig, (ax1,ax2) = plt.subplots(ncols=2,sharey=True,figsize=[10,6],constrained_layout=True)
-    #ax2 = ax1.twinx()
-    ax1.hlines([success['asa']],0,1,colors=colors['asa'],\
-        ls='solid',transform=ax1.get_yaxis_transform(),label='asa')
-    ax2.hlines([failure['asa']],0,1,colors=colors['asa'],\
-        ls='solid',transform=ax2.get_yaxis_transform(),label='asa')
-    for key in enasas:
-        ax1.plot(nelist,success[key],c=colors[key],marker=markers[key],label=key)
-        ax2.plot(nelist,failure[key],c=colors[key],marker=markers[key],label=key)#,\
-            #markerfacecolor='none',markeredgecolor=colors[key],ls='dashed')
-    ax2.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
-    ax1.set_title('success ratio')
-    ax2.set_title('failure ratio')
-    for ax in [ax1,ax2]:
-        ax.set_xticks(nelist)
-        ax.set_xticklabels([f'mem{ne}' for ne in nelist],fontsize=14)
-    fig.suptitle(f'FT{vt}')
-    fig.savefig(figdir/f'nsuccess_failure_vt{vt}.png',dpi=300)
-    plt.show()
-    plt.close(fig=fig)
-
     fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
-    for key in kld_dict.keys():
-        ax.plot(nelist,kld_dict[key],c=colors[key],marker=markers[key],label=key)
-        ax.plot(nelist,kld_gauss_dict[key],c=colors[key],marker=markers[key],\
+    for key in enasas:
+        klist = []
+        kglist = []
+        for ne in nelist:
+            klist.append(kld[key][ne][i])
+            kglist.append(kld_gauss[key][ne][i])
+        ax.plot(nelist,klist,c=colors[key],marker=markers[key],label=key)
+        ax.plot(nelist,kglist,c=colors[key],marker=markers[key],\
             markerfacecolor='none',markeredgecolor=colors[key],ls='dashed')#,label=key+', gauss')
     ax.legend()
     ax.set_yscale('log')
@@ -142,3 +138,67 @@ for vt in vtlist:
     #plt.show()
     plt.close(fig=fig)
     #exit()
+
+    if metric=='':
+        fig, (ax1,ax2) = plt.subplots(ncols=2,sharey=True,figsize=[10,6],constrained_layout=True)
+        #ax2 = ax1.twinx()
+        ax1.hlines([success['asa'][i]],0,1,colors=colors['asa'],\
+            ls='solid',transform=ax1.get_yaxis_transform(),label='asa')
+        ax2.hlines([failure['asa'][i]],0,1,colors=colors['asa'],\
+            ls='solid',transform=ax2.get_yaxis_transform(),label='asa')
+        for key in enasas:
+            slist = []
+            flist = []
+            for ne in nelist:
+                slist.append(success[key][ne][i])
+                flist.append(failure[key][ne][i])
+            ax1.plot(nelist,slist,c=colors[key],marker=markers[key],label=key)
+            ax2.plot(nelist,flist,c=colors[key],marker=markers[key],label=key)#,\
+                #markerfacecolor='none',markeredgecolor=colors[key],ls='dashed')
+        ax2.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+        ax1.set_title('success ratio')
+        ax2.set_title('failure ratio')
+        for ax in [ax1,ax2]:
+            ax.set_xticks(nelist)
+            ax.set_xticklabels([f'mem{ne}' for ne in nelist],fontsize=14)
+        fig.suptitle(f'FT{vt}')
+        fig.savefig(figdir/f'nsuccess_failure_vt{vt}.png',dpi=300)
+        plt.show()
+        plt.close(fig=fig)
+
+for ne in nelist:
+    fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
+    for key in enasas:
+        ax.plot(vtlist,kld[key][ne],c=colors[key],marker=markers[key],label=key)
+        ax.plot(vtlist,kld_gauss[key][ne],c=colors[key],marker=markers[key],\
+            markerfacecolor='none',markeredgecolor=colors[key],ls='dashed')#,label=key+', gauss')
+    ax.legend()
+    ax.set_yscale('log')
+    ax.set_ylabel('KL divergence of forecast response')
+    ax.set_xticks(vtlist)
+    ax.set_xticklabels([f'FT{vt}' for vt in vtlist])
+    fig.suptitle(f'member {ne}')
+    fig.savefig(figdir/f'kld_resnl_ne{ne}.png',dpi=300)
+    #plt.show()
+    plt.close(fig=fig)
+
+    if metric=='':
+        fig, (ax1,ax2) = plt.subplots(ncols=2,sharey=True,figsize=[10,6],constrained_layout=True)
+        #ax2 = ax1.twinx()
+        for key in success.keys():
+            if key=='asa':
+                ax1.plot(vtlist,success[key],c=colors[key],marker=markers[key],label=key)
+                ax2.plot(vtlist,failure[key],c=colors[key],marker=markers[key],label=key)
+            else:
+                ax1.plot(vtlist,success[key][ne],c=colors[key],marker=markers[key],label=key)
+                ax2.plot(vtlist,failure[key][ne],c=colors[key],marker=markers[key],label=key)
+        ax2.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+        ax1.set_title('success ratio')
+        ax2.set_title('failure ratio')
+        for ax in [ax1,ax2]:
+            ax.set_xticks(vtlist)
+            ax.set_xticklabels([f'FT{vt}' for vt in vtlist],fontsize=14)
+        fig.suptitle(f'member {ne}')
+        fig.savefig(figdir/f'nsuccess_failure_ne{ne}.png',dpi=300)
+        plt.show()
+        plt.close(fig=fig)
