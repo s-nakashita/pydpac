@@ -48,9 +48,21 @@ lsbdir  = wdir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
 lamdir  = wdir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 figdir = lsbdir / 'fcst'
 if not figdir.exists(): figdir.mkdir(parents=True)
+figpngdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpng')
+figpdfdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpdf')
+if obsloc == '':
+    figpngdir = figpngdir / 'uniform'
+    figpdfdir = figpdfdir / 'uniform'
+else:
+    figpngdir = figpngdir / obsloc[1:]
+    figpdfdir = figpdfdir / obsloc[1:]
+if not figpngdir.exists():
+    figpngdir.mkdir(parents=True)
+if not figpdfdir.exists():
+    figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA", "dscl":"Downscaling"}
+labels = {"conv":"DA", "lsb":"BBL+DA", "nest":"Nested DA", "dscl":"Dscl"}
 linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green',"dscl":'k'}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
@@ -71,8 +83,10 @@ nmc_t = NMC_tools(ix_t_rad,cyclic=True,ttype='c')
 nmc_gm = NMC_tools(ix_gm_rad,cyclic=True,ttype='c')
 nmc_lam = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 
-fig = plt.figure(figsize=[10,6],constrained_layout=True)
+fig = plt.figure(figsize=[8,6],constrained_layout=True)
 axl = fig.add_subplot(111)
+figb = plt.figure(figsize=[10,6],constrained_layout=True)
+axb = figb.add_subplot(111)
 
 # nature 
 f = dscldir/"truth.npy"
@@ -103,8 +117,8 @@ if ldscl:
     et_lam = []
     xd_lam = []
     psd_lam = []
-    nft = xfdscl.shape[1]
-    for ift in range(nft):
+    ift = 0
+    while(ift < 9):
         xd1 = xfdscl[ns:na,ift,:] - xt2x(ix_lam)[ns+ift:na+ift,:]
         ettmp = np.sqrt(np.mean(xd1**2,axis=1))
         xdtmp = np.sqrt(np.mean(xd1**2,axis=0))
@@ -113,14 +127,16 @@ if ldscl:
         et_lam.append(ettmp)
         xd_lam.append(xdtmp)
         psd_lam.append(psdtmp)
+        ift += 1
     et_lam = np.array(et_lam)
     xd_lam = np.array(xd_lam)
     psd_lam = np.array(psd_lam)
+    nft = et_lam.shape[0]
     print(et_lam.shape)
     print(xd_lam.shape)
     print(psd_lam.shape)
     #axl.errorbar(ft,et_lam.mean(axis=1),yerr=et_lam.std(axis=1),c='k',label='downscaling')
-    axl.plot(np.arange(1,nft+1),et_lam.mean(axis=1),c='k',label='downscaling')
+    axl.plot(np.arange(1,nft+1),et_lam.mean(axis=1),c='k',label='Dscl')
     etlam_dict["dscl"] = et_lam
     xdlam_dict["dscl"] = xd_lam
     psdlam_dict["dscl"] = psd_lam
@@ -135,14 +151,15 @@ if preGM:
     ft = []
     xd_gm = []
     psd_gm = []
-    nft = xfgm.shape[1]
-    for ift in range(nft):
+    ift = 0
+    while ift < 9:
         xd1 = xfgm[ns:na,ift,:] - xt2x(ix_gm)[ns+ift:na+ift,:]
         xdtmp = np.sqrt(np.mean(xd1**2,axis=0))
         wnum_gm, psdtmp = nmc_gm.psd(xd1,axis=1)
         ft.append(ift*6) # hours
         xd_gm.append(xdtmp)
         psd_gm.append(psdtmp)
+        ift += 1
     xd_gm = np.array(xd_gm)
     psd_gm = np.array(psd_gm)
     xdgm_dict[preGMpt] = xd_gm
@@ -171,8 +188,8 @@ for key in ['conv','lsb','nest']:
     et_lam = []
     xd_lam = []
     psd_lam = []
-    nft = xflam.shape[1]
-    for ift in range(nft):
+    ift = 0
+    while ift < 9:
         xd1 = xflam[ns:na,ift,:] - xt2x(ix_lam)[ns+ift:na+ift,:]
         ettmp = np.sqrt(np.mean(xd1**2,axis=1))
         xdtmp = np.sqrt(np.mean(xd1**2,axis=0))
@@ -181,9 +198,11 @@ for key in ['conv','lsb','nest']:
         et_lam.append(ettmp)
         xd_lam.append(xdtmp)
         psd_lam.append(psdtmp)
+        ift += 1
     et_lam = np.array(et_lam)
     xd_lam = np.array(xd_lam)
     psd_lam = np.array(psd_lam)
+    nft = et_lam.shape[0]
     print(et_lam.shape)
     print(xd_lam.shape)
     print(psd_lam.shape)
@@ -192,43 +211,75 @@ for key in ['conv','lsb','nest']:
     etlam_dict[key] = et_lam
     xdlam_dict[key] = xd_lam
     psdlam_dict[key] = psd_lam
+    # adjusted t-test
+    for ift in range(nft):
+        e1 = etlam_dict['dscl'][ift,]
+        e2 = et_lam[ift,]
+        d = e1 - e2
+        dmean = d.mean()
+        vard = np.sum((d-dmean)**2)
+        dm = d[:-1] - d[:-1].mean()
+        dp = d[1:] - d[1:].mean()
+        r1 = np.sum(dm*dp)/np.sqrt(np.sum(dm*dm))/np.sqrt(np.sum(dp*dp))
+        ne = d.size * (1-r1)/(1+r1)
+        std = np.sqrt(vard/(d.size-1))
+        tval = dmean / (std / np.sqrt(ne))
+        pval = 1.0 - stats.t.cdf(tval,ne)
+        print(f"{key} FT{ift*6} p-value={pval:.3e}")
+        if pval < 5.0e-2:
+            axl.plot([ift+1],e2.mean(),c=linecolor[key],lw=0.0,marker='o',ms=6)
 
 nmethods = len(etlam_dict)
-if ldscl:
-    nmethods += 1
 width = 0.75 / nmethods
 xoffset = 0.5 * width * (nmethods - 1)
 xaxis = np.arange(1,nft+1) - xoffset
 for key in etlam_dict.keys():
     et_lam = etlam_dict[key]
-    bplot = axl.boxplot(et_lam.T,positions=xaxis,widths=width,patch_artist=True,\
-        whis=0.0,showfliers=False,medianprops={"color":linecolor[key]})
+    bplot = axb.boxplot(et_lam.T,positions=xaxis,widths=width,patch_artist=True,\
+        medianprops={"color":linecolor[key]},\
+        whiskerprops={"color":linecolor[key]},#whis=0.0,\
+        flierprops={"color":linecolor[key]},#showfliers=False)
+        label=labels[key])
     for patch in bplot['boxes']:
         patch.set_facecolor(linecolor[key])
         patch.set_alpha(0.3)
     xaxis = xaxis + width
-y0 = 0.5
-y = y0 * np.exp(np.array(ft)*ldble_lam)
-axl.plot(np.arange(1,nft+1),y,c='gray',lw=2.0,alpha=0.5,zorder=0)
-axl.set_ylabel(f'{ptlong[pt]} Forecast RMSE')
-axl.set_xticks(np.arange(1,nft+1,2))
-axl.set_xticks(np.arange(1,nft+1),minor=True)
-axl.set_xticklabels(ft[::2])
-axl.grid(which='both')
-axl.set_xlabel('forecast hours')
-axl.hlines([1.0],0,1,colors='gray',ls='dotted',transform=axl.get_yaxis_transform())
-axl.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
+#y0 = 0.5
+#y = y0 * np.exp(np.array(ft)*ldble_lam)
+#axl.plot(np.arange(1,nft+1),y,c='gray',lw=2.0,alpha=0.5,zorder=0)
+for ax in [axl,axb]:
+    ax.set_ylabel(f'{ptlong[pt]} forecast RMSE')
+    ax.set_xticks(np.arange(1,nft+1,2))
+    ax.set_xticks(np.arange(1,nft+1),minor=True)
+    ax.set_xticklabels(ft[::2])
+    ax.grid(which='both')
+    ax.set_xlabel('forecast hours')
+    #axl.hlines([1.0],0,1,colors='gray',ls='dotted',transform=axl.get_yaxis_transform())
 if preGM:
-    #axl.set_ylim(0.0, 6.0)
-    axl.set_ylim(0.0, 2.0)
-    xmin, _ = axl.get_xlim()
-    axl.set_xlim(xmin, 9.5)
+    #ax.set_ylim(0.0, 6.0)
+    axb.set_ylim(0.0, 2.0)
+    xmin, _ = axb.get_xlim()
+    axb.set_xlim(xmin, 9.5)
+axl.legend(loc='upper left')
+axb.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
 
-fig.savefig(figdir/f"{model}_efcst48_{op}_{pt}.png",dpi=300)
+fig.savefig(figpngdir/f"{model}_efcst48_{op}_{pt}.png",dpi=300)
+fig.savefig(figpdfdir/f"{model}_efcst48_{op}_{pt}.pdf")
+figb.savefig(figpngdir/f"{model}_efcst48_box_{op}_{pt}.png",dpi=300)
+figb.savefig(figpdfdir/f"{model}_efcst48_box_{op}_{pt}.pdf")
 #fig.savefig(figdir/f"{model}_efcst_{op}.pdf")
 plt.show()
 plt.close()
-#exit()
+
+import pandas as pd
+for ift in range(9):
+    datadict = {}
+    for key in etlam_dict.keys():
+        data = etlam_dict[key]
+        datadict[key] = data[ift,]
+    df = pd.DataFrame(datadict)
+    df.to_csv(figdir/f"efcst_ft{ift*6}_{op}_{pt}.csv")
+exit()
 
 cmap=plt.get_cmap("PiYG_r")
 cl0 = cmap(cmap.N//2)

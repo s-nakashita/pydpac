@@ -44,7 +44,7 @@ lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 figdir = lsbdir
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"dscl":"Downscaling","conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
+labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"DA+LSB", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 tc = np.arange(na)+1 # cycles
@@ -129,7 +129,7 @@ for i in range(3):
             #    vlim0 = vlims[k]
             #    vlim1 = max(np.max(xdd.T[t0:t1]),-np.min(xdd.T[t0:t1]))
             #    vlims[k] = max(vlim0,vlim1)
-    fig, axs = plt.subplots(ncols=5,sharey=True,figsize=[12,4],constrained_layout=True)
+    fig, axs = plt.subplots(ncols=5,sharey=True,figsize=[13,4],constrained_layout=True)
     figp, axsp = plt.subplots(nrows=3,ncols=4,sharey=True,sharex=True,figsize=[12,10],constrained_layout=True)
     fig1d, axs1d = plt.subplots(nrows=3,ncols=1,sharex=True,figsize=[10,10],constrained_layout=True)
     p0 = axs[0].pcolormesh(ix_lam,t[t0:t1],xt2x(ix_lam)[t0:t1],shading='auto',\
@@ -138,7 +138,7 @@ for i in range(3):
     axs[0].set_yticks(t[t0:t1:(na1//8)])
     axs[0].set_ylabel("days")
     axs[0].set_title('nature')
-    fig.colorbar(p0,ax=axs[0],orientation='horizontal',shrink=0.75,pad=0.01)
+    fig.colorbar(p0,ax=axs[0],shrink=0.6,pad=0.01)#,orientation='horizontal'
     plist=[]
     ylimlist=[]
     for j,key in enumerate(xds.keys()):
@@ -148,7 +148,7 @@ for i in range(3):
         p1 = axs[j+1].pcolormesh(ix_lam,t[t0:t1],xd[t0:t1],shading='auto',\
         cmap='coolwarm',norm=Normalize(-vlim,vlim))
         axs[j+1].set_xticks(ix_lam[::(nx_lam//6)])
-        axs[j+1].set_title(labels[key]+f'\nMSE={np.mean(mse):.3f}')
+        axs[j+1].set_title(labels[key]+f': MSE={np.mean(mse):.3f}',fontsize=14)
         msesum = np.zeros_like(mse)
         for k, xdd in enumerate(xddecomp):
             p2 = axsp[k,j].pcolormesh(ix_lam,t[t0:t1],xdd.T[t0:t1],shading='auto',\

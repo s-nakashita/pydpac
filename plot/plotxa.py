@@ -29,15 +29,6 @@ xt2mod = interp1d(xs_t,xt,axis=1)
 xlim = 15.0
 for pt in perts:
     ## nature and analysis
-    fig, axs = plt.subplots(nrows=1,ncols=2,figsize=[10,6],constrained_layout=True,sharey=True)
-    mp0 = axs[0].pcolormesh(xs_t, t, xt, shading='auto',\
-        cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    axs[0].set_xticks(xs_t[::(nx_t//8)])
-    axs[0].set_yticks(t[::(na//8)])
-    axs[0].set_xlabel("site")
-    axs[0].set_ylabel("DA cycle")
-    axs[0].set_title("nature")
-    p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     f = "{}_xa_{}_{}.npy".format(model, op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
@@ -47,6 +38,15 @@ for pt in perts:
     nx = xa.shape[1]
     intmod = nx_t // nx
     xs = np.arange(0,nx_t,intmod)
+    fig, axs = plt.subplots(nrows=1,ncols=2,figsize=[10,6],constrained_layout=True,sharey=True)
+    mp0 = axs[0].pcolormesh(xs_t, t, xt, shading='auto',\
+        cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
+    axs[0].set_xticks(xs_t[::(nx_t//8)])
+    axs[0].set_yticks(t[::(na//8)])
+    axs[0].set_xlabel("site")
+    axs[0].set_ylabel("DA cycle")
+    axs[0].set_title("nature")
+    p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     mp1 = axs[1].pcolormesh(xs, t, xa, shading='auto', \
     cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
     axs[1].set_xticks(xs[::(nx//8)])

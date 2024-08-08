@@ -105,20 +105,22 @@ class NMC_tools:
             wnum = np.arange(1,xtmp.shape[axis])*np.pi/xtmp.shape[axis]/self.dx
             wgt = np.ones(wnum.size) * self.Lx / np.pi
             wgt[-1] = 0.0
-        if average and x.ndim==2:
-            if axis==0:
-                psd = np.mean(np.abs(sp)**2*wgt[:,None],axis=1)
-            else:
-                psd = np.mean(np.abs(sp)**2*wgt[None,:],axis=0)
-        elif x.ndim==2 and axis==0:
-            psd = np.abs(sp)**2*wgt[:,None]
+        if x.ndim>1:
+            # expand wgt dimensions
+            newaxes = []
+            for iax in range(x.ndim):
+                if iax!=axis: newaxes.append(iax)
+            wgt = np.expand_dims(wgt,axis=tuple(newaxes))
+            psd = np.abs(sp)**2*wgt
+            if average:
+                psd = np.mean(psd,axis=tuple(newaxes))
         else:
             psd = np.abs(sp)**2*wgt
         if self.ttype == 'c':
             # gathering procedure (Denis et al. 2002)
             wnum = wnum[::2]
             psdtmp = psd.copy()
-            if x.ndim==2 and not average:
+            if x.ndim>=2 and not average:
                 if axis==0:
                     psd = psd[::2,:]
                     psd[1:] = psd[1:] + 0.5 * psdtmp[1:-1:2]

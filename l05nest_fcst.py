@@ -226,11 +226,11 @@ if __name__ == "__main__":
         for j in range(params_gm["ntmax"]):
             if params_gm["save1h"]:
                 if params_lam["preGM"]:
-                    _, uf1_lam[j+6,],uf1_lam_1h = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,],save1h=params_gm["save1h"])
+                    _, uf1_lam[6*j,],uf1_lam_1h = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,],save1h=params_gm["save1h"])
                 else:
-                    uf1_gm[j+6,], uf1_lam[j+6,], uf1_gm_1h, uf_lam_1h, = func.forecast(uf1_gm[j,],uf1_lam[j,],save1h=params_gm["save1h"])
-                    uf1_gm[j+1:j+6,] = uf1_gm_1h[:5,]
-                uf1_lam[j+1:j+6,] = uf1_lam_1h[:5,]
+                    uf1_gm[6*j,], uf1_lam[6*j,], uf1_gm_1h, uf_lam_1h, = func.forecast(uf1_gm[j,],uf1_lam[j,],save1h=params_gm["save1h"])
+                    uf1_gm[6*j+1:6*j+6,] = uf1_gm_1h[:5,]
+                uf1_lam[6*j+1:6*j+6,] = uf1_lam_1h[:5,]
             else:
                 if params_lam["preGM"]:
                     _, uf1_lam[j+1,] = func.forecast(uf1_gm[j,],uf1_lam[j,],u_gm_pre=uf1_gm[j+1,])
