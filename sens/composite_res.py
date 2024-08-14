@@ -4,6 +4,11 @@ plt.rcParams['font.size'] = 14
 plt.rcParams['figure.titlesize'] = 16
 plt.rcParams['xtick.labelsize'] = 12
 plt.rcParams['ytick.labelsize'] = 12
+from matplotlib.gridspec import GridSpec
+from matplotlib.transforms import Affine2D
+import mpl_toolkits.axisartist.floating_axes as floating_axes
+from mpl_toolkits.axisartist.grid_finder import MaxNLocator
+#from mpl_toolkits.axes_grid1 import make_axes_locatable
 import xarray as xr
 from sklearn.linear_model import LinearRegression
 from pathlib import Path
@@ -71,6 +76,205 @@ fig.savefig(figdir/f'x0i_vt{vt}nens{nens}.png')
 #plt.show()
 plt.close()
 
+resmul_dict = dict()
+resuni_dict = dict()
+for key in ds_dict.keys():
+    if key=='calc':
+        resmul_calc = ds_dict[key].resmul
+        resuni_calc = ds_dict[key].resuni
+    else:
+        resmul_dict[key] = ds_dict[key].resmul
+        resuni_dict[key] = ds_dict[key].resuni
+
+#figall, axsall = plt.subplots(figsize=[8,6],ncols=2,nrows=2,constrained_layout=True)
+#axsall[0,1].yaxis.set_tick_params(labelleft=False)
+#axsall[1,1].yaxis.set_tick_params(labelleft=False)
+figall = plt.figure(figsize=[8,6],constrained_layout=True)
+axs00 = figall.add_subplot(221)
+axs01 = figall.add_subplot(222,sharey=axs00)
+axs10 = figall.add_subplot(223)
+axs11 = figall.add_subplot(224,sharey=axs10)
+axs01.yaxis.set_tick_params(labelleft=False)
+axs11.yaxis.set_tick_params(labelleft=False)
+axsall = np.array([[axs00,axs01],[axs10,axs11]])
+for i,key in enumerate(resmul_dict.keys()):
+    figdir1 = figdir/key
+    if not figdir1.exists(): figdir1.mkdir()
+    #fig, axs = plt.subplots(figsize=[6,6],ncols=2,nrows=2,constrained_layout=True)
+    fig = plt.figure(figsize=[8,8],constrained_layout=True)
+    gs = GridSpec(7,7,figure=fig)
+    axs_00 = fig.add_subplot(gs[1:4,1:4])
+    axs_01 = fig.add_subplot(gs[1:4,4:7],sharey=axs_00)
+    axs_10 = fig.add_subplot(gs[4:7,1:4],sharex=axs_00)
+    axs_11 = fig.add_subplot(gs[4:7,4:7],sharey=axs_10,sharex=axs_01)
+    axs = np.array([
+        [axs_00, axs_01],
+        [axs_10, axs_11]
+        ])
+    axs[0,0].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
+    axs[0,1].plot(resuni_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
+    axs[1,0].plot(resmul_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
+    axs[1,1].plot(resuni_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
+    x = resmul_dict[key].values.reshape(-1,1)
+    y = resmul_calc.values
+    reg = LinearRegression().fit(x,y)
+    r2 = reg.score(x,y)
+    axs[0,0].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
+    x = resuni_dict[key].values.reshape(-1,1)
+    y = resuni_calc.values
+    reg = LinearRegression().fit(x,y)
+    r2 = reg.score(x,y)
+    axs[1,1].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
+
+    axsall[0,0].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
+    axsall[0,1].plot(resuni_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
+    axsall[1,0].plot(resmul_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
+    axsall[1,1].plot(resuni_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
+    for j,ax in enumerate(axs.flatten()):
+        if j<2:
+            ylims = np.percentile(resmul_calc,[.5,99.5])
+        else:
+            ylims = np.percentile(resuni_calc,[.5,99.5])
+        #ymin, ymax = ax.get_ylim()
+        ymin, ymax = ylims
+        ylim = max(-ymin,ymax)
+        if j==0 or j==3:
+            ax.set_xlim(-ylim,ylim)
+            #ax.set_aspect(1.0)
+        else:
+            if j==1:
+                xmin, xmax = axs[1,1].get_xlim()
+            else:
+                xmin, xmax = axs[0,0].get_xlim()
+            xlim = max(-xmin,xmax)
+            ax.set_xlim(-xlim,xlim)
+        ax.set_ylim(-ylim,ylim)
+        line = np.linspace(-ylim,ylim,100)
+        ax.plot(line,line,color='k',zorder=0)
+        #ax.legend()
+        #ax.set_title(key)
+        ax.grid()
+        #ax.set_aspect(1.0)
+    # histgram
+    ax00_histx = fig.add_subplot(gs[0,1:4],sharex=axs[0,0])
+    ax00_histx.grid()
+    ax00_histx.xaxis.set_tick_params(labelbottom=False)
+    xmin, xmax = axs[0,0].get_xlim()
+    bins = np.linspace(xmin,xmax,51)
+    ax00_histx.hist(resmul_dict[key],bins=bins,density=True,color=colors[key])
+    ax00_histy = fig.add_subplot(gs[1:4,0],sharey=axs[0,0])
+    ax00_histy.grid()
+    ax00_histy.yaxis.set_tick_params(labelleft=False)
+    xmin, xmax = axs[0,0].get_ylim()
+    bins = np.linspace(xmin,xmax,51)
+    ax00_histy.hist(resmul_calc,bins=bins,density=True,color='k',orientation='horizontal')
+    ax01_histx = fig.add_subplot(gs[0,4:7],sharex=axs[0,1])
+    ax01_histx.grid()
+    ax01_histx.xaxis.set_tick_params(labelbottom=False)
+    xmin, xmax = axs[0,1].get_xlim()
+    bins = np.linspace(xmin,xmax,51)
+    ax01_histx.hist(resuni_dict[key],bins=bins,density=True,color=colors[key])
+    ax10_histy = fig.add_subplot(gs[4:7,0],sharey=axs[1,0]) #,axes_class=floating_axes.FloatingAxes,grid_helper=grid_helper)
+    ax10_histy.grid()
+    ax10_histy.yaxis.set_tick_params(labelleft=False)
+    xmin, xmax = axs[1,0].get_ylim()
+    bins = np.linspace(xmin,xmax,51)
+    ax10_histy.hist(resuni_calc,bins=bins,density=True,orientation='horizontal',color='k')
+    axs[0,0].legend()
+    axs[1,1].legend()
+    #axs[0,1].legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
+    #axs[0,0].set_xlabel('predicted (multivariate)')
+    axs[0,0].set_ylabel('measured (multivariate)')
+    #axs[0,1].set_xlabel('predicted (univariate)')
+    #axs[0,1].set_ylabel('measured (multivariate)')
+    axs[1,0].set_xlabel('predicted (multivariate)')
+    axs[1,0].set_ylabel('measured (univariate)')
+    axs[1,1].set_xlabel('predicted (univariate)')
+    #axs[1,1].set_ylabel('measured (univariate)')
+    fig.suptitle(r'$\Delta J(\Delta x_{0i})$'+f' {key} vt={vt}h, Nens={nens} #{nsample}')
+    fig.savefig(figdir1/f'resunimul_{key}_vt{vt}ne{nens}.png')
+    #plt.show()
+    plt.close(fig=fig)
+for j,ax in enumerate(axsall.flatten()):
+    if j<2:
+        ylims = np.percentile(resmul_calc,[.5,99.5])
+    else:
+        ylims = np.percentile(resuni_calc,[.5,99.5])
+    #ymin, ymax = ax.get_ylim()
+    ymin, ymax = ylims
+    ylim = max(-ymin,ymax)
+    ax.set_ylim(-ylim,ylim)
+    ax.set_xlim(-ylim,ylim)
+    line = np.linspace(-ylim,ylim,100)
+    ax.plot(line,line,color='k',zorder=0)
+    #ax.legend()
+    #ax.set_title(key)
+    ax.grid()
+    ax.set_aspect(1.0)
+axsall[0,1].legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
+#axsall[0,0].set_xlabel('predicted (multivariate)')
+axsall[0,0].set_ylabel('measured (multivariate)')
+#axsall[0,1].set_xlabel('predicted (univariate)')
+#axsall[0,1].set_ylabel('measured (multivariate)')
+axsall[1,0].set_xlabel('predicted (multivariate)')
+axsall[1,0].set_ylabel('measured (univariate)')
+axsall[1,1].set_xlabel('predicted (univariate)')
+#axsall[1,1].set_ylabel('measured (univariate)')
+figall.suptitle(r'$\Delta J(\Delta x_{0i})$'+f' vt={vt}h, Nens={nens} #{nsample}')
+figall.savefig(figdir/f'resunimul_vt{vt}ne{nens}.png')
+#plt.show()
+plt.close()
+
+#fig, axs = plt.subplots(figsize=[8,6],ncols=2,nrows=2,constrained_layout=True)
+#axs[0,1].yaxis.set_tick_params(labelleft=False)
+#axs[1,1].yaxis.set_tick_params(labelleft=False)
+fig = plt.figure(figsize=[8,6],constrained_layout=True)
+axs00 = fig.add_subplot(221)
+axs01 = fig.add_subplot(222,sharey=axs00)
+axs10 = fig.add_subplot(223)
+axs11 = fig.add_subplot(224,sharey=axs10)
+axs01.yaxis.set_tick_params(labelleft=False)
+axs11.yaxis.set_tick_params(labelleft=False)
+axs = np.array([[axs00,axs01],[axs10,axs11]])
+resmul_asa = resmul_dict['asa']
+resuni_asa = resuni_dict['asa']
+for i,key in enumerate(resmul_dict.keys()):
+    if key=='asa': continue
+    axs[0,0].plot(resmul_dict[key],resmul_asa,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
+    axs[0,1].plot(resuni_dict[key],resmul_asa,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
+    axs[1,0].plot(resmul_dict[key],resuni_asa,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
+    axs[1,1].plot(resuni_dict[key],resuni_asa,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
+for j,ax in enumerate(axs.flatten()):
+    if j<2:
+        ylims = np.percentile(resmul_asa,[.5,99.5])
+    else:
+        ylims = np.percentile(resuni_asa,[.5,99.5])
+    #ymin, ymax = ax.get_ylim()
+    ymin, ymax = ylims
+    ylim = max(-ymin,ymax)
+    ax.set_xlim(-ylim,ylim)
+    ax.set_ylim(-ylim,ylim)
+    line = np.linspace(-ylim,ylim,100)
+    ax.plot(line,line,color='k',zorder=0)
+    #ax.legend()
+    #ax.set_title(key)
+    ax.grid()
+    ax.set_aspect(1.0)
+axs[0,1].legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
+axs[0,0].set_ylabel('ASA (multivariate)')
+#axs[0,0].set_xlabel('EnASA (multivatiate)')
+#axs[0,1].set_ylabel('ASA (multivariate)')
+#axs[0,1].set_xlabel('EnASA (univariate)')
+axs[1,0].set_ylabel('ASA (univariate)')
+axs[1,0].set_xlabel('EnASA (multivariate)')
+#axs[1,1].set_ylabel('ASA (univariate)')
+axs[1,1].set_xlabel('EnASA (univariate)')
+fig.suptitle(r'$\Delta J(\Delta x_{0i})$'+f' vt={vt}h, Nens={nens} #{nsample}')
+fig.savefig(figdir/f'resunimul_vsasa_vt{vt}ne{nens}.png')
+#plt.show()
+plt.close()
+#exit()
+
 ## ASA center points
 ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 ics = ds_asa.ic.values
@@ -113,7 +317,15 @@ for i in range(2):
         figname = 'near'
         resmul_dict = resmul_near
         resuni_dict = resuni_near
-    fig, axs = plt.subplots(figsize=[8,6],ncols=2,nrows=2,constrained_layout=True)
+    #fig, axs = plt.subplots(figsize=[8,6],ncols=2,nrows=2,constrained_layout=True)
+    fig = plt.figure(figsize=[8,6],constrained_layout=True)
+    axs00 = fig.add_subplot(221)
+    axs01 = fig.add_subplot(222,sharey=axs00)
+    axs10 = fig.add_subplot(223)
+    axs11 = fig.add_subplot(224,sharey=axs10)
+    axs01.yaxis.set_tick_params(labelleft=False)
+    axs11.yaxis.set_tick_params(labelleft=False)
+    axs = np.array([[axs00,axs01],[axs10,axs11]])
     resmul_calc = resmul_dict['calc']
     resuni_calc = resuni_dict['calc']
     for key in resmul_dict.keys():
@@ -123,7 +335,17 @@ for i in range(2):
         axs[0,1].plot(resuni_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
         axs[1,0].plot(resmul_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
         axs[1,1].plot(resuni_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
-        fig1, axs1 = plt.subplots(figsize=[6,6],ncols=2,nrows=2,constrained_layout=True)
+        #fig1, axs1 = plt.subplots(figsize=[6,6],ncols=2,nrows=2,constrained_layout=True)
+        fig1 = plt.figure(figsize=[8,8],constrained_layout=True)
+        gs = GridSpec(7,7,figure=fig1)
+        axs1_00 = fig1.add_subplot(gs[1:4,1:4])
+        axs1_01 = fig1.add_subplot(gs[1:4,4:7],sharey=axs1_00)
+        axs1_10 = fig1.add_subplot(gs[4:7,1:4],sharex=axs1_00)
+        axs1_11 = fig1.add_subplot(gs[4:7,4:7],sharey=axs1_10,sharex=axs1_01)
+        axs1 = np.array([
+            [axs1_00, axs1_01],
+            [axs1_10, axs1_11]
+            ])
         x = resmul_dict[key].values.reshape(-1,1)
         y = resmul_calc.values
         reg = LinearRegression().fit(x,y)
@@ -138,46 +360,140 @@ for i in range(2):
         r2 = reg.score(x,y)
         axs1[1,1].plot(resuni_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
         axs1[1,1].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
-        for ax in axs1.flatten():
-            ymin, ymax = ax.get_ylim()
+        for j,ax in enumerate(axs1.flatten()):
+            if j<2:
+                ylims = np.percentile(resmul_calc,[.5,99.5])
+            else:
+                ylims = np.percentile(resuni_calc,[.5,99.5])
+            ymin, ymax = ylims
+            #ymin, ymax = ax.get_ylim()
             ylim = max(-ymin,ymax)
-            ax.set_xlim(-ylim,ylim)
             ax.set_ylim(-ylim,ylim)
+            if j==0 or j==3:
+                ax.set_xlim(-ylim,ylim)
+                #ax.set_aspect(1.0)
+            else:
+                if j==1:
+                    xmin, xmax = axs1[1,1].get_xlim()
+                else:
+                    xmin, xmax = axs1[0,0].get_xlim()
+                xlim = max(-xmin,xmax)
+                ax.set_xlim(-xlim,xlim)
             line = np.linspace(-ylim,ylim,100)
             ax.plot(line,line,color='k',zorder=0)
             #ax.legend()
             #ax.set_title(key)
             ax.grid()
-            ax.set_aspect(1.0)
+        # histgram
+        ax00_histx = fig1.add_subplot(gs[0,1:4],sharex=axs1[0,0])
+        ax00_histx.grid()
+        #divider00 = make_axes_locatable(axs1[0,0])
+        #ax00_histx = divider00.append_axes("top",.5,pad=0.1,sharex=axs1[0,0])
+        ax00_histx.xaxis.set_tick_params(labelbottom=False)
+        xmin, xmax = axs1[0,0].get_xlim()
+        bins = np.linspace(xmin,xmax,51)
+        ax00_histx.hist(resmul_dict[key],bins=bins,density=True,color=colors[key])
+        #ax00_histx.set_xlim(axs1[0,0].get_xlim())
+        #tr00 = Affine2D().scale().rotate_deg(90)
+        #ymin00,ymax00 = axs1[0,0].get_ylim()
+        #grid_helper = floating_axes.GridHelperCurveLinear(
+        #    tr00,extremes=(ymin00,ymax00,0,1),
+        #    grid_locator1=MaxNLocator(nbins=4),
+        #    grid_locator2=MaxNLocator(nbins=2)
+        #)
+        ax00_histy = fig1.add_subplot(gs[1:4,0],sharey=axs1[0,0])#,axes_class=floating_axes.FloatingAxes,grid_helper=grid_helper)
+        ax00_histy.grid()
+        ax00_histy.yaxis.set_tick_params(labelleft=False)
+        xmin, xmax = axs1[0,0].get_ylim()
+        bins = np.linspace(xmin,xmax,51)
+        ax00_histy.hist(resmul_calc,bins=bins,density=True,color='k',orientation='horizontal')
+        #ax00_histy.set_ylim(axs1[0,0].get_ylim())
+        #divider01 = make_axes_locatable(axs1[0,1])
+        #ax01_histx = divider01.append_axes("top",.5,pad=0.1,sharex=axs1[0,1])
+        #ax01_histx.xaxis.set_tick_params(labelbottom=False)
+        #ax01_histx.hist(resuni_dict[key],bins=50,density=True,color=colors[key])
+        #ax01_histy = divider01.append_axes("right",.5,pad=0.1,sharey=axs1[0,1])
+        #ax01_histy.yaxis.set_tick_params(labelleft=False)
+        #ax01_histy.hist(resmul_calc,bins=50,density=True,orientation='horizontal',color=colors[key])
+        #tr11 = Affine2D().rotate_deg(180)
+        #xmin11,xmax11 = axs1[1,1].get_xlim()
+        #grid_helper = floating_axes.GridHelperCurveLinear(
+        #    tr11,extremes=(xmin11,xmax11,0,1),
+        #    grid_locator1=MaxNLocator(nbins=4),
+        #    grid_locator2=MaxNLocator(nbins=2)
+        #)
+        ax01_histx = fig1.add_subplot(gs[0,4:7],sharex=axs1[0,1])#,axes_class=floating_axes.FloatingAxes,grid_helper=grid_helper)
+        ax01_histx.grid()
+        ax01_histx.xaxis.set_tick_params(labelbottom=False)
+        #aux_ax11_histx = ax11_histx.get_aux_axes(tr11)
+        xmin, xmax = axs1[0,1].get_xlim()
+        bins = np.linspace(xmin,xmax,51)
+        ax01_histx.hist(resuni_dict[key],bins=bins,density=True,color=colors[key])
+        #ax01_histx.set_xlim(axs1[0,1].get_xlim())
+        #divider11 = make_axes_locatable(axs1[1,1])
+        #ax11_histy = divider11.append_axes("right",.5,pad=0.1,sharey=axs1[1,1])
+        #tr11 = Affine2D().rotate_deg(270)
+        #ymin11,ymax11 = axs1[1,1].get_ylim()
+        #grid_helper = floating_axes.GridHelperCurveLinear(
+        #    tr11,extremes=(ymin11,ymax11,0,1),
+        #    grid_locator1=MaxNLocator(nbins=4),
+        #    grid_locator2=MaxNLocator(nbins=2)
+        #)
+        ax10_histy = fig1.add_subplot(gs[4:7,0],sharey=axs1[1,0]) #,axes_class=floating_axes.FloatingAxes,grid_helper=grid_helper)
+        ax10_histy.grid()
+        ax10_histy.yaxis.set_tick_params(labelleft=False)
+        #aux_ax11_histy = ax11_histy.get_aux_axes(tr11)
+        xmin, xmax = axs1[1,0].get_ylim()
+        bins = np.linspace(xmin,xmax,51)
+        ax10_histy.hist(resuni_calc,bins=bins,density=True,orientation='horizontal',color='k')
+        #ax10_histy.set_ylim(axs1[1,0].get_ylim())
         axs1[0,0].legend()
         axs1[1,1].legend()
         #axs1[0,0].set_xlabel('predicted (multivariate)')
-        axs1[0,0].set_ylabel('measured (multivatiate)')
+        ax00_histx.set_title('predicted (multivariate)')
+        #axs1[0,0].set_ylabel('measured (multivariate)')
+        ax00_histy.set_ylabel('measured (multivariate)')
         #axs1[0,1].set_xlabel('predicted (univariate)')
+        ax01_histx.set_title('predicted (univariate)')
         #axs1[0,1].set_ylabel('measured (multivariate)')
-        axs1[1,0].set_xlabel('predicted (multivariate)')
-        axs1[1,0].set_ylabel('measured (univariate)')
-        axs1[1,1].set_xlabel('predicted (univariate)')
+        #axs1[1,0].set_xlabel('predicted (multivariate)')
+        #axs1[1,0].set_ylabel('measured (univariate)')
+        ax10_histy.set_ylabel('measured (univariate)')
+        #axs1[1,1].set_xlabel('predicted (univariate)')
         #axs1[1,1].set_ylabel('measured (univariate)')
         nsample = resmul_dict[key].size
         fig1.suptitle(r'$\Delta J(\Delta x_{0i})$'+f' {figname} {key} vt={vt}h, Nens={nens} #{nsample}')
         fig1.savefig(figdir1/f'resunimul_{figname}_{key}_vt{vt}ne{nens}.png')
-        #plt.show()
-        plt.close()
-    for ax in axs.flatten():
-        ymin, ymax = ax.get_ylim()
+        plt.show(block=False)
+        plt.close(fig=fig1)
+        #exit()
+    for j,ax in enumerate(axs.flatten()):
+        if j<2:
+            ylims = np.percentile(resmul_calc,[.5,99.5])
+        else:
+            ylims = np.percentile(resuni_calc,[.5,99.5])
+        ymin, ymax = ylims
+        #ymin, ymax = ax.get_ylim()
         ylim = max(-ymin,ymax)
-        ax.set_xlim(-ylim,ylim)
         ax.set_ylim(-ylim,ylim)
+        #if j==0 or j==3:
+        ax.set_xlim(-ylim,ylim)
+        ax.set_aspect(1.0)
+        #else:
+        #    if j==1:
+        #        xmin, xmax = axs[1,1].get_xlim()
+        #    else:
+        #        xmin, xmax = axs[0,0].get_xlim()
+        #    xlim = max(-xmin,xmax)
+        #    ax.set_xlim(-xlim,xlim)
         line = np.linspace(-ylim,ylim,100)
         ax.plot(line,line,color='k',zorder=0)
         #ax.legend()
         #ax.set_title(key)
         ax.grid()
-        ax.set_aspect(1.0)
     axs[0,1].legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
     #axs[0,0].set_xlabel('predicted (multivariate)')
-    axs[0,0].set_ylabel('measured (multivatiate)')
+    axs[0,0].set_ylabel('measured (multivariate)')
     #axs[0,1].set_xlabel('predicted (univariate)')
     #axs[0,1].set_ylabel('measured (multivariate)')
     axs[1,0].set_xlabel('predicted (multivariate)')
