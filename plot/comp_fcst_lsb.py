@@ -124,7 +124,8 @@ if preGM:
         xd1 = xg2x(ix_lam)[ns:na,ift,:] - xt2x(ix_lam)[ns+ift:na+ift,:]
         ettmp = np.sqrt(np.mean(xd1**2,axis=1))
         xdtmp = np.sqrt(np.mean(xd1**2,axis=0))
-        wnum_gm, psdtmp = nmc_gm.psd(xd1,axis=1)
+        #wnum_gm, psdtmp = nmc_gm.psd(xd1,axis=1)
+        wnum_gm, psdtmp = nmc_lam.psd(xd1,axis=1)
         ft.append(ift*6) # hours
         et_gm.append(ettmp)
         xd_gm.append(xdtmp)
@@ -287,16 +288,17 @@ fig.savefig(figpngdir/f'{model}_egrowth_{op}_{pt}.png',dpi=300)
 plt.show()
 plt.close()
 
-import pandas as pd
-for ift in range(9):
-    datadict = {}
-    for key in etlam_dict.keys():
-        data = etlam_dict[key]
-        datadict[key] = data[ift,]
-    df = pd.DataFrame(datadict)
-    df.to_csv(figdir/f"efcst_ft{ift*6}_{op}_{pt}.csv")
-exit()
+#import pandas as pd
+#for ift in range(9):
+#    datadict = {}
+#    for key in etlam_dict.keys():
+#        data = etlam_dict[key]
+#        datadict[key] = data[ift,]
+#    df = pd.DataFrame(datadict)
+#    df.to_csv(figdir/f"efcst_ft{ift*6}_{op}_{pt}.csv")
+#exit()
 
+"""
 cmap=plt.get_cmap("PiYG_r")
 cl0 = cmap(cmap.N//2)
 cl1 = cmap(cmap.N//4*3)
@@ -341,14 +343,74 @@ fmt = mpl.ticker.FuncFormatter(lambda x, pos: sigrates[norm(x)])
 
 methods_gm = etgm_dict.keys()
 methods_lam = etlam_dict.keys()
-
+"""
+figgr, axsgr = plt.subplots(nrows=2,ncols=2,figsize=[12,8],constrained_layout=True,sharey=True)
+figsp, axssp = plt.subplots(nrows=2,ncols=2,figsize=[12,8],constrained_layout=True,sharey=True)
+handle_list = []
+label_list = []
+cmap = plt.get_cmap('tab10')
+for ift in range(nft):
+    ft1 = ft[ift]
+    ##l1, = axsgr[0,0].plot(ix_gm,xdgm_dict[preGMpt][ift,],label=f'FT{ft1}')
+    #l1, = axsgr[0,0].plot(ix_lam,xdgm_dict[preGMpt][ift,],label=f'FT{ft1}')
+    #axssp[0,0].loglog(wnum_gm,psdgm_dict[preGMpt][ift,],label=f'FT{ft1}')
+    #if ift==0:
+    #    axsgr[0,0].set_title('interpolated GM')
+    #    axssp[0,0].set_title('interpolated GM')
+    irow=0
+    icol=0
+    for key in xdlam_dict.keys():
+        axsgr[irow,icol].plot(ix_lam,xdgm_dict[preGMpt][ift,],c=cmap(ift),alpha=0.5,ls='dashed',)
+        axssp[irow,icol].loglog(wnum_gm,psdgm_dict[preGMpt][ift,],c=cmap(ift),alpha=0.5,ls='dashed')
+        l1,=axsgr[irow,icol].plot(ix_lam,xdlam_dict[key][ift,],c=cmap(ift),label=f'FT{ft1}')
+        axssp[irow,icol].loglog(wnum,psdlam_dict[key][ift,],c=cmap(ift),label=f'FT{ft1}')
+        if ift==0:
+            axsgr[irow,icol].set_title(labels[key])
+            axssp[irow,icol].set_title(labels[key])
+        icol+=1
+        if icol>=2: icol=0; irow=1
+    handle_list.append(l1)
+    label_list.append(f'FT{ft1}')
+for axgr in axsgr.flatten():
+    axgr.set_xlabel('grid')
+    axgr.grid()
+#    axgr.legend()
+for axsp in axssp.flatten():
+    axsp.grid()
+#    axsp.legend()
+    axsp.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
+    #axsp.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+    #axsp.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+    axsp.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,12,2]))
+    axsp.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','12','2']))
+    secax = axsp.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
+    secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+    secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+    secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+axsgr[0,0].set_ylabel('RMSE')
+axssp[0,0].set_ylabel('Error')
+axsgr[1,0].set_ylabel('RMSE')
+axssp[1,0].set_ylabel('Error')
+#axsgr[1,0].remove()
+#axssp[1,0].remove()
+axsgr[0,1].legend(handle_list, label_list, loc='upper left', bbox_to_anchor=(1.01,1.01))
+axssp[0,1].legend(handle_list, label_list, loc='upper left', bbox_to_anchor=(1.01,1.01))
+figgr.suptitle(f'{ptlong[pt]}')
+figsp.suptitle(f'{ptlong[pt]}')
+figgr.savefig(figdir/f"{model}_xd_comp_{op}_{pt}.png",dpi=300)
+figsp.savefig(figdir/f"{model}_errspectra_comp_{op}_{pt}.png",dpi=300)
+plt.show()
+plt.close(fig=figgr)
+plt.close(fig=figsp)
+exit()
 for ift in range(1,nft):
     ft1 = ft[ift]
     figgr, axgr = plt.subplots(figsize=[8,5],constrained_layout=True)
     figsp, axsp = plt.subplots(figsize=[8,6],constrained_layout=True)
 
     if preGM:
-        axgr.plot(ix_gm, xdgm_dict[preGMpt][ift,],\
+        #axgr.plot(ix_gm, xdgm_dict[preGMpt][ift,],\
+        axgr.plot(ix_lam, xdgm_dict[preGMpt][ift,],\
             c='gray',lw=4.0,label='GM')
         axsp.loglog(wnum_gm,psdgm_dict[preGMpt][ift,],c='gray',lw=4.0,label='GM')
     else:
@@ -395,7 +457,7 @@ for ift in range(1,nft):
     plt.show(block=False)
     plt.close(fig=figgr)
     plt.close(fig=figsp)
-
+"""
     # t-test
     methods = methods_lam
     nmethods = len(methods)
@@ -431,3 +493,4 @@ for ift in range(1,nft):
         fig.tight_layout()
         fig.savefig(figdir/"{}_ef{:03d}_t-test_for_lam_{}_{}.png".format(model, ft1, op, pt),dpi=300)
         plt.close()
+"""
