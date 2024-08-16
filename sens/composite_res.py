@@ -9,6 +9,8 @@ from matplotlib.transforms import Affine2D
 import mpl_toolkits.axisartist.floating_axes as floating_axes
 from mpl_toolkits.axisartist.grid_finder import MaxNLocator
 #from mpl_toolkits.axes_grid1 import make_axes_locatable
+from confidence_ellipse import confidence_ellipse
+from matplotlib.patches import Patch
 import xarray as xr
 from sklearn.linear_model import LinearRegression
 from pathlib import Path
@@ -112,20 +114,38 @@ for i,key in enumerate(resmul_dict.keys()):
         [axs_10, axs_11]
         ])
     axs[0,0].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
+    _, aspectr, theta = confidence_ellipse(resmul_dict[key],resmul_calc,axs[0,0],\
+        n_std=3,edgecolor='firebrick')
+    axs[0,0].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
+        label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
     axs[0,1].plot(resuni_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
+    _, aspectr, theta = confidence_ellipse(resuni_dict[key],resmul_calc,axs[0,1],\
+        n_std=3,edgecolor='firebrick')
+    axs[0,1].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
+        label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
     axs[1,0].plot(resmul_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
+    _, aspectr, theta = confidence_ellipse(resmul_dict[key],resuni_calc,axs[1,0],\
+        n_std=3,edgecolor='firebrick')
+    axs[1,0].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
+        label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
     axs[1,1].plot(resuni_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
-    x = resmul_dict[key].values.reshape(-1,1)
-    y = resmul_calc.values
-    reg = LinearRegression().fit(x,y)
-    r2 = reg.score(x,y)
-    axs[0,0].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
-    x = resuni_dict[key].values.reshape(-1,1)
-    y = resuni_calc.values
-    reg = LinearRegression().fit(x,y)
-    r2 = reg.score(x,y)
-    axs[1,1].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
-
+    _, aspectr, theta = confidence_ellipse(resuni_dict[key],resuni_calc,axs[1,1],\
+        n_std=3,edgecolor='firebrick')
+    axs[1,1].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
+        label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
+    #x = resmul_dict[key].values.reshape(-1,1)
+    #y = resmul_calc.values
+    #reg = LinearRegression().fit(x,y)
+    #r2 = reg.score(x,y)
+    #axs[0,0].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
+    #x = resuni_dict[key].values.reshape(-1,1)
+    #y = resuni_calc.values
+    #reg = LinearRegression().fit(x,y)
+    #r2 = reg.score(x,y)
+    #axs[1,1].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
+    #axs[0,0].legend()
+    #axs[1,1].legend()
+    
     axsall[0,0].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
     axsall[0,1].plot(resuni_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
     axsall[1,0].plot(resmul_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],label=key,**marker_style)
@@ -180,17 +200,19 @@ for i,key in enumerate(resmul_dict.keys()):
     xmin, xmax = axs[1,0].get_ylim()
     bins = np.linspace(xmin,xmax,51)
     ax10_histy.hist(resuni_calc,bins=bins,density=True,orientation='horizontal',color='k')
-    axs[0,0].legend()
-    axs[1,1].legend()
     #axs[0,1].legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
     #axs[0,0].set_xlabel('predicted (multivariate)')
-    axs[0,0].set_ylabel('measured (multivariate)')
+    #axs[0,0].set_ylabel('measured (multivariate)')
     #axs[0,1].set_xlabel('predicted (univariate)')
     #axs[0,1].set_ylabel('measured (multivariate)')
-    axs[1,0].set_xlabel('predicted (multivariate)')
-    axs[1,0].set_ylabel('measured (univariate)')
-    axs[1,1].set_xlabel('predicted (univariate)')
+    #axs[1,0].set_xlabel('predicted (multivariate)')
+    #axs[1,0].set_ylabel('measured (univariate)')
+    #axs[1,1].set_xlabel('predicted (univariate)')
     #axs[1,1].set_ylabel('measured (univariate)')
+    ax00_histx.set_title('predicted (multivariate)')
+    ax00_histy.set_ylabel('measured (multivariate)')
+    ax01_histx.set_title('predicted (univariate)')
+    ax10_histy.set_ylabel('measured (univariate)')
     fig.suptitle(r'$\Delta J(\Delta x_{0i})$'+f' {key} vt={vt}h, Nens={nens} #{nsample}')
     fig.savefig(figdir1/f'resunimul_{key}_vt{vt}ne{nens}.png')
     #plt.show()
@@ -328,6 +350,8 @@ for i in range(2):
     axs = np.array([[axs00,axs01],[axs10,axs11]])
     resmul_calc = resmul_dict['calc']
     resuni_calc = resuni_dict['calc']
+    print(f"resmul_calc={resmul_calc.size}")
+    print(f"resuni_calc={resuni_calc.size}")
     for key in resmul_dict.keys():
         if key=='calc': continue
         figdir1 = figdir/key
@@ -346,20 +370,38 @@ for i in range(2):
             [axs1_00, axs1_01],
             [axs1_10, axs1_11]
             ])
-        x = resmul_dict[key].values.reshape(-1,1)
-        y = resmul_calc.values
-        reg = LinearRegression().fit(x,y)
-        r2 = reg.score(x,y)
         axs1[0,0].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
-        axs1[0,0].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
+        _, aspectr, theta = confidence_ellipse(resmul_dict[key],resmul_calc,axs1[0,0],\
+            n_std=3,edgecolor='firebrick')
+        axs1[0,0].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
+            label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
         axs1[0,1].plot(resuni_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
+        _, aspectr, theta = confidence_ellipse(resuni_dict[key],resmul_calc,axs1[0,1],\
+            n_std=3,edgecolor='firebrick')
+        axs1[0,1].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
+            label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
         axs1[1,0].plot(resmul_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
-        x = resuni_dict[key].values.reshape(-1,1)
-        y = resuni_calc.values
-        reg = LinearRegression().fit(x,y)
-        r2 = reg.score(x,y)
+        _, aspectr, theta = confidence_ellipse(resmul_dict[key],resuni_calc,axs1[1,0],\
+            n_std=3,edgecolor='firebrick')
+        axs1[1,0].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
+            label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
         axs1[1,1].plot(resuni_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
-        axs1[1,1].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
+        _, aspectr, theta = confidence_ellipse(resuni_dict[key],resuni_calc,axs1[1,1],\
+            n_std=3,edgecolor='firebrick')
+        axs1[1,1].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
+            label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
+        #x = resmul_dict[key].values.reshape(-1,1)
+        #y = resmul_calc.values
+        #reg = LinearRegression().fit(x,y)
+        #r2 = reg.score(x,y)
+        #axs1[0,0].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
+        #x = resuni_dict[key].values.reshape(-1,1)
+        #y = resuni_calc.values
+        #reg = LinearRegression().fit(x,y)
+        #r2 = reg.score(x,y)
+        #axs1[1,1].plot(x,reg.predict(x),c=colors[key],label=f'y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}\nr^2={r2:.2e}')
+        #axs1[0,0].legend()
+        #axs1[1,1].legend()
         for j,ax in enumerate(axs1.flatten()):
             if j<2:
                 ylims = np.percentile(resmul_calc,[.5,99.5])
@@ -447,8 +489,6 @@ for i in range(2):
         bins = np.linspace(xmin,xmax,51)
         ax10_histy.hist(resuni_calc,bins=bins,density=True,orientation='horizontal',color='k')
         #ax10_histy.set_ylim(axs1[1,0].get_ylim())
-        axs1[0,0].legend()
-        axs1[1,1].legend()
         #axs1[0,0].set_xlabel('predicted (multivariate)')
         ax00_histx.set_title('predicted (multivariate)')
         #axs1[0,0].set_ylabel('measured (multivariate)')
