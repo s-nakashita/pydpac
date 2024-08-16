@@ -42,7 +42,7 @@ lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 figdir = lsbdir
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"dscl":"Downscaling","conv":"DA", "lsb":"DA+LSB", "nest":"Nested DA"}
+labels = {"dscl":"No LAM DA","conv":"DA", "lsb":"DA+BLSB", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 ns = 40 # spinup

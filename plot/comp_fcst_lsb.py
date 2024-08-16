@@ -62,7 +62,7 @@ if not figpdfdir.exists():
     figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"conv":"DA", "lsb":"BBL+DA", "nest":"Nested DA", "dscl":"Dscl"}
+labels = {"conv":"DA", "lsb":"BLSB+DA", "nest":"Nested DA", "dscl":"Dscl"}
 linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green',"dscl":'k'}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
@@ -71,6 +71,8 @@ ix_lam = np.loadtxt(dscldir/"ix_lam.txt")
 nx_t = ix_t.size
 nx_gm = ix_gm.size
 nx_lam = ix_lam.size
+i0 = np.argmin(np.abs(ix_gm - ix_lam[0]))
+i1 = np.argmin(np.abs(ix_gm - ix_lam[-1]))
 xlim = 15.0
 nghost = 0 # ghost region for periodicity in LAM
 ix_t_rad = ix_t * 2.0 * np.pi / nx_t
@@ -102,45 +104,8 @@ xt2x = interp1d(ix_t,xt)
 etgm_dict = {}
 xdgm_dict = {}
 psdgm_dict = {}
-etlam_dict = {}
-xdlam_dict = {}
-psdlam_dict = {}
-if ldscl:
-    # downscaling
-    f = dscldir/"{}_lam_ufext_preGM_{}_{}.npy".format(model,op,preGMpt)
-    if not f.exists():
-        print("not exist {}".format(f))
-        exit()
-    xfdscl = np.load(f)
-    print(xfdscl.shape)
-    ft = []
-    et_lam = []
-    xd_lam = []
-    psd_lam = []
-    ift = 0
-    while(ift < 9):
-        xd1 = xfdscl[ns:na,ift,:] - xt2x(ix_lam)[ns+ift:na+ift,:]
-        ettmp = np.sqrt(np.mean(xd1**2,axis=1))
-        xdtmp = np.sqrt(np.mean(xd1**2,axis=0))
-        wnum, psdtmp = nmc_lam.psd(xd1,axis=1)
-        ft.append(ift*6) # hours
-        et_lam.append(ettmp)
-        xd_lam.append(xdtmp)
-        psd_lam.append(psdtmp)
-        ift += 1
-    et_lam = np.array(et_lam)
-    xd_lam = np.array(xd_lam)
-    psd_lam = np.array(psd_lam)
-    nft = et_lam.shape[0]
-    print(et_lam.shape)
-    print(xd_lam.shape)
-    print(psd_lam.shape)
-    #axl.errorbar(ft,et_lam.mean(axis=1),yerr=et_lam.std(axis=1),c='k',label='downscaling')
-    axl.plot(np.arange(1,nft+1),et_lam.mean(axis=1),c='k',label='Dscl')
-    etlam_dict["dscl"] = et_lam
-    xdlam_dict["dscl"] = xd_lam
-    psdlam_dict["dscl"] = psd_lam
-
+egrowth0_24h_dict = {}
+egrowth24_48h_dict = {}
 if preGM:
     f = dscldir/"{}_gm_ufext_{}_{}.npy".format(model,op,preGMpt)
     if not f.exists():
@@ -148,40 +113,59 @@ if preGM:
         exit()
     xfgm = np.load(f)
     print(xfgm.shape)
+    xg2x = interp1d(ix_gm,xfgm,axis=2)
     ft = []
+    et_gm = []
     xd_gm = []
     psd_gm = []
     ift = 0
     while ift < 9:
-        xd1 = xfgm[ns:na,ift,:] - xt2x(ix_gm)[ns+ift:na+ift,:]
+        #xd1 = xfgm[ns:na,ift,i0:i1+1] - xt2x(ix_gm[i0:i1+1])[ns+ift:na+ift,:]
+        xd1 = xg2x(ix_lam)[ns:na,ift,:] - xt2x(ix_lam)[ns+ift:na+ift,:]
+        ettmp = np.sqrt(np.mean(xd1**2,axis=1))
         xdtmp = np.sqrt(np.mean(xd1**2,axis=0))
         wnum_gm, psdtmp = nmc_gm.psd(xd1,axis=1)
         ft.append(ift*6) # hours
+        et_gm.append(ettmp)
         xd_gm.append(xdtmp)
         psd_gm.append(psdtmp)
         ift += 1
+    et_gm = np.array(et_gm)
     xd_gm = np.array(xd_gm)
     psd_gm = np.array(psd_gm)
+    nft = et_gm.shape[0]
+    axl.plot(np.arange(1,nft+1),et_gm.mean(axis=1),c='gray',lw=4.0,alpha=0.5,label='GM')
+    egrowth_24h = et_gm[4,:] / et_gm[0,:]
+    egrowth_48h = et_gm[8,:] / et_gm[4,:]
+    egrowth0_24h_dict['GM'] = egrowth_24h
+    egrowth24_48h_dict['GM'] = egrowth_48h
+    #print(f"GM error growth in  0-24 hours = {egrowth_24h.mean()}+-{egrowth_24h.std()}")
+    #print(f"GM error growth in 24-48 hours = {egrowth_48h.mean()}+-{egrowth_48h.std()}")
+    etgm_dict[preGMpt] = et_gm
     xdgm_dict[preGMpt] = xd_gm
     psdgm_dict[preGMpt] = psd_gm
 
-for key in ['conv','lsb','nest']:
+etlam_dict = {}
+xdlam_dict = {}
+psdlam_dict = {}
+if ldscl:
+    keys = ['dscl','conv','lsb','nest']
+else:
+    keys = ['conv','lsb','nest']
+for key in keys:
     # LAM
-    if key=='conv':
+    if key=='dscl':
+        # downscaling
+        f = dscldir/"{}_lam_ufext_preGM_{}_{}.npy".format(model,op,preGMpt)
+    elif key=='conv':
         f = lamdir/"{}_lam_ufext_preGM_{}_{}.npy".format(model,op,pt)
-        if not f.exists():
-            print("not exist {}".format(f))
-            continue
     elif key=='nest':
         f = lamdir/"{}_lam_ufext_preGM_{}_{}_nest.npy".format(model,op,pt)
-        if not f.exists():
-            print("not exist {}".format(f))
-            continue
     else:
         f = lsbdir/"{}_lam_ufext_preGM_{}_{}.npy".format(model,op,pt)
-        if not f.exists():
-            print("not exist {}".format(f))
-            continue
+    if not f.exists():
+        print("not exist {}".format(f))
+        continue
     xflam = np.load(f)
     print(xflam.shape)
     ft = []
@@ -208,6 +192,12 @@ for key in ['conv','lsb','nest']:
     print(psd_lam.shape)
     #axl.errorbar(ft,et_lam.mean(axis=1),yerr=et_lam.std(axis=1),c=linecolor[key],label=labels[key])
     axl.plot(np.arange(1,nft+1),et_lam.mean(axis=1),c=linecolor[key],label=labels[key])
+    egrowth_24h = et_lam[4,:] / et_lam[0,:]
+    egrowth_48h = et_lam[8,:] / et_lam[4,:]
+    egrowth0_24h_dict[key] = egrowth_24h
+    egrowth24_48h_dict[key] = egrowth_48h
+    #print(f"{key} error growth in  0-24 hours = {egrowth_24h.mean()}+-{egrowth_24h.std()}")
+    #print(f"{key} error growth in 24-48 hours = {egrowth_48h.mean()}+-{egrowth_48h.std()}")
     etlam_dict[key] = et_lam
     xdlam_dict[key] = xd_lam
     psdlam_dict[key] = psd_lam
@@ -268,6 +258,32 @@ fig.savefig(figpdfdir/f"{model}_efcst48_{op}_{pt}.pdf")
 figb.savefig(figpngdir/f"{model}_efcst48_box_{op}_{pt}.png",dpi=300)
 figb.savefig(figpdfdir/f"{model}_efcst48_box_{op}_{pt}.pdf")
 #fig.savefig(figdir/f"{model}_efcst_{op}.pdf")
+plt.show()
+plt.close()
+
+fig, axs = plt.subplots(ncols=2,figsize=[10,6],sharey=True,constrained_layout=True)
+xtick0labels = []
+xtick1labels = []
+for i,key in enumerate(egrowth0_24h_dict.keys()):
+    egrowth24h = egrowth0_24h_dict[key]
+    egrowth48h = egrowth24_48h_dict[key]
+    axs[0].boxplot(egrowth24h,positions=[i+1],meanline=True,showmeans=True)
+    axs[1].boxplot(egrowth48h,positions=[i+1],meanline=True,showmeans=True)
+    xtick0labels.append(
+        f'{key}\n{egrowth24h.mean():.2f}'+r'$\pm$'+f'{egrowth24h.std():.2f}'
+    )
+    xtick1labels.append(
+        f'{key}\n{egrowth48h.mean():.2f}'+r'$\pm$'+f'{egrowth48h.std():.2f}'
+    )
+n = len(egrowth0_24h_dict)
+axs[0].set_xticks(np.arange(1,n+1))
+axs[0].set_xticklabels(xtick0labels,fontsize=12)
+axs[0].set_title('FT00-FT24')
+axs[1].set_xticks(np.arange(1,n+1))
+axs[1].set_xticklabels(xtick1labels,fontsize=12)
+axs[1].set_title('FT24-FT48')
+fig.suptitle(ptlong[pt])
+fig.savefig(figpngdir/f'{model}_egrowth_{op}_{pt}.png',dpi=300)
 plt.show()
 plt.close()
 

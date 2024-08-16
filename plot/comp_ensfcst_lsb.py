@@ -61,7 +61,7 @@ if not figpdfdir.exists():
     figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"conv":"DA", "lsb":"BBL+DA", "nest":"Nested DA", "dscl":"Dscl"}
+labels = {"conv":"DA", "lsb":"BLSB+DA", "nest":"Nested DA", "dscl":"Dscl"}
 linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green',"dscl":'k'}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
@@ -97,6 +97,10 @@ xt2x = interp1d(ix_t,xt)
 #wnum_t, psd_bg = nmc_t.psd(xt,axis=1)
 #axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
 
+egrowth0_24h_dict = {}
+egrowth24_48h_dict = {}
+sgrowth0_24h_dict = {}
+sgrowth24_48h_dict = {}
 if preGM:
     etgm_dict = {}
     stgm_dict = {}
@@ -110,6 +114,7 @@ if preGM:
         print("not exist {}".format(f))
         exit()
     xfgm = np.load(f)
+    xg2x = interp1d(ix_gm,xfgm,axis=2)
     print(xfgm.shape)
     ft = []
     st_gm = []
@@ -120,7 +125,8 @@ if preGM:
     psd_gm = []
     ift = 0
     while ift < 9:
-        xp1 = xfgm[:nt,ift,:,:] - np.mean(xfgm[:nt,ift,:,:],axis=2)[:,:,None]
+        #xp1 = xfgm[:nt,ift,:,:] - np.mean(xfgm[:nt,ift,:,:],axis=2)[:,:,None]
+        xp1 = xg2x(ix_lam)[:nt,ift,:,:] - np.mean(xg2x(ix_lam)[:nt,ift,:,:],axis=2)[:,:,None]
         sttmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/(xp1.shape[2]-1),axis=1))
         xstmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/(xp1.shape[2]-1),axis=0))
         wnum_gm, psdtmp = nmc_gm.psd(xp1,axis=1,average=False)
@@ -128,7 +134,8 @@ if preGM:
         st_gm.append(sttmp)
         xs_gm.append(xstmp)
         psds_gm.append(np.mean(np.sum(psdtmp,axis=2)/(psdtmp.shape[2]-1),axis=0))
-        xd1 = xfgm[:nt,ift,:,:].mean(axis=2) - xt2x(ix_gm)[ns+ift:na+ift,:]
+        #xd1 = xfgm[:nt,ift,:,:].mean(axis=2) - xt2x(ix_gm)[ns+ift:na+ift,:]
+        xd1 = xg2x(ix_lam)[:nt,ift,:,:].mean(axis=2) - xt2x(ix_lam)[ns+ift:na+ift,:]
         ettmp = np.sqrt(np.mean(xd1**2,axis=1))
         xdtmp = np.sqrt(np.mean(xd1**2,axis=0))
         wnum, psdtmp = nmc_gm.psd(xd1,axis=1)
@@ -144,7 +151,21 @@ if preGM:
     psdgm_dict[preGMpt] = psd_gm
     xsgm_dict[preGMpt] = xs_gm
     psdsgm_dict[preGMpt] = psds_gm
-
+    et_gm = np.array(et_gm)
+    nft = et_gm.shape[0]
+    axl.plot(np.arange(1,nft+1),et_gm.mean(axis=1),c='gray',lw=4.0,alpha=0.5,label='GM')
+    egrowth_24h = et_gm[4,:] / et_gm[0,:]
+    egrowth_48h = et_gm[8,:] / et_gm[4,:]
+    egrowth0_24h_dict['GM'] = egrowth_24h
+    egrowth24_48h_dict['GM'] = egrowth_48h
+    st_gm = np.array(st_gm)
+    sgrowth_24h = st_gm[4,:] / st_gm[0,:]
+    sgrowth_48h = st_gm[8,:] / st_gm[4,:]
+    sgrowth0_24h_dict['GM'] = sgrowth_24h
+    sgrowth24_48h_dict['GM'] = sgrowth_48h
+    #print(f"GM error growth in  0-24 hours = {egrowth_24h.mean()}+-{egrowth_24h.std()}")
+    #print(f"GM error growth in 24-48 hours = {egrowth_48h.mean()}+-{egrowth_48h.std()}")
+    
 if ldscl:
     keys = ['dscl','conv','lsb','nest']
 else:
@@ -191,7 +212,7 @@ for key in keys:
         sttmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/(xp1.shape[2]-1),axis=1))
         xstmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/(xp1.shape[2]-1),axis=0))
         wnum, psdtmp = nmc_lam.psd(xp1,axis=1,average=False)
-        ft.append(ift) # hours
+        ft.append(ift*6//isave) # hours
         st_lam.append(sttmp)
         xs_lam.append(xstmp)
         psds_lam.append(np.mean(np.sum(psdtmp,axis=2)/(psdtmp.shape[2]-1),axis=0))
@@ -226,6 +247,16 @@ for key in keys:
     etlam_dict[key] = et_lam
     xdlam_dict[key] = xd_lam
     psdlam_dict[key] = psd_lam
+    egrowth_24h = et_lam[4,:] / et_lam[0,:]
+    egrowth_48h = et_lam[8,:] / et_lam[4,:]
+    egrowth0_24h_dict[key] = egrowth_24h
+    egrowth24_48h_dict[key] = egrowth_48h
+    sgrowth_24h = st_lam[4*isave,:] / st_lam[0,:]
+    sgrowth_48h = st_lam[8*isave,:] / st_lam[4*isave,:]
+    sgrowth0_24h_dict[key] = sgrowth_24h
+    sgrowth24_48h_dict[key] = sgrowth_48h
+    #print(f"{key} error growth in  0-24 hours = {egrowth_24h.mean()}+-{egrowth_24h.std()}")
+    #print(f"{key} error growth in 24-48 hours = {egrowth_48h.mean()}+-{egrowth_48h.std()}")
     # adjusted t-test
     if key!='dscl':
         for ift in range(0,nft,isave):
@@ -241,7 +272,7 @@ for key in keys:
             std = np.sqrt(vard/(d.size-1))
             tval = dmean / (std / np.sqrt(ne))
             pval = 1.0 - stats.t.cdf(tval,ne)
-            print(f"{key} FT{ift} p-value={pval:.3e}")
+            print(f"{key} FT{ft[ift]} p-value={pval:.3e}")
             if pval < 5.0e-2:
                 axl.plot([ift+1],e2.mean(),c=linecolor[key],lw=0.0,marker='o',ms=6)
 
@@ -294,6 +325,51 @@ fig.savefig(figpdfdir/f"{model}_e_ensfcst48_{op}_{pt}.pdf")
 figb.savefig(figpngdir/f"{model}_e_ensfcst48_box_{op}_{pt}.png",dpi=300)
 figb.savefig(figpdfdir/f"{model}_e_ensfcst48_box_{op}_{pt}.pdf")
 #fig.savefig(figdir/f"{model}_efcst_{op}.pdf")
+plt.show()
+plt.close()
+#exit()
+
+fig, axs = plt.subplots(ncols=2,nrows=2,figsize=[10,10],sharey=True,constrained_layout=True)
+xtick00labels = []
+xtick01labels = []
+xtick10labels = []
+xtick11labels = []
+for i,key in enumerate(egrowth0_24h_dict.keys()):
+    egrowth24h = egrowth0_24h_dict[key]
+    egrowth48h = egrowth24_48h_dict[key]
+    axs[0,0].boxplot(egrowth24h,positions=[i+1],meanline=True,showmeans=True)
+    axs[1,0].boxplot(egrowth48h,positions=[i+1],meanline=True,showmeans=True)
+    xtick00labels.append(
+        f'{key}\n{egrowth24h.mean():.2f}'+r'$\pm$'+f'{egrowth24h.std():.2f}'
+    )
+    xtick10labels.append(
+        f'{key}\n{egrowth48h.mean():.2f}'+r'$\pm$'+f'{egrowth48h.std():.2f}'
+    )
+    sgrowth24h = sgrowth0_24h_dict[key]
+    sgrowth48h = sgrowth24_48h_dict[key]
+    axs[0,1].boxplot(sgrowth24h,positions=[i+1],meanline=True,showmeans=True)
+    axs[1,1].boxplot(sgrowth48h,positions=[i+1],meanline=True,showmeans=True)
+    xtick01labels.append(
+        f'{key}\n{sgrowth24h.mean():.2f}'+r'$\pm$'+f'{sgrowth24h.std():.2f}'
+    )
+    xtick11labels.append(
+        f'{key}\n{sgrowth48h.mean():.2f}'+r'$\pm$'+f'{sgrowth48h.std():.2f}'
+    )
+n = len(egrowth0_24h_dict)
+axs[0,0].set_xticks(np.arange(1,n+1))
+axs[0,0].set_xticklabels(xtick00labels,fontsize=12)
+axs[0,0].set_title('FT00-FT24')
+axs[1,0].set_xticks(np.arange(1,n+1))
+axs[1,0].set_xticklabels(xtick10labels,fontsize=12)
+axs[1,0].set_title('FT24-FT48')
+axs[0,1].set_xticks(np.arange(1,n+1))
+axs[0,1].set_xticklabels(xtick01labels,fontsize=12)
+axs[0,1].set_title('FT00-FT24 spread')
+axs[1,1].set_xticks(np.arange(1,n+1))
+axs[1,1].set_xticklabels(xtick11labels,fontsize=12)
+axs[1,1].set_title('FT24-FT48 spread')
+fig.suptitle(ptlong[pt])
+fig.savefig(figpngdir/f'{model}_egrowth_ens_{op}_{pt}.png',dpi=300)
 plt.show()
 plt.close()
 exit()

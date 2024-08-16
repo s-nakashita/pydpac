@@ -101,7 +101,7 @@ if not figpdfdir.exists():
     figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BBL+DA", "nest":"Nested DA"}
+labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BLSB+DA", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 fig, ax = plt.subplots(figsize=[12,6],constrained_layout=True)
@@ -181,6 +181,10 @@ for ax1 in [ax,ax00,ax01,ax02]: #,ax10,ax11,ax12]:
 for ax1 in [ax,ax00,ax01,ax02]: #,ax10,ax11,ax12]:
     ax1.set_ylim(0.0,2.0)
     ax1.set_ylabel('RMSE') #,title=op)
+ax.set_xlim(10,250)
+ax.set_xticks([10,40,70,100,130,160,190,220,250])
+ax.set_xticks(t[ns-1:na:40],minor=True)
+ax.grid()
 ax.set_xlabel('days')
 ax.legend(loc='upper left',bbox_to_anchor=(0.82,1.0),\
     title=f'{ptlong[pt]} time average')
@@ -190,6 +194,7 @@ ax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
 #ax12.set_xlabel('days (resampling)')
 #ax10.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
 #    title=f'{ptlong[pt]} time average\n(resampling)')
+sax.set_xlim(t[ns],t[-1])
 sax.set_ylabel('spread')
 sax.set_xlabel('days')
 sax.legend(loc='upper left',bbox_to_anchor=(0.82,1.0),\
