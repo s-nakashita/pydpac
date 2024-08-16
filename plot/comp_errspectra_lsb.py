@@ -56,7 +56,7 @@ if not figpdfdir.exists():
     figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BBL+DA", "nest":"Nested DA"}
+labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BLSB+DA", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
