@@ -85,16 +85,17 @@ else:
 rmsdJ_dict = {}
 rmsdx_dict = {}
 corrdJ_dict = {}
-solverlist=['minnorm','diag','ridge','pcr','pls']
-#solverlist=['pcr','minnorm'] #,'pls']
+#solverlist=['minnorm','diag','ridge','pcr','pls']
+solverlist=['std']
 
 for solver in solverlist:
     dJdx0_dict[solver] = []
     dx0opt_dict[solver] = []
     res_dict[solver] = []
-    rmsdJ_dict[solver] = []
-    rmsdx_dict[solver] = []
-    corrdJ_dict[solver] = []
+    if solver != 'std':
+        rmsdJ_dict[solver] = []
+        rmsdx_dict[solver] = []
+        corrdJ_dict[solver] = []
 markers=['*','o','v','s','P','X','p']
 marker_style=dict(markerfacecolor='none')
 cmap = plt.get_cmap('tab10')
@@ -141,7 +142,7 @@ for i in range(nsample):
         dJdx0_dict['asa'].append(dJdx0)
         dx0opt_dict['asa'].append(dx0opt)
         #asa.plot_hov()
-        res_nl, res_tl = asa.check_djdx(xb,dJdx0,dx0opt,\
+        res_nl, res_tl = asa.check_djdx(xb,dx0opt,\
             model,model.step_t,plot=False)
         res_dict['asa'].append([res_nl,res_tl])
     else:
@@ -167,24 +168,29 @@ for i in range(nsample):
         if n_components is not None:
             logfile = f"log/{solver}_vt{vt}ne{nens}nc{n_components}{metric}"
         enasa = EnASA(vt,X0,Je,solver=solver,logfile=logfile)
-        dJedx0 = enasa(n_components=n_components,cthres=0.99)
-        dxe0opt = asa.calc_dxopt(xb,dJedx0)
-        if metric=='_en':
-            scale = 0.1/np.linalg.norm(dxe0opt,ord=2)/np.exp((vt-24)*ldble)
-            dxe0opt = dxe0opt * scale
+        if solver != 'std':
+            dJedx0 = enasa(n_components=n_components,cthres=0.99)
+            dxe0opt = asa.calc_dxopt(xb,dJedx0)
+            if metric=='_en':
+                scale = 0.1/np.linalg.norm(dxe0opt,ord=2)/np.exp((vt-24)*ldble)
+                dxe0opt = dxe0opt * scale
+        else:
+            dxe0opt = enasa.calc_dxeopt()
+            dJedx0 = -1.0*dxe0opt
         dJdx0_dict[solver].append(dJedx0)
         dx0opt_dict[solver].append(dxe0opt)
-        res_nl, res_tl = asa.check_djdx(xb,dJedx0,dxe0opt,\
+        res_nl, res_tl = asa.check_djdx(xb,dxe0opt,\
             model,model.step_t,plot=False)
         res_dict[solver].append([res_nl,res_tl])
-        Jeest[solver] = enasa.estimate()
-        rmsdJ_dict[solver].append(np.sqrt(np.mean((dJedx0-dJdx0)**2)))
-        rmsdx_dict[solver].append(np.sqrt(np.mean((dxe0opt-dx0opt)**2)))
-        corr=np.correlate(dJedx0,dJdx0)/np.linalg.norm(dJedx0,ord=2)/np.linalg.norm(dJdx0,ord=2)
-        corrdJ_dict[solver].append(corr[0])
-        if i==0: 
-            print(f"{solver} score={enasa.score()} err={enasa.err}")
-            if solver=='minnorm': print(f"nrank={enasa.nrank}")
+        if solver!='std':
+            Jeest[solver] = enasa.estimate()
+            rmsdJ_dict[solver].append(np.sqrt(np.mean((dJedx0-dJdx0)**2)))
+            rmsdx_dict[solver].append(np.sqrt(np.mean((dxe0opt-dx0opt)**2)))
+            corr=np.correlate(dJedx0,dJdx0)/np.linalg.norm(dJedx0,ord=2)/np.linalg.norm(dJdx0,ord=2)
+            corrdJ_dict[solver].append(corr[0])
+            if i==0: 
+                print(f"{solver} score={enasa.score()} err={enasa.err}")
+                if solver=='minnorm': print(f"nrank={enasa.nrank}")
     if i<0:
         print(f"ic={ic}")
         figdir = Path(f"fig/vt{vt}ne{nens}{metric}/c{icyc}")
@@ -257,7 +263,7 @@ ds = xr.Dataset.from_dict(
         "Je":{"dims":("cycle","member"),"data":Jes}
     }
 )
-ds.to_netcdf(savedir/f"Je_vt{vt}nens{nens}.nc")
+ds.to_netcdf(savedir/f"Je{metric}_vt{vt}nens{nens}.nc")
 x0s = np.array(x0s_list)
 member = np.arange(1,x0s.shape[1]+1)
 ds = xr.Dataset.from_dict(
@@ -274,9 +280,9 @@ for key in res_dict.keys():
     res = np.array(res_dict[key])
     dJdx0 = np.array(dJdx0_dict[key])
     dx0opt = np.array(dx0opt_dict[key])
-    ix = np.arange(dJdx0.shape[1])
-    if key == 'asa':
-        if not recomp_asa: continue
+    ix = np.arange(dx0opt.shape[1])
+    if key == 'asa' or key=='std':
+        if key=='asa' and not recomp_asa: continue
         datadict = {
             "cycle":{"dims":("cycle"),"data":cycles},
             "x":{"dims":("x"),"data":ix},

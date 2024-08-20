@@ -11,9 +11,9 @@ import argparse
 datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
-enasas = ['minnorm','diag','ridge','pcr','pls']
-colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
-markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
+enasas = ['minnorm','diag','ridge','pcr','pls','std']
+colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5),'std':cmap(6)}
+markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','std':'^'}
 marker_style=dict(markerfacecolor='none')
 nelist = [8,16,24,32,40]
 
@@ -152,6 +152,7 @@ for j,nens in enumerate(nelist):
     pos0 = j+1 - xoffset
     ds_dict = ds_all[nens]
     for i,key in enumerate(ds_dict.keys()):
+        if key=='std': continue
         marker_style['markerfacecolor']=colors[key]
         marker_style['markeredgecolor']='k'
         flierprops={'markeredgecolor':colors[key]}

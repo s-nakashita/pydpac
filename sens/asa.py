@@ -35,7 +35,7 @@ class ASA():
         optscale = -1.0 * J / np.dot(dJdx0,dJdx0)
         return optscale * dJdx0
 
-    def check_djdx(self,xb,dJdx0,dxopt,model,tlm,title='ASA',plot=True,scale=1.0):
+    def check_djdx(self,xb,dxopt,model,tlm,plot=True,dJdx0=None,title='ASA',scale=1.0):
         xp = xb[0] + dxopt
         dxp = dxopt.copy()
         for i in range(self.vt):
@@ -48,6 +48,9 @@ class ASA():
         res_tl = (self.cost(xb[self.vt]+dxp,*self.args) - J)/J
         
         if plot:
+            if dJdx0 is None:
+                print("dJdx0 must be provided if plot=True")
+                return res_nl, res_tl
             plt.plot(xb[0],ls='dashed',label='x0')
             plt.plot(dJdx0*scale,label=r'dJdx0$\times$'+f'{scale:.0f}')
             plt.plot(dxopt*scale,label=r'dxopt$\times$'+f'{scale:.0f}')

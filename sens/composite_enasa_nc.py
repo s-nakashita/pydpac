@@ -16,7 +16,7 @@ markers = {'asa':'*'}
 ms = {'asa':8}
 markerlist = ['*','o','v','s','P','X','d']
 marker_style=dict(markerfacecolor='none')
-nclist = [2,4,8,16,24]
+nclist = [1,2,4,8,16,24]
 nensbase = 8
 i=1
 for nc in nclist:
@@ -25,7 +25,7 @@ for nc in nclist:
     ms[f'nc{nc}'] = 5
     i+=1
 colors['all'] = cmap(i)
-markers['all'] = cmap(i)
+markers['all'] = '^'
 ms['all'] = 5
 dJlim = {24:0.2,48:1.0,72:2.0,96:3.6}
 dxlim = {24:0.02,48:0.02,72:0.02,96:0.02}
@@ -48,10 +48,10 @@ nens = argsin.nens
 metric = argsin.metric
 solver = argsin.solver
 lag = argsin.lag
-figdir = Path(f"fig/vt{vt}ne{nens}/{solver}")
+figdir = Path(f"fig{metric}/vt{vt}ne{nens}/{solver}")
 if lag>0:
-    figdir = Path(f"fig/vt{vt}ne{nens}lag{lag}/{solver}")
-if not figdir.exists(): figdir.mkdir()
+    figdir = Path(f"fig{metric}/vt{vt}ne{nens}lag{lag}/{solver}")
+if not figdir.exists(): figdir.mkdir(parents=True)
 
 # load results
 ds_dict = {}
@@ -60,21 +60,21 @@ print(ds_asa)
 ds_dict['asa'] = ds_asa
 for nc in nclist:
     if nc >= nens*(lag+1):
-        if lag>0:
-            ds = xr.open_dataset(datadir/f'{solver}_vt{vt}nens{nens}lag{lag}.nc')
-        else:
-            ds = xr.open_dataset(datadir/f'{solver}_vt{vt}nens{nens}.nc')
-        ds_dict[f'all'] = ds
+        #if lag>0:
+        #    ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}lag{lag}.nc')
+        #else:
+        #    ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
+        #ds_dict[f'all'] = ds
         break
     else:
         if lag>0:
-            ds = xr.open_dataset(datadir/f'{solver}nc{nc}_vt{vt}nens{nens}lag{lag}.nc')
+            ds = xr.open_dataset(datadir/f'{solver}nc{nc}{metric}_vt{vt}nens{nens}lag{lag}.nc')
         else:
-            ds = xr.open_dataset(datadir/f'{solver}nc{nc}_vt{vt}nens{nens}.nc')
+            ds = xr.open_dataset(datadir/f'{solver}nc{nc}{metric}_vt{vt}nens{nens}.nc')
         ds_dict[f'nc{nc}'] = ds
 
 ncols = 2
-nrows = 3
+nrows = int(np.ceil(len(ds_dict.keys())/2))
 figdJ, axsdJ = plt.subplots(figsize=[8,10],nrows=nrows,ncols=ncols,constrained_layout=True)
 figdx, axsdx = plt.subplots(figsize=[8,10],nrows=nrows,ncols=ncols,constrained_layout=True)
 

@@ -11,9 +11,9 @@ import argparse
 datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
-enasas = ['minnorm','diag','ridge','pcr','pls']
-colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
-markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
+enasas = ['minnorm','diag','ridge','pcr','pls','std']
+colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5),'std':cmap(6)}
+markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','std':'^'}
 marker_style=dict(markerfacecolor='none')
 vtlist = [24,48,72,96]
 

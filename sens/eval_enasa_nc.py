@@ -16,14 +16,14 @@ colors = {'asa':cmap(0)}
 markers = {'asa':'*'}
 markerlist = ['*','o','v','s','P','X','d']
 marker_style=dict(markerfacecolor='none')
-nclist = [2,4,8,16,24]
+nclist = [1,2,4,8,16,24]
 i=1
 for nc in nclist:
     colors[f'nc{nc}'] = cmap(i)
     markers[f'nc{nc}'] = markerlist[i]
     i+=1
 colors['all'] = cmap(i)
-markers['all'] = cmap(i)
+markers['all'] = '^'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-vt","--vt",type=int,default=24,\
@@ -46,7 +46,7 @@ lag = argsin.lag
 figdir = Path(f"fig{metric}/vt{vt}ne{nens}/{solver}")
 if lag>0:
     figdir = Path(f"fig{metric}/vt{vt}ne{nens}lag{lag}/{solver}")
-if not figdir.exists(): figdir.mkdir()
+if not figdir.exists(): figdir.mkdir(parents=True)
 
 # load results
 nensbase = 8
@@ -57,18 +57,18 @@ ds_dict = {'asa':ds_asa}
 ds_enasa = {}
 for nc in nclist:
     if nc >= nens*(lag+1):
-        if lag>0:
-            ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}lag{lag}.nc')
-        else:
-            ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
-        ds_enasa[f'all'] = ds
-        ds_dict[f'all'] = ds
+        #if lag>0:
+        #    ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}lag{lag}.nc')
+        #else:
+        #    ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
+        #ds_enasa[f'all'] = ds
+        #ds_dict[f'all'] = ds
         break
     else:
         if lag>0:
-            ds = xr.open_dataset(datadir/f'{solver}{metric}nc{nc}_vt{vt}nens{nens}lag{lag}.nc')
+            ds = xr.open_dataset(datadir/f'{solver}nc{nc}{metric}_vt{vt}nens{nens}lag{lag}.nc')
         else:
-            ds = xr.open_dataset(datadir/f'{solver}{metric}nc{nc}_vt{vt}nens{nens}.nc')
+            ds = xr.open_dataset(datadir/f'{solver}nc{nc}{metric}_vt{vt}nens{nens}.nc')
         ds_enasa[f'nc{nc}'] = ds
         ds_dict[f'nc{nc}'] = ds
 
@@ -82,9 +82,27 @@ for i,key in enumerate(ds_dict.keys()):
     ax.plot(res_nl,res_tl,marker=markers[key],lw=0.0, c=colors[key],#ms=10,\
         **marker_style)
     ax.set_title(key)
+    xmin, xmax = np.percentile(res_nl,[.5,99.5])
+    ymin, ymax = np.percentile(res_tl,[.5,99.5])
+    vmin = min(xmin,ymin)
+    vmax = max(xmax,ymax)
+    print(f"{key} vmin:{vmin} vmax:{vmax}")
+    ax.set_xlim(vmin,vmax)
+    ax.set_ylim(vmin,vmax)
+if len(ds_dict) < axs.size:
+    for i in range(len(ds_dict),axs.size):
+        axs.flatten()[i].remove()
 #ymin, ymax = ax.get_ylim()
-ymin = -1.1
-ymax = 1.1
+if metric=='_en':
+    ymin, ymax = axs[0,0].get_ylim()
+    for ax in axs.flatten()[1:len(ds_dict)]:
+        ymintmp, ymaxtmp = ax.get_ylim()
+        ymin = min(ymin,ymintmp)
+        ymax = max(ymax,ymaxtmp)
+    print(f"ymin:{ymin} ymax:{ymax}")
+else:
+    ymin = -1.1
+    ymax = 1.1
 line = np.linspace(ymin,ymax,100)
 for ax in axs.flatten():
     ax.plot(line,line,color='k',zorder=0)

@@ -11,8 +11,8 @@ datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
 enasas = ['minnorm','diag','ridge','pcr','pls']
-colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
-markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
+colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5),'std':cmap(6)}
+markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','std':'^'}
 marker_style=dict(markerfacecolor='none')
 
 parser = argparse.ArgumentParser()
@@ -35,16 +35,21 @@ nensbase = 8
 ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict = {'asa':ds_asa}
-
+if metric == '':
+    enasas.append('std')
 ds_enasa = {}
 for solver in enasas:
     ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
     ds_enasa[solver] = ds
     ds_dict[solver] = ds
 
+if metric=='':
+    figsize=[12,8]
+else:
+    figsize=[10,8]
 nrows=2
 ncols=int(np.ceil(len(ds_dict.keys())/2))
-fig, axs = plt.subplots(ncols=ncols,nrows=nrows,figsize=[10,8],constrained_layout=True)
+fig, axs = plt.subplots(ncols=ncols,nrows=nrows,figsize=figsize,constrained_layout=True)
 for i,key in enumerate(ds_dict.keys()):
     res_nl = ds_dict[key].res_nl.values
     res_tl = ds_dict[key].res_tl.values
@@ -52,6 +57,9 @@ for i,key in enumerate(ds_dict.keys()):
     ax.plot(res_nl,res_tl,marker=markers[key],lw=0.0, c=colors[key],#ms=10,\
         **marker_style)
     ax.set_title(key)
+if len(ds_dict) < axs.size:
+    for i in range(len(ds_dict),axs.size):
+        axs.flatten()[i].remove()
 if metric=='_en':
     ymin, ymax = axs[0,0].get_ylim()
     for ax in axs.flatten()[1:]:
@@ -72,10 +80,11 @@ axs[-1,1].set_xlabel(r'NLM: $\frac{J(M(\mathbf{x}_0+\delta\mathbf{x}_0^\mathrm{o
 axs[0,0].set_ylabel(r'TLM: $\frac{J(\mathbf{x}_T+\mathbf{M}\delta\mathbf{x}_0^\mathrm{opt})-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$')
 fig.suptitle(r'$\delta J/J$'+f', FT{vt} {nens} member')
 fig.savefig(figdir/f"res_vt{vt}nens{nens}.png",dpi=300)
-#plt.show()
+plt.show()
 
 fig, ax = plt.subplots(figsize=[10,8],constrained_layout=True)
 for i,key in enumerate(ds_enasa.keys()):
+    if key=='std': continue
     marker_style['markerfacecolor']=colors[key]
     marker_style['markeredgecolor']='k'
     x = ds_enasa[key].rmsdJ.values
@@ -95,6 +104,7 @@ plt.close()
 
 fig, ax = plt.subplots(figsize=[8,8],constrained_layout=True)
 for i,key in enumerate(ds_enasa.keys()):
+    if key=='std': continue
     marker_style['markerfacecolor']=colors[key]
     marker_style['markeredgecolor']='k'
     data = ds_enasa[key].corrdJ.values
@@ -152,15 +162,15 @@ axstl[-1,0].set_xlabel('ASA')
 #axs[0].set(title=r'TLM: $\frac{J(\mathbf{x}_T+\mathbf{M}\delta\mathbf{x}_0^\mathrm{opt})-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$',xlabel='ASA',ylabel='EnASA')
 axsnl[-1,0].set_xlabel('ASA')
 #axs[1].set(title=r'NLM: $\frac{J(M(\mathbf{x}_0+\delta\mathbf{x}_0^\mathrm{opt}))-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$',xlabel='ASA',ylabel='EnASA')
-for ax in np.concatenate((axstl.flatten()[:-1],axsnl.flatten()[:-1])):
+for ax in np.concatenate((axstl.flatten(),axsnl.flatten())):
     ax.plot(line,line,color='gray',zorder=0)
     ax.grid()
     ax.set_ylim(ymin,ymax)
     ax.set_xlim(ymin,ymax)
     ax.set_aspect(1.0)
     #ax.legend(loc='lower right',handletextpad=0.) #,bbox_to_anchor=(1.01,1.0))
-axstl[-1,-1].remove()
-axsnl[-1,-1].remove()
+#axstl[-1,-1].remove()
+#axsnl[-1,-1].remove()
 figtl.suptitle(r'TLM: $\frac{J(\mathbf{x}_T+\mathbf{M}\delta\mathbf{x}_0^\mathrm{opt})-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$'+f" FT{vt} {nens} member")
 fignl.suptitle(r'NLM: $\frac{J(M(\mathbf{x}_0+\delta\mathbf{x}_0^\mathrm{opt}))-J(\mathbf{x}_T)}{J(\mathbf{x}_T)}$'+f" FT{vt} {nens} member")
 figtl.savefig(figdir/f"restl_vs_asa_vt{vt}nens{nens}.png",dpi=300)

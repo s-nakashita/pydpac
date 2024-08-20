@@ -11,9 +11,9 @@ datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
 enasas = ['minnorm','diag','ridge','pcr','pls']
-colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
-markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
-ms = {'asa':8,'minnorm':5,'diag':5,'pcr':5,'ridge':5,'pls':5}
+colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5),'std':cmap(6)}
+markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','std':'^'}
+ms = {'asa':8,'minnorm':5,'diag':5,'pcr':5,'ridge':5,'pls':5,'std':5}
 dJlim = {24:0.2,48:1.0,72:2.0,96:3.6}
 dxlim = {24:0.02,48:0.02,72:0.02,96:0.02}
 
@@ -39,14 +39,20 @@ ds_dict = {}
 ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict['asa'] = ds_asa
+if metric == '':
+    enasas.append('std')
 for solver in enasas:
-    ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
-    ds_dict[solver] = ds
+    try:
+        ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
+        ds_dict[solver] = ds
+    except FileNotFoundError:
+        continue
 
-ncols = 2
+ncols = 3 #2
 nrows = 3
-figdJ, axsdJ = plt.subplots(figsize=[8,10],nrows=nrows,ncols=ncols,constrained_layout=True)
-figdx, axsdx = plt.subplots(figsize=[8,10],nrows=nrows,ncols=ncols,constrained_layout=True)
+figsize=[10,8] #[8,10]
+figdJ, axsdJ = plt.subplots(figsize=figsize,nrows=nrows,ncols=ncols,constrained_layout=True)
+figdx, axsdx = plt.subplots(figsize=figsize,nrows=nrows,ncols=ncols,constrained_layout=True)
 
 for axdJ, axdx, solver in zip(axsdJ.flatten(),axsdx.flatten(),ds_dict.keys()):
     marker_style = dict(markerfacecolor=colors[solver],markeredgecolor='k',ms=ms[solver])
@@ -60,9 +66,9 @@ for axdJ, axdx, solver in zip(axsdJ.flatten(),axsdx.flatten(),ds_dict.keys()):
     
     ics = ds.ic.values
     dJdx0 = ds.dJdx0.values
-    dx0opt = ds.dx0opt.values
     print(dJdx0.shape)
     dJdx0mean = np.zeros(dJdx0.shape[1])
+    dx0opt = ds.dx0opt.values
     dx0optmean = np.zeros(dx0opt.shape[1])
     #dJdx0std = np.zeros(dJdx0.shape[1])
     #dx0optstd = np.zeros(dx0opt.shape[1])
@@ -126,9 +132,15 @@ for axs in [axsdJ,axsdx]:
         #else:
         #    ax.set_ylim(ymin,ymax)
         ax.grid()
+if len(ds_dict) < axsdJ.size:
+    for i in range(len(ds_dict),axsdJ.size):
+        axsdJ.flatten()[i].remove()
+if len(ds_dict) < axsdx.size:
+    for i in range(len(ds_dict),axsdx.size):
+        axsdx.flatten()[i].remove()
 
 figdJ.suptitle(r'$\frac{\partial J}{\partial \mathbf{x}_0}$'+f" FT{vt} {nens} member")
 figdx.suptitle(r'$\delta\mathbf{x}_0^\mathrm{opt}$'+f" FT{vt} {nens} member")
 figdJ.savefig(figdir/f"composite_dJdx0{metric}_vt{vt}nens{nens}.png",dpi=300)
 figdx.savefig(figdir/f"composite_dx0opt{metric}_vt{vt}nens{nens}.png",dpi=300)
-#plt.show()
+plt.show()

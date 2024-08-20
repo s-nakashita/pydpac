@@ -153,3 +153,13 @@ class EnASA():
         #self.pls = PLSCanonical(n_components=1).fit(self.X,self.Je)
         dJedx0_s = self.pls.coef_[0,:]
         return dJedx0_s
+
+    def calc_dxeopt(self):
+        # optimal initial perturbations for maximizing \Delta J 
+        # (Duc et al. 2023; Enomoto et al. 2015)
+        # \lambda = -1 / stdJ for EYO15
+        # \rho = \|cor(X0,Je)\|_{C^{-1}} for DHK23
+        stdJ = np.std(self.Je)
+        cov = np.dot(self.X0,self.Je)/(self.nens-1)
+        return -cov / stdJ
+
