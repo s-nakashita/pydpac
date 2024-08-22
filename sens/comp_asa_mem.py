@@ -11,7 +11,7 @@ import argparse
 datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
-enasas = ['minnorm','diag','ridge','pcr','pls','std']
+enasas = ['minnorm','diag','ridge','pcr','pls']#,'std']
 colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5),'std':cmap(6)}
 markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','std':'^'}
 marker_style=dict(markerfacecolor='none')
@@ -71,10 +71,10 @@ for j,nens in enumerate(nelist):
         nupper = np.sum(data1>ylims[1])
         if nlower>0:
             ax0.text(pos0,0.05,f'{nlower}',transform=ax0.get_xaxis_transform(),\
-                ha='center',size='small',weight='bold',color=colors[key])
+                ha='left',size='small',weight='bold',color=colors[key])
         if nupper>0:
             ax0.text(pos0,0.95,f'{nupper}',transform=ax0.get_xaxis_transform(),\
-                ha='center',size='small',weight='bold',color=colors[key])
+                ha='left',size='small',weight='bold',color=colors[key])
         #ym = data1.mean()
         #p,=axs[0].plot([pos0],[ym],lw=0.0,marker=markers[key],ms=10,c=colors[key],**marker_style)
         bplot2 = ax1.boxplot(data2,positions=[pos0],widths=bwidth,\
@@ -86,10 +86,10 @@ for j,nens in enumerate(nelist):
         nupper = np.sum(data2>ylims[1])
         if nlower>0:
             ax1.text(pos0,0.05,f'{nlower}',transform=ax1.get_xaxis_transform(),\
-                ha='center',size='small',weight='bold',color=colors[key])
+                ha='left',size='small',weight='bold',color=colors[key])
         if nupper>0:
             ax1.text(pos0,0.95,f'{nupper}',transform=ax1.get_xaxis_transform(),\
-                ha='center',size='small',weight='bold',color=colors[key])
+                ha='left',size='small',weight='bold',color=colors[key])
         #ym = data2.mean()
         #p,=axs[1].plot([pos0],[ym],lw=0.0,marker=markers[key],ms=10,c=colors[key],**marker_style)
         pos0 = pos0 + bwidth
@@ -107,12 +107,14 @@ for j,nens in enumerate(nelist):
         for patch in bplot1['boxes']:
             patch.set_facecolor(colors[key])
             #patch.set_alpha(0.3)
+        nlower = np.sum(data1<ylims[0])
+        nupper = np.sum(data1>ylims[1])
         if nlower>0:
             ax0.text(pos0,0.05,f'{nlower}',transform=ax0.get_xaxis_transform(),\
-                ha='center',size='small',weight='bold',color=colors[key])
+                ha='left',size='small',weight='bold',color=colors[key])
         if nupper>0:
             ax0.text(pos0,0.95,f'{nupper}',transform=ax0.get_xaxis_transform(),\
-                ha='center',size='small',weight='bold',color=colors[key])
+                ha='left',size='small',weight='bold',color=colors[key])
         #ym = data1.mean()
         #p,=axs[0].plot([pos0],[ym],lw=0.0,marker=markers[key],ms=10,c=colors[key],**marker_style)
         bplot2 = ax1.boxplot(data2,positions=[pos0],widths=bwidth,\
@@ -124,10 +126,10 @@ for j,nens in enumerate(nelist):
         nupper = np.sum(data2>ylims[1])
         if nlower>0:
             ax1.text(pos0,0.05,f'{nlower}',transform=ax1.get_xaxis_transform(),\
-                ha='center',size='small',weight='bold',color=colors[key])
+                ha='left',size='small',weight='bold',color=colors[key])
         if nupper>0:
             ax1.text(pos0,0.95,f'{nupper}',transform=ax1.get_xaxis_transform(),\
-                ha='center',size='small',weight='bold',color=colors[key])
+                ha='left',size='small',weight='bold',color=colors[key])
         #ym = data2.mean()
         #p,=axs[1].plot([pos0],[ym],lw=0.0,marker=markers[key],ms=10,c=colors[key],**marker_style)
         pos0 = pos0 + bwidth

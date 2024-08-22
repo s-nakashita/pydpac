@@ -35,18 +35,18 @@ nensbase = 8
 ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict = {'asa':ds_asa}
-if metric == '':
-    enasas.append('std')
+#if metric == '':
+#    enasas.append('std')
 ds_enasa = {}
 for solver in enasas:
     ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
     ds_enasa[solver] = ds
     ds_dict[solver] = ds
 
-if metric=='':
-    figsize=[12,8]
-else:
-    figsize=[10,8]
+#if metric=='':
+#    figsize=[12,8]
+#else:
+figsize=[10,8]
 nrows=2
 ncols=int(np.ceil(len(ds_dict.keys())/2))
 fig, axs = plt.subplots(ncols=ncols,nrows=nrows,figsize=figsize,constrained_layout=True)

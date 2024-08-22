@@ -39,8 +39,8 @@ ds_dict = {}
 ds_asa = xr.open_dataset(datadir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict['asa'] = ds_asa
-if metric == '':
-    enasas.append('std')
+#if metric == '':
+#    enasas.append('std')
 for solver in enasas:
     try:
         ds = xr.open_dataset(datadir/f'{solver}{metric}_vt{vt}nens{nens}.nc')
@@ -48,9 +48,9 @@ for solver in enasas:
     except FileNotFoundError:
         continue
 
-ncols = 3 #2
+ncols = 2
 nrows = 3
-figsize=[10,8] #[8,10]
+figsize=[8,10]
 figdJ, axsdJ = plt.subplots(figsize=figsize,nrows=nrows,ncols=ncols,constrained_layout=True)
 figdx, axsdx = plt.subplots(figsize=figsize,nrows=nrows,ncols=ncols,constrained_layout=True)
 

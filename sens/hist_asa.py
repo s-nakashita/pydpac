@@ -11,12 +11,12 @@ import argparse
 datadir = Path('data')
 
 cmap = plt.get_cmap('tab10')
-enasas = ['minnorm','diag','ridge','pcr','pls']
-colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5)}
-markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X'}
+enasas = ['minnorm','diag','ridge','pcr','pls'] #,'std']
+colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5),'std':cmap(6)}
+markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','std':'^'}
 marker_style=dict(markerfacecolor='none')
 vtlist = [24,48,72,96]
-nelist = [8, 16,24,32,40]
+nelist = [8,16,24,32,40]
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m","--metric",type=str,default="",\
@@ -35,6 +35,8 @@ if metric=='':
     failure = dict()
     success['asa'] = []
     failure['asa'] = []
+    rsuccess = -0.75
+    rfailure = 0.0
 for key in enasas:
     kld[key] = dict()
     kld_gauss[key] = dict()
@@ -52,8 +54,8 @@ for i,vt in enumerate(vtlist):
     print(ds_asa)
     if metric=='':
         f = open(figdir/f'nsucess_failure_vt{vt}.txt',mode='w')
-        nsuccess = np.sum(ds_asa.res_nl.values<=-0.5)
-        nfailure = np.sum(ds_asa.res_nl.values>0.0)
+        nsuccess = np.sum(ds_asa.res_nl.values<=rsuccess)
+        nfailure = np.sum(ds_asa.res_nl.values>rfailure)
         f.write(f"asa: #success={nsuccess} #failure={nfailure}\n")
         success['asa'].append(nsuccess / ds_asa.res_nl.size)
         failure['asa'].append(nfailure / ds_asa.res_nl.size)
@@ -90,11 +92,12 @@ for i,vt in enumerate(vtlist):
             print(f"KLD_gauss(asa||{key})={kld_g}")
             kld_gauss[key][ne].append(kld_g)
             if metric=='':
-                nsuccess = np.sum(r<=-0.5)
-                nfailure = np.sum(r>0.0)
+                nsuccess = np.sum(r<=rsuccess)
+                nfailure = np.sum(r>rfailure)
                 f.write(f"{key} ne{ne}: #success={nsuccess} #failure={nfailure}\n")
                 success[key][ne].append(nsuccess/r.size)
                 failure[key][ne].append(nfailure/r.size)
+            if key=='std': continue
             c = ds.corrdJ.values
             cmean = c.mean()
             cstd = c.std()
@@ -140,7 +143,7 @@ for i,vt in enumerate(vtlist):
     #exit()
 
     if metric=='':
-        fig, (ax1,ax2) = plt.subplots(ncols=2,sharey=True,figsize=[10,6],constrained_layout=True)
+        fig, (ax1,ax2) = plt.subplots(ncols=2,figsize=[10,6],constrained_layout=True)#,sharey=True
         #ax2 = ax1.twinx()
         ax1.hlines([success['asa'][i]],0,1,colors=colors['asa'],\
             ls='solid',transform=ax1.get_yaxis_transform(),label='asa')
@@ -150,14 +153,14 @@ for i,vt in enumerate(vtlist):
             slist = []
             flist = []
             for ne in nelist:
-                slist.append(success[key][ne][i])
-                flist.append(failure[key][ne][i])
+                slist.append(success[key][ne][i]*100)
+                flist.append(failure[key][ne][i]*100)
             ax1.plot(nelist,slist,c=colors[key],marker=markers[key],label=key)
             ax2.plot(nelist,flist,c=colors[key],marker=markers[key],label=key)#,\
                 #markerfacecolor='none',markeredgecolor=colors[key],ls='dashed')
         ax2.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
-        ax1.set_title('success ratio')
-        ax2.set_title('failure ratio')
+        ax1.set_title('success ratio (%)')
+        ax2.set_title('failure ratio (%)')
         for ax in [ax1,ax2]:
             ax.set_xticks(nelist)
             ax.set_xticklabels([f'mem{ne}' for ne in nelist],fontsize=14)
@@ -183,18 +186,18 @@ for ne in nelist:
     plt.close(fig=fig)
 
     if metric=='':
-        fig, (ax1,ax2) = plt.subplots(ncols=2,sharey=True,figsize=[10,6],constrained_layout=True)
+        fig, (ax1,ax2) = plt.subplots(ncols=2,figsize=[10,6],constrained_layout=True)#,sharey=True
         #ax2 = ax1.twinx()
         for key in success.keys():
             if key=='asa':
-                ax1.plot(vtlist,success[key],c=colors[key],marker=markers[key],label=key)
-                ax2.plot(vtlist,failure[key],c=colors[key],marker=markers[key],label=key)
+                ax1.plot(vtlist,np.array(success[key])*100,c=colors[key],marker=markers[key],label=key)
+                ax2.plot(vtlist,np.array(failure[key])*100,c=colors[key],marker=markers[key],label=key)
             else:
-                ax1.plot(vtlist,success[key][ne],c=colors[key],marker=markers[key],label=key)
-                ax2.plot(vtlist,failure[key][ne],c=colors[key],marker=markers[key],label=key)
+                ax1.plot(vtlist,np.array(success[key][ne])*100,c=colors[key],marker=markers[key],label=key)
+                ax2.plot(vtlist,np.array(failure[key][ne])*100,c=colors[key],marker=markers[key],label=key)
         ax2.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
-        ax1.set_title('success ratio')
-        ax2.set_title('failure ratio')
+        ax1.set_title('success ratio (%)')
+        ax2.set_title('failure ratio (%)')
         for ax in [ax1,ax2]:
             ax.set_xticks(vtlist)
             ax.set_xticklabels([f'FT{vt}' for vt in vtlist],fontsize=14)
