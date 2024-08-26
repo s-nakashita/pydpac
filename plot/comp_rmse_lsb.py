@@ -177,7 +177,7 @@ for key in keys:
     #ax12.plot(t_resample[2*nt2:],e_resample[2*nt2:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     #errors[key] = e_resample #e[ns:]
 for ax1 in [ax,ax00,ax01,ax02]: #,ax10,ax11,ax12]:
-    ax1.hlines([1.0],0,1,colors='gray',ls='dotted',transform=ax1.get_yaxis_transform())
+    ax1.hlines([1.0],0,1,colors='k',ls='dotted',lw=2.5,transform=ax1.get_yaxis_transform())
 for ax1 in [ax,ax00,ax01,ax02]: #,ax10,ax11,ax12]:
     ax1.set_ylim(0.0,2.0)
     ax1.set_ylabel('RMSE') #,title=op)
