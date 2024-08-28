@@ -103,6 +103,7 @@ if not figpdfdir.exists():
 ptlong = {"envar":"EnVar","var":"3DVar"}
 labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BLSB+DA", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
+captions = {"envar":"(b)","var":"(a)"}
 
 fig, ax = plt.subplots(figsize=[12,6],constrained_layout=True)
 figs, sax = plt.subplots(figsize=[12,6],constrained_layout=True)
@@ -207,6 +208,8 @@ for sax0 in [sax00,sax01,sax02]:
 sax02.set_xlabel('days')
 sax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=ptlong[pt]+' time average \nof STD/RMSE')
+if obsloc == '':
+    fig.suptitle(captions[pt],ha='left',x=0.05,fontsize=24)
 if anl:
     fig.savefig(figpngdir/'{}_e_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     fig0.savefig(figpngdir/'{}_e3_lam_{}_{}.png'.format(model,op,pt),dpi=300)

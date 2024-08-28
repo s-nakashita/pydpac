@@ -134,7 +134,9 @@ params_gm["saveGM"]     = False # preparing precomputed GM forecasts for LBC of 
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
-params_lam["blending"]  = False # large-scale background blending (Milan et al. 2023)
+params_lam["blending"]  = False # independent large-scale blending
+params_lam["blsb"]      = True # background blending (Milan et al. 2023)
+params_lam["alsb"]      = False # analysis blending (Yang 2005)
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  0.6 # (For var & 4dvar) background error standard deviation
 params_lam["sigv"]      =  0.4 # (For var_nest) GM background error standard deviation in LAM space
@@ -506,6 +508,9 @@ if params_lam["blending"]:
     # truncation operator using DCT
     trunc_kwargs.update({'resample':False})
     trunc_operator = Trunc1d(step.ix_lam,**trunc_kwargs)
+else:
+    params_lam["blsb"] = False
+    params_lam["alsb"] = False
 
 # functions load
 func = L05nest_func(step,obs,params_gm,params_lam,model=model)
@@ -665,7 +670,7 @@ if __name__ == "__main__":
             dof_gm[i:min(i+a_window,na)] = ds
             innov_gm[i:min(i+a_window,na),:innv.size] = innv
         if i >= params_lam["lamstart"]:
-            if params_lam["blending"]:
+            if params_lam["blending"] and params_lam["blsb"]:
                 logger.info("large-scale background blending")
                 udf = trunc_operator(H_gm2lam@u_gm - u_lam)
                 u_lam = u_lam + udf
@@ -692,6 +697,10 @@ if __name__ == "__main__":
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
                 u_lam[nsp:-nsp] = u_tmp[:,...]
                 #pa_lam[nsp:-nsp,nsp:-nsp] = pa_tmp[:,:]
+            if params_lam["blending"] and params_lam["alsb"]:
+                logger.info("large-scale analysis blending")
+                udf = trunc_operator(H_gm2lam@ua_gm - u_lam)
+                u_lam = u_lam + udf
             if ft=="ensemble":
                 pa_lam = analysis_lam.calc_pf(u_lam)
             #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"

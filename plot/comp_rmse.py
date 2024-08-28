@@ -18,11 +18,13 @@ datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 ldscl=True
-#obsloc = ''
+obsloc = ''
+if len(sys.argv)>5:
+    obsloc = sys.argv[5]
 #obsloc = '_partiall'
 #obsloc = '_partialc'
 #obsloc = '_partialr'
-obsloc = '_partialm'
+#obsloc = '_partialm'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 #if ldscl:
@@ -58,8 +60,8 @@ if ldscl:
         print("dscl, forecast RMSE = {}".format(np.mean(e_dscl[ns:])))
         f = dscldir / f"stdf_lam_{op}_{preGMpt}.txt"
     stda_dscl = np.loadtxt(f)
-    ax0.plot(t,e_dscl,c='k',label=f'downscaling={np.mean(e_dscl[ns:]):.3f}')
-    ax1.plot(t,stda_dscl,c='k',label=f'downscaling={np.mean(stda_dscl[ns:]):.3f}')
+    ax0.plot(t,e_dscl,c='k',label=f'No LAM DA={np.mean(e_dscl[ns:]):.3f}')
+    ax1.plot(t,stda_dscl,c='k',label=f'No LAM DA={np.mean(stda_dscl[ns:]):.3f}')
     errors['dscl'] = e_dscl[ns:]
 for pt in perts:
     if anl:
@@ -102,7 +104,7 @@ else:
     fig1.savefig(figdir/'{}_stdf_lam_{}.pdf'.format(model,op))
 plt.show()
 plt.close()
-
+exit()
 # t-test
 import matplotlib as mpl
 from scipy import stats

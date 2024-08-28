@@ -25,11 +25,13 @@ datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
 ldscl=True
-#obsloc = ''
+obsloc = ''
+if len(sys.argv)>5:
+    obsloc = sys.argv[5]
 #obsloc = '_partiall'
 #obsloc = '_partialc'
 #obsloc = '_partialr'
-obsloc = '_partialm'
+#obsloc = '_partialm'
 dscldir = datadir / 'var_vs_envar_dscl_m80obs30'
 lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 #if ldscl:
@@ -74,7 +76,7 @@ print(xt.shape)
 nx_t = xt.shape[1]
 xt2x = interp1d(ix_t,xt)
 wnum_t, psd_bg = nmc_t.psd(xt,axis=1)
-axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
+#axsp.loglog(wnum_t,psd_bg,c='b',lw=1.0,label='Nature bg')
 
 # GM
 if anl:
@@ -103,9 +105,9 @@ if ldscl:
     xadscl = np.load(f)
     xddscl = xadscl[ns:na,:] - xt2x(ix_lam)
     ax.plot(ix_lam, np.sqrt(np.mean(xddscl**2,axis=0)),\
-        c='k',lw=2.0,label='downscaling')
+        c='k',lw=2.0,label='No LAM DA')
     wnum, psd_dscl = nmc_lam.psd(xddscl,axis=1,average=False)
-    axsp.loglog(wnum,psd_dscl.mean(axis=0),c='k',lw=2.0,label='Downscaling')
+    axsp.loglog(wnum,psd_dscl.mean(axis=0),c='k',lw=2.0,label='No LAM DA')
     psd_dict["dscl"] = psd_dscl
     #f = dscldir/"xsalam_{}_{}.npy".format(op,preGMpt)
     #xsadscl = np.load(f)
@@ -173,7 +175,7 @@ else:
     figsp.savefig(figdir/f"{model}_errspectra_f_{op}.pdf")
 plt.show()
 plt.close()
-
+exit()
 # t-test
 from scipy import stats
 ##LAM

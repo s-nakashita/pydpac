@@ -58,6 +58,7 @@ if not figpdfdir.exists():
 ptlong = {"envar":"EnVar","var":"3DVar"}
 labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BLSB+DA", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
+captions = {"envar":"(b)","var":"(a)"}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
 ix_gm = np.loadtxt(dscldir/"ix_gm.txt")
@@ -172,7 +173,11 @@ ymin, ymax = ax.get_ylim()
 #if ymax > 1.0:
 ymax = 0.8
 ax.set_ylim(ymin,ymax)
-fig.suptitle(ptlong[pt])
+if obsloc == '':
+    fig.suptitle(captions[pt]+' '+ptlong[pt],ha='left',x=0.05,fontsize=24)
+elif pt=='envar':
+    fig.suptitle('(a) '+ptlong[pt],ha='left',x=0.05,fontsize=24)
+
 if anl:
     fig.savefig(figpngdir/f"{model}_xd_{op}_{pt}.png",dpi=300)
     fig.savefig(figpdfdir/f"{model}_xd_{op}_{pt}.pdf")
@@ -193,7 +198,10 @@ secax = axsp.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
 secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
 secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
 secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-figsp.suptitle(ptlong[pt])
+if obsloc == '':
+    figsp.suptitle(captions[pt]+' '+ptlong[pt],ha='left',x=0.05,fontsize=24)
+elif pt=='envar':
+    figsp.suptitle('(b) '+ptlong[pt],ha='left',x=0.05,fontsize=24)
 if anl:
     figsp.savefig(figpngdir/f"{model}_errspectra_{op}_{pt}.png",dpi=300)
     figsp.savefig(figpdfdir/f"{model}_errspectra_{op}_{pt}.pdf")

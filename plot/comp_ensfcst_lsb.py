@@ -47,8 +47,10 @@ preGMpt = "envar"
 lsbdir  = wdir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
 lamdir  = wdir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 
-figpngdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpng')
-figpdfdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpdf')
+#figpngdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpng')
+#figpdfdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpdf')
+figpngdir = Path(os.environ['HOME']+'/Writing/dissertation/nested_envar/fig')
+figpdfdir = Path(os.environ['HOME']+'/Writing/dissertation/nested_envar/fig')
 if obsloc == '':
     figpngdir = figpngdir / 'uniform'
     figpdfdir = figpdfdir / 'uniform'
@@ -322,6 +324,7 @@ if preGM:
 axl.legend(loc='upper left')
 axsb[1].legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
 
+fig.suptitle('(c)',ha='left',x=0.05,fontsize=24)
 fig.savefig(figpngdir/f"{model}_e_ensfcst48_{op}_{pt}.png",dpi=300)
 fig.savefig(figpdfdir/f"{model}_e_ensfcst48_{op}_{pt}.pdf")
 figb.savefig(figpngdir/f"{model}_e_ensfcst48_box_{op}_{pt}.png",dpi=300)
@@ -329,7 +332,7 @@ figb.savefig(figpdfdir/f"{model}_e_ensfcst48_box_{op}_{pt}.pdf")
 #fig.savefig(figdir/f"{model}_efcst_{op}.pdf")
 plt.show()
 plt.close()
-#exit()
+exit()
 
 fig, axs = plt.subplots(ncols=2,nrows=2,figsize=[10,10],sharey=True,constrained_layout=True)
 xtick00labels = []

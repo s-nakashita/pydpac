@@ -46,6 +46,7 @@ figdir = lsbdir
 ptlong = {"envar":"EnVar","var":"3DVar"}
 labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"DA+LSB", "nest":"Nested DA"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
+captions = {"envar":"(b)","var":"(a)"}
 
 tc = np.arange(na)+1 # cycles
 t = tc / 4. # days

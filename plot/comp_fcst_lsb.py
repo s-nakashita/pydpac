@@ -64,6 +64,7 @@ if not figpdfdir.exists():
 ptlong = {"envar":"EnVar","var":"3DVar"}
 labels = {"conv":"DA", "lsb":"BLSB+DA", "nest":"Nested DA", "dscl":"Dscl"}
 linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green',"dscl":'k'}
+captions = {"envar":"(b)","var":"(a)"}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
 ix_gm = np.loadtxt(dscldir/"ix_gm.txt")
@@ -254,6 +255,7 @@ if preGM:
 axl.legend(loc='upper left')
 axb.legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
 
+fig.suptitle(captions[pt],ha='left',x=0.05,fontsize=24)
 fig.savefig(figpngdir/f"{model}_efcst48_{op}_{pt}.png",dpi=300)
 fig.savefig(figpdfdir/f"{model}_efcst48_{op}_{pt}.pdf")
 figb.savefig(figpngdir/f"{model}_efcst48_box_{op}_{pt}.png",dpi=300)
