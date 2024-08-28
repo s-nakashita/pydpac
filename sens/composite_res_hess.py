@@ -121,24 +121,25 @@ for key in ds_dict.keys():
     if key=='std': continue
     figdir1 = figdir/key
     if not figdir1.exists(): figdir1.mkdir()
-    marker_style.update(markerfacecolor=colors[key],markeredgecolor='k')
     fig = plt.figure(figsize=[6,6.5],constrained_layout=True)
     gs = GridSpec(4,4,figure=fig)
     ax = fig.add_subplot(gs[1:4,1:4])
     ax_histx = fig.add_subplot(gs[0,1:4],sharex=ax)
     ax_histy = fig.add_subplot(gs[1:4,0],sharey=ax)
+    marker_style.update(markerfacecolor=colors[key],markeredgecolor='k',markeredgewidth=0.5)
     ax.plot(ds.resestp,ds.rescalcp,lw=0.0,marker='$+$',c=colors[key],**marker_style)
+    marker_style.update(markerfacecolor=colors[key],markeredgecolor='gray',markeredgewidth=0.3)
     ax.plot(ds.resestm,ds.rescalcm,lw=0.0,marker='$-$',c=colors[key],**marker_style)
     #if metric=='':
     #    ylim = 5.0
     #else:
-    xmin1,xmax1 = np.percentile(ds.resestm,[.5,99.5])
-    xmin2,xmax2 = np.percentile(ds.resestp,[.5,99.5])
+    xmin1,xmax1 = np.percentile(ds.resestm,[10.,90.])
+    xmin2,xmax2 = np.percentile(ds.resestp,[10.,90.])
     xmin = min(xmin1,xmin2)
     xmax = max(xmax1,xmax2)
     #xmin, xmax = ax.get_xlim()
-    ymin1,ymax1 = np.percentile(ds.rescalcm,[.5,99.5])
-    ymin2,ymax2 = np.percentile(ds.rescalcp,[.5,99.5])
+    ymin1,ymax1 = np.percentile(ds.rescalcm,[10.,90.])
+    ymin2,ymax2 = np.percentile(ds.rescalcp,[10.,90.])
     ymin = min(ymin1,ymin2)
     ymax = max(ymax1,ymax2)
     #ymin, ymax = ax.get_ylim()
