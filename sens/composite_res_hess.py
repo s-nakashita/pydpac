@@ -32,11 +32,14 @@ parser.add_argument("-ne","--nens",type=int,default=8,\
     help="ensemble size")
 parser.add_argument("-m","--metric",type=str,default="",\
     help="forecast metric type")
+parser.add_argument("-e","--ens",action='store_true',\
+    help="ensemble estimated A")
 argsin = parser.parse_args()
 vt = argsin.vt # hours
 ioffset = vt // 6
 nens = argsin.nens
 metric = argsin.metric
+lens = argsin.ens
 nensbase = 8
 
 figdir = Path(f"fig{metric}/res_hess")
@@ -44,14 +47,20 @@ if not figdir.exists(): figdir.mkdir()
 
 # load results
 ds_dict = {}
-ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nens}.nc')
+if lens:
+    ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nens}.nc')
+else:
+    ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nensbase}.nc')
 print(ds_asa)
 ds_dict['asa'] = ds_asa
 for solver in enasas:
-    ds = xr.open_dataset(datadir/f'res_hess_{solver}{metric}_vt{vt}nens{nens}.nc')
+    if lens:
+        ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
+    else:
+        ds = xr.open_dataset(datadir/f'res_hess_{solver}{metric}_vt{vt}nens{nens}.nc')
     ds_dict[solver] = ds
 ds = xr.open_dataset(datadir/f'std{metric}_vt{vt}nens{nens}.nc')
-ds_dict['std'] = ds
+#ds_dict['std'] = ds
 ics = ds.ic.values
 ## x0i
 #ncols = 3
@@ -98,10 +107,15 @@ ax.fill_between(x[i0:i1],0,1,\
     color='gray',alpha=0.5,transform=ax.get_xaxis_transform(),zorder=0)
 ax.legend(ncol=2)
 ax.grid()
-figdx.suptitle(r'$\Delta \mathbf{x}_{0}^{*}$'+f' FT{vt} {nens} member')
-figdx.savefig(figdir/f'x0i_vt{vt}nens{nens}.png')
+if lens:
+    figdx.suptitle(r'$\Delta \mathbf{x}_{0}^{*}$ with $\mathbf{A}_\mathrm{ens}$'+f' FT{vt} {nens} member')
+    figdx.savefig(figdir/f'x0i_Aens_vt{vt}nens{nens}.png')
+else:
+    figdx.suptitle(r'$\Delta \mathbf{x}_{0}^{*}$'+f' FT{vt} {nens} member')
+    figdx.savefig(figdir/f'x0i_vt{vt}nens{nens}.png')
 #plt.show()
 plt.close()
+#exit()
 
 figh, axh = plt.subplots(figsize=[8,6],constrained_layout=True)
 for key in ds_dict.keys():
@@ -113,10 +127,10 @@ for key in ds_dict.keys():
     rmean = r.mean()
     rstd = r.std()
     label=key#+'\n'+r'$\mu$='+f'{rmean:.2f}, '+r'$\sigma$='+f'{rstd:.2f}'
-    if metric=='':
-        bins = np.linspace(-1.0,1.0,51)
-    else:
-        bins = 50
+    #if metric=='':
+    #    bins = np.linspace(-1.0,1.0,51)
+    #else:
+    bins = 50
     axh.hist(r,bins=bins,histtype='step',lw=2.0,density=True,color=colors[key],label=label)
     if key=='std': continue
     figdir1 = figdir/key
@@ -133,13 +147,13 @@ for key in ds_dict.keys():
     #if metric=='':
     #    ylim = 5.0
     #else:
-    xmin1,xmax1 = np.percentile(ds.resestm,[10.,90.])
-    xmin2,xmax2 = np.percentile(ds.resestp,[10.,90.])
+    xmin1,xmax1 = np.percentile(ds.resestm,[1.,99.])
+    xmin2,xmax2 = np.percentile(ds.resestp,[1.,99.])
     xmin = min(xmin1,xmin2)
     xmax = max(xmax1,xmax2)
     #xmin, xmax = ax.get_xlim()
-    ymin1,ymax1 = np.percentile(ds.rescalcm,[10.,90.])
-    ymin2,ymax2 = np.percentile(ds.rescalcp,[10.,90.])
+    ymin1,ymax1 = np.percentile(ds.rescalcm,[1.,99.])
+    ymin2,ymax2 = np.percentile(ds.rescalcp,[1.,99.])
     ymin = min(ymin1,ymin2)
     ymax = max(ymax1,ymax2)
     #ymin, ymax = ax.get_ylim()
@@ -166,13 +180,25 @@ for key in ds_dict.keys():
     ax_histy.hist(ds.rescalcm,bins=bins,density=True,color=colors[key],orientation='horizontal')
     ax_histx.set_title('predicted',fontsize=14)
     ax_histy.set_ylabel('measured')
-    fig.suptitle(r'$\Delta J(\Delta x_{0}^{*})/J$'+f' {key} vt={vt}h, Nens={nens}')
-    fig.savefig(figdir1/f'res_calc_vs_est_{key}_vt{vt}ne{nens}.png')
+    if lens:
+        fig.suptitle(r'$\Delta J(\Delta x_{0}^{*})$ with $\mathbf{A}_\mathrm{ens}$'+f' {key} vt={vt}h, Nens={nens}')
+        fig.savefig(figdir1/f'res_hessens_calc_vs_est_{key}_vt{vt}ne{nens}.png')
+    else:
+        if key=='asa':
+            fig.suptitle(r'$\Delta J(\Delta x_{0}^{*})$'+f' {key} vt={vt}h')
+            fig.savefig(figdir1/f'res_calc_vs_est_{key}_vt{vt}ne{nensbase}.png')
+        else:
+            fig.suptitle(r'$\Delta J(\Delta x_{0}^{*})$'+f' {key} vt={vt}h, Nens={nens}')
+            fig.savefig(figdir1/f'res_calc_vs_est_{key}_vt{vt}ne{nens}.png')
     #plt.show()
     plt.close(fig=fig)
-axh.set_xlabel(r'nonlinear forecast response $\Delta J(\Delta x_{0}^{*})/J$')
+axh.set_xlabel(r'nonlinear forecast response $\Delta J(\Delta x_{0}^{*})$')
 axh.legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
-figh.suptitle(f'FT{vt}, {nens} member')
-figh.savefig(figdir/f'hist_rescalcm_vt{vt}ne{nens}.png',dpi=300)
+if lens:
+    figh.suptitle(f'FT{vt}, {nens} member with '+r'$\mathbf{A}_\mathrm{ens}$')
+    figh.savefig(figdir/f'hist_hessens_rescalcm_vt{vt}ne{nens}.png',dpi=300)
+else:
+    figh.suptitle(f'FT{vt}, {nens} member')
+    figh.savefig(figdir/f'hist_rescalcm_vt{vt}ne{nens}.png',dpi=300)
 #plt.show()
 plt.close()

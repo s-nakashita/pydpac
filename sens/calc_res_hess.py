@@ -27,12 +27,15 @@ parser.add_argument("-nc","--n_components",type=int,\
     help="(minnorm,pcr,pls) number of components to keep")
 parser.add_argument("-m","--metric",type=str,default="",\
     help="forecast metric type")
+parser.add_argument("-e","--ens",action='store_true',\
+    help="ensemble estimated A")
 argsin = parser.parse_args()
 vt = argsin.vt # hours
 ioffset = vt // 6
 nens = argsin.nens
 n_components = argsin.n_components
 metric = argsin.metric
+lens = argsin.ens
 
 recomp_asa = False
 nensbase = 8
@@ -105,6 +108,7 @@ marker_style=dict(markerfacecolor='none')
 
 cycles = []
 A_list = []
+Jb_list = []
 ics = ds_asa.ic.values
 ic_list = ics.tolist()
 ncycle = 1000
@@ -119,6 +123,7 @@ for i in range(ncycle):
     hwidth = 1 # half-width of verification region
     args = (xa,ic,hwidth)
     Jb = cost(xf,*args)
+    Jb_list.append(Jb)
 
     # ASA
     asa = ASA(vt,cost,jac,model.step_adj,*args)
@@ -127,15 +132,23 @@ for i in range(ncycle):
     xe0 = xf00[icyc]
     xb0 = xe0.mean(axis=1)
     X0 = xe0 - xe0.mean(axis=1)[:,None]
-    A = X0 @ X0.T / (nens-1)
-    A_list.append(A)
+    if lens:
+        A = X0 @ X0.T / (nens-1)
+        A_list.append(A)
+    else:
+        A = np.load(savedir/'Aest.npy')
+        #A = np.eye(X0.shape[0])*0.04 # diagonal approximation
     sig = np.sqrt(np.diag(A))
     cor = A / sig / sig
     for key in dJdx0_dict.keys():
         dJdx0 = dJdx0_dict[key][i,]
         # create initial perturbation
+        #if key=='asa':
         lam = np.sqrt(np.dot(dJdx0,np.dot(A,dJdx0)))
         x0p = A @ dJdx0 / lam
+        #else:
+        #    lam = np.sqrt(np.dot(dJdx0,np.dot(A_ens,dJdx0)))
+        #    x0p = A_ens @ dJdx0 / lam
         x0m = - x0p
         x0_dict[key].append(x0p)
         # calculate nonlinear forecast response
@@ -146,11 +159,11 @@ for i in range(ncycle):
             xm = model(xm)
         Jp = cost(xp,*args)
         Jm = cost(xm,*args)
-        rescalcp_dict[key].append((Jp-Jb)/Jb)
-        rescalcm_dict[key].append((Jm-Jb)/Jb)
+        rescalcp_dict[key].append((Jp-Jb))
+        rescalcm_dict[key].append((Jm-Jb))
         # estimate forecast response by sensitivity
-        resestp_dict[key].append(dJdx0@x0p/Jb)
-        resestm_dict[key].append(dJdx0@x0m/Jb)
+        resestp_dict[key].append(dJdx0@x0p)
+        resestm_dict[key].append(dJdx0@x0m)
         if i<0:
             print(f"ic={ic} {key}")
             plt.plot(x0p,marker='^')
@@ -165,7 +178,7 @@ for i in range(ncycle):
 
 if nsample < 10: exit()
 # save results to netcdf
-if vt==24:
+if vt==24 and lens:
     A = np.array(A_list)
     ix = np.arange(A.shape[1])
     ds = xr.Dataset.from_dict(
@@ -177,7 +190,14 @@ if vt==24:
     }
     )
     ds.to_netcdf(savedir/f"A_nens{nens}.nc")
-
+Jb = np.array(Jb_list)
+ds = xr.Dataset.from_dict(
+    {
+        "cycle":{"dims":("cycle"),"data":cycles},
+        "Jb":{"dims":("cycle"),"data":Jb}
+    }
+)
+ds.to_netcdf(savedir/f"Jb{metric}_vt{vt}nens{nens}.nc")
 for key in rescalcp_dict.keys():
     rescalcp = np.array(rescalcp_dict[key])
     rescalcm = np.array(rescalcm_dict[key])
@@ -197,7 +217,11 @@ for key in rescalcp_dict.keys():
     }
     )
     print(ds)
-    if (key == 'pls' or key == 'pcr' or key == 'minnorm') and n_components is not None:
-        ds.to_netcdf(savedir/f"res_hess_{key}nc{n_components}{metric}_vt{vt}nens{nens}.nc")
+    if lens:
+        figname='res_hessens'
     else:
-        ds.to_netcdf(savedir/f"res_hess_{key}{metric}_vt{vt}nens{nens}.nc")
+        figname='res_hess'
+    if (key == 'pls' or key == 'pcr' or key == 'minnorm') and n_components is not None:
+        ds.to_netcdf(savedir/f"{figname}_{key}nc{n_components}{metric}_vt{vt}nens{nens}.nc")
+    else:
+        ds.to_netcdf(savedir/f"{figname}_{key}{metric}_vt{vt}nens{nens}.nc")
