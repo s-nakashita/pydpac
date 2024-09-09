@@ -1,0 +1,96 @@
+---
+title: "Ensemble-based tangent linear model (ETLM)"
+format: html
+jupyter: python3
+editor: 
+  render-on-save: true
+code-fold: true
+---
+
+# References
+
+Frolov, S., and C. H. Bishop, 2016: Localized Ensemble-Based Tangent Linear Models and Their Use in Propagating Hybrid Error Covariance Models. *Mon. Wea. Rev.*, **144**, [doi:10.1175/MWR-D-15-0130.1](https://doi.org/10.1175/MWR-D-15-0130.1).
+
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import fft
+```
+
+```{python}
+def gc5(r,c):
+    z = r/c
+    return np.where(z<1.0, 1.0 - 5.0*(z**2)/3.0 + 0.625*(z**3) + 0.5*(z**4) - 0.25*(z**5), np.where(z<2.0, 4.0 - 5.0*z + 5.0*(z**2)/3.0 + 0.625*(z**3) - 0.5*(z**4) + (z**5)/12.0 - 2.0/z/3.0, 0.0))
+def tw(r,c,alp=0.3):
+    return np.where(r<=alp*c,1.0,np.where(r<=c,0.5*(1-np.cos(np.pi/(1.0-alp)*(r/c - 1))),0.0))
+```
+
+```{python}
+#| fig-cap: localization functions
+
+r = np.linspace(0.0,3.0,61)
+c = 1.0
+plt.plot(r,gc5(r, c), label='GC')
+plt.plot(r,tw(r, c*2),label=r'Turkey ($\alpha$=0.3?)')
+plt.legend()
+plt.show()
+```
+
+```{python}
+def wavedynamics(n,wtype=1,d=10.0):
+    kw = np.linspace(-n/2,n/2,n,endpoint=False)
+    if wtype==1:
+        # nondispersive
+        omg = 2.0 * np.pi * kw / n 
+    elif wtype==2:
+        # Rossby
+        omg = 2.0 * np.pi / n * (kw - kw[n//2+1]/kw)
+    elif wtype==3:
+        # Eady-edge
+        omg = 2.0 * np.pi / n * (kw + (kw/np.abs(kw)))
+    Lam = np.exp(-1.0*(kw/d)*(kw/d))
+    return omg, Lam
+```
+
+```{python}
+def dtlm(wtype,x,dt=1.0):
+    n = x.size
+    omg, Lam = wavedynamics(n,wtype)
+    xs = fft.fft(x)
+    phi = fft.ifft(np.eye(xs.size))
+    dtlm_s = np.diag(np.exp(-1.0j*omg*dt))
+    xs = dtlm_s @ fft.fftshift(xs)
+    xg = (fft.ifft(xs)).real
+    dtlm_g = (phi@dtlm_s@phi.conj().T).real
+    return xg, dtlm_g
+```
+
+```{python}
+n = 200
+L = 100.0
+dx = L / n
+ix = np.arange(n)*dx 
+r = np.array([min(ix[i],L-ix[i]) for i in range(n)])
+x0 = np.roll(gc5(r, dx*10),n//2)
+
+wtype = 1
+ntmax = 10
+x = [x0]
+t = [0.0]
+dtlmmat = np.eye(n)
+for i in range(ntmax):
+    xnew, dtlm_tmp = dtlm(wtype,x[i])
+    x.append(xnew)
+    t.append(i+1)
+    dtlmmat = dtlmmat @ dtlm_tmp
+    plt.matshow(dtlmmat)
+    plt.colorbar()
+    plt.show()
+
+fig, axs = plt.subplots(ncols=2,constrained_layout=True)
+p0=axs[0].pcolormesh(ix,t,x,shading='auto')
+fig.colorbar(p0,ax=axs[0],shrink=0.6,pad=0.01)
+axs[1].plot(ix,dtlmmat[0,])
+plt.show()
+```
