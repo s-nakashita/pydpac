@@ -39,31 +39,32 @@ plt.show()
 
 ```{python}
 def wavedynamics(n,wtype=1,d=10.0):
-    kw = np.linspace(-n/2,n/2,n,endpoint=False)
+    kw = fft.fftfreq(n,d=1/n)
     if wtype==1:
         # nondispersive
         omg = 2.0 * np.pi * kw / n 
     elif wtype==2:
         # Rossby
-        omg = 2.0 * np.pi / n * (kw - kw[n//2+1]/kw)
+        omg = 2.0 * np.pi / n * np.where(np.abs(kw)>0,kw - kw[2]/kw,0.0)
     elif wtype==3:
         # Eady-edge
-        omg = 2.0 * np.pi / n * (kw + (kw/np.abs(kw)))
+        omg = 2.0 * np.pi / n * (kw + np.where(np.abs(kw)>0,kw/np.abs(kw),0.0))
     Lam = np.exp(-1.0*(kw/d)*(kw/d))
     return omg, Lam
 ```
 
 ```{python}
-def dtlm(wtype,x,dt=1.0):
-    n = x.size
+def dtlm(wtype,x,pmat,dt=1.0):
+    n = x.shape[0]
     omg, Lam = wavedynamics(n,wtype)
-    xs = fft.fft(x)
-    phi = fft.ifft(np.eye(xs.size))
+    xs = fft.fft(x,norm='ortho',axis=0)
+    phi = fft.ifft(np.eye(xs.shape[0])*np.sqrt(xs.shape[0]))
     dtlm_s = np.diag(np.exp(-1.0j*omg*dt))
-    xs = dtlm_s @ fft.fftshift(xs)
-    xg = (fft.ifft(xs)).real
+    xs = dtlm_s @ xs
+    xg = (phi@xs).real
     dtlm_g = (phi@dtlm_s@phi.conj().T).real
-    return xg, dtlm_g
+    pnew = dtlm_g @ pmat
+    return xg, dtlm_g, pnew
 ```
 
 ```{python}
@@ -72,25 +73,266 @@ L = 100.0
 dx = L / n
 ix = np.arange(n)*dx 
 r = np.array([min(ix[i],L-ix[i]) for i in range(n)])
-x0 = np.roll(gc5(r, dx*10),n//2)
+x0 = np.roll(gc5(r, dx*20),n//2)
+
+phi = fft.ifft(np.eye(x0.size)*np.sqrt(n))
+phih = phi.conj().T
+plt.matshow((phi@phih).real)
+plt.colorbar()
+plt.show()
+
+wtypes = [1,2,3]
+wnames = {1:'Nondispersive',2:'Rossby',3:'Eady edge'}
+ntmax = 170
+for wtype in wtypes:
+    x = [x0]
+    t = [0.0]
+    _, Lam = wavedynamics(n,wtype)
+    pmat = (phi@np.diag(Lam)@phih).real
+    p1d = [pmat[:,0]]
+    dtlmmat = np.eye(n)
+    for i in range(ntmax):
+        xnew, dtlm_tmp, pmat = dtlm(wtype,x[i],pmat)
+        x.append(xnew)
+        p1d.append(pmat[:,0])
+        t.append(i+1)
+        dtlmmat = dtlm_tmp @ dtlmmat
+        if i==150:
+            dtlm1d = dtlmmat[:,0]
+        #plt.matshow(dtlmmat)
+        #plt.colorbar()
+        #plt.show()
+        #plt.plot(xnew)
+    #plt.show()
+
+    fig, axs = plt.subplots(ncols=2,constrained_layout=True)
+    p0=axs[0].pcolormesh(ix,t,x,shading='auto',cmap='jet')
+    #p0=axs[0].pcolormesh(ix,t,p1d,shading='auto')
+    fig.colorbar(p0,ax=axs[0],shrink=0.6,pad=0.01)
+    axs[0].set_title(wnames[wtype])
+    axs[1].plot(ix,dtlm1d)
+    axs[1].set_ylim(-1,1)
+    axs[1].set_title(wnames[wtype]+r' $\mathbf{M}_{75,0}$')
+    plt.show()
+```
+
+```{python}
+from numpy.random import default_rng
+rng = default_rng(seed=509)
+
+n = 50
+L = 50.0
+dx = L / n
+ix = np.arange(n)*dx 
+r = np.array([min(ix[i],L-ix[i]) for i in range(n)])
+x0 = np.roll(gc5(r, dx*10),20)
+plt.plot(ix,x0)
+plt.show()
+
+phi = fft.ifft(np.eye(x0.size)*np.sqrt(n))
+phih = phi.conj().T
 
 wtype = 1
-ntmax = 10
-x = [x0]
-t = [0.0]
-dtlmmat = np.eye(n)
-for i in range(ntmax):
-    xnew, dtlm_tmp = dtlm(wtype,x[i])
-    x.append(xnew)
-    t.append(i+1)
-    dtlmmat = dtlmmat @ dtlm_tmp
-    plt.matshow(dtlmmat)
-    plt.colorbar()
-    plt.show()
+_, Lam = wavedynamics(n,wtype,d=5.0*dx)
+pmat = (phi@np.diag(Lam)@phih).real
+plt.matshow(pmat)
+plt.colorbar()
+plt.title(r'$\mathbf{P}$')
+plt.show()
 
-fig, axs = plt.subplots(ncols=2,constrained_layout=True)
-p0=axs[0].pcolormesh(ix,t,x,shading='auto')
+nens = 50
+nenslarge = 10000
+aens0 = np.diag(np.sqrt(Lam))@rng.normal(0.0,scale=1.0,size=(n,nens))
+theta0 = rng.normal(0.0,scale=1.0,size=(nens))*2.0*np.pi
+xens0 = (phi@(aens0*np.exp(1.0j*theta0[None,:]))).real
+#xens0 = rng.normal(0.0,scale=1.0,size=(n,nens))
+xens0 = xens0 - xens0.mean(axis=1)[:,None]
+aensl0 = np.diag(np.sqrt(Lam))@rng.normal(0.0,scale=1.0,size=(n,nenslarge))
+thetal0 = rng.normal(0.0,scale=1.0,size=nenslarge)*2.0*np.pi
+xenslarge0 = (phi@(aensl0*np.exp(1.0j*thetal0[None,:]))).real
+#xenslarge0 = rng.normal(0.0,scale=1.0,size=(n,nenslarge)).real
+xenslarge0 = xenslarge0 - xenslarge0.mean(axis=1)[:,None]
+#fig, ax = plt.subplots()
+#ax.plot(ix,xenslarge0[:,::20],c='k',lw=0.5,label='Ne=10000')
+#ax.plot(ix,xens0,c='orange',lw=0.5,label='Ne=50')
+#ax.set_title('t=0')
+#plt.show()
+
+xens = [xens0+x0[:,None]]
+xenslarge = [xenslarge0+x0[:,None]]
+dtlmmat = np.eye(n)
+etlm0 = np.eye(n)
+for i in range(5):
+    xnew, dtlm_tmp, _ = dtlm(wtype,xens[i],pmat)
+    xens.append(xnew)
+    dtlmmat = dtlm_tmp @ dtlmmat
+    xlnew, _, _ = dtlm(wtype,xenslarge[i],pmat)
+    xenslarge.append(xlnew)
+    xi = xens[i]
+    xj = xnew
+    xi = xi - xi.mean(axis=1)[:,None]
+    xj = xj - xj.mean(axis=1)[:,None]
+    xxpinv = np.linalg.pinv(xi.T@xi)
+    etlmtmp = xj @ xxpinv @ xi.T 
+    etlm0 = etlmtmp @ etlm0
+#fig, ax = plt.subplots()
+#ax.plot(ix,xenslarge[-1][:,::20],c='k',lw=0.5,label='Ne=10000')
+#ax.plot(ix,xens[-1],c='orange',lw=0.5,label='Ne=50')
+#ax.set_title('t=5')
+#plt.show()
+
+xp0 = xens[0] - xens[0].mean(axis=1)[:,None]
+p00 = xp0 @ xp0.T / (nens-1)
+xp = xens[-1] - xens[-1].mean(axis=1)[:,None]
+p50 = xp @ xp0.T / (nens-1)
+xpl0 = xenslarge[0] - xenslarge[0].mean(axis=1)[:,None]
+xpl = xenslarge[-1] - xenslarge[-1].mean(axis=1)[:,None]
+pl50 = xpl @ xpl0.T / (nenslarge-1)
+fig, ax = plt.subplots()
+ax.plot(ix,p00[:,20],c='g',label=r'$\mathbf{P}^\mathrm{ens}_{0,0}\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,pl50[:,20],c='k',label=r'$\mathbf{P}^\mathrm{large ens}_{5,0}\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,p50[:,20],c='orange',label=r'$\mathbf{P}^\mathrm{ens}_{5,0}\mathbf{H}^\mathrm{T}$')
+ax.legend()
+plt.show()
+```
+
+```{python}
+fig, axs = plt.subplots(ncols=3,constrained_layout=True)
+p0=axs[0].matshow(dtlmmat)
 fig.colorbar(p0,ax=axs[0],shrink=0.6,pad=0.01)
-axs[1].plot(ix,dtlmmat[0,])
+axs[0].set_title(r'$\mathbf{M}^\mathrm{dyn}_{0,5}$')
+p1=axs[1].matshow(etlm0)
+fig.colorbar(p1,ax=axs[1],shrink=0.6,pad=0.01)
+axs[1].set_title(r'$\mathbf{M}^\mathrm{M0}_{0,5}$')
+p2=axs[2].matshow(dtlmmat-etlm0)
+fig.colorbar(p2,ax=axs[2],shrink=0.6,pad=0.01)
+axs[2].set_title('diff')
+plt.show()
+
+```
+
+```{python}
+cmat = np.eye(n)
+for i in range(n):
+    ctmp = gc5(r,7)[:n//2+1]
+    ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
+    cmat[i,] = np.roll(ctmp2,i)
+plt.matshow(cmat)
+plt.colorbar()
+plt.title(r'$\mathbf{C}$')
+plt.show()
+
+p00loc = cmat * p00
+
+fig, ax = plt.subplots()
+ax.plot(ix,p00loc[:,20],c='g',label=r'$\mathbf{C}*\mathbf{P}^\mathrm{ens}_{0,0}\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,pl50[:,20],c='k',label=r'$\mathbf{P}^\mathrm{large ens}_{5,0}\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,(etlm0@p00loc)[:,20],c='orange',lw=2.0,label=r'$\mathbf{M}^\mathrm{M0}_{0,5}(\mathbf{C}*\mathbf{P}^\mathrm{ens}_{0,0})\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,(dtlmmat@p00loc)[:,20],c='b',lw=1.0,label=r'$\mathbf{M}^\mathrm{true}_{0,5}(\mathbf{C}*\mathbf{P}^\mathrm{ens}_{0,0})\mathbf{H}^\mathrm{T}$')
+ax.legend()
+plt.show()
+```
+
+```{python}
+n = 250
+L = 250.0
+dx = L / n
+ix = np.arange(n)*dx 
+r = np.array([min(ix[i],L-ix[i]) for i in range(n)])
+x0 = np.roll(gc5(r, dx*10),20)
+plt.plot(ix,x0)
+plt.show()
+
+phi = fft.ifft(np.eye(x0.size)*np.sqrt(n))
+phih = phi.conj().T
+
+wtype = 1
+_, Lam = wavedynamics(n,wtype,d=20.0*dx)
+pmat = (phi@np.diag(Lam)@phih).real
+plt.matshow(pmat)
+plt.colorbar()
+plt.title(r'$\mathbf{P}$')
+plt.show()
+
+nens = 50
+nenslarge = 10000
+aens0 = np.diag(np.sqrt(Lam))@rng.normal(0.0,scale=1.0,size=(n,nens))
+theta0 = rng.normal(0.0,scale=1.0,size=(nens))*2.0*np.pi
+xens0 = (phi@(aens0*np.exp(1.0j*theta0[None,:]))).real
+#xens0 = rng.normal(0.0,scale=1.0,size=(n,nens))
+xens0 = xens0 - xens0.mean(axis=1)[:,None]
+aensl0 = np.diag(np.sqrt(Lam))@rng.normal(0.0,scale=1.0,size=(n,nenslarge))
+thetal0 = rng.normal(0.0,scale=1.0,size=nenslarge)*2.0*np.pi
+xenslarge0 = (phi@(aensl0*np.exp(1.0j*thetal0[None,:]))).real
+#xenslarge0 = rng.normal(0.0,scale=1.0,size=(n,nenslarge)).real
+xenslarge0 = xenslarge0 - xenslarge0.mean(axis=1)[:,None]
+#fig, ax = plt.subplots()
+#ax.plot(ix,xenslarge0[:,::20],c='k',lw=0.5,label='Ne=10000')
+#ax.plot(ix,xens0,c='orange',lw=0.5,label='Ne=50')
+#ax.set_title('t=0')
+#plt.show()
+
+xens = [xens0+x0[:,None]]
+xenslarge = [xenslarge0+x0[:,None]]
+dtlmmat = np.eye(n)
+etlm0 = np.eye(n)
+for i in range(5):
+    xnew, dtlm_tmp, _ = dtlm(wtype,xens[i],pmat)
+    xens.append(xnew)
+    dtlmmat = dtlm_tmp @ dtlmmat
+    xlnew, _, _ = dtlm(wtype,xenslarge[i],pmat)
+    xenslarge.append(xlnew)
+    xi = xens[i]
+    xj = xnew
+    xi = xi - xi.mean(axis=1)[:,None]
+    xj = xj - xj.mean(axis=1)[:,None]
+    xxpinv = np.linalg.pinv(xi.T@xi)
+    etlmtmp = xj @ xxpinv @ xi.T 
+    etlm0 = etlmtmp @ etlm0
+xp0 = xens[0] - xens[0].mean(axis=1)[:,None]
+p00 = xp0 @ xp0.T / (nens-1)
+xp = xens[-1] - xens[-1].mean(axis=1)[:,None]
+p50 = xp @ xp0.T / (nens-1)
+xpl0 = xenslarge[0] - xenslarge[0].mean(axis=1)[:,None]
+xpl = xenslarge[-1] - xenslarge[-1].mean(axis=1)[:,None]
+pl50 = xpl @ xpl0.T / (nenslarge-1)
+
+fig, ax = plt.subplots()
+ax.plot(ix,p00[:,20],c='g',label=r'$\mathbf{P}^\mathrm{ens}_{0,0}\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,pl50[:,20],c='k',label=r'$\mathbf{P}^\mathrm{large ens}_{5,0}\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,p50[:,20],c='orange',label=r'$\mathbf{P}^\mathrm{ens}_{5,0}\mathbf{H}^\mathrm{T}$')
+ax.legend()
+plt.show()
+
+fig, axs = plt.subplots(ncols=3,constrained_layout=True)
+p0=axs[0].matshow(dtlmmat)
+fig.colorbar(p0,ax=axs[0],shrink=0.6,pad=0.01)
+axs[0].set_title(r'$\mathbf{M}^\mathrm{dyn}_{0,5}$')
+p1=axs[1].matshow(etlm0)
+fig.colorbar(p1,ax=axs[1],shrink=0.6,pad=0.01)
+axs[1].set_title(r'$\mathbf{M}^\mathrm{M0}_{0,5}$')
+p2=axs[2].matshow(dtlmmat-etlm0)
+fig.colorbar(p2,ax=axs[2],shrink=0.6,pad=0.01)
+axs[2].set_title('diff')
+plt.show()
+
+cmat = np.eye(n)
+for i in range(n):
+    ctmp = gc5(r,7)[:n//2+1]
+    ctmp2 = np.hstack([ctmp,np.flip(ctmp[1:-1])])
+    cmat[i,] = np.roll(ctmp2,i)
+#plt.matshow(cmat)
+#plt.colorbar()
+#plt.title(r'$\mathbf{C}$')
+#plt.show()
+
+p00loc = cmat * p00
+
+fig, ax = plt.subplots()
+ax.plot(ix,p00loc[:,20],c='g',label=r'$\mathbf{C}*\mathbf{P}^\mathrm{ens}_{0,0}\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,pl50[:,20],c='k',label=r'$\mathbf{P}^\mathrm{large ens}_{5,0}\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,(etlm0@p00loc)[:,20],c='orange',lw=2.0,label=r'$\mathbf{M}^\mathrm{M0}_{0,5}(\mathbf{C}*\mathbf{P}^\mathrm{ens}_{0,0})\mathbf{H}^\mathrm{T}$')
+ax.plot(ix,(dtlmmat@p00loc)[:,20],c='b',lw=1.0,label=r'$\mathbf{M}^\mathrm{true}_{0,5}(\mathbf{C}*\mathbf{P}^\mathrm{ens}_{0,0})\mathbf{H}^\mathrm{T}$')
+ax.legend()
 plt.show()
 ```
