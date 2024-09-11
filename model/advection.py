@@ -52,9 +52,9 @@ class Advection():
         freq = fft.fftfreq(state.rho.shape[1])
         drhos = rhos[1,] * 2.0j * np.pi * freq / self.dx
         if self.tstype==2:
-            ddrhos = - rhos[2,] * (2.0*np.pi)**2 * freq * freq / self.dx / self.dx
+            ddrhos = - rhos[2,] * (2.0*np.pi)**2 * freq * freq / self.dxs
         else:
-            ddrhos = - rhos[1,] * (2.0*np.pi)**2 * freq * freq / self.dx / self.dx
+            ddrhos = - rhos[1,] * (2.0*np.pi)**2 * freq * freq / self.dxs
         self.A = - state.u[0] * fft.ifft(drhos).real
         self.S = state.xnu[0] * fft.ifft(ddrhos).real
         self.F = np.arange(self.nx)*self.dx
@@ -112,9 +112,9 @@ class Advection():
         freq = fft.fftfreq(prtb.rho.shape[1])
         drhos = rhos[1,] * 2.0j * np.pi * freq / self.dx
         if self.tstype==2:
-            ddrhos = - rhos[2,] * (2.0*np.pi)**2 * freq * freq / self.dx / self.dx
+            ddrhos = - rhos[2,] * (2.0*np.pi)**2 * freq * freq / self.dxs
         else:
-            ddrhos = - rhos[1,] * (2.0*np.pi)**2 * freq * freq / self.dx / self.dx
+            ddrhos = - rhos[1,] * (2.0*np.pi)**2 * freq * freq / self.dxs
         self.At = - state.u[0] * fft.ifft(drhos).real
         self.St = state.xnu[0] * fft.ifft(ddrhos).real
     
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     L = nx*dx
     dt = 0.001
     u0 = 2.0
-    xnu0 = 0.0
+    xnu0 = 0.5
     F0 = 0.0
     state1 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
     state2 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
@@ -225,12 +225,12 @@ if __name__ == "__main__":
     #exit()
 
     ## TLM check
-    state12 = Advection_state(nx, u0=u0)
-    state22 = Advection_state(nx, u0=u0)
-    state32 = Advection_state(nx, u0=u0)
-    prtb1 = Advection_state(nx, u0=u0)
-    prtb2 = Advection_state(nx, u0=u0)
-    prtb3 = Advection_state(nx, u0=u0)
+    state12 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
+    state22 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
+    state32 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
+    prtb1 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
+    prtb2 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
+    prtb3 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
 
     ncyc = 20
     alp = 1.0e-5
