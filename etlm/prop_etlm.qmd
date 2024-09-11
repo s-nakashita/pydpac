@@ -1,0 +1,116 @@
+---
+title: "Propagation of localization function using ensemble-based tangent linear model (ETLM)"
+format: 
+  html: default
+  pdf:
+    echo: false
+editor:
+  render-on-save: true
+bibliography: references.bib
+bibliographystyle: ametsocV6.bst
+csl: american-meteorological-society.csl
+---
+
+# Propagation of localization using a tangent linear model
+The time development of perturbations from $m-1$ to $m$ is denoted using a tangent linear model (TLM) operator as
+$$
+\delta\mathbf{x}_m = \mathbf{M}_{m,m-1}\delta\mathbf{x}_{m-1}.
+$${#eq-tlm}
+
+Spatial localization of perturbation is defined using Schur product
+$$
+\rho \circ \delta\mathbf{x} = \mathrm{diag}(\rho) \delta\mathbf{x},
+$${#eq-schur}
+where $\mathrm{diag}(\rho)$ is a diagonal matrix whose diagonal components are $\rho$.
+
+From eqs. ([-@eq-tlm], [-@eq-schur]), the propagation of localization function by TLM can be derived as 
+$$
+\rho_m \circ \delta\mathbf{x}_m = \mathbf{M}_{m,m-1}(\rho_{m-1} \circ \delta\mathbf{x}_{m-1})
+$$
+$$
+\mathrm{diag}(\rho_m)\delta\mathbf{x}_m = \mathbf{M}_{m,m-1}\mathrm{diag}(\rho_{m-1})\delta\mathbf{x}_{m-1}
+$$
+$$
+\mathrm{diag}(\rho_m)\mathbf{M}_{m,m-1}\delta\mathbf{x}_{m-1} = \mathbf{M}_{m,m-1}\mathrm{diag}(\rho_{m-1})\delta\mathbf{x}_{m-1}
+$$
+$$
+\therefore \mathrm{diag}(\rho_{m-1}) = (\mathbf{M}_{m,m-1})^{-1}\mathrm{diag}(\rho_m)\mathbf{M}_{m,m-1}
+$${#eq-prop-rho}
+
+# Ensemble-based TLM [@frolov_localized_2016]
+
+The statistical construction of a TLM operator is 
+$$
+M_{m,m-1}(\overline{\mathbf{x}_{m-1}}+\delta\mathbf{x}_{m-1})-\overline{M_{m,m-1}(\mathbf{x}_{m-1})} = \mathbf{M}^\mathrm{stat}_{m,m-1}\delta\mathbf{x}_{m-1} + \boldsymbol{\varepsilon}_{m-1}
+$$
+Right-multiplication of $\delta\mathbf{x}_{m-1}$ on both sides yields,
+$$
+[M_{m,m-1}(\overline{\mathbf{x}_{m-1}}+\delta\mathbf{x}_{m-1})-\overline{M_{m,m-1}(\mathbf{x}_{m-1})}]\delta\mathbf{x}_{m-1}^\mathrm{T} = \mathbf{M}^\mathrm{stat}_{m,m-1}\delta\mathbf{x}_{m-1}\delta\mathbf{x}_{m-1}^\mathrm{T} + \boldsymbol{\varepsilon}_{m-1}\delta\mathbf{x}_{m-1}^\mathrm{T}
+$$
+taking expected value of both sides and assuming $\langle \boldsymbol{\varepsilon}_{m-1}\delta\mathbf{x}_{m-1}^\mathrm{T}\rangle=0$,
+$$
+\mathbf{M}^\mathrm{stat}_{m,m-1}=\langle[M_{m,m-1}(\overline{\mathbf{x}_{m-1}}+\delta\mathbf{x}_{m-1})-\overline{M_{m,m-1}(\mathbf{x}_{m-1})}]\delta\mathbf{x}_{m-1}^\mathrm{T}\rangle\langle\delta\mathbf{x}_{m-1}\delta\mathbf{x}_{m-1}^\mathrm{T}\rangle^{-1}
+$$
+$K$-member ensemble approximation
+$$
+\mathbf{M}^\mathrm{stat}_{m,m-1}\approx \mathbf{M}^\mathrm{ens}_{m,m-1}=\mathbf{X}_m\mathbf{X}_{m-1}^\mathrm{T}(\mathbf{X}_{m-1}\mathbf{X}_{m-1}^\mathrm{T})^\dagger=\mathbf{X}_m(\mathbf{X}_{m-1}^\mathrm{T}\mathbf{X}_{m-1})^\dagger\mathbf{X}_{m-1}^\mathrm{T}
+$${#eq-etlm}
+
+## Propagation using ETLM
+The pseudoinverse of ETLM ([-@eq-etlm]) is
+$$
+(\mathbf{M}^\mathrm{ens}_{m,m-1})^\dagger = \mathbf{X}_{m-1}\mathbf{X}_{m-1}^\mathrm{T}(\mathbf{X}_m\mathbf{X}_{m-1}^\mathrm{T})^\dagger = \mathbf{X}_{m-1}(\mathbf{X}_m^\mathrm{T}\mathbf{X}_m)^\dagger \mathbf{X}_m^\mathrm{T}
+$${#eq-etlmpinv}
+Then the inverse matrix in ([-@eq-prop-rho]) is replaced by the pseudoinverse ([-@eq-etlmpinv]) to yield
+$$
+\mathrm{diag}(\rho_{m-1}) = (\mathbf{M}^\mathrm{ens}_{m,m-1})^\dagger\mathrm{diag}(\rho_m)\mathbf{M}^\mathrm{ens}_{m,m-1} 
+$$
+$$
+= \mathbf{X}_{m-1}(\mathbf{X}_m^\mathrm{T}\mathbf{X}_m)^\dagger \mathbf{X}_m^\mathrm{T}\mathrm{diag}(\rho_m)\mathbf{X}_m(\mathbf{X}_{m-1}^\mathrm{T}\mathbf{X}_{m-1})^\dagger\mathbf{X}_{m-1}^\mathrm{T}
+$${#eq-prop-rho-etlm}
+
+## Element-wise evaluation of propagation
+Even if the TLM is approximated using ensemble forecasts, eq. ([-@eq-prop-rho-etlm]) requires the explicit evaluation of a huge matrix ($N\times N$, where $N$ is the dimension of prognostic variables). 
+However, if the localization function at verification time $\rho_m$ is compactly supported, the diagonal matrix $\mathrm{diag}(\rho_m)$ is sparse and can be written as
+$$
+\mathrm{diag}(\rho_m)=\begin{bmatrix}
+ & \mathbf{0} & \\
+ \mathbf{0} & \mathbf{L} & \mathbf{0} \\
+ & \mathbf{0} &
+\end{bmatrix}
+$${#eq-diagrhom-mat}
+where $\mathbf{L}$ is a diagonal matrix with the nonzero values of $\rho_m$ as its diagonal components. 
+The product of eq. ([-@eq-diagrhom-mat]) and the ensemble perturbations at the verification time $\mathbf{X}_m$ becomes
+$$
+\mathrm{diag}(\rho_m)\mathbf{X}_m=\begin{bmatrix}
+\mathbf{0}\\ \mathbf{L}\mathbf{X}_m^\prime \\ \mathbf{0}
+\end{bmatrix}
+$$
+where $\mathbf{X}_m^\prime$ is the part of $\mathbf{X}_m$ corresponding to the nonzero part of $\rho_m$.
+Then, 
+$$
+\mathrm{diag}(\rho_m)\mathbf{X}_m(\mathbf{X}_{m-1}^\mathrm{T}\mathbf{X}_{m-1})^\dagger\mathbf{X}_{m-1}^\mathrm{T}=
+\begin{bmatrix}
+\mathbf{0}\\ \mathbf{L}\mathbf{X}_m^\prime(\mathbf{X}_{m-1}^\mathrm{T}\mathbf{X}_{m-1})^\dagger\mathbf{X}_{m-1}^\mathrm{T} \\ \mathbf{0}
+\end{bmatrix}
+$$
+and
+$$
+\mathbf{X}_m^\mathrm{T}\mathrm{diag}(\rho_m)\mathbf{X}_m(\mathbf{X}_{m-1}^\mathrm{T}\mathbf{X}_{m-1})^\dagger\mathbf{X}_{m-1}^\mathrm{T}=(\mathbf{X}_m^\prime)^\mathrm{T}\mathbf{L}\mathbf{X}_m^\prime(\mathbf{X}_{m-1}^\mathrm{T}\mathbf{X}_{m-1})^\dagger\mathbf{X}_{m-1}^\mathrm{T}
+$$
+Therefore, the right hand of eq. ([-@eq-prop-rho-etlm]) becomes
+$$
+\mathbf{X}_{m-1}\underset{K\times K}{\underline{(\mathbf{X}_m^\mathrm{T}\mathbf{X}_m)^\dagger(\mathbf{X}_m^\prime)^\mathrm{T}\mathbf{L}\mathbf{X}_m^\prime(\mathbf{X}_{m-1}^\mathrm{T}\mathbf{X}_{m-1})^\dagger}}\mathbf{X}_{m-1}^\mathrm{T}=\mathbf{X}_{m-1}\mathbf{C}\mathbf{X}_{m-1}^\mathrm{T}
+$${#eq-prop-rho-etlm2}
+Because we want to obtain the diagonal components of eq. ([-@eq-prop-rho-etlm2]), considering the $i,j$ component of eq. ([-@eq-prop-rho-etlm2]) with $\mathbf{X}_{m-1}=[x^{(m-1)}_{n,k}]_{n=1,\cdots,N,k=1,\cdots,K}$ and $\mathbf{C}=[c_{k_1,k_2}]_{k_1,k_2=1,\cdots,K}$
+$$
+[\mathbf{X}_{m-1}\mathbf{C}\mathbf{X}_{m-1}^\mathrm{T}]_{i,j}=\sum_{k_1=1}^K \sum_{k_2=1}^K x^{(m-1)}_{i,k_1}c_{k_1,k_2}x^{(m-1)}_{j,k_2}
+$$
+Finally, the $i$-th component of the localization function $\rho_{m-1}$ can be obtained as
+$$
+[\rho_{m-1}]_{i}=\sum_{k_1=1}^K \sum_{k_2=1}^K x^{(m-1)}_{i,k_1}c_{k_1,k_2}x^{(m-1)}_{i,k_2}
+$${#eq-prop-rho-etlm-element}
+
+# References {.unnumbered}
+::: {#refs}
+:::

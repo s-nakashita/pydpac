@@ -5,12 +5,14 @@ jupyter: python3
 editor: 
   render-on-save: true
 code-fold: true
+execute:
+  freeze: true
+  cache: true
 ---
 
 # References
 
 Frolov, S., and C. H. Bishop, 2016: Localized Ensemble-Based Tangent Linear Models and Their Use in Propagating Hybrid Error Covariance Models. *Mon. Wea. Rev.*, **144**, [doi:10.1175/MWR-D-15-0130.1](https://doi.org/10.1175/MWR-D-15-0130.1).
-
 
 ```{python}
 import numpy as np
@@ -115,6 +117,23 @@ for wtype in wtypes:
     axs[1].set_title(wnames[wtype]+r' $\mathbf{M}_{75,0}$')
     plt.show()
 ```
+
+# Ensemble-based TLM
+$$
+M_{m,m-1}(\overline{\mathbf{x}_{m-1}}+\delta\mathbf{x}_{m-1})-\overline{M_{m,m-1}(\mathbf{x}_{m-1})} = \mathbf{M}^\mathrm{stat}_{m,m-1}\delta\mathbf{x}_{m-1} + \boldsymbol{\varepsilon}_{m-1}
+$$
+multiply $\delta\mathbf{x}_{m-1}$ from right of both sides,
+$$
+[M_{m,m-1}(\overline{\mathbf{x}_{m-1}}+\delta\mathbf{x}_{m-1})-\overline{M_{m,m-1}(\mathbf{x}_{m-1})}]\delta\mathbf{x}_{m-1}^\mathrm{T} = \mathbf{M}^\mathrm{stat}_{m,m-1}\delta\mathbf{x}_{m-1}\delta\mathbf{x}_{m-1}^\mathrm{T} + \boldsymbol{\varepsilon}_{m-1}\delta\mathbf{x}_{m-1}^\mathrm{T}
+$$
+taking expected value of both sides and assuming $\langle \boldsymbol{\varepsilon}_{m-1}\delta\mathbf{x}_{m-1}^\mathrm{T}\rangle=0$,
+$$
+\mathbf{M}^\mathrm{stat}_{m,m-1}=\langle[M_{m,m-1}(\overline{\mathbf{x}_{m-1}}+\delta\mathbf{x}_{m-1})-\overline{M_{m,m-1}(\mathbf{x}_{m-1})}]\delta\mathbf{x}_{m-1}^\mathrm{T}\rangle\langle\delta\mathbf{x}_{m-1}\delta\mathbf{x}_{m-1}^\mathrm{T}\rangle^{-1}
+$$
+$K$-member ensemble approximation
+$$
+\mathbf{M}^\mathrm{stat}_{m,m-1}\approx \mathbf{M}^\mathrm{ens}_{m,m-1}=\mathbf{X}_m\mathbf{X}_{m-1}^\mathrm{T}(\mathbf{X}_{m-1}\mathbf{X}_{m-1}^\mathrm{T})^\dagger=\mathbf{X}_m(\mathbf{X}_{m-1}^\mathrm{T}\mathbf{X}_{m-1})^\dagger\mathbf{X}_{m-1}^\mathrm{T}
+$${#eq-etlm}
 
 ```{python}
 from numpy.random import default_rng
