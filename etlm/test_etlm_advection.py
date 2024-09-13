@@ -79,12 +79,18 @@ nft = int(ft / dt)
 prtb = Advection_state(nx,u0=u0)
 dtlm = np.eye(nx)
 rhoi = nst.rho[0,].copy()
+dtlmlist = []
 for j in range(nft):
     nature(nst)
+    dtlmtmp = np.eye(nx)
     for i in range(nx):
-        prtb.rho[0,:] = dtlm[:,i]
+#        prtb.rho[0,:] = dtlm[:,i]
+        prtb.rho[0,:] = dtlmtmp[:,i]
         nature.step_t(nst,prtb)
-        dtlm[:,i] = prtb.rho[0,:]
+#        dtlm[:,i] = prtb.rho[0,:]
+        dtlmtmp[:,i] = prtb.rho[0,:]
+    dtlmlist.append(dtlmtmp)
+    dtlm = dtlmtmp @ dtlm
 fig, ax = plt.subplots(figsize=[6,4],constrained_layout=True)
 ax.plot(ix,rhoi,label=r'$\mathbf{\phi}_{0}$')
 ax.plot(ix,nst.rho[0,],label=r"$\mathbf{\phi}"+f"_{{{ft:.0f}}}$")
@@ -95,7 +101,11 @@ plt.show(block=False)
 plt.close()
 #exit()
 
-dtlminv = la.inv(dtlm)
+#dtlminv = la.inv(dtlm)
+dtlminv = np.eye(nx)
+for i in range(len(dtlmlist)):
+    dtlmtmp = dtlmlist[i]
+    dtlminv = dtlminv @ la.inv(dtlmtmp)
 fig, axs = plt.subplots(ncols=2,figsize=[6,4],constrained_layout=True)
 p0 = axs[0].matshow(dtlm,cmap='RdBu_r',vmin=-1.2,vmax=1.2)
 fig.colorbar(p0,ax=axs[0],shrink=0.6,pad=0.01)
@@ -129,7 +139,11 @@ plt.close()
 ## propagation of localization function (i) GC
 floct = nst.rho[0,]
 mloct = np.diag(floct)
-mloc0 = dtlminv @ mloct @ dtlm
+mloc0 = mloct.copy()
+for i in range(len(dtlmlist)):
+    dtlmtmp = dtlmlist[len(dtlmlist)-i-1]
+    mloc0 = la.inv(dtlmtmp) @ mloc0 @ dtlmtmp
+#mloc0 = dtlminv @ mloct @ dtlm
 floc0 = np.diag(mloc0)
 fig = plt.figure(figsize=[6,6],constrained_layout=True)
 gs = GridSpec(nrows=3,ncols=2,figure=fig)
@@ -153,9 +167,15 @@ plt.show(block=False)
 plt.close()
 
 y = rng.normal(loc=0.0,scale=0.5,size=nx)
-z = dtlm @ y
 rhoy = floc0 * y
-mrhoy = dtlm @ rhoy
+z = y.copy()
+mrhoy = rhoy.copy()
+for i in range(len(dtlmlist)):
+    dtlmtmp = dtlmlist[i]
+    z = dtlmtmp @ z
+    mrhoy = dtlmtmp @ mrhoy
+#z = dtlm @ y
+#mrhoy = dtlm @ rhoy
 rhoz = floct * z
 fig, ax = plt.subplots()
 ax.plot(ix,rhoz,label=r'$\rho_t \circ \mathbf{z}$')
@@ -171,7 +191,11 @@ L = dx*20
 ic = ix[nx//4]
 floct = np.where(np.abs(ix-ic)<2*L,1.0,0.0)
 mloct = np.diag(floct)
-mloc0 = dtlminv @ mloct @ dtlm
+mloc0 = mloct.copy()
+for i in range(len(dtlmlist)):
+    dtlmtmp = dtlmlist[len(dtlmlist)-i-1]
+    mloc0 = la.inv(dtlmtmp) @ mloc0 @ dtlmtmp
+#mloc0 = dtlminv @ mloct @ dtlm
 floc0 = np.diag(mloc0)
 fig = plt.figure(figsize=[6,6],constrained_layout=True)
 gs = GridSpec(nrows=3,ncols=2,figure=fig)
@@ -194,9 +218,15 @@ fig.savefig(figdir/f'prop_bc_ft{ft:.0f}.png')
 plt.show(block=False)
 plt.close()
 
-z = dtlm @ y
 rhoy = floc0 * y
-mrhoy = dtlm @ rhoy
+z = y.copy()
+mrhoy = rhoy.copy()
+for i in range(len(dtlmlist)):
+    dtlmtmp = dtlmlist[i]
+    z = dtlmtmp @ z
+    mrhoy = dtlmtmp @ mrhoy
+#z = dtlm @ y
+#mrhoy = dtlm @ rhoy
 rhoz = floct * z
 fig, ax = plt.subplots()
 ax.plot(ix,rhoz,label=r'$\rho_t \circ \mathbf{z}$')
@@ -206,7 +236,7 @@ ax.set_title(f'FT={ft:.0f}s')
 fig.savefig(figdir/f'test_prop_bc_ft{ft:.0f}.png')
 plt.show(block=False)
 plt.close()
-#exit()
+exit()
 
 # ETLM
 tint = 10.0

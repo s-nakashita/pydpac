@@ -23,7 +23,7 @@ $$
 $${#eq-schur}
 where $\mathrm{diag}(\rho)$ is a diagonal matrix whose diagonal components are $\rho$.
 
-From eqs. ([-@eq-tlm], [-@eq-schur]), the propagation of localization function by TLM can be derived as 
+**If there exists a localization function** $\rho_{m-1}$ **that develops to the localization function** $\rho_{m}$, the propagation of localization function by TLM can be derived from eqs. ([-@eq-tlm], [-@eq-schur]) as 
 $$
 \rho_m \circ \delta\mathbf{x}_m = \mathbf{M}_{m,m-1}(\rho_{m-1} \circ \delta\mathbf{x}_{m-1})
 $$
@@ -36,6 +36,11 @@ $$
 $$
 \therefore \mathrm{diag}(\rho_{m-1}) = (\mathbf{M}_{m,m-1})^{-1}\mathrm{diag}(\rho_m)\mathbf{M}_{m,m-1}
 $${#eq-prop-rho}
+
+In general, there is *a localization matrix* $\mathbf{P}_{m-1}$ that develops to the localization function $\rho_{m}$
+$$
+\mathbf{P}_{m-1} = (\mathbf{M}_{m,m-1})^{-1}\mathrm{diag}(\rho_m)\mathbf{M}_{m,m-1}
+$${#eq-prop-rhomat}
 
 # Ensemble-based TLM [@frolov_localized_2016]
 
