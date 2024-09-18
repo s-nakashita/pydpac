@@ -4,7 +4,7 @@ export OMP_NUM_THREADS=4
 #alias python=python3.9
 model="l05IIm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic" # cubic"
+operators="linear"
 perturbations="mlef envar"
 na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
@@ -13,13 +13,9 @@ linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 model_error=False
-#L="-1.0 0.5 1.0 2.0"
-#lsig=120
 functype=gc5
 a=-0.2
-#exp="var_${functype}a${a}_obs${nobs}"
 exp="mlef+envar_noinfl_mem${nmem}obs${nobs}"
-#exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
 if [ $model_error = True ]; then
@@ -92,37 +88,10 @@ for op in ${operators}; do
     mv ${model}_stdf_${op}_${pt}.txt stdf_${op}_${pert}.txt
     mv ${model}_xdfmean_${op}_${pt}.txt xdfmean_${op}_${pert}.txt
     mv ${model}_xsfmean_${op}_${pt}.txt xsfmean_${op}_${pert}.txt
-    loctype=`echo $pert | cut -c5-5`
-    if [ "${loctype}" = "b" ]; then
-    mv ${model}_rho_${op}_${pt}.npy ${model}_rho_${op}_${pert}.npy
-    fi
-    for icycle in $(seq 0 $((${na} - 1))); do
-      if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
-        mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
-      fi
-      if test -e ${model}_ua_${op}_${pt}_cycle${icycle}.npy; then
-        mv ${model}_ua_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_${op}_${pert}_cycle${icycle}.npy
-      fi
-    #  mv Wmat_${op}_${pt}_cycle${icycle}.npy ${pert}/Wmat_${op}_cycle${icycle}.npy
-    #  mv ${model}_K_${op}_${pt}_cycle$icycle.npy ${model}_K_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_dxaorig_${op}_${pt}_cycle$icycle.npy ${model}_dxaorig_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_dxa_${op}_${pt}_cycle$icycle.npy ${model}_dxa_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_pa_${op}_${pt}_cycle$icycle.npy ${model}_pa_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_pf_${op}_${pt}_cycle$icycle.npy ${model}_pf_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_spf_${op}_${pt}_cycle$icycle.npy ${model}_spf_${op}_${pert}_cycle$icycle.npy
-    #  if [ "${pert:4:1}" = "b" ]; then
-    #  mv ${model}_lpf_${op}_${pt}_cycle$icycle.npy ${model}_lpf_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_lspf_${op}_${pt}_cycle$icycle.npy ${model}_lspf_${op}_${pert}_cycle$icycle.npy
-    #  fi
-    done
-    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
     #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
-    #done
   done
-  python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
-  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
+  python ${cdir}/plot/plote.py ${op} ${model} ${na} 
+  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} 
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
   python ${cdir}/plot/plotxa.py ${op} ${model} ${na} ${model_error}

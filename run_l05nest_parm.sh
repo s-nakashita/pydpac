@@ -18,10 +18,7 @@ functype=gc5
 #lgsig=110
 #llsig=70
 obsloc=${1}
-#exp="letkf_K15_${ptype}_mem${nmem}obs${nobs}"
 exp="envar_nest_preGM${obsloc}_${ptype}_mem${nmem}obs${nobs}"
-#exp="var_nest_${functype}nmc_${ptype}_obs${nobs}"
-#exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
 ddir=${cdir}/work/${model}
@@ -236,7 +233,6 @@ for op in ${operators}; do
       mv ${model}_xdmean_lam${ptmp}_${op}_${pt}.txt ${model}_xdmean_lam_${op}_${pert}_${ptmp}.txt
       mv ${model}_xsmean_lam${ptmp}_${op}_${pt}.txt ${model}_xsmean_lam_${op}_${pert}_${ptmp}.txt
     done #pert
-    #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #ptmp
   #done #ptmp (sigb or lb)
   cat params.txt

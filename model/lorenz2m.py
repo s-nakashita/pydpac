@@ -84,7 +84,7 @@ if __name__ == "__main__":
     plt.rcParams['font.size'] = 16
     import sys
     sys.path.append('../plot')
-    from nmc_tools import psd, wnum2wlen, wlen2wnum
+    from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
     from pathlib import Path
 
     nx = 240
@@ -95,6 +95,7 @@ if __name__ == "__main__":
     nt = 100 * 4 * nt6h
     xaxis = np.arange(nx)
     ix_rad = 2.0 * np.pi * xaxis / nx
+    nmc = NMC_tools(ix_rad, ttype='c')
 
     figdir = Path('lorenz/l05IIm')
     if not figdir.exists():
@@ -112,15 +113,15 @@ if __name__ == "__main__":
         x0 = l2(x0)
         if (k+1)%nt6h == 0:
             x.append(x0)
-        #if k>nt//10:
-        #    t.append(k*h)
-        #    en.append(np.mean(x0**2)/2.)
-        #    wnum, sp1 = psd(x0,ix_rad)
-        #    sp.append(sp1)
+        if k>nt//10:
+            t.append(k*h)
+            en.append(np.mean(x0**2)/2.)
+            wnum, sp1 = nmc.psd(x0)
+            sp.append(sp1)
     x = np.array(x)
     print(x.shape)
-    np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.npy",x)
-    exit()
+    #np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.npy",x)
+    #exit()
 
     fig2, axs = plt.subplots(nrows=2,figsize=[6,12],constrained_layout=True)
     days = np.array(t) / 0.05 / 4

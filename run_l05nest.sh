@@ -4,16 +4,9 @@ export OMP_NUM_THREADS=4
 #alias python=python3.9
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic" # cubic"
-#perturbations="envar_nest envar" # var_nest var"
-#perturbations="mlef"
-perturbations="var envar"
-#datype="4dmlef"
-#perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
-#perturbations="lmlefcw lmlefy mlef"
-#perturbations="mlef 4dmlef mlefbe"
-#perturbations="etkfbm"
-na=1000 # Number of assimilation cycle
+operators="linear"
+perturbations="envar_nest envar var_nest var"
+na=100 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
@@ -25,7 +18,6 @@ blsb=False
 alsb=True
 #lgsig=110
 #llsig=70
-#L="-1.0 0.5 1.0 2.0"
 opt=0
 functype=gc5
 #a=-0.1
@@ -33,26 +25,13 @@ ntrunc=12
 coef_a=None
 hyper_mu=0.0
 obsloc=${1}
-#exp="var+var_nest_${functype}nmc_obs${nobs}"
-#exp="var_vs_envar_preGM_m${nmem}obs${nobs}"
-#exp="var_vs_envar_shrink_dct_preGM_partialm_m${nmem}obs${nobs}"
-#exp="envar_noinfl_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}"
-#exp="envar_dscl_m${nmem}obs${nobs}"
-#exp="envar_nestc_reg${hyper_mu}_shrink_preGM_m${nmem}obs${nobs}"
-#exp="envar_nestc_a_shrink_preGM_m${nmem}obs${nobs}"
-exp="var_vs_envar_alsb_preGM${obsloc}_m${nmem}obs${nobs}"
-#exp="envar_noinfl_lsb_preGM${obsloc}_m${nmem}obs${nobs}"
-#exp="var_vs_envar_ntrunc${ntrunc}_m${nmem}obs${nobs}" #lg${lgsig}l${llsig}"
-#exp="var_nmc6_obs${nobs}"
+exp="var_vs_envar_m${nmem}obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 ddir=${cdir}/work/${model}
-#ddir=/Volumes/FF520/nested_envar/data/${model}
-preGM=True
+preGM=False
 preGMda="envar"
 preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
-#preGMdir="${ddir}/${preGMda}_dscl_m${nmem}obs${nobs}"
-#preGMdir="${ddir}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
 wdir=${ddir}/${exp}
 #if [ ! -d $wdir ]; then
 #  echo "No such directory ${wdir}"
@@ -72,15 +51,12 @@ rm -rf obs*.npy
 rm -rf *.log
 rm -rf timer
 touch timer
-#if [ $preGM = True ]; then
-#  cp ${preGMdir}/obs*.npy .
-#fi
+if [ $preGM = True ]; then
+  cp ${preGMdir}/obs*.npy .
+fi
 rseed=`date +%s | cut -c5-10`
 rseed=`expr $rseed + 0`
-#rseed=92863
-cp ../var_vs_envar_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}/obs*.npy .
-#rseed=504770
-roseed=None #514
+roseed=514
 mkdir -p data
 for op in ${operators}; do
   for pert in ${perturbations}; do
@@ -116,7 +92,7 @@ for op in ${operators}; do
     if [ ! -z $llsig ]; then
     gsed -i -e "8i \ \"lsig\":${llsig}," config_lam.py
     fi
-    ### diagonal B
+    ### climatological B settings
     #gsed -i -e "6i \ \"lb\":17.07," config_gm.py
     #gsed -i -e "6i \ \"lb\":33.48," config_lam.py
     #gsed -i -e "6i \ \"a\":0.21," config_gm.py
@@ -127,15 +103,16 @@ for op in ${operators}; do
     ##
     gsed -i -e "6i \ \"functype\":\"${functype}\"," config_gm.py
     gsed -i -e "6i \ \"functype\":\"${functype}\"," config_lam.py
-#    if [ $pert = var_nest ]; then
-#    gsed -i -e "6i \ \"a_v\":${a}," config_lam.py
-#    #gsed -i -e "6i \ \"lb\":4," config_lam.py
-#    fi
+    ### climatological V settings
+    #if [ $pert = var_nest ]; then
+    #gsed -i -e "6i \ \"a_v\":${a}," config_lam.py
+    ##gsed -i -e "6i \ \"lv\":4," config_lam.py
+    #fi
     gsed -i -e "6i \ \"ntrunc\":${ntrunc}," config_lam.py
-    if [ $pert = var_nestc ] || [ $pert = envar_nestc ]; then
-      gsed -i -e "6i \ \"ortho\":True," config_lam.py
-      gsed -i -e "7i \ \"coef_a\":${coef_a}," config_lam.py
-    fi
+    #if [ $pert = var_nestc ] || [ $pert = envar_nestc ]; then
+    #  gsed -i -e "6i \ \"ortho\":True," config_lam.py
+    #  gsed -i -e "7i \ \"coef_a\":${coef_a}," config_lam.py
+    #fi
     #if [ $pert = envar_nestc ]; then
     #  gsed -i -e "6i \ \"ridge\":True," config_lam.py
     #  #gsed -i -e "6i \ \"ridge\":False," config_lam.py
@@ -204,29 +181,7 @@ for op in ${operators}; do
     mv ${model}_xalam_${op}_${pt}.npy xalam_${op}_${pert}.npy
     mv ${model}_xsalam_${op}_${pt}.npy xsalam_${op}_${pert}.npy
     mv ${model}_xflam_${op}_${pt}.npy xflam_${op}_${pert}.npy
-    loctype=`echo $pert | cut -c5-5`
-    if [ "${loctype}" = "b" ]; then
-      mv ${model}_gm_rho_${op}_${pt}.npy ${model}_rhogm_${op}_${pert}.npy
-      mv ${model}_lam_rho_${op}_${pt}.npy ${model}_rholam_${op}_${pert}.npy
-      icycle=$((${na} - 1))
-      #for icycle in $(seq 0 $((${na} - 1))); do
-      #if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
-      #  mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
-      #fi
-      if test -e ${model}_gm_pa_${op}_${pt}_cycle${icycle}.npy; then
-        mv ${model}_gm_pa_${op}_${pt}_cycle${icycle}.npy ${model}_pagm_${op}_${pert}_cycle${icycle}.npy
-      fi
-      if test -e ${model}_lam_pa_${op}_${pt}_cycle${icycle}.npy; then
-        mv ${model}_lam_pa_${op}_${pt}_cycle${icycle}.npy ${model}_palam_${op}_${pert}_cycle${icycle}.npy
-      fi
-      #done
-      python ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
-    fi
-    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
     python ${cdir}/plot/plotpf_nest.py ${op} ${model} ${na} ${pert} 1 100
-    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
-    #done
     mkdir -p data/${pert}
     for vname in d dh dx pa pf spf ua uf; do
       mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
@@ -238,11 +193,11 @@ for op in ${operators}; do
         mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
       done
     fi
-    if [ $pt = envar_nestc ]; then
-      python ${cdir}/plot/plotcoef_a_nest.py ${op} ${model} ${na} 
-      mv ${model}_lam_coef_a_${op}_${pert}.txt data/$pert
-      rm ${model}_lam_coef_a_${op}_${pert}_cycle*.txt
-    fi
+    #if [ $pt = envar_nestc ]; then
+    #  python ${cdir}/plot/plotcoef_a_nest.py ${op} ${model} ${na} 
+    #  mv ${model}_lam_coef_a_${op}_${pert}.txt data/$pert
+    #  rm ${model}_lam_coef_a_${op}_${pert}_cycle*.txt
+    #fi
   done
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} F

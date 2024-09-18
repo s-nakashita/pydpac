@@ -4,7 +4,7 @@ export OMP_NUM_THREADS=4
 #alias python=python3.9
 model="l05II"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic" # cubic"
+operators="linear"
 perturbations="envar"
 na=240 # Number of assimilation cycle
 nmem=240 # ensemble size
@@ -17,9 +17,7 @@ model_error=True
 ptype=infl
 functype=gc5
 a=-0.2
-#exp="var_${functype}a${a}_${ptype}_obs${nobs}"
 exp="envar_obs${nobs}mem${nmem}_${ptype}"
-#exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
 wdir=work/${model}_inperfect/${exp}
@@ -135,7 +133,6 @@ for op in ${operators}; do
       mv ${model}_xdmean_${op}_${pt}.txt ${model}_xdmean_${op}_${pert}_${ptmp}.txt
       mv ${model}_xsmean_${op}_${pt}.txt ${model}_xsmean_${op}_${pert}_${ptmp}.txt
     done #pert
-    #python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
   done #nmem
   cat params.txt
   python ${cdir}/plot/ploteparam.py ${op} ${model} ${na} $ptype

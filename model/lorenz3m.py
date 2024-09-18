@@ -158,7 +158,7 @@ if __name__ == "__main__":
     plt.rcParams['font.size'] = 16
     import sys
     sys.path.append('../plot')
-    from nmc_tools import psd, wnum2wlen, wlen2wnum
+    from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
     from pathlib import Path
 
     nx = 960
@@ -174,6 +174,7 @@ if __name__ == "__main__":
     #exit()
     xaxis = np.arange(nx)
     ix_rad = 2.0 * np.pi * xaxis / nx
+    nmc = NMC_tools(ix_rad,ttype='c')
 
     figdir = Path('lorenz/l05IIIm')
     if not figdir.exists():
@@ -182,7 +183,7 @@ if __name__ == "__main__":
     #z0 = np.sin(np.arange(nx)*2.0*np.pi/30.0)
     nt = 100 * 4 * nt6h
     z0 = np.random.rand(nx)
-    z0.astype('<d').tofile(figdir/f"z0_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy")
+    #z0.astype('<d').tofile(figdir/f"z0_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy")
     t = []
     z = [z0]
     en = []
@@ -193,13 +194,13 @@ if __name__ == "__main__":
         if k>nt//10:
             t.append(k*h)
             en.append(np.mean(z0**2)/2.)
-            wnum, sp1 = psd(z0,ix_rad)
+            wnum, sp1 = nmc.psd(z0)
             sp.append(sp1)
         if (k+1)%nt6h==0:
             z.append(z0)
     z = np.array(z)
     print(z.shape)
-    np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy",z)
+    #np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy",z)
     exit()
     x0, y0 = l3.decomp(z0)
     plt.plot(z0)
@@ -249,7 +250,7 @@ if __name__ == "__main__":
     fig.suptitle(f"Lorenz III, N={nx}, K={'+'.join([str(n) for n in nks])}\nI={ni}, F={F}, b={b}, c={c}")
     fig.savefig(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
     plt.show()
-    exit()
+    #exit()
 
     nt1yr = nt6h * 4 * 365 # 1 year
     ksave = nt6h # 6 hours
