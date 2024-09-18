@@ -68,11 +68,11 @@ Psqrt = v @ np.diag(np.sqrt(Lam)) @ v.T
 #plt.colorbar()
 #plt.show(block=False)
 
-figdir = Path(f'l96/lp{lpatch}lh{lhalo}')
+figdir = Path(f'l96adj/lp{lpatch}lh{lhalo}')
 if not figdir.exists(): figdir.mkdir(parents=True)
 
 icyc0 = 50
-ncycle = 100
+ncycle = 1
 beta = 0.1 # Tikhonov regularization
 rng = default_rng(seed=517)
 # localization functions (rho0=gc5, rho1=boxcar)
@@ -106,15 +106,26 @@ for icyc in range(icyc0,icyc0+ncycle):
     if icyc-icyc0 < 1:
         axs[0].plot(ix,xp,c='gray',label='+prtb')
     tlmdyn_list = []
+    adjdyn_list = []
+    lam_dyn = []
+    lam_ens = []
     for i in range(ioffset):
         # nonlinear model
         xp = model(xp)
-        # dynamical TLM
+        # dynamical TLM & ADJ
+        dx_pre = dx_dyn.copy()
         dx_dyn = model.step_t(xb[i],dx_dyn)
         tlm = np.eye(nx)
         for j in range(nx):
             tlm[:,j] = model.step_t(xb[i],tlm[:,j])
         tlmdyn_list.append(tlm)
+        adj = np.eye(nx)
+        for j in range(nx):
+            adj[:,j] = model.step_adj(xb[i],adj[:,j])
+        adjdyn_list.append(adj)
+        e0 = np.dot(dx0,dx0)
+        e0_ens = np.diag(np.dot(Xprtb[0,].T,Xprtb[0,]))
+    
         # localized ensemble TLM
         Xi = Xprtb[i,:,:]
         Xj = Xprtb[i+1,:,:]
@@ -129,6 +140,8 @@ for icyc in range(icyc0,icyc0+ncycle):
         if icyc-icyc0 < 1:
             axs[2].plot(ix,dx_dyn,c='b',ls='dashed',alpha=0.5,lw=0.5)
             axs[2].plot(ix,dx_ens,c='r',ls='dashed',alpha=0.5,lw=0.5)
+    lam_dyn = np.dot(dx_dyn,dx_dyn) / e0
+    lam_ens = np.diag(np.dot(Xprtb[ioffset,].T,Xprtb[ioffset,]))/e0_ens
     if icyc-icyc0 < 1:
         axs[1].set_title(f'cycle{icyc} FT{vt:02d} K={nens}')
         axs[1].plot(ix,Xens[ioffset,],c='magenta',alpha=0.3,lw=1.0)
@@ -142,6 +155,16 @@ for icyc in range(icyc0,icyc0+ncycle):
             ax.legend()
         fig.savefig(figdir/f'dx_letlm_c{icyc}vt{vt}ne{nens}.png')
         plt.show(block=False)
+        plt.close()
+        fig, ax = plt.subplots(figsize=[6,4],constrained_layout=True)
+        ax.plot(np.arange(1,lam_ens.size+1),lam_ens,c='tab:blue',marker='^',label=r'$\lambda_\mathrm{ens}$')
+        ax.hlines([lam_ens.mean()],0,1,colors='tab:blue',ls='dashed',transform=ax.get_yaxis_transform())
+        ax.hlines([lam_dyn],0,1,colors='k',ls='dashed',transform=ax.get_yaxis_transform(),label=r'$\lambda_\mathrm{dyn}$')
+        ax.legend()
+        ax.set_xlabel('member')
+        fig.savefig(figdir/f'lam_letlm_c{icyc}vt{vt}ne{nens}.png')
+        plt.show(block=False)
+        plt.close()
     rmse_dx.append(np.sqrt(np.mean((dx_dyn-dx_ens)**2)))
 
     if icyc-icyc0 < 1:
@@ -159,38 +182,39 @@ for icyc in range(icyc0,icyc0+ncycle):
     rho0_ens_mat = np.diag(rho0_ens)
     rho1_ens_mat = np.diag(rho1_ens)
     tlmall = np.eye(nx)
-    itlmall = np.eye(nx)
+    adjall = np.eye(nx)
     for i in range(ioffset):
         # dynamical TLM
         rho0_dyn_mat_pre = rho0_dyn_mat.copy()
         rho1_dyn_mat_pre = rho1_dyn_mat.copy()
         tlm = tlmdyn_list[ioffset-i-1]
-        itlm = la.inv(tlm)
+        adj = adjdyn_list[ioffset-i-1]
         tlmall = tlm @ tlmall
-        itlmall = itlmall @ itlm
+        adjall = adjall @ adj
         if icyc-icyc0 < 1:
             ### debug
             fig, axs = plt.subplots(ncols=2,nrows=2,constrained_layout=True,figsize=[6,6])
             vlim = max(np.max(tlm),-np.min(tlm))
             p0=axs[0,0].matshow(tlm,vmin=-vlim,vmax=vlim,cmap='RdBu_r')
-            p1=axs[0,1].matshow(itlm,vmin=-vlim,vmax=vlim,cmap='RdBu_r')
-            p2=axs[1,0].matshow(itlm@tlm,vmin=-1.0,vmax=1.0,cmap='RdBu_r')
-            p3=axs[1,1].matshow(tlm@itlm,vmin=-1.0,vmax=1.0,cmap='RdBu_r')
+            vlim = max(np.max(adj),-np.min(adj))
+            p1=axs[0,1].matshow(adj,vmin=-vlim,vmax=vlim,cmap='RdBu_r')
+            p2=axs[1,0].matshow(adj@tlm,vmin=-1.5,vmax=1.5,cmap='RdBu_r')
+            p3=axs[1,1].matshow(tlm@adj,vmin=-1.5,vmax=1.5,cmap='RdBu_r')
             fig.colorbar(p0,ax=axs[0,0],shrink=0.6)
             fig.colorbar(p1,ax=axs[0,1],shrink=0.6)
             fig.colorbar(p2,ax=axs[1,0],shrink=0.6)
             fig.colorbar(p3,ax=axs[1,1],shrink=0.6)
             axs[0,0].set_title(r'$\mathbf{M}_{'+f'{i*6},{(i+1)*6}'+r'}$')
-            axs[0,1].set_title(r'$\mathbf{M}^{-1}_{'+f'{i*6},{(i+1)*6}'+r'}$')
-            axs[1,0].set_title(r'$\mathbf{M}^{-1}\mathbf{M}$')
-            axs[1,1].set_title(r'$\mathbf{M}\mathbf{M}^{-1}$')
+            axs[0,1].set_title(r'$\mathbf{M}^\mathrm{T}_{'+f'{i*6},{(i+1)*6}'+r'}$')
+            axs[1,0].set_title(r'$\mathbf{M}^\mathrm{T}\mathbf{M}$')
+            axs[1,1].set_title(r'$\mathbf{M}\mathbf{M}^\mathrm{T}$')
             fig.suptitle(f'cycle{icyc}')
-            fig.savefig(figdir/f'../dtlm_c{icyc}i{i}.png')
+            fig.savefig(figdir/f'../dtlmadj_c{icyc}i{i}.png')
             plt.show(block=False)
             plt.close(fig=fig)
         ###
-        rho0_dyn_mat = itlm@rho0_dyn_mat@tlm
-        rho1_dyn_mat = itlm@rho1_dyn_mat@tlm
+        rho0_dyn_mat = adj@rho0_dyn_mat@tlm
+        rho1_dyn_mat = adj@rho1_dyn_mat@tlm
         ### minimize Frobenius norm of P_m - P_{m-1}
         #f0 = la.norm(rho0_dyn_mat,ord='fro')
         #f1 = la.norm(rho1_dyn_mat,ord='fro')
@@ -210,7 +234,9 @@ for icyc in range(icyc0,icyc0+ncycle):
             Xip = np.roll(Xi,-ishalo[l],axis=0)[:lletlm[l]]
             Xjp = np.roll(Xj,-ishalo[l],axis=0)[:lletlm[l]]
             cimat = Xip.T @ Xip + beta*np.eye(Xip.shape[1])
-            cjmat = Xjp.T @ Xjp + beta*np.eye(Xjp.shape[1])
+            cipmat = la.pinv(cimat, rcond=1e-4, hermitian=True)
+            #cjmat = Xjp.T @ Xjp + beta*np.eye(Xjp.shape[1])
+            #cjpmat = la.pinv(cjmat, rcond=1e-4, hermitian=True)
             #rho0tmp = np.roll(rho0_ens,-ishalo[l])[:lletlm[l]]
             #rho1tmp = np.roll(rho1_ens,-ishalo[l])[:lletlm[l]]
             rho0tmp = np.roll(np.roll(rho0_ens_mat,-ishalo[l],axis=0),-ishalo[l],axis=1)[:lletlm[l],:lletlm[l]]
@@ -218,11 +244,11 @@ for icyc in range(icyc0,icyc0+ncycle):
             #Xjl = rho0tmp[:,None] * Xjp
             Xjl = rho0tmp @ Xjp
             cjlmat = Xjp.T @ Xjl
-            cmat0 = la.pinv(cjmat, rcond=1e-4, hermitian=True) @ cjlmat @ la.pinv(cimat, rcond=1e-4, hermitian=True)
+            cmat0 = cipmat @ cjlmat @ cipmat
             #Xjl = rho1tmp[:,None] * Xjp
             Xjl = rho1tmp @ Xjp
             cjlmat = Xjp.T @ Xjl
-            cmat1 = la.pinv(cjmat, rcond=1e-4, hermitian=True) @ cjlmat @ la.pinv(cimat, rcond=1e-4, hermitian=True)
+            cmat1 = cipmat @ cjlmat @ cipmat
             #ii = lhalo
             #for i in range(ispatch[l],iepatch[l]+1):
             #    rho0_ens[i] = np.dot(Xip[ii],np.dot(cmat0,Xip[ii]))
@@ -233,8 +259,8 @@ for icyc in range(icyc0,icyc0+ncycle):
             rho0_ens_mat[i0:i1,i0:i1] = np.dot(Xip[lhalo:-lhalo],np.dot(cmat0,Xip[lhalo:-lhalo].T))
             rho1_ens_mat[i0:i1,i0:i1] = np.dot(Xip[lhalo:-lhalo],np.dot(cmat1,Xip[lhalo:-lhalo].T))
         ## maximum = 1.0
-        scale0 = 1.0 / np.max(rho0_ens_mat)
-        scale1 = 1.0 / np.max(rho1_ens_mat)
+        scale0 = 1.0 #/ np.max(rho0_ens_mat)
+        scale1 = 1.0 #/ np.max(rho1_ens_mat)
         ## minimize Frobenius norm of P_m - P_{m-1}
         #f0 = la.norm(rho0_ens_mat,ord='fro')
         #f1 = la.norm(rho1_ens_mat,ord='fro')
@@ -259,6 +285,14 @@ for icyc in range(icyc0,icyc0+ncycle):
             axsr[1].plot(ix,rho1_dyn,c='b',ls='dashed',alpha=0.5,lw=0.5)
             axsr[0].plot(ix,rho0_ens,c='r',ls='dashed',alpha=0.5,lw=0.5)
             axsr[1].plot(ix,rho1_ens,c='r',ls='dashed',alpha=0.5,lw=0.5)
+    rho0_dyn_mat = rho0_dyn_mat / lam_dyn
+    rho1_dyn_mat = rho1_dyn_mat / lam_dyn
+    rho0_ens_mat = rho0_ens_mat / lam_ens.mean()
+    rho1_ens_mat = rho1_ens_mat / lam_ens.mean()
+    rho0_dyn = np.diag(rho0_dyn_mat)
+    rho1_dyn = np.diag(rho1_dyn_mat)
+    rho0_ens = np.diag(rho0_ens_mat)
+    rho1_ens = np.diag(rho1_ens_mat)
     if icyc-icyc0 < 1:
         axsr[0].plot(ix,rho0_dyn,c='b',ls='dashed',label='dyn')
         axsr[1].plot(ix,rho1_dyn,c='b',ls='dashed',label='dyn')
@@ -278,10 +312,10 @@ for icyc in range(icyc0,icyc0+ncycle):
         fig.colorbar(p1,ax=axs[0,1],shrink=0.6,pad=0.01)
         fig.colorbar(p2,ax=axs[1,0],shrink=0.6,pad=0.01)
         fig.colorbar(p3,ax=axs[1,1],shrink=0.6,pad=0.01)
-        axs[0,0].set_title(r'GC5 $\mathbf{P}^\mathrm{dyn}=\mathbf{M}^{-1}\mathrm{diag}(\rho_t)\mathbf{M}$')
-        axs[0,1].set_title(r'Boxcar $\mathbf{P}^\mathrm{dyn}=\mathbf{M}^{-1}\mathrm{diag}(\rho_t)\mathbf{M}$')
-        axs[1,0].set_title(r'GC5 $\mathbf{P}^\mathrm{ens}=(\mathbf{M}^\mathrm{ens})^\dagger\mathrm{diag}(\rho_t)\mathbf{M}^\mathrm{ens}$')
-        axs[1,1].set_title(r'Boxcar $\mathbf{P}^\mathrm{ens}=(\mathbf{M}^\mathrm{ens})^\dagger\mathrm{diag}(\rho_t)\mathbf{M}^\mathrm{ens}$')
+        axs[0,0].set_title(r'GC5 $\mathbf{P}^\mathrm{dyn}=\mathbf{M}^\mathrm{T}\mathrm{diag}(\rho_t)\mathbf{M}$')
+        axs[0,1].set_title(r'Boxcar $\mathbf{P}^\mathrm{dyn}=\mathbf{M}^\mathrm{T}\mathrm{diag}(\rho_t)\mathbf{M}$')
+        axs[1,0].set_title(r'GC5 $\mathbf{P}^\mathrm{ens}=(\mathbf{M}^\mathrm{ens})^\mathrm{T}\mathrm{diag}(\rho_t)\mathbf{M}^\mathrm{ens}$')
+        axs[1,1].set_title(r'Boxcar $\mathbf{P}^\mathrm{ens}=(\mathbf{M}^\mathrm{ens})^\mathrm{T}\mathrm{diag}(\rho_t)\mathbf{M}^\mathrm{ens}$')
         fig.suptitle(f'cycle{icyc} FT{vt:02d} K={nens} lpatch={lpatch} lhalo={lhalo}')
         fig.savefig(figdir/f'propmat_c{icyc}vt{vt}ne{nens}.png')
         plt.show(block=False)
@@ -291,20 +325,20 @@ for icyc in range(icyc0,icyc0+ncycle):
         fig, axs = plt.subplots(ncols=2,nrows=2,constrained_layout=True,figsize=[6,6])
         vlim = max(np.max(tlmall),-np.min(tlmall))
         p0=axs[0,0].matshow(tlmall,vmin=-vlim,vmax=vlim,cmap='RdBu_r')
-        vlim = max(np.max(itlmall),-np.min(itlmall))
-        p1=axs[0,1].matshow(itlmall,vmin=-vlim,vmax=vlim,cmap='RdBu_r')
-        p2=axs[1,0].matshow(itlmall@tlmall,vmin=-1.5,vmax=1.5,cmap='RdBu_r')
-        p3=axs[1,1].matshow(tlmall@itlmall,vmin=-1.5,vmax=1.5,cmap='RdBu_r')
+        vlim = max(np.max(adjall),-np.min(adjall))
+        p1=axs[0,1].matshow(adjall,vmin=-vlim,vmax=vlim,cmap='RdBu_r')
+        p2=axs[1,0].matshow(adjall@tlmall,vmin=-1.5,vmax=1.5,cmap='RdBu_r')
+        p3=axs[1,1].matshow(tlmall@adjall,vmin=-1.5,vmax=1.5,cmap='RdBu_r')
         fig.colorbar(p0,ax=axs[0,0],shrink=0.6)
         fig.colorbar(p1,ax=axs[0,1],shrink=0.6)
         fig.colorbar(p2,ax=axs[1,0],shrink=0.6)
         fig.colorbar(p3,ax=axs[1,1],shrink=0.6)
         axs[0,0].set_title(r'$\mathbf{M}_{'+f'{0},{ioffset*6}'+r'}$')
-        axs[0,1].set_title(r'$\mathbf{M}^{-1}_{'+f'{0},{ioffset*6}'+r'}$')
-        axs[1,0].set_title(r'$\mathbf{M}^{-1}\mathbf{M}$')
-        axs[1,1].set_title(r'$\mathbf{M}\mathbf{M}^{-1}$')
+        axs[0,1].set_title(r'$\mathbf{M}^\mathrm{T}_{'+f'{0},{ioffset*6}'+r'}$')
+        axs[1,0].set_title(r'$\mathbf{M}^\mathrm{T}\mathbf{M}$')
+        axs[1,1].set_title(r'$\mathbf{M}\mathbf{M}^\mathrm{T}$')
         fig.suptitle(f'cycle{icyc}')
-        fig.savefig(figdir/f'../dtlm_c{icyc}vt{vt}.png')
+        fig.savefig(figdir/f'../dtlmadj_c{icyc}vt{vt}.png')
         plt.show(block=False)
         plt.close(fig=fig)
 
@@ -323,12 +357,14 @@ for icyc in range(icyc0,icyc0+ncycle):
     xp1_dyn = xb[0] + rho1y_dyn
     xp0_ens = xb[0] + rho0y_ens
     xp1_ens = xb[0] + rho1y_ens
+    e00_dyn = np.dot(y,rho0y_dyn)
+    e01_dyn = np.dot(y,rho1y_dyn)
+    e00_ens = np.dot(y,rho0y_ens)
+    e01_ens = np.dot(y,rho1y_ens)
     if icyc-icyc0 < 1:
         fig, axs = plt.subplots(nrows=2,ncols=2,sharex=True,figsize=[8,6],constrained_layout=True)
         axs[0,0].set_title('GC5 FT00')
-        axs[0,1].set_title(f'GC5 FT{vt:02d}')
         axs[1,0].set_title('Boxcar FT00')
-        axs[1,1].set_title(f'Boxcar FT{vt:02d}')
         axs[0,0].plot(ix,y,c='k',lw=2.0,zorder=0)
         axs[1,0].plot(ix,y,c='k',lw=2.0,zorder=0)
         axs[0,0].plot(ix,rho0y_dyn,c='b')
@@ -366,6 +402,14 @@ for icyc in range(icyc0,icyc0+ncycle):
     znl1_dyn = xp1_dyn - xb[ioffset]
     znl0_ens = xp0_ens - xb[ioffset]
     znl1_ens = xp1_ens - xb[ioffset]
+    ev0_dyn = np.dot(y,rho0y_dyn)
+    ev1_dyn = np.dot(y,rho1y_dyn)
+    ev0_ens = np.dot(y,rho0y_ens)
+    ev1_ens = np.dot(y,rho1y_ens)
+    lam0_dyn = ev0_dyn / e00_dyn
+    lam1_dyn = ev1_dyn / e01_dyn
+    lam0_ens = ev0_ens / e00_ens
+    lam1_ens = ev1_ens / e01_ens
     isig = np.arange(nx)[np.abs(rho0*znl)>1.0e-5]
     inoi = np.arange(nx)[np.abs(rho0*znl)<=1.0e-5]
     rmse_rho0_dyn.append([
@@ -388,6 +432,8 @@ for icyc in range(icyc0,icyc0+ncycle):
         ])
 
     if icyc-icyc0 < 1:
+        axs[0,1].set_title(f'GC5 FT{vt:02d} '+r'$\lambda_\mathrm{dyn}$='+f'{lam0_dyn:.2f}'+r' $\lambda_\mathrm{ens}$='+f'{lam0_ens:.2f}')
+        axs[1,1].set_title(f'Boxcar FT{vt:02d} '+r'$\lambda_\mathrm{dyn}$='+f'{lam1_dyn:.2f}'+r' $\lambda_\mathrm{ens}$='+f'{lam1_ens:.2f}')
         axs[0,1].plot(ix,rho0*y,c='k',lw=2.0,zorder=0)
         axs[1,1].plot(ix,rho1*y,c='k',lw=2.0,zorder=0)
         axs[0,1].plot(ix,rho0y_dyn,c='b')
@@ -429,9 +475,9 @@ for icyc in range(icyc0,icyc0+ncycle):
         fig.suptitle(f'cycle{icyc} FT{vt:02d} K={nens} lpatch={lpatch} lhalo={lhalo}')
         fig.savefig(figdir/f'test_prop_letlm_c{icyc}vt{vt}ne{nens}.png')
         plt.show(block=False)
-
-np.savetxt(figdir/f'rmse_dx_letlm_vt{vt}ne{nens}.txt',rmse_dx)
-np.savetxt(figdir/f'rmse_rho0_letlm_vt{vt}ne{nens}.txt',rmse_rho0_ens)
-np.savetxt(figdir/f'rmse_rho1_letlm_vt{vt}ne{nens}.txt',rmse_rho1_ens)
-np.savetxt(figdir/f'../rmse_rho0_dyn_vt{vt}.txt',rmse_rho0_dyn)
-np.savetxt(figdir/f'../rmse_rho1_dyn_vt{vt}.txt',rmse_rho1_dyn)
+if ncycle>10:
+    np.savetxt(figdir/f'rmse_dx_letlm_vt{vt}ne{nens}.txt',rmse_dx)
+    np.savetxt(figdir/f'rmse_rho0_letlm_vt{vt}ne{nens}.txt',rmse_rho0_ens)
+    np.savetxt(figdir/f'rmse_rho1_letlm_vt{vt}ne{nens}.txt',rmse_rho1_ens)
+    np.savetxt(figdir/f'../rmse_rho0_dyn_vt{vt}.txt',rmse_rho0_dyn)
+    np.savetxt(figdir/f'../rmse_rho1_dyn_vt{vt}.txt',rmse_rho1_dyn)

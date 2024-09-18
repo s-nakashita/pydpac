@@ -48,15 +48,15 @@ class Advection():
         #else:
         #    self.S = state.xnu[0] + (np.roll(state.rho[1,:],-1)-2*state.rho[1,:]+np.roll(state.rho[1,:],1)) / self.dxs
         ## spectral
-        rhos = fft.fft(state.rho,axis=1)
+        rhos = fft.fft(state.rho,axis=1,norm='ortho')
         freq = fft.fftfreq(state.rho.shape[1])
         drhos = rhos[1,] * 2.0j * np.pi * freq / self.dx
         if self.tstype==2:
             ddrhos = - rhos[2,] * (2.0*np.pi)**2 * freq * freq / self.dxs
         else:
             ddrhos = - rhos[1,] * (2.0*np.pi)**2 * freq * freq / self.dxs
-        self.A = - state.u[0] * fft.ifft(drhos).real
-        self.S = state.xnu[0] * fft.ifft(ddrhos).real
+        self.A = - state.u[0] * fft.ifft(drhos,norm='ortho')
+        self.S = state.xnu[0] * fft.ifft(ddrhos,norm='ortho')
         self.F = np.arange(self.nx)*self.dx
         self.F = np.where(self.F<60.0, state.forcing[0]*np.sin(np.pi*self.F/60.0), 0.0)
 
@@ -66,25 +66,25 @@ class Advection():
 
     def euler(self, state):
         self.forward(state)
-        state.rho[0,:] = state.rho[1,:] + self.dt * (self.A + self.S + self.F)
+        state.rho[0,:] = state.rho[1,:] + self.dt * (self.A + self.S + self.F).real
 
     def leapfrog(self, state):
         self.forward(state)
-        state.rho[0,:] = state.rho[2,:] + 2.0 * self.dt * (self.A + self.S + self.F)
+        state.rho[0,:] = state.rho[2,:] + 2.0 * self.dt * (self.A + self.S + self.F).real
     
     def rk4(self, state):
         rho0 = state.rho[0,:].copy()
         self.forward(state)
-        k1 = self.dt * (self.A + self.S + self.F)
+        k1 = self.dt * (self.A + self.S + self.F).real
         state.rho[0,:] = rho0 + k1*0.5
         self.forward(state)
-        k2 = self.dt * (self.A + self.S + self.F)
+        k2 = self.dt * (self.A + self.S + self.F).real
         state.rho[0,:] = rho0 + k2*0.5
         self.forward(state)
-        k3 = self.dt * (self.A + self.S + self.F)
+        k3 = self.dt * (self.A + self.S + self.F).real
         state.rho[0,:] = rho0 + k3 
         self.forward(state)
-        k4 = self.dt * (self.A + self.S + self.F)
+        k4 = self.dt * (self.A + self.S + self.F).real
         state.rho[1,:] = rho0
         state.rho[0,:] = rho0 + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0
 
@@ -97,34 +97,34 @@ class Advection():
             self.rk4_t(state,prtb)
     
     def forward_t(self,state,prtb):
-        tlen = state.rho.shape[0]
+        tlen = prtb.rho.shape[0]
         
         prtb.rho[1:tlen] = prtb.rho[0:tlen-1]
 
-        ## finite-difference
+        ### finite-difference
         #self.At = - state.u[0] * (np.roll(prtb.rho[1,:],-1)-np.roll(prtb.rho[1,:],1)) / (2.0*self.dx)
         #if self.tstype==2:
         #    self.St = state.xnu[0] + (np.roll(prtb.rho[2,:],-1)-2*prtb.rho[2,:]+np.roll(prtb.rho[2,:],1)) / self.dxs
         #else:
         #    self.St = state.xnu[0] + (np.roll(prtb.rho[1,:],-1)-2*prtb.rho[1,:]+np.roll(prtb.rho[1,:],1)) / self.dxs
         ## spectral
-        rhos = fft.fft(prtb.rho,axis=1)
+        rhos = fft.fft(prtb.rho,axis=1,norm='ortho')
         freq = fft.fftfreq(prtb.rho.shape[1])
         drhos = rhos[1,] * 2.0j * np.pi * freq / self.dx
         if self.tstype==2:
             ddrhos = - rhos[2,] * (2.0*np.pi)**2 * freq * freq / self.dxs
         else:
             ddrhos = - rhos[1,] * (2.0*np.pi)**2 * freq * freq / self.dxs
-        self.At = - state.u[0] * fft.ifft(drhos).real
-        self.St = state.xnu[0] * fft.ifft(ddrhos).real
+        self.At = - state.u[0] * fft.ifft(drhos,norm='ortho')
+        self.St = state.xnu[0] * fft.ifft(ddrhos,norm='ortho')
     
     def euler_t(self, state, prtb):
         self.forward_t(state, prtb)
-        prtb.rho[0,:] = prtb.rho[1,:] + self.dt * (self.At + self.St)
+        prtb.rho[0,:] = prtb.rho[1,:] + self.dt * (self.At + self.St).real
 
     def leapfrog_t(self, state, prtb):
         self.forward_t(state, prtb)
-        prtb.rho[0,:] = prtb.rho[2,:] + 2.0 * self.dt * (self.At + self.St)
+        prtb.rho[0,:] = prtb.rho[2,:] + 2.0 * self.dt * (self.At + self.St).real
     
     def rk4_t(self, state, prtb):
         rho0 = state.rho[0,:].copy()
@@ -132,29 +132,68 @@ class Advection():
         drho0 = prtb.rho[0,:].copy()
         self.forward_t(state, prtb)
         self.forward(state)
-        k1 = self.dt * (self.A + self.S + self.F)
-        dk1 = self.dt * (self.At + self.St)
+        k1 = self.dt * (self.A + self.S + self.F).real
+        dk1 = self.dt * (self.At + self.St).real
         state.rho[0,:] = rho0 + k1*0.5
         prtb.rho[0,:] = drho0 + dk1*0.5
         self.forward_t(state,prtb)
         self.forward(state)
-        k2 = self.dt * (self.A + self.S + self.F)
-        dk2 = self.dt * (self.At + self.St)
+        k2 = self.dt * (self.A + self.S + self.F).real
+        dk2 = self.dt * (self.At + self.St).real
         state.rho[0,:] = rho0 + k2*0.5
         prtb.rho[0,:] = drho0 + dk2*0.5
         self.forward_t(state,prtb)
         self.forward(state)
-        k3 = self.dt * (self.A + self.S + self.F)
-        dk3 = self.dt * (self.At + self.St)
+        k3 = self.dt * (self.A + self.S + self.F).real
+        dk3 = self.dt * (self.At + self.St).real
         state.rho[0,:] = rho0 + k3 
         prtb.rho[0,:] = drho0 + dk3 
         self.forward_t(state,prtb)
         self.forward(state)
-        k4 = self.dt * (self.A + self.S + self.F)
-        dk4 = self.dt * (self.At + self.St)
+        k4 = self.dt * (self.A + self.S + self.F).real
+        dk4 = self.dt * (self.At + self.St).real
         state.rho[1,:] = rho1
         state.rho[0,:] = rho0
         prtb.rho[0,:] = drho0 + (dk1 + 2.0*dk2 + 2.0*dk3 + dk4)/6.0
+
+    def step_adj(self,state,prtb,kc=0):
+        if self.tstype==1:
+            self.euler_adj(state,prtb,kc=kc)
+        elif self.tstype==2:
+            self.leapfrog_adj(state,prtb,kc=kc)
+        elif self.tstype==3:
+            self.rk4_adj(state,prtb,kc=kc)
+    
+    def forward_adj(self,state,prtb,kc=0):
+        tlen = prtb.rho.shape[0]
+
+        ### finite-difference
+        #if self.tstype==2:
+        #    self.Ad = 2.0*state.xnu[kc]/self.dxs*np.roll(prtb.rho[kc,],1)
+        #    self.Bd = -4.0*state.xnu[kc]/self.dxs*prtb.rho[kc,]
+        #    self.Cd = state.u[kc] / (2.0*self.dx)*np.roll(prtb.rho[kc,],-1)
+        #else:
+        #    self.Ad = (state.xnu[kc]/self.dxs - state.u[kc] / (2.0*self.dx))*np.roll(prtb.rho[kc,],1)
+        #    self.Bd = -2.0*state.xnu[kc]/self.dxs*prtb.rho[kc,]
+        #    self.Cd = (state.xnu[kc]/self.dxs + state.u[kc] / (2.0*self.dx))*np.roll(prtb.rho[kc,],-1)
+        ## spectral
+        rhos = fft.fft(prtb.rho,axis=1,norm='ortho')
+        freq = fft.fftfreq(prtb.rho.shape[1])
+        drhos = - rhos[kc,] * 2.0j * np.pi * freq / self.dx
+        if self.tstype==2:
+            ddrhos = - rhos[kc+1,] * (2.0*np.pi)**2 * freq * freq / self.dxs
+        else:
+            ddrhos = - rhos[kc,] * (2.0*np.pi)**2 * freq * freq / self.dxs
+        drhos[1:] = drhos[1:] * np.sqrt(2.0)
+        ddrhos[1:] = ddrhos[1:] * np.sqrt(2.0)
+        self.Ad = - state.u[kc] * fft.ifft(drhos,norm='ortho')
+        self.Sd = state.xnu[kc] * fft.ifft(ddrhos,norm='ortho')
+    
+    def euler_adj(self,state,prtb,kc=0):
+        self.forward_adj(state, prtb, kc=kc)
+        prtb.rho[kc+1,:] = \
+            prtb.rho[kc,:] + self.dt * (self.Ad + self.Sd).real
+
 
 def gc5(r,c):
     z = r/c
@@ -172,11 +211,12 @@ if __name__ == "__main__":
     L = nx*dx
     dt = 0.001
     u0 = 2.0
-    xnu0 = 0.5
+    xnu0 = 0.0 #0.5
     F0 = 0.0
-    state1 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
-    state2 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
-    state3 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
+    ncyc = 1
+    state1 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
+    state2 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
+    state3 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
 
     model1 = Advection(state1, dx, dt, tstype=1)
     model2 = Advection(state2, dx, dt, tstype=2)
@@ -205,12 +245,12 @@ if __name__ == "__main__":
     rhoa = rho0
     for it in range(ntmax):
         model1(state1)
-        model2(state2)
-        model3(state3)
+        #model2(state2)
+        #model3(state3)
         if it%ntsave==0:
             axs[0].plot(ix,state1.rho[0,])
-            axs[1].plot(ix,state2.rho[0,])
-            axs[2].plot(ix,state3.rho[0,])
+        #    axs[1].plot(ix,state2.rho[0,])
+        #    axs[2].plot(ix,state3.rho[0,])
             for ax in axs:
                 ax.plot(ix,rhoa,c='k',ls='dashed')
             rhoa = np.roll(rhoa,xoffset)
@@ -224,31 +264,43 @@ if __name__ == "__main__":
     plt.close()
     #exit()
 
-    ## TLM check
-    state12 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
-    state22 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
-    state32 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
-    prtb1 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
-    prtb2 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
-    prtb3 = Advection_state(nx, u0=u0, xnu0=xnu0, F0=F0)
+    ## TLM, ADJ check
+    state12 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
+    state22 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
+    state32 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
+    prtb1 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
+    prtb2 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
+    prtb3 = Advection_state(nx, tlag=ncyc, u0=u0, xnu0=xnu0, F0=F0)
 
-    ncyc = 20
     alp = 1.0e-5
     drho0 = np.random.randn(nx)*0.1
     prtb1.rho[0,] = drho0
     prtb2.rho[0,] = drho0
     prtb2.rho[1,] = drho0
     prtb3.rho[0,] = drho0
-    schemes = ["Euler","Leapfrog","RK4"]
+    schemes = ["Euler"] #,"Leapfrog","RK4"]
     for scheme, model, st0, st1, prtb in zip(schemes,[model1,model2,model3],[state1,state2,state3],[state12,state22,state32],[prtb1,prtb2,prtb3]):
         print(scheme)
+        # forward (TLM)
         st1.rho[0,] = st0.rho[0,] + alp*drho0
         st1.rho[1,] = st0.rho[1,] + alp*drho0
         for icyc in range(ncyc):
             model(st0)
             model(st1)
             model.step_t(st0,prtb)
-        diff1 = np.mean((st1.rho[0,]-st0.rho[0,])**2)
-        diff2 = np.mean(prtb.rho[0,]**2)
+        diff1 = np.dot((st1.rho[0,]-st0.rho[0,]),(st1.rho[0,]-st0.rho[0,]))
+        diff2 = np.dot(prtb.rho[0,],prtb.rho[0,])
         print(f"|M(x+a*dx)-M(x)|={np.sqrt(diff1):.4e}")
         print(f"      a*|TLM*dx|={alp*np.sqrt(diff2):.4e}")
+        # backward (ADJ)
+        p0 = prtb.rho[ncyc]
+        dax = prtb.rho[0].copy()
+        #prtb.rho[1:,] = 0.0
+        for icyc in range(ncyc):
+            model.step_adj(st0,prtb,kc=icyc)
+        diff1 = np.dot(dax,dax)
+        diff2 = np.dot(p0,prtb.rho[ncyc])
+        print(f"|(Ax)^T Ax|={np.sqrt(diff1)}")
+        print(f"|x^T(A^TAx)|={np.sqrt(diff2)}")
+        print(f"|(Ax)^T Ax|-|x^T(A^TAx)|={np.sqrt(diff1)-np.sqrt(diff2)}")
+    
