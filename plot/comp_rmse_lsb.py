@@ -187,8 +187,9 @@ ax.set_xticks([10,40,70,100,130,160,190,220,250])
 ax.set_xticks(t[ns-1:na:40],minor=True)
 ax.grid()
 ax.set_xlabel('days')
-ax.legend(loc='upper left',bbox_to_anchor=(0.82,1.0),\
-    title=f'{ptlong[pt]} time average')
+ax.legend(ncol=2,loc='upper right',bbox_to_anchor=(1.01,1.05))
+#ax.legend(loc='upper left',bbox_to_anchor=(0.82,1.0),\
+#    title=f'{ptlong[pt]} time average')
 ax02.set_xlabel('days')
 ax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=f'{ptlong[pt]} time average')
@@ -209,7 +210,9 @@ sax02.set_xlabel('days')
 sax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=ptlong[pt]+' time average \nof STD/RMSE')
 if obsloc == '':
-    fig.suptitle(captions[pt],ha='left',x=0.05,fontsize=24)
+    fig.suptitle(captions[pt]+' '+ptlong[pt],ha='left',x=0.05,fontsize=24)
+else:
+    fig.suptitle(ptlong[pt],ha='left',x=0.1,fontsize=24)
 if anl:
     fig.savefig(figpngdir/'{}_e_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     fig0.savefig(figpngdir/'{}_e3_lam_{}_{}.png'.format(model,op,pt),dpi=300)

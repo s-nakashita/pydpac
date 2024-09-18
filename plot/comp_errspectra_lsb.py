@@ -78,7 +78,7 @@ nmc_t = NMC_tools(ix_t_rad,cyclic=True,ttype='c')
 nmc_gm = NMC_tools(ix_gm_rad,cyclic=True,ttype='c')
 nmc_lam = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 
-fig, ax = plt.subplots(figsize=[8,6],constrained_layout=True)
+fig, ax = plt.subplots(figsize=[8,7],constrained_layout=True)
 figsp, axsp = plt.subplots(figsize=[8,7],constrained_layout=True)
 psd_dict = {}
 
@@ -171,7 +171,8 @@ ax.set_xlim(ix_lam[0],ix_lam[-1])
 ax.legend(loc='upper left') #loc='upper right')
 ymin, ymax = ax.get_ylim()
 #if ymax > 1.0:
-ymax = 0.8
+ymin = 0.15
+ymax = 1.0 #0.8
 ax.set_ylim(ymin,ymax)
 if obsloc == '':
     fig.suptitle(captions[pt]+' '+ptlong[pt],ha='left',x=0.05,fontsize=24)
