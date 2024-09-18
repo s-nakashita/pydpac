@@ -447,14 +447,14 @@ elif pt == "var_nest":
         ebkmat=None
         ekbmat=None
     if params_lam["anlsp"]:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1, cyclic=False, 
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1, 
         bmat=bmat_lam, sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"],
         vmat=vmat, sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], 
         crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model=model+"_lam",**trunc_kwargs)
     else:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp, cyclic=False, 
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp, 
         bmat=bmat_lam, sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"],
         vmat=vmat, sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], 
         crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,

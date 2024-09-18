@@ -104,24 +104,24 @@ if __name__ == "__main__":
     l2 = L05IIm(nx, nks, h, F)
     x0 = np.ones(nx)*F
     x0[nx//2-1] += 0.001*F
-    t = []
-    x = [x0]
-    en = []
-    sp = []
-    for k in range(nt):
-        print(f'{k/nt*100:.2f}%')
-        x0 = l2(x0)
-        if (k+1)%nt6h == 0:
-            x.append(x0)
-        if k>nt//10:
-            t.append(k*h)
-            en.append(np.mean(x0**2)/2.)
-            wnum, sp1 = nmc.psd(x0)
-            sp.append(sp1)
-    x = np.array(x)
-    print(x.shape)
-    #np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.npy",x)
-    #exit()
+#    t = []
+#    x = [x0]
+#    en = []
+#    sp = []
+#    for k in range(nt):
+#        print(f'{k/nt*100:.2f}%')
+#        x0 = l2(x0)
+#        if (k+1)%nt6h == 0:
+#            x.append(x0)
+#        if k>nt//10:
+#            t.append(k*h)
+#            en.append(np.mean(x0**2)/2.)
+#            wnum, sp1 = nmc.psd(x0)
+#            sp.append(sp1)
+#    x = np.array(x)
+#    print(x.shape)
+#    #np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.npy",x)
+#    #exit()
 
     fig2, axs = plt.subplots(nrows=2,figsize=[6,12],constrained_layout=True)
     days = np.array(t) / 0.05 / 4
@@ -158,12 +158,13 @@ if __name__ == "__main__":
     ax.set_title(f"Lorenz IIm, N={nx}\nK={'+'.join([str(n) for n in nks])}, F={F}")
     fig.savefig(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}F{int(F)}.png",dpi=300)
     plt.show()
-    exit()
+    #exit()
 
     nt1yr = nt6h * 4 * 365 # 1 year
     ksave = nt6h # 6 hours
     zsave = []
     for k in range(nt1yr):
+        print(f'{k/nt1yr*100:.2f}%')
         x0 = l2(x0)
         if k%ksave==0:
             zsave.append(x0)

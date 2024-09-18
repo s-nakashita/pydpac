@@ -20,7 +20,7 @@ logger = getLogger('anl')
 class EnVAR_nest():
 
     def __init__(self, state_size, nmem, obs, ix_gm, ix_lam,
-        pt="envar_nest", cyclic=False, #ntrunc=None, ftrunc=None, 
+        pt="envar_nest", #ntrunc=None, ftrunc=None, 
         crosscov=False, ortho=True, coef_a=None, \
         ridge=False, ridge_dx=False, reg=False, mu=0.1,
         nvars=1, ndims=1, 
