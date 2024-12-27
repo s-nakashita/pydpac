@@ -11,6 +11,8 @@ from mpl_toolkits.axisartist.grid_finder import MaxNLocator
 #from mpl_toolkits.axes_grid1 import make_axes_locatable
 from confidence_ellipse import confidence_ellipse
 from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+import pandas as pd
 import xarray as xr
 from sklearn.linear_model import LinearRegression
 from pathlib import Path
@@ -117,7 +119,12 @@ axsmul_histy['asa'] = figmul.add_subplot(gsmul[1:4,0])
 #axsmul_histy['diag'] = figmul.add_subplot(gsmul[1:4,4])
 axsmul_histy['minnorm'] = figmul.add_subplot(gsmul[5:8,0])
 #axsmul_histy['pls'] = figmul.add_subplot(gsmul[5:8,4])
-
+aspmul_dict = dict(FT=vt,member=nens)
+aspuni_dict = dict(FT=vt,member=nens)
+thtmul_dict = dict(FT=vt,member=nens)
+thtuni_dict = dict(FT=vt,member=nens)
+rmsdmul_dict = dict(FT=vt,member=nens)
+rmsduni_dict = dict(FT=vt,member=nens)
 for i,key in enumerate(resmul_dict.keys()):
     figdir1 = figdir/key
     if not figdir1.exists(): figdir1.mkdir()
@@ -135,14 +142,23 @@ for i,key in enumerate(resmul_dict.keys()):
     axs[0,0].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
     _, aspectr, theta = confidence_ellipse(resmul_dict[key],resmul_calc,axs[0,0],\
         n_std=3,edgecolor='firebrick')
-    handles=[Patch(facecolor='none',edgecolor='firebrick',\
+    aspmul_dict[key] = aspectr
+    thtmul_dict[key] = theta
+    rmsd = np.sqrt(np.mean((resmul_dict[key]-resmul_calc)**2))
+    rmsdmul_dict[key] = rmsd.values
+    handles1 = [Line2D([0],[0],lw=0.0,marker=markers[key],c=colors[key],label=f'RMSD={rmsd:.2f}',**marker_style)]
+    l1=axs[0,0].legend(handles=handles1,loc='upper left',handletextpad=0.4)
+    axs[0,0].add_artist(l1)
+    handles2=[Patch(facecolor='none',edgecolor='firebrick',\
         label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')]
-    axs[0,0].legend(handles=handles)
+    axs[0,0].legend(handles=handles2,loc='lower center')
     if key in axsmul.keys():
         axsmul[key].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
         _,_,_ = confidence_ellipse(resmul_dict[key],resmul_calc,axsmul[key],\
         n_std=3,edgecolor='firebrick')
-        axsmul[key].legend(handles=handles,loc='lower center',fontsize=12)
+        l1=axsmul[key].legend(handles=handles1,loc='upper left',fontsize=12,handletextpad=0.4)
+        axsmul[key].add_artist(l1)
+        axsmul[key].legend(handles=handles2,loc='lower center',fontsize=12)
     axs[0,1].plot(resuni_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
     _, aspectr, theta = confidence_ellipse(resuni_dict[key],resmul_calc,axs[0,1],\
         n_std=3,edgecolor='firebrick')
@@ -156,8 +172,14 @@ for i,key in enumerate(resmul_dict.keys()):
     axs[1,1].plot(resuni_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
     _, aspectr, theta = confidence_ellipse(resuni_dict[key],resuni_calc,axs[1,1],\
         n_std=3,edgecolor='firebrick')
+    aspuni_dict[key] = aspectr
+    thtuni_dict[key] = theta
+    rmsd = np.sqrt(np.mean((resuni_dict[key]-resuni_calc)**2))
+    rmsduni_dict[key] = rmsd.values
+    l1=axs[1,1].legend(handles=[Line2D([0],[0],lw=0.0,marker=markers[key],c=colors[key],label=f'RMSD={rmsd:.2f}',**marker_style)],loc='upper left',handletextpad=0.4)
+    axs[1,1].add_artist(l1)
     axs[1,1].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
-        label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
+        label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')],loc='lower center')
     #x = resmul_dict[key].values.reshape(-1,1)
     #y = resmul_calc.values
     #reg = LinearRegression().fit(x,y)
@@ -304,7 +326,22 @@ figmul.suptitle(r'$\Delta J(\Delta x_{0i})$'+f' vt={vt}h, Nens={nens} #{nsample}
 figmul.savefig(figdir/f'resmul_vt{vt}ne{nens}.png')
 #plt.show()
 plt.close()
-#exit()
+
+## save csv data
+ds = pd.DataFrame(aspmul_dict,columns=aspmul_dict.keys(),index=[0])
+print(ds)
+ds.to_csv(datadir/f'all_mul-mul_aspect_vt{vt}ne{nens}.csv')
+ds = pd.DataFrame(thtmul_dict,columns=thtmul_dict.keys(),index=[0])
+ds.to_csv(datadir/f'all_mul-mul_slope_vt{vt}ne{nens}.csv')
+ds = pd.DataFrame(rmsdmul_dict,columns=rmsdmul_dict.keys(),index=[0])
+ds.to_csv(datadir/f'all_mul-mul_rmsd_vt{vt}ne{nens}.csv')
+ds = pd.DataFrame(aspuni_dict,columns=aspuni_dict.keys(),index=[0])
+ds.to_csv(datadir/f'all_uni-uni_aspect_vt{vt}ne{nens}.csv')
+ds = pd.DataFrame(thtuni_dict,columns=thtuni_dict.keys(),index=[0])
+ds.to_csv(datadir/f'all_uni-uni_slope_vt{vt}ne{nens}.csv')
+ds = pd.DataFrame(rmsduni_dict,columns=rmsduni_dict.keys(),index=[0])
+ds.to_csv(datadir/f'all_uni-uni_rmsd_vt{vt}ne{nens}.csv')
+exit()
 #fig, axs = plt.subplots(figsize=[8,6],ncols=2,nrows=2,constrained_layout=True)
 #axs[0,1].yaxis.set_tick_params(labelleft=False)
 #axs[1,1].yaxis.set_tick_params(labelleft=False)
