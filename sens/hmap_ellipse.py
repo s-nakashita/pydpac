@@ -140,7 +140,7 @@ if __name__=="__main__":
     import argparse
     plt.rcParams['font.size'] = 16
 
-    datadir = Path('data')
+    datadir = Path('/Volumes/FF520/pyesa/adata/l96')
     figdir = Path('fig/res')
 
     parser = argparse.ArgumentParser()
@@ -152,39 +152,46 @@ if __name__=="__main__":
     # load csv data
     aspect = pd.read_csv(datadir/f'{sample}_mul-mul_aspect.csv',index_col=['FT','member'])
     slope  = pd.read_csv(datadir/f'{sample}_mul-mul_slope.csv',index_col=['FT','member'])
+    rmsd = pd.read_csv(datadir/f'{sample}_mul-mul_rmsd.csv',index_col=['FT','member'])
 
     nmethod = aspect.columns.size
+    datadict = {'aspect':aspect,'slope':slope,'rmsd':rmsd}
     for n in range(nmethod):
-        key = aspect.columns[n]
-        print(key)
-        figdir1 = figdir / key.lower()
-        rows = aspect.index.get_level_values('FT')
-        rows = rows[~rows.duplicated()]
-        cols = aspect.index.get_level_values('member')
-        cols = cols[~cols.duplicated()]
-        print(rows,len(rows))
-        print(cols,len(cols))
-        adata = aspect[key].values.reshape(len(rows),len(cols))
-        sdata = slope[key].values.reshape(len(rows),len(cols))
-        print(adata)
-        row_labels = [f'FT{f}' for f in rows]
-        col_labels = [f'mem{m}' for m in cols]
-        fig1, ax1 = plt.subplots(figsize=[6,4],constrained_layout=True)
-        fig2, ax2 = plt.subplots(figsize=[6,4],constrained_layout=True)
-        im1, cbar1 = heatmap(adata, row_labels, col_labels, ax=ax1, \
-            cbarlabel='aspect ratio', cbar_kw={'pad':0.01},\
-            vmin=1.0,vmax=4.0)
-        im2, cbar2 = heatmap(sdata, row_labels, col_labels, ax=ax2, \
-            cbarlabel='slope (degree)', cbar_kw={'pad':0.01},\
-            vmin=30.0,vmax=60.0,cmap='PiYG')
-        _ = annotate_heatmap(im1,textcolors=("white", "black"))
-        _ = annotate_heatmap(im2,thdata=np.abs(sdata-45.0),threshold=10.0,\
-            textcolors=("black", "white"),\
-            valfmt='{x:.0f}')
-        ax1.set_title(key.lower()+f' {sample} multi-multi')
-        ax2.set_title(key.lower()+f' {sample} multi-multi')
-        fig1.savefig(figdir1/f'{sample}_mul-mul_aspect.png',dpi=300)
-        fig2.savefig(figdir1/f'{sample}_mul-mul_slope.png',dpi=300)
-        plt.show()
-        plt.close()
+        for dtype in datadict.keys():
+            data = datadict[dtype]
+            key = data.columns[n]
+            print(key)
+            figdir1 = figdir / key.lower()
+            rows = data.index.get_level_values('FT')
+            rows = rows[~rows.duplicated()]
+            cols = data.index.get_level_values('member')
+            cols = cols[~cols.duplicated()]
+            print(rows,len(rows))
+            print(cols,len(cols))
+            data2d = data[key].values.reshape(len(rows),len(cols))
+            row_labels = [f'FT{f}' for f in rows]
+            col_labels = [f'{m}' for m in cols]
+            fig, ax = plt.subplots(figsize=[5,4],constrained_layout=True)
+            if dtype=='aspect':
+                im, cbar = heatmap(data2d, row_labels, col_labels, ax=ax, \
+                cbarlabel='aspect ratio', cbar_kw={'pad':0.01},\
+                vmin=1.0,vmax=4.0)
+                _ = annotate_heatmap(im,threshold=2.5,textcolors=("white", "black"))
+            elif dtype=='slope':
+                im, cbar = heatmap(data2d, row_labels, col_labels, ax=ax, \
+                cbarlabel='slope (degree)', cbar_kw={'pad':0.01},\
+                vmin=30.0,vmax=60.0,cmap='PiYG')
+                _ = annotate_heatmap(im,thdata=np.abs(data2d-45.0),threshold=10.0,\
+                textcolors=("black", "white"),\
+                valfmt='{x:.0f}')
+            else:
+                im, cbar = heatmap(data2d, row_labels, col_labels, ax=ax, \
+                cbarlabel='RMSD', cbar_kw={'pad':0.01},\
+                vmin=0.0,vmax=20.0)
+                _ = annotate_heatmap(im,threshold=10.0,textcolors=("white", "black"))
+            ax.set_xlabel('ensemble size')
+            ax.set_title(key.lower()+f' {sample} multi-multi')
+            fig.savefig(figdir1/f'{sample}_mul-mul_{dtype}.png',dpi=300)
+            plt.show(block=False)
+            plt.close()
         #exit()

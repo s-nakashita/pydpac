@@ -18,7 +18,7 @@ from sklearn.linear_model import LinearRegression
 from pathlib import Path
 import argparse
 
-datadir = Path('data')
+datadir = Path('/Volumes/FF520/pyesa/adata/l96')
 
 cmap = plt.get_cmap('tab10')
 enasas = ['minnorm','diag','ridge','pcr','pls']
@@ -42,7 +42,7 @@ metric = argsin.metric
 nensbase = 8
 
 figdir = Path(f"fig{metric}/res")
-if not figdir.exists(): figdir.mkdir()
+if not figdir.exists(): figdir.mkdir(parents=True)
 
 # load results
 ds_calc = xr.open_dataset(datadir/f'res_calc{metric}_vt{vt}nens{nens}.nc')
@@ -341,7 +341,8 @@ ds = pd.DataFrame(thtuni_dict,columns=thtuni_dict.keys(),index=[0])
 ds.to_csv(datadir/f'all_uni-uni_slope_vt{vt}ne{nens}.csv')
 ds = pd.DataFrame(rmsduni_dict,columns=rmsduni_dict.keys(),index=[0])
 ds.to_csv(datadir/f'all_uni-uni_rmsd_vt{vt}ne{nens}.csv')
-exit()
+#exit()
+
 #fig, axs = plt.subplots(figsize=[8,6],ncols=2,nrows=2,constrained_layout=True)
 #axs[0,1].yaxis.set_tick_params(labelleft=False)
 #axs[1,1].yaxis.set_tick_params(labelleft=False)
@@ -425,15 +426,40 @@ for key in ds_dict.keys():
     resuni_far[key] = ds_dict[key].resuni[far]
     resuni_near[key] = ds_dict[key].resuni[near]
 
+aspmul_far_dict = dict(FT=vt,member=nens)
+aspuni_far_dict = dict(FT=vt,member=nens)
+thtmul_far_dict = dict(FT=vt,member=nens)
+thtuni_far_dict = dict(FT=vt,member=nens)
+rmsdmul_far_dict = dict(FT=vt,member=nens)
+rmsduni_far_dict = dict(FT=vt,member=nens)
+aspmul_near_dict = dict(FT=vt,member=nens)
+aspuni_near_dict = dict(FT=vt,member=nens)
+thtmul_near_dict = dict(FT=vt,member=nens)
+thtuni_near_dict = dict(FT=vt,member=nens)
+rmsdmul_near_dict = dict(FT=vt,member=nens)
+rmsduni_near_dict = dict(FT=vt,member=nens)
+
 for i in range(2):
     if i==0:
         figname = 'far'
         resmul_dict = resmul_far
         resuni_dict = resuni_far
+        aspmul_dict = aspmul_far_dict
+        aspuni_dict = aspuni_far_dict
+        thtmul_dict = thtmul_far_dict
+        thtuni_dict = thtuni_far_dict
+        rmsdmul_dict = rmsdmul_far_dict
+        rmsduni_dict = rmsduni_far_dict
     else:
         figname = 'near'
         resmul_dict = resmul_near
         resuni_dict = resuni_near
+        aspmul_dict = aspmul_near_dict
+        aspuni_dict = aspuni_near_dict
+        thtmul_dict = thtmul_near_dict
+        thtuni_dict = thtuni_near_dict
+        rmsdmul_dict = rmsdmul_near_dict
+        rmsduni_dict = rmsduni_near_dict
     #fig, axs = plt.subplots(figsize=[8,6],ncols=2,nrows=2,constrained_layout=True)
     fig = plt.figure(figsize=[8,6],constrained_layout=True)
     axs00 = fig.add_subplot(221)
@@ -485,6 +511,13 @@ for i in range(2):
         axs1[0,0].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
         _, aspectr, theta = confidence_ellipse(resmul_dict[key],resmul_calc,axs1[0,0],\
             n_std=3,edgecolor='firebrick')
+        aspmul_dict[key] = aspectr
+        thtmul_dict[key] = theta
+        rmsd = np.sqrt(np.mean((resmul_dict[key]-resmul_calc)**2))
+        rmsdmul_dict[key] = rmsd.values
+        handles1 = [Line2D([0],[0],lw=0.0,marker=markers[key],c=colors[key],label=f'RMSD={rmsd:.2f}',**marker_style)]
+        l1=axs1[0,0].legend(handles=handles1,loc='upper left',handletextpad=0.4)
+        axs1[0,0].add_artist(l1)
         handles = [Patch(facecolor='none',edgecolor='firebrick',\
             label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')]
         axs1[0,0].legend(handles=handles)
@@ -492,6 +525,8 @@ for i in range(2):
             axsmul[key].plot(resmul_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
             _,_,_ = confidence_ellipse(resmul_dict[key],resmul_calc,axsmul[key],\
             n_std=3,edgecolor='firebrick')
+            l1=axsmul[key].legend(handles=handles1,loc='upper left',handletextpad=0.4)
+            axsmul[key].add_artist(l1)
             axsmul[key].legend(handles=handles,loc='lower center',fontsize=12)
         axs1[0,1].plot(resuni_dict[key],resmul_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
         _, aspectr, theta = confidence_ellipse(resuni_dict[key],resmul_calc,axs1[0,1],\
@@ -506,6 +541,13 @@ for i in range(2):
         axs1[1,1].plot(resuni_dict[key],resuni_calc,lw=0.0,marker=markers[key],c=colors[key],**marker_style)
         _, aspectr, theta = confidence_ellipse(resuni_dict[key],resuni_calc,axs1[1,1],\
             n_std=3,edgecolor='firebrick')
+        aspuni_dict[key] = aspectr
+        thtuni_dict[key] = theta
+        rmsd = np.sqrt(np.mean((resuni_dict[key]-resuni_calc)**2))
+        rmsduni_dict[key] = rmsd.values
+        handles1 = [Line2D([0],[0],lw=0.0,marker=markers[key],c=colors[key],label=f'RMSD={rmsd:.2f}',**marker_style)]
+        l1=axs1[1,1].legend(handles=handles1,loc='upper left',handletextpad=0.4)
+        axs1[1,1].add_artist(l1)
         axs1[1,1].legend(handles=[Patch(facecolor='none',edgecolor='firebrick',\
             label=f'aspect={aspectr:.2f}, '+r'$\theta$='+f'{theta:.0f}')])
         #x = resmul_dict[key].values.reshape(-1,1)
@@ -695,3 +737,16 @@ for i in range(2):
     figmul.savefig(figdir/f'resmul_{figname}_vt{vt}ne{nens}.png')
     #plt.show()
     plt.close()
+    ## save csv data
+    ds = pd.DataFrame(aspmul_dict,columns=aspmul_dict.keys(),index=[0])
+    ds.to_csv(datadir/f'{figname}_mul-mul_aspect_vt{vt}ne{nens}.csv')
+    ds = pd.DataFrame(thtmul_dict,columns=thtmul_dict.keys(),index=[0])
+    ds.to_csv(datadir/f'{figname}_mul-mul_slope_vt{vt}ne{nens}.csv')
+    ds = pd.DataFrame(rmsdmul_dict,columns=rmsdmul_dict.keys(),index=[0])
+    ds.to_csv(datadir/f'{figname}_mul-mul_rmsd_vt{vt}ne{nens}.csv')
+    ds = pd.DataFrame(aspuni_dict,columns=aspuni_dict.keys(),index=[0])
+    ds.to_csv(datadir/f'{figname}_uni-uni_aspect_vt{vt}ne{nens}.csv')
+    ds = pd.DataFrame(thtuni_dict,columns=thtuni_dict.keys(),index=[0])
+    ds.to_csv(datadir/f'{figname}_uni-uni_slope_vt{vt}ne{nens}.csv')
+    ds = pd.DataFrame(rmsduni_dict,columns=rmsduni_dict.keys(),index=[0])
+    ds.to_csv(datadir/f'{figname}_uni-uni_rmsd_vt{vt}ne{nens}.csv')
