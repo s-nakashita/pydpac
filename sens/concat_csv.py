@@ -16,3 +16,13 @@ for sample in ['all','far','near']:
         dfc = pd.concat(frames)
         print(dfc)
         dfc[['FT','member','asa','diag','minnorm','ridge','pcr','pls']].to_csv(datadir/f'{sample}_mul-mul_{dtype}.csv',index=False)
+
+for csvname in ['res_hess','res_hessens']:
+    for dtype in ['estp_mean','estm_mean','calcp_mean','calcm_mean','rmsd_p','rmsd_m']:
+        frames = []
+        for vt in vtlist:
+            for ne in nelist:
+                df = pd.read_csv(datadir/f'{csvname}_{dtype}_vt{vt}ne{ne}.csv')
+                frames.append(df)
+        dfc = pd.concat(frames)
+        dfc[['FT','member','asa','minnorm','ridge','pcr','pls']].to_csv(datadir/f'{csvname}_{dtype}.csv',index=False)

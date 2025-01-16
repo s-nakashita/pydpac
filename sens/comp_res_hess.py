@@ -47,6 +47,20 @@ if not figdir.exists(): figdir.mkdir()
 
 # load results
 nensbase = 8
+if metric=='':
+    success = dict()
+    failure = dict()
+    success['asa'] = []
+    failure['asa'] = []
+    rsuccess = -0.75
+    rfailure = 0.0
+    for key in enasas:
+        success[key] = []
+        failure[key] = []
+    if lens:
+        f = open(figdir/f'nsuccess_failure_hessens_{vtype}.txt',mode='w')
+    else:
+        f = open(figdir/f'nsuccess_failure_{vtype}.txt',mode='w')
 ds_all = {}
 Jb_dict = {}
 Jb_base = {}
@@ -54,6 +68,9 @@ for v in vlist:
     ds_dict = {}
     if vtype[:2]=='vt':
         nens = v
+        dstmp = xr.open_dataset(datadir/f'Jb_vt{vt}nens{nens}.nc')
+        Jb = dstmp.Jb.values
+        Jb_dict[nens] = Jb
         if lens:
             ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nens}.nc')
             print(ds_asa)
@@ -63,40 +80,65 @@ for v in vlist:
                 ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nensbase}.nc')
                 print(ds_asa)
                 ds_dict['asa'] = ds_asa
+        if metric=='':
+            nsuccess = np.sum(ds_asa.rescalcm.values/Jb<=rsuccess)
+            nfailure = np.sum(ds_asa.rescalcm.values/Jb>rfailure)
+            if lens:
+                f.write(f"asa ne{nens}: #succcess={nsuccess} #failure={nfailure}\n")
+            else:
+                if nens==nensbase:
+                    f.write(f"asa: #succcess={nsuccess} #failure={nfailure}\n")
+            success['asa'].append(nsuccess / ds_asa.rescalcm.size)
+            failure['asa'].append(nfailure / ds_asa.rescalcm.size)
         for solver in enasas:
             if lens:
                 ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
             else:
                 ds = xr.open_dataset(datadir/f'res_hess_{solver}{metric}_vt{vt}nens{nens}.nc')
             ds_dict[solver] = ds
-        ds = xr.open_dataset(datadir/f'std{metric}_vt{vt}nens{nens}.nc')
+            if metric=='':
+                nsuccess = np.sum(ds.rescalcm.values/Jb<=rsuccess)
+                nfailure = np.sum(ds.rescalcm.values/Jb>rfailure)
+                f.write(f"{solver} ne{v}: #success={nsuccess} #failure={nfailure}\n")
+                success[solver].append(nsuccess/ds.rescalcm.size)
+                failure[solver].append(nfailure/ds.rescalcm.size)
+        #ds = xr.open_dataset(datadir/f'std{metric}_vt{vt}nens{nens}.nc')
         #ds_dict['std'] = ds
         ds_all[nens] = ds_dict
-        dstmp = xr.open_dataset(datadir/f'Jb_vt{vt}nens{nens}.nc')
-        Jb = dstmp.Jb.values
-        Jb_dict[nens] = Jb
     else:
         vt = v
-        if lens:
-            ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nensbase}.nc')
-        else:
-            ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nensbase}.nc')
-        ds_dict['asa'] = ds_asa
-        for solver in enasas:
-            if lens:
-                ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
-            else:
-                ds = xr.open_dataset(datadir/f'res_hess_{solver}{metric}_vt{vt}nens{nens}.nc')
-            ds_dict[solver] = ds
-        ds = xr.open_dataset(datadir/f'std{metric}_vt{vt}nens{nens}.nc')
-        #ds_dict['std'] = ds
-        ds_all[vt] = ds_dict
         dstmp = xr.open_dataset(datadir/f'Jb_vt{vt}nens{nens}.nc')
         Jb = dstmp.Jb.values
         Jb_dict[vt] = Jb
         dstmp = xr.open_dataset(datadir/f'Jb_vt{vt}nens{nensbase}.nc')
         Jb = dstmp.Jb.values
         Jb_base[vt] = Jb
+        if lens:
+            ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nensbase}.nc')
+        else:
+            ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nensbase}.nc')
+        ds_dict['asa'] = ds_asa
+        if metric=='':
+            nsuccess = np.sum(ds_asa.rescalcm.values/Jb_base[vt]<=rsuccess)
+            nfailure = np.sum(ds_asa.rescalcm.values/Jb_base[vt]>rfailure)
+            f.write(f"asa vt{v}: #succcess={nsuccess} #failure={nfailure}\n")
+            success['asa'].append(nsuccess / ds_asa.rescalcm.size)
+            failure['asa'].append(nfailure / ds_asa.rescalcm.size)
+        for solver in enasas:
+            if lens:
+                ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
+            else:
+                ds = xr.open_dataset(datadir/f'res_hess_{solver}{metric}_vt{vt}nens{nens}.nc')
+            ds_dict[solver] = ds
+            if metric=='':
+                nsuccess = np.sum(ds.rescalcm.values/Jb_dict[vt]<=rsuccess)
+                nfailure = np.sum(ds.rescalcm.values/Jb_dict[vt]>rfailure)
+                f.write(f"{solver} vt{v}: #success={nsuccess} #failure={nfailure}\n")
+                success[solver].append(nsuccess/ds.rescalcm.size)
+                failure[solver].append(nfailure/ds.rescalcm.size)
+        #ds = xr.open_dataset(datadir/f'std{metric}_vt{vt}nens{nens}.nc')
+        #ds_dict['std'] = ds
+        ds_all[vt] = ds_dict
 plt.rcParams['boxplot.medianprops.color'] = 'k'
 plt.rcParams['boxplot.flierprops.marker'] = '.'
 if lens:
@@ -204,3 +246,26 @@ else:
     figc.savefig(figdir/f"corr_{vtype}.png",dpi=300)
 plt.show()
 plt.close()
+
+if metric=='':
+    fig, (ax1,ax2) = plt.subplots(ncols=2,figsize=[10,6],constrained_layout=True)
+    for key in success.keys():
+        ax1.plot(vlist,np.array(success[key])*100,c=colors[key],marker=markers[key],label=key)
+        ax2.plot(vlist,np.array(failure[key])*100,c=colors[key],marker=markers[key],label=key)
+    ax2.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+    ax1.set_title('success ratio (%)')
+    ax2.set_title('failure ratio (%)')
+    for ax in [ax1,ax2]:
+        ax.set_xticks(vlist)
+        if vtype[:2]=='vt':
+            ax.set_xticklabels([f'mem{ne}' for ne in vlist])
+        else:
+            ax.set_xticklabels([f'FT{f}' for f in vlist])
+    if lens:
+        fig.suptitle(title2[2:]+r' with $\mathbf{A}_\mathrm{ens}$')
+        fig.savefig(figdir/f'nsuccess_failure_hessens_{vtype}.png',dpi=300)
+    else:
+        fig.suptitle(title2[2:])
+        fig.savefig(figdir/f'nsuccess_failure_{vtype}.png',dpi=300)
+    plt.show()
+    plt.close()
