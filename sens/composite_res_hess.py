@@ -35,6 +35,8 @@ parser.add_argument("-m","--metric",type=str,default="",\
     help="forecast metric type")
 parser.add_argument("-e","--ens",action='store_true',\
     help="ensemble estimated A")
+parser.add_argument("-l","--loc",type=int,default=None,\
+    help="localization radius for ensemble A")
 parser.add_argument("-x","--x0",action='store_true',help="plot x0 composite")
 argsin = parser.parse_args()
 vt = argsin.vt # hours
@@ -42,6 +44,7 @@ ioffset = vt // 6
 nens = argsin.nens
 metric = argsin.metric
 lens = argsin.ens
+rloc = argsin.loc
 lx0 = argsin.x0
 nensbase = 8
 
@@ -50,7 +53,7 @@ if not figdir.exists(): figdir.mkdir()
 
 # load results
 ds_dict = {}
-if lens:
+if lens and rloc is None:
     ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nens}.nc')
 else:
     ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nensbase}.nc')
@@ -58,7 +61,10 @@ print(ds_asa)
 ds_dict['asa'] = ds_asa
 for solver in enasas:
     if lens:
-        ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
+        if rloc is not None:
+            ds = xr.open_dataset(datadir/f'res_hessens_loc{rloc}_{solver}{metric}_vt{vt}nens{nens}.nc')
+        else:
+            ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
     else:
         ds = xr.open_dataset(datadir/f'res_hess_{solver}{metric}_vt{vt}nens{nens}.nc')
     ds_dict[solver] = ds
@@ -112,8 +118,12 @@ if lx0:
     ax.legend(ncol=2)
     ax.grid()
     if lens:
-        figdx.suptitle(r'$\Delta \mathbf{x}_{0}^{*}$ with $\mathbf{A}_\mathrm{ens}$'+f' FT{vt} {nens} member')
-        figdx.savefig(figdir/f'x0i_Aens_vt{vt}nens{nens}.png')
+        if rloc is not None:
+            figdx.suptitle(r'$\Delta \mathbf{x}_{0}^{*}$ with $\mathbf{A}_\mathrm{ens}$ $r_\mathrm{loc}$='+f'{rloc} FT{vt} {nens} member')
+            figdx.savefig(figdir/f'x0i_Aens_loc{rloc}_vt{vt}nens{nens}.png')
+        else:
+            figdx.suptitle(r'$\Delta \mathbf{x}_{0}^{*}$ with $\mathbf{A}_\mathrm{ens}$'+f' FT{vt} {nens} member')
+            figdx.savefig(figdir/f'x0i_Aens_vt{vt}nens{nens}.png')
     else:
         figdx.suptitle(r'$\Delta \mathbf{x}_{0}^{*}$'+f' FT{vt} {nens} member')
         figdx.savefig(figdir/f'x0i_vt{vt}nens{nens}.png')
@@ -229,8 +239,12 @@ for key in ds_dict.keys():
     ax_histx.set_title('predicted (linear)',fontsize=14)
     ax_histy.set_ylabel('measured (nonlinear)')
     if lens:
-        fig.suptitle(r'$\Delta J(\Delta x_{0}^{*})$ with $\mathbf{A}_\mathrm{ens}$'+f' {key} vt={vt}h, Nens={nens}')
-        fig.savefig(figdir1/f'res_hessens_calc_vs_est_{key}_vt{vt}ne{nens}.png')
+        if rloc is not None:
+            fig.suptitle(r'$\Delta J(\Delta x_{0}^{*})$ with $\mathbf{A}_\mathrm{ens}$ $r_\mathrm{loc}=$'+f'{rloc} {key} vt={vt}h, Nens={nens}')
+            fig.savefig(figdir1/f'res_hessens_loc{rloc}_calc_vs_est_{key}_vt{vt}ne{nens}.png')
+        else:
+            fig.suptitle(r'$\Delta J(\Delta x_{0}^{*})$ with $\mathbf{A}_\mathrm{ens}$'+f' {key} vt={vt}h, Nens={nens}')
+            fig.savefig(figdir1/f'res_hessens_calc_vs_est_{key}_vt{vt}ne{nens}.png')
     else:
         if key=='asa':
             fig.suptitle(r'$\Delta J(\Delta x_{0}^{*})$'+f' {key} vt={vt}h')
@@ -244,8 +258,12 @@ for key in ds_dict.keys():
 axh.set_xlabel(r'nonlinear forecast response $\Delta J(\Delta x_{0}^{*})$')
 axh.legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
 if lens:
-    figh.suptitle(f'FT{vt}, {nens} member with '+r'$\mathbf{A}_\mathrm{ens}$')
-    figh.savefig(figdir/f'hist_hessens_rescalcm_vt{vt}ne{nens}.png',dpi=300)
+    if rloc is not None:
+        figh.suptitle(f'FT{vt}, {nens} member with '+r'$\mathbf{A}_\mathrm{ens}$ $r_\mathrm{loc}$='+f'{rloc}')
+        figh.savefig(figdir/f'hist_hessens_loc{rloc}_rescalcm_vt{vt}ne{nens}.png',dpi=300)
+    else:
+        figh.suptitle(f'FT{vt}, {nens} member with '+r'$\mathbf{A}_\mathrm{ens}$')
+        figh.savefig(figdir/f'hist_hessens_rescalcm_vt{vt}ne{nens}.png',dpi=300)
 else:
     figh.suptitle(f'FT{vt}, {nens} member')
     figh.savefig(figdir/f'hist_rescalcm_vt{vt}ne{nens}.png',dpi=300)
@@ -264,8 +282,12 @@ axm.legend(fontsize=12,ncol=2)
 axm.set_ylabel('measured (nonlinear)')
 axm.set_xlabel('predicted (linear)')
 if lens:
-    figm.suptitle(r'$\Delta J(\Delta x_{0}^{*})$ with $\mathbf{A}_\mathrm{ens}$'+f' vt={vt}h, Nens={nens}')
-    figm.savefig(figdir/f'res_hessens_calc_vs_est_vt{vt}ne{nens}.png')
+    if rloc is not None:
+        figm.suptitle(r'$\Delta J(\Delta x_{0}^{*})$ with $\mathbf{A}_\mathrm{ens}$ $r_\mathrm{loc}$='+f'{rloc} vt={vt}h, Nens={nens}')
+        figm.savefig(figdir/f'res_hessens_loc{rloc}_calc_vs_est_vt{vt}ne{nens}.png')
+    else:
+        figm.suptitle(r'$\Delta J(\Delta x_{0}^{*})$ with $\mathbf{A}_\mathrm{ens}$'+f' vt={vt}h, Nens={nens}')
+        figm.savefig(figdir/f'res_hessens_calc_vs_est_vt{vt}ne{nens}.png')
 else:
     figm.suptitle(r'$\Delta J(\Delta x_{0}^{*})$'+f' vt={vt}h, Nens={nens}')
     figm.savefig(figdir/f'res_calc_vs_est_vt{vt}ne{nens}.png')
@@ -274,7 +296,10 @@ plt.close(fig=figm)
 
 # save csv data
 if lens:
-    csvname='res_hessens'
+    if rloc is not None:
+        csvname=f'res_hessens_loc{rloc}'
+    else:
+        csvname='res_hessens'
 else:
     csvname='res_hess'
 ds = pd.DataFrame(estp_mean_dict,columns=estp_mean_dict.keys(),index=[0])

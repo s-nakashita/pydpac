@@ -9,6 +9,8 @@ import argparse
 import sys
 sys.path.append('../model')
 from lorenz import L96
+sys.path.append('../analysis')
+from corrfunc import Corrfunc
 
 # forecast model
 nx = 40
@@ -29,6 +31,8 @@ parser.add_argument("-m","--metric",type=str,default="",\
     help="forecast metric type")
 parser.add_argument("-e","--ens",action='store_true',\
     help="ensemble estimated A")
+parser.add_argument("-l","--loc",type=int,default=None,\
+    help="localization radius for ensemble A")
 argsin = parser.parse_args()
 vt = argsin.vt # hours
 ioffset = vt // 6
@@ -36,6 +40,9 @@ nens = argsin.nens
 n_components = argsin.n_components
 metric = argsin.metric
 lens = argsin.ens
+rloc = argsin.loc
+if lens and rloc is not None:
+    cfunc = Corrfunc(rloc*1.0)
 
 recomp_asa = False
 nensbase = 8
@@ -61,14 +68,15 @@ def jac(x,*args):
 modelname = 'l96'
 pt = 'letkf'
 if nens==200:
-    datadir = Path(f'/Volumes/dandelion/pyesa/data/{modelname}/extfcst_letkf_m{nens}')
+    datadir = Path(f'/Volumes/FF520/pyesa/data/{modelname}/extfcst_letkf_m{nens}')
 else:
-    datadir = Path(f'/Volumes/dandelion/pyesa/data/{modelname}/extfcst_m{nens}')
+    datadir = Path(f'/Volumes/FF520/pyesa/data/{modelname}/extfcst_m{nens}')
 xf00 = np.load(datadir/f"{modelname}_xf00_linear_{pt}.npy")
 xfall = np.load(datadir/f"{modelname}_ufext_linear_{pt}.npy")
 xfv  = np.load(datadir/f"{modelname}_xf{vt:02d}_linear_{pt}.npy")
 
-savedir = Path('data')
+#savedir = Path('data')
+savedir = Path('/Volumes/FF520/pyesa/adata/l96')
 if not savedir.exists(): savedir.mkdir(parents=True)
 
 icyc0 = 50
@@ -81,12 +89,13 @@ x0_dict={}
 
 # ASA data
 ds_asa = xr.open_dataset(savedir/f'asa{metric}_vt{vt}nens{nensbase}.nc')
-dJdx0_dict['asa'] = ds_asa.dJdx0.values
-rescalcp_dict['asa'] = []
-rescalcm_dict['asa'] = []
-resestp_dict['asa'] = []
-resestm_dict['asa'] = []
-x0_dict['asa'] = []
+if recomp_asa:
+    dJdx0_dict['asa'] = ds_asa.dJdx0.values
+    rescalcp_dict['asa'] = []
+    rescalcm_dict['asa'] = []
+    resestp_dict['asa'] = []
+    resestm_dict['asa'] = []
+    x0_dict['asa'] = []
 solverlist=['minnorm','diag','ridge','pcr','pls']
 #solverlist=['pcr','minnorm'] #,'pls']
 for key in solverlist:
@@ -134,6 +143,14 @@ for i in range(ncycle):
     X0 = xe0 - xe0.mean(axis=1)[:,None]
     if lens:
         A = X0 @ X0.T / (nens-1)
+        if rloc is not None:
+            rho = np.eye(nx)
+            for j in range(nx):
+                d = model.calc_dist(j)
+                rtmp = cfunc(np.roll(d,-j)[:nx//2+1],ftype="gc5")
+                rtmp2 = np.hstack([rtmp,np.flip(rtmp[1:-1])])
+                rho[j,:] = np.roll(rtmp2,j)
+            A = A * rho
         A_list.append(A)
     else:
         A = np.load(savedir/'Aest.npy')
@@ -189,7 +206,10 @@ if vt==24 and lens:
         "A":{"dims":("cycle","x1","x2"),"data":A},
     }
     )
-    ds.to_netcdf(savedir/f"A_nens{nens}.nc")
+    if rloc is not None:
+        ds.to_netcdf(savedir/f"A_nens{nens}_loc{rloc}.nc")
+    else:
+        ds.to_netcdf(savedir/f"A_nens{nens}.nc")
 Jb = np.array(Jb_list)
 ds = xr.Dataset.from_dict(
     {
@@ -218,7 +238,10 @@ for key in rescalcp_dict.keys():
     )
     print(ds)
     if lens:
-        figname='res_hessens'
+        if rloc is not None:
+            figname=f'res_hessens_loc{rloc}'
+        else:
+            figname='res_hessens'
     else:
         figname='res_hess'
     if (key == 'pls' or key == 'pcr' or key == 'minnorm') and n_components is not None:

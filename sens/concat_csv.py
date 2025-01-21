@@ -17,7 +17,7 @@ for sample in ['all','far','near']:
         print(dfc)
         dfc[['FT','member','asa','diag','minnorm','ridge','pcr','pls']].to_csv(datadir/f'{sample}_mul-mul_{dtype}.csv',index=False)
 
-for csvname in ['res_hess','res_hessens']:
+for csvname in ['res_hess','res_hessens','res_hessens_loc3']:
     for dtype in ['estp_mean','estm_mean','calcp_mean','calcm_mean','rmsd_p','rmsd_m']:
         frames = []
         for vt in vtlist:

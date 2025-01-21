@@ -8,14 +8,14 @@ from sklearn.linear_model import LinearRegression
 from pathlib import Path
 import argparse
 
-datadir = Path('data')
+datadir = Path('/Volumes/FF520/pyesa/adata/l96')
 
 cmap = plt.get_cmap('tab10')
 enasas = ['minnorm','diag','ridge','pcr','pls']#,'std']
 colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5),'std':cmap(6)}
 markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','std':'^'}
 marker_style=dict(markerfacecolor='none')
-nelist = [8,16,24,32,40]
+nelist = [8,16,24,32] #,40]
 vtlist = [24,48,72,96]
 
 parser = argparse.ArgumentParser()
@@ -27,11 +27,17 @@ parser.add_argument("-m","--metric",type=str,default="",\
     help="forecast metric type")
 parser.add_argument("-e","--ens",action='store_true',\
     help="ensemble estimated A")
+parser.add_argument("-l","--loc",type=int,default=None,\
+    help="localization radius for ensemble A")
 argsin = parser.parse_args()
 vt = argsin.vt
 nens = argsin.nens
 metric = argsin.metric
 lens = argsin.ens
+if lens:
+    rloc = argsin.loc
+else:
+    rloc = None
 if vt is None and nens is None:
     print("must be specified either vt or nens")
     exit()
@@ -58,7 +64,10 @@ if metric=='':
         success[key] = []
         failure[key] = []
     if lens:
-        f = open(figdir/f'nsuccess_failure_hessens_{vtype}.txt',mode='w')
+        if rloc is not None:
+            f = open(figdir/f'nsuccess_failure_hessens_loc{rloc}_{vtype}.txt',mode='w')
+        else:
+            f = open(figdir/f'nsuccess_failure_hessens_{vtype}.txt',mode='w')
     else:
         f = open(figdir/f'nsuccess_failure_{vtype}.txt',mode='w')
 ds_all = {}
@@ -71,15 +80,14 @@ for v in vlist:
         dstmp = xr.open_dataset(datadir/f'Jb_vt{vt}nens{nens}.nc')
         Jb = dstmp.Jb.values
         Jb_dict[nens] = Jb
-        if lens:
-            ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nens}.nc')
-            print(ds_asa)
-            ds_dict['asa'] = ds_asa
-        else:
-            if nens==nensbase:
+        #if lens and (rloc is None):
+        #    ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nens}.nc')
+        #    ds_dict['asa'] = ds_asa
+        #else:
+        if nens==nensbase:
                 ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nensbase}.nc')
-                print(ds_asa)
                 ds_dict['asa'] = ds_asa
+        print(ds_asa)
         if metric=='':
             nsuccess = np.sum(ds_asa.rescalcm.values/Jb<=rsuccess)
             nfailure = np.sum(ds_asa.rescalcm.values/Jb>rfailure)
@@ -92,7 +100,10 @@ for v in vlist:
             failure['asa'].append(nfailure / ds_asa.rescalcm.size)
         for solver in enasas:
             if lens:
-                ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
+                if rloc is not None:
+                    ds = xr.open_dataset(datadir/f'res_hessens_loc{rloc}_{solver}{metric}_vt{vt}nens{nens}.nc')
+                else:
+                    ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
             else:
                 ds = xr.open_dataset(datadir/f'res_hess_{solver}{metric}_vt{vt}nens{nens}.nc')
             ds_dict[solver] = ds
@@ -113,10 +124,10 @@ for v in vlist:
         dstmp = xr.open_dataset(datadir/f'Jb_vt{vt}nens{nensbase}.nc')
         Jb = dstmp.Jb.values
         Jb_base[vt] = Jb
-        if lens:
-            ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nensbase}.nc')
-        else:
-            ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nensbase}.nc')
+        #if lens and (rloc is None):
+        #    ds_asa = xr.open_dataset(datadir/f'res_hessens_asa{metric}_vt{vt}nens{nensbase}.nc')
+        #else:
+        ds_asa = xr.open_dataset(datadir/f'res_hess_asa{metric}_vt{vt}nens{nensbase}.nc')
         ds_dict['asa'] = ds_asa
         if metric=='':
             nsuccess = np.sum(ds_asa.rescalcm.values/Jb_base[vt]<=rsuccess)
@@ -126,7 +137,10 @@ for v in vlist:
             failure['asa'].append(nfailure / ds_asa.rescalcm.size)
         for solver in enasas:
             if lens:
-                ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
+                if rloc is not None:
+                    ds = xr.open_dataset(datadir/f'res_hessens_loc{rloc}_{solver}{metric}_vt{vt}nens{nens}.nc')
+                else:
+                    ds = xr.open_dataset(datadir/f'res_hessens_{solver}{metric}_vt{vt}nens{nens}.nc')
             else:
                 ds = xr.open_dataset(datadir/f'res_hess_{solver}{metric}_vt{vt}nens{nens}.nc')
             ds_dict[solver] = ds
@@ -141,12 +155,12 @@ for v in vlist:
         ds_all[vt] = ds_dict
 plt.rcParams['boxplot.medianprops.color'] = 'k'
 plt.rcParams['boxplot.flierprops.marker'] = '.'
-if lens:
-    bwidth = 4.0 / (len(ds_dict.keys()))
-else:
-    bwidth = 4.0 / (len(ds_dict.keys())+1)
+#if lens and rloc is None:
+#    bwidth = 4.0 / (len(ds_dict.keys()))
+#else:
+bwidth = 4.0 / (len(ds_dict.keys())+1)
 xoffset = 0.5 * bwidth * (len(ds_dict.keys()))
-fig0, ax0 = plt.subplots(figsize=[12,6],constrained_layout=True)
+fig0, ax0 = plt.subplots(figsize=[10,6],constrained_layout=True)
 figc, axc = plt.subplots(figsize=[10,6],constrained_layout=True)
 patchs = []
 if metric=='':
@@ -209,7 +223,10 @@ for j,v in enumerate(vlist):
                 patch.set_facecolor(colors[key])
         pos0 = pos0 + bwidth
         if j==0:
-            patchs.append(Patch(color=colors[key],label=key))
+            if key == 'asa' and lens:
+                patchs.append(Patch(color=colors[key],label=key+r' ($\mathbf{A}_\mathrm{est}$)'))
+            else:
+                patchs.append(Patch(color=colors[key],label=key))
 ax0.set_xticks(xticks)
 axc.set_xticks(xticks)
 if vtype[:2]=='vt':
@@ -235,37 +252,43 @@ if vtype[:2]=='vt':
 else:
     title2=f', {nens} member'
 if lens:
-    ax0.set_title(title+title2+r' with $\mathbf{A}_\mathrm{ens}$')
-    fig0.savefig(figdir/f"rescalcm_hessens_{vtype}.png",dpi=300)
-    axc.set_title(titlec+title2+r' with $\mathbf{A}_\mathrm{ens}$')
-    figc.savefig(figdir/f"corr_hessens_{vtype}.png",dpi=300)
+    title3=r' with $\mathbf{A}_\mathrm{ens}$'
+    figname='_hessens'
+    if rloc is not None:
+        title3=title3+r' $r_\mathrm{loc}$='+f'{rloc}'
+        figname=figname+f'_loc{rloc}'
 else:
-    ax0.set_title(title+title2)
-    fig0.savefig(figdir/f"rescalcm_{vtype}.png",dpi=300)
-    axc.set_title(titlec+title2)
-    figc.savefig(figdir/f"corr_{vtype}.png",dpi=300)
-plt.show()
+    title3=''
+    figname=''
+ax0.set_title(title+title2+title3)
+fig0.savefig(figdir/f"rescalcm{figname}_{vtype}.png",dpi=300)
+axc.set_title(titlec+title2+title3)
+figc.savefig(figdir/f"corr{figname}_{vtype}.png",dpi=300)
+#plt.show()
 plt.close()
 
 if metric=='':
-    fig, (ax1,ax2) = plt.subplots(ncols=2,figsize=[10,6],constrained_layout=True)
+    fig, (ax1,ax2) = plt.subplots(nrows=2,sharex=True,figsize=[8,6],constrained_layout=True)
     for key in success.keys():
-        ax1.plot(vlist,np.array(success[key])*100,c=colors[key],marker=markers[key],label=key)
-        ax2.plot(vlist,np.array(failure[key])*100,c=colors[key],marker=markers[key],label=key)
-    ax2.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
-    ax1.set_title('success ratio (%)')
-    ax2.set_title('failure ratio (%)')
+        if key == 'asa' and lens:
+            label=key+r' ($\mathbf{A}_\mathrm{est}$)'
+        else:
+            label=key
+        ax1.plot(vlist,np.array(success[key])*100,c=colors[key],marker=markers[key],label=label)
+        ax2.plot(vlist,np.array(failure[key])*100,c=colors[key],marker=markers[key],label=label)
+    ax1.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+    ax1.set_ylabel('success ratio (%)')
+    ax2.set_ylabel('failure ratio (%)')
+    ax1.set_ylim(20.0,80.0)
+    ax2.set_ylim(0.0,20.0)
     for ax in [ax1,ax2]:
         ax.set_xticks(vlist)
         if vtype[:2]=='vt':
-            ax.set_xticklabels([f'mem{ne}' for ne in vlist])
+            ax.set_xticklabels([f'mem{ne}' if ne==vlist[0] else f'{ne}' for ne in vlist])
         else:
             ax.set_xticklabels([f'FT{f}' for f in vlist])
-    if lens:
-        fig.suptitle(title2[2:]+r' with $\mathbf{A}_\mathrm{ens}$')
-        fig.savefig(figdir/f'nsuccess_failure_hessens_{vtype}.png',dpi=300)
-    else:
-        fig.suptitle(title2[2:])
-        fig.savefig(figdir/f'nsuccess_failure_{vtype}.png',dpi=300)
-    plt.show()
+        ax.grid()
+    fig.suptitle(title2[2:]+title3)
+    fig.savefig(figdir/f'nsuccess_failure{figname}_{vtype}.png',dpi=300)
+    #plt.show()
     plt.close()

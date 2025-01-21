@@ -20,20 +20,27 @@ marker_style=dict(markerfacecolor='none')
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--ens",action='store_true',\
     help="ensemble estimated A")
+parser.add_argument("-l","--loc",type=int,default=None,\
+    help="localization radius for ensemble A")
 argsin = parser.parse_args()
 lens = argsin.ens
+rloc = argsin.loc
 if lens:
-    csvname = 'res_hessens'
+    if rloc is not None:
+        csvname = f'res_hessens_loc{rloc}'
+    else:
+        csvname = 'res_hessens'
 else:
     csvname = 'res_hess'
 
-methods = ['asa','minnorm','ridge','pcr','pls']
+methods = ['asa','minnorm','ridge','pcr','pls'] #
 nmethod = len(methods)
 
 # load data
 keys = ['estp_mean','estm_mean','calcp_mean','calcm_mean','rmsd_p','rmsd_m']
 datadict = dict()
 for key in keys:
+    dataref = pd.read_csv(datadir/f'res_hess_{key}.csv')
     data = pd.read_csv(datadir/f'{csvname}_{key}.csv',index_col=['FT','member'])
     ft = data.index.get_level_values('FT')
     ft = ft[~ft.duplicated()]
@@ -43,7 +50,10 @@ for key in keys:
     print(member,len(member))
     datadict[key] = dict()
     for method in methods:
-        datadict[key][method] = data[method].values.reshape(len(ft),len(member))
+        if method=='asa':
+            datadict[key][method] = dataref[method].values.reshape(len(ft),len(member))
+        else:
+            datadict[key][method] = data[method].values.reshape(len(ft),len(member))
 marker_style=dict(markerfacecolor='none')
 # mean
 figm, axsm = plt.subplots(ncols=2,nrows=2,figsize=[8,6],constrained_layout=True)
@@ -80,7 +90,10 @@ for method in methods:
         ax.plot(ft,-1.0*rmsd_m/nln_m,c=colors[method],ls='dotted',marker='$-$',**marker_style)
         if j==0:
             lines.append(Line2D([0],[0],c=colors[method]))
-            labels.append(method)
+            if method=='asa' and lens:
+                labels.append(method+r' ($\mathbf{A}_\mathrm{est}$)')
+            else:
+                labels.append(method)
 for j, ax in enumerate(axs.flatten()):
     axm = axsm.flatten()[j]
     axr = axsr.flatten()[j]
@@ -99,13 +112,14 @@ for j, ax in enumerate(axs.flatten()):
                 ax1.legend(lines,labels,fontsize=14)
 
 if lens:
-    figm.suptitle(r'$\overline{|\Delta J(\Delta x_{0}^{*})|}$ (nonlinear) with $\mathbf{A}_\mathrm{ens}$',fontsize=18)
-    figr.suptitle(r'RMSD of $\Delta J(\Delta x_{0}^{*})$ between linear and nonlinear with $\mathbf{A}_\mathrm{ens}$',fontsize=18)
-    fig.suptitle(r'RMSD/$\overline{|\Delta J(\Delta x_{0}^{*})|}$ with $\mathbf{A}_\mathrm{ens}$',fontsize=18)
+    title2=r' with $\mathbf{A}_\mathrm{ens}$'
+    if rloc is not None:
+        title2=title2+r' $r_\mathrm{loc}$='+f'{rloc}'
 else:
-    figm.suptitle(r'$\overline{|\Delta J(\Delta x_{0}^{*})|}$ (nonlinear)',fontsize=18)
-    figr.suptitle(r'RMSD of $\Delta J(\Delta x_{0}^{*})$ between linear and nonlinear',fontsize=18)
-    fig.suptitle(r'RMSD/$\overline{|\Delta J(\Delta x_{0}^{*})|}$',fontsize=18)
+    title2=''
+figm.suptitle(r'$\overline{|\Delta J(\Delta x_{0}^{*})|}$ (nonlinear)'+title2,fontsize=18)
+figr.suptitle(r'RMSD of $\Delta J(\Delta x_{0}^{*})$ between linear and nonlinear'+title2,fontsize=18)
+fig.suptitle(r'RMSD/$\overline{|\Delta J(\Delta x_{0}^{*})|}$'+title2,fontsize=18)
 figm.savefig(figdir/f'{csvname}_calc_mean.png',dpi=300)
 figr.savefig(figdir/f'{csvname}_rmsd.png',dpi=300)
 fig.savefig(figdir/f'{csvname}_rmsd_o_calc_mean.png',dpi=300)
