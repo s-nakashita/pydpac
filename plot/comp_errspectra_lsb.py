@@ -56,7 +56,7 @@ if not figpdfdir.exists():
     figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BLSB+DA", "nest":"Nested DA"}
+labels = {"dscl":"No LAM DA","conv":f"{ptlong[pt]}", "lsb":f"BLSB+{ptlong[pt]}", "nest":f"Nested {ptlong[pt]}"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
 captions = {"envar":"(b)","var":"(a)"}
 
@@ -78,9 +78,29 @@ nmc_t = NMC_tools(ix_t_rad,cyclic=True,ttype='c')
 nmc_gm = NMC_tools(ix_gm_rad,cyclic=True,ttype='c')
 nmc_lam = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 
-fig, ax = plt.subplots(figsize=[8,7],constrained_layout=True)
+#fig, ax = plt.subplots(figsize=[8,7],constrained_layout=True)
+fig = plt.figure(figsize=[8,8],constrained_layout=True)
+gs = gridspec.GridSpec(8,1,figure=fig)
+ax = fig.add_subplot(gs[:7])
+axo = fig.add_subplot(gs[7])
+ax.sharex(axo)
 figsp, axsp = plt.subplots(figsize=[8,7],constrained_layout=True)
 psd_dict = {}
+
+## obs location
+yobs = np.load(lamdir/f'obs_{op}_10000.npy')
+iobs_lam = np.load(lamdir/f'obslam_{op}_10000.npy')
+cobs = np.zeros_like(ix_lam)
+for i in range(ns, na):
+    yloc = yobs[i,:,0]
+    yloc_lam = yloc[iobs_lam[i]==1.0]
+    for yj in yloc_lam:
+        j = np.argmin(np.abs(ix_lam - yj))
+        cobs[j] += 1
+cobs = cobs / (na - ns)
+axo.bar(ix_lam,cobs,width=1.0)
+axo.set_ylabel('LAM obs freq.')
+axo.set_ylim(0,1)
 
 # nature background psd
 #f = datadir/"truth.npy"
@@ -153,7 +173,7 @@ for key in keys:
     xdlam1d = np.sqrt(np.mean(xdlam**2,axis=0))
     print(f"{key}, RMSE={np.mean(xdlam1d)}")
     ax.plot(ix_lam,xdlam1d,\
-    c=linecolor[key],lw=2.0,label=labels[key])
+    c=linecolor[key],lw=2.5,label=labels[key])
     wnum, psd_lam = nmc_lam.psd(xdlam,axis=1,average=False)
     axsp.loglog(wnum,psd_lam.mean(axis=0),\
         c=linecolor[key],lw=2.0,label=labels[key])
@@ -162,22 +182,31 @@ for key in keys:
         xslam = np.load(fs)
         xslam1d = np.mean(xslam,axis=0)
         ax.plot(ix_lam,xslam1d,\
-        c=linecolor[key],lw=2.0,ls='dashed')
+        c=linecolor[key],lw=1.5,ls='dashed')
 ax.set_ylabel('Error')
-ax.set_xlabel('grid')
+#ax.set_xlabel('grid')
 #ax.set_xlim(ix_t[0],ix_t[-1])
 ax.set_xlim(ix_lam[0],ix_lam[-1])
+axo.set_xlim(ix_lam[0],ix_lam[-1])
+axo.set_xlabel('grid')
 #ax.hlines([1],0,1,colors='gray',ls='dotted',transform=ax.get_yaxis_transform())
 ax.legend(loc='upper left') #loc='upper right')
 ymin, ymax = ax.get_ylim()
 #if ymax > 1.0:
 ymin = 0.15
-ymax = 1.0 #0.8
+if obsloc == '' or obsloc == '_partialm':
+    ymax = 0.7 #1.0 #0.8
+elif pt=='envar':
+    ymax = 1.5
+else:
+    ymax = 7.0
 ax.set_ylim(ymin,ymax)
 if obsloc == '':
     fig.suptitle(captions[pt]+' '+ptlong[pt],ha='left',x=0.05,fontsize=24)
-elif pt=='envar':
+elif obsloc == '_partialm' and pt=='envar':
     fig.suptitle('(a) '+ptlong[pt],ha='left',x=0.05,fontsize=24)
+else:
+    fig.suptitle(ptlong[pt],ha='left',x=0.1,fontsize=24)
 
 if anl:
     fig.savefig(figpngdir/f"{model}_xd_{op}_{pt}.png",dpi=300)
@@ -199,10 +228,16 @@ secax = axsp.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
 secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
 secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
 secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+if obsloc == '' or obsloc == '_partialm' or obsloc == '_partialc':
+    axsp.set_ylim(4.0e-7,3.0e-2)
+ymin, ymax = axsp.get_ylim()
+print(f"axsp.get_ylim={ymin:.2e},{ymax:.2e}")
 if obsloc == '':
     figsp.suptitle(captions[pt]+' '+ptlong[pt],ha='left',x=0.05,fontsize=24)
-elif pt=='envar':
+elif obsloc=='_partialm' and pt=='envar':
     figsp.suptitle('(b) '+ptlong[pt],ha='left',x=0.05,fontsize=24)
+else:
+    figsp.suptitle(ptlong[pt],ha='left',x=0.1,fontsize=24)
 if anl:
     figsp.savefig(figpngdir/f"{model}_errspectra_{op}_{pt}.png",dpi=300)
     figsp.savefig(figpdfdir/f"{model}_errspectra_{op}_{pt}.pdf")

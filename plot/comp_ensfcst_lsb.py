@@ -5,7 +5,8 @@ import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
-from matplotlib.ticker import FixedLocator, FixedFormatter
+from matplotlib.ticker import FixedLocator, FixedFormatter, NullFormatter
+from matplotlib import colormaps
 from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
 from pathlib import Path
 
@@ -47,10 +48,10 @@ preGMpt = "envar"
 lsbdir  = wdir / f'var_vs_envar_lsb_preGM{obsloc}_m80obs30'
 lamdir  = wdir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 
-#figpngdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpng')
-#figpdfdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpdf')
-figpngdir = Path(os.environ['HOME']+'/Writing/dissertation/nested_envar/fig')
-figpdfdir = Path(os.environ['HOME']+'/Writing/dissertation/nested_envar/fig')
+figpngdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpng')
+figpdfdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpdf')
+#figpngdir = Path(os.environ['HOME']+'/Writing/dissertation/nested_envar/fig')
+#figpdfdir = Path(os.environ['HOME']+'/Writing/dissertation/nested_envar/fig')
 if obsloc == '':
     figpngdir = figpngdir / 'uniform'
     figpdfdir = figpdfdir / 'uniform'
@@ -63,7 +64,7 @@ if not figpdfdir.exists():
     figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"conv":"DA", "lsb":"BLSB+DA", "nest":"Nested DA", "dscl":"Dscl"}
+labels = {"conv":ptlong[pt], "lsb":"BLSB+"+ptlong[pt], "nest":"Nested "+ptlong[pt], "dscl":"Dscl"}
 linecolor = {"conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green',"dscl":'k'}
 
 ix_t = np.loadtxt(dscldir/"ix_true.txt")
@@ -86,6 +87,8 @@ nmc_lam = NMC_tools(ix_lam_rad,cyclic=False,ttype='c')
 
 fig = plt.figure(figsize=[8,6],constrained_layout=True)
 axl = fig.add_subplot(111)
+figl = plt.figure(figsize=[8,6],constrained_layout=True)
+axll = figl.add_subplot(111) #log-plot
 figb,axsb = plt.subplots(ncols=2,sharey=True,figsize=[12,6],constrained_layout=True)
 
 # nature 
@@ -109,6 +112,7 @@ if preGM:
     xdgm_dict = {}
     psdgm_dict = {}
     xsgm_dict = {}
+    psdmgm_dict = {}
     psdsgm_dict = {}
 
     f = dscldir/"{}_gm_ufeext_{}_{}.npy".format(model,op,preGMpt)
@@ -121,6 +125,7 @@ if preGM:
     ft = []
     st_gm = []
     xs_gm = []
+    psdm_gm = []
     psds_gm = []
     et_gm = []
     xd_gm = []
@@ -128,15 +133,18 @@ if preGM:
     ift = 0
     while ift < 9:
         #xp1 = xfgm[:nt,ift,:,:] - np.mean(xfgm[:nt,ift,:,:],axis=2)[:,:,None]
-        xp1 = xg2x(ix_lam)[:nt,ift,:,:] - np.mean(xg2x(ix_lam)[:nt,ift,:,:],axis=2)[:,:,None]
-        sttmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/(xp1.shape[2]-1),axis=1))
-        xstmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/(xp1.shape[2]-1),axis=0))
+        xe1 = xg2x(ix_lam)[:nt,ift,:,:]
+        xp1 = xe1 - np.mean(xe1,axis=2)[:,:,None]
+        sttmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/xp1.shape[2],axis=1))
+        xstmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/xp1.shape[2],axis=0))
         #wnum_gm, psdtmp = nmc_gm.psd(xp1,axis=1,average=False)
+        wnum_gm, psdtmp = nmc_lam.psd(xe1,axis=1,average=False)
+        psdm_gm.append(np.mean(np.mean(psdtmp,axis=2),axis=0))
         wnum_gm, psdtmp = nmc_lam.psd(xp1,axis=1,average=False)
         ft.append(ift*6) # hours
         st_gm.append(sttmp)
         xs_gm.append(xstmp)
-        psds_gm.append(np.mean(np.sum(psdtmp,axis=2)/(psdtmp.shape[2]-1),axis=0))
+        psds_gm.append(np.mean(np.mean(psdtmp,axis=2),axis=0))
         #xd1 = xfgm[:nt,ift,:,:].mean(axis=2) - xt2x(ix_gm)[ns+ift:na+ift,:]
         xd1 = xg2x(ix_lam)[:nt,ift,:,:].mean(axis=2) - xt2x(ix_lam)[ns+ift:na+ift,:]
         ettmp = np.sqrt(np.mean(xd1**2,axis=1))
@@ -150,14 +158,17 @@ if preGM:
     xd_gm = np.array(xd_gm)
     psd_gm = np.array(psd_gm)
     xs_gm = np.array(xs_gm)
+    psdm_gm = np.array(psdm_gm)
     psds_gm = np.array(psds_gm)
     xdgm_dict[preGMpt] = xd_gm
     psdgm_dict[preGMpt] = psd_gm
     xsgm_dict[preGMpt] = xs_gm
+    psdmgm_dict[preGMpt] = psdm_gm
     psdsgm_dict[preGMpt] = psds_gm
     et_gm = np.array(et_gm)
     nft = et_gm.shape[0]
-    axl.plot(np.arange(1,nft+1),et_gm.mean(axis=1),c='gray',lw=4.0,alpha=0.5,label='GM')
+    axl.plot(np.arange(1,nft+1),et_gm.mean(axis=1),c='gray',lw=4.0,alpha=0.7,label='GM')
+    axll.semilogy(np.arange(1,nft+1),et_gm.mean(axis=1),c='gray',lw=4.0,alpha=0.7,label='GM')
     egrowth_24h = et_gm[4,:] / et_gm[0,:]
     egrowth_48h = et_gm[8,:] / et_gm[4,:]
     egrowth0_24h_dict['GM'] = egrowth_24h
@@ -179,6 +190,7 @@ stlam_dict = {}
 xdlam_dict = {}
 xslam_dict = {}
 psdlam_dict = {}
+psdmlam_dict = {}
 psdslam_dict = {}
 if p1h:
     fname = 'ufeext_p1h_preGM'
@@ -209,17 +221,21 @@ for key in keys:
     xd_lam = []
     xs_lam = []
     psd_lam = []
+    psdm_lam = []
     psds_lam = []
     ift = 0
     while ift < nftmax:
-        xp1 = xflam[:nt,ift,:,:] - np.mean(xflam[:nt,ift,:,:],axis=2)[:,:,None]
-        sttmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/(xp1.shape[2]-1),axis=1))
-        xstmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/(xp1.shape[2]-1),axis=0))
+        xe1 = xflam[:nt,ift,:,:]
+        xp1 = xe1 - np.mean(xe1,axis=2)[:,:,None]
+        sttmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/xp1.shape[2],axis=1))
+        xstmp = np.sqrt(np.mean(np.sum(xp1**2,axis=2)/xp1.shape[2],axis=0))
+        wnum, psdtmp = nmc_lam.psd(xe1,axis=1,average=False)
+        psdm_lam.append(np.mean(np.mean(psdtmp,axis=2),axis=0))
         wnum, psdtmp = nmc_lam.psd(xp1,axis=1,average=False)
         ft.append(ift*6//isave) # hours
         st_lam.append(sttmp)
         xs_lam.append(xstmp)
-        psds_lam.append(np.mean(np.sum(psdtmp,axis=2)/(psdtmp.shape[2]-1),axis=0))
+        psds_lam.append(np.mean(np.mean(psdtmp,axis=2),axis=0))
         if ift%isave == 0:
             xd1 = xflam[:na-ns,ift,:,:].mean(axis=2) - xt2x(ix_lam)[ns+ift//isave:na+ift//isave,:]
             ettmp = np.sqrt(np.mean(xd1**2,axis=1))
@@ -231,22 +247,27 @@ for key in keys:
         ift += 1
     st_lam = np.array(st_lam)
     xs_lam = np.array(xs_lam)
+    psdm_lam = np.array(psdm_lam)
     psds_lam = np.array(psds_lam)
     et_lam = np.array(et_lam)
     xd_lam = np.array(xd_lam)
     psd_lam = np.array(psd_lam)
     nft = st_lam.shape[0]
-    print(st_lam.shape)
-    print(xs_lam.shape)
-    print(psds_lam.shape)
-    print(et_lam.shape)
-    print(xd_lam.shape)
-    print(psd_lam.shape)
+    print(f"st_lam {st_lam.shape}")
+    print(f"xs_lam {xs_lam.shape}")
+    print(f"psdm_lam {psdm_lam.shape}")
+    print(f"psds_lam {psds_lam.shape}")
+    print(f"et_lam {et_lam.shape}")
+    print(f"xd_lam {xd_lam.shape}")
+    print(f"psd_lam {psd_lam.shape}")
     #axl.errorbar(ft,et_lam.mean(axis=1),yerr=et_lam.std(axis=1),c=linecolor[key],label=labels[key])
     axl.plot(np.arange(1,nft+1,isave),et_lam.mean(axis=1),c=linecolor[key],label=labels[key])
     axl.plot(np.arange(1,nft+1),st_lam.mean(axis=1),c=linecolor[key],ls='dashed')
+    axll.semilogy(np.arange(1,nft+1,isave),et_lam.mean(axis=1),c=linecolor[key],label=labels[key])
+    axll.semilogy(np.arange(1,nft+1),st_lam.mean(axis=1),c=linecolor[key],ls='dashed')
     stlam_dict[key] = st_lam
     xslam_dict[key] = xs_lam
+    psdmlam_dict[key] = psdm_lam
     psdslam_dict[key] = psds_lam
     etlam_dict[key] = et_lam
     xdlam_dict[key] = xd_lam
@@ -307,11 +328,12 @@ for key in etlam_dict.keys():
 #y0 = 0.5
 #y = y0 * np.exp(np.array(ft)*ldble_lam)
 #axl.plot(np.arange(1,nft+1),y,c='gray',lw=2.0,alpha=0.5,zorder=0)
-axl.set_ylabel(f'{ptlong[pt]} ensemble forecast RMSE & spread')
-axsb[0].set_ylabel(f'{ptlong[pt]} ensemble forecast')
+axl.set_ylabel(f'ensemble forecast RMSE & spread')
+axll.set_ylabel(f'ensemble forecast RMSE & spread')
+axsb[0].set_ylabel(f'ensemble forecast')
 axsb[0].set_title('RMSE')
 axsb[1].set_title('spread')
-for ax in [axl,axsb[0],axsb[1]]:
+for ax in [axl,axll,axsb[0],axsb[1]]:
     ax.set_xticks(np.arange(1,nft+1,isave*2))
     ax.set_xticks(np.arange(1,nft+1,isave),minor=True)
     ax.set_xticklabels(ft[::isave*2])
@@ -322,17 +344,21 @@ if preGM:
     #ax.set_ylim(0.0, 6.0)
     axsb[0].set_ylim(0.0, 2.0)
 axl.legend(loc='upper left')
+axll.legend(loc='upper left')
 axsb[1].legend(loc='upper left',bbox_to_anchor=(1.01,0.95))
 
 fig.suptitle('(c)',ha='left',x=0.05,fontsize=24)
 fig.savefig(figpngdir/f"{model}_e_ensfcst48_{op}_{pt}.png",dpi=300)
 fig.savefig(figpdfdir/f"{model}_e_ensfcst48_{op}_{pt}.pdf")
+figl.suptitle('(c)',ha='left',x=0.05,fontsize=24)
+figl.savefig(figpngdir/f"{model}_e_ensfcst48_log_{op}_{pt}.png",dpi=300)
+figl.savefig(figpdfdir/f"{model}_e_ensfcst48_log_{op}_{pt}.pdf")
 figb.savefig(figpngdir/f"{model}_e_ensfcst48_box_{op}_{pt}.png",dpi=300)
 figb.savefig(figpdfdir/f"{model}_e_ensfcst48_box_{op}_{pt}.pdf")
 #fig.savefig(figdir/f"{model}_efcst_{op}.pdf")
 plt.show()
 plt.close()
-exit()
+#exit()
 
 fig, axs = plt.subplots(ncols=2,nrows=2,figsize=[10,10],sharey=True,constrained_layout=True)
 xtick00labels = []
@@ -379,93 +405,188 @@ plt.show()
 plt.close()
 #exit()
 
-figdir = lsbdir / 'ensfcst'
+#figdir = lsbdir / 'ensfcst'
+figdir = figpngdir / 'ensfcst'
 if not figdir.exists(): figdir.mkdir(parents=True)
 methods_lam = etlam_dict.keys()
+plt.rcParams['axes.titlesize'] = 16
+plt.rcParams['axes.labelsize'] = 14
+plt.rcParams['xtick.labelsize'] = 12
+plt.rcParams['ytick.labelsize'] = 12
 
-figgr, axsgr = plt.subplots(nrows=2,ncols=2,figsize=[12,8],constrained_layout=True,sharey=True)
-figsp, axssp = plt.subplots(nrows=2,ncols=2,figsize=[12,8],constrained_layout=True,sharey=True)
-figsgr, axssgr = plt.subplots(nrows=2,ncols=2,figsize=[12,8],constrained_layout=True,sharey=True)
-figssp, axsssp = plt.subplots(nrows=2,ncols=2,figsize=[12,8],constrained_layout=True,sharey=True)
+#figgr, axsgr = plt.subplots(nrows=2,ncols=3,figsize=[12,8],constrained_layout=True,sharey=True)
+#figsp, axssp = plt.subplots(nrows=2,ncols=3,figsize=[12,8],constrained_layout=True,sharey=True)
+#figsgr, axssgr = plt.subplots(nrows=2,ncols=3,figsize=[12,8],constrained_layout=True,sharey=True)
+#figssp, axsssp = plt.subplots(nrows=2,ncols=3,figsize=[12,8],constrained_layout=True,sharey=True)
+nrows = 2
+ncols = 2 #3
+figheight = nrows * 3 + 1
+figwidth = ncols * 4 + 1
+figgr = plt.figure(figsize=[figwidth,figheight],constrained_layout=True)
+figsp = plt.figure(figsize=[figwidth,figheight],constrained_layout=True)
+figsgr = plt.figure(figsize=[figwidth,figheight],constrained_layout=True)
+figssp = plt.figure(figsize=[figwidth,figheight],constrained_layout=True)
+figsat = plt.figure(figsize=[figwidth,figheight],constrained_layout=True)
+figesat = plt.figure(figsize=[figwidth,figheight],constrained_layout=True)
+axs = dict()
+for figname, fig in zip(\
+    ['gr','sp','sgr','ssp','sat','esat'],\
+    [figgr,figsp,figsgr,figssp,figsat,figesat]):
+    ax00 = fig.add_subplot(nrows,ncols,1)
+    ax01 = fig.add_subplot(nrows,ncols,2,sharey=ax00)
+    #ax02 = fig.add_subplot(233,sharey=ax00)
+    ax11 = fig.add_subplot(nrows,ncols,3)
+    ax12 = fig.add_subplot(nrows,ncols,4,sharey=ax11)
+    axs[figname] = [ax00,ax01,ax11,ax12]
+    #axs[figname] = [ax00,ax01,ax02,ax11,ax12]
 handle_list = []
 label_list = []
 cmap = plt.get_cmap('tab10')
+colors = colormaps['jet'](np.linspace(0,1,nft//isave))
+captions = ['(a)','(b)','(c)','(d)','(e)']
 for ift in range(0,nft,isave):
     ft1 = ft[ift]
+    #c = cmap(ift)
+    c = colors[ift]
     ##l1, = axsgr[0,0].plot(ix_gm,xdgm_dict[preGMpt][ift,],label=f'FT{ft1}')
-    #l1, = axsgr[0,0].plot(ix_lam,xdgm_dict[preGMpt][ift,],label=f'FT{ft1}')
-    #axssp[0,0].loglog(wnum_gm,psdgm_dict[preGMpt][ift,],label=f'FT{ft1}')
+    #l1, = axs['gr'][0].plot(ix_lam,xdgm_dict[preGMpt][ift,],c=c,label=f'FT{ft1}')
+    #axs['sp'][0].loglog(wnum_gm,psdgm_dict[preGMpt][ift,],c=c,label=f'FT{ft1}')
+    #axs['sgr'][0].plot(ix_lam,xsgm_dict[preGMpt][ift,],c=c,label=f'FT{ft1}')
+    #axs['ssp'][0].loglog(wnum_gm,psdmgm_dict[preGMpt][ift,],c=c,alpha=0.5)
+    #axs['ssp'][0].loglog(wnum_gm,psdsgm_dict[preGMpt][ift,],c=c,ls='dotted',label=f'FT{ft1}')
+    #r = psdsgm_dict[preGMpt][ift,] / psdmgm_dict[preGMpt][ift,]
+    #axs['sat'][0].semilogx(wnum_gm,r*100.0,c=c,label=f'FT{ft1}')
     #if ift==0:
-    #    axsgr[0,0].set_title('interpolated GM')
-    #    axssp[0,0].set_title('interpolated GM')
+    #    for figname in axs.keys():
+    #        axs[figname][0].set_title(f'{captions[0]} interpolated GM',x=0.01,ha='left')
     irow=0
-    icol=0
+    icol=1
+    iplot = 0
     for key in xdlam_dict.keys():
-        axsgr[irow,icol].plot(ix_lam,xdgm_dict[preGMpt][ift,],c=cmap(ift),alpha=0.5,ls='dashed',)
-        axssp[irow,icol].loglog(wnum_gm,psdgm_dict[preGMpt][ift,],c=cmap(ift),alpha=0.5,ls='dashed')
-        axssgr[irow,icol].plot(ix_lam,xsgm_dict[preGMpt][ift,],c=cmap(ift),alpha=0.5,ls='dashed',)
-        axsssp[irow,icol].loglog(wnum_gm,psdsgm_dict[preGMpt][ift,],c=cmap(ift),alpha=0.5,ls='dashed')
-        l1,=axsgr[irow,icol].plot(ix_lam,xdlam_dict[key][ift,],c=cmap(ift),label=f'FT{ft1}')
-        axssp[irow,icol].loglog(wnum,psdlam_dict[key][ift,],c=cmap(ift),label=f'FT{ft1}')
-        axssgr[irow,icol].plot(ix_lam,xslam_dict[key][ift,],c=cmap(ift),label=f'FT{ft1}')
-        axsssp[irow,icol].loglog(wnum,psdslam_dict[key][ift,],c=cmap(ift),label=f'FT{ft1}')
+        #axsgr[irow,icol].plot(ix_lam,xdgm_dict[preGMpt][ift,],c=c,alpha=0.5,ls='dashed',)
+        #axssp[irow,icol].loglog(wnum_gm,psdgm_dict[preGMpt][ift,],c=c,alpha=0.5,ls='dashed')
+        #axssgr[irow,icol].plot(ix_lam,xsgm_dict[preGMpt][ift,],c=c,alpha=0.5,ls='dashed',)
+        #axsssp[irow,icol].loglog(wnum_gm,psdsgm_dict[preGMpt][ift,],c=c,alpha=0.5,ls='dashed')
+        l1,=axs['gr'][iplot].plot(ix_lam,xdlam_dict[key][ift,],c=c,label=f'FT{ft1}')
+        axs['sp'][iplot].loglog(wnum,psdlam_dict[key][ift,],c=c,label=f'FT{ft1}')
+        axs['sgr'][iplot].plot(ix_lam,xslam_dict[key][ift,],c=c,label=f'FT{ft1}')
+        axs['ssp'][iplot].loglog(wnum,psdmlam_dict[key][ift,],c=c,alpha=0.5)
+        axs['ssp'][iplot].loglog(wnum,psdslam_dict[key][ift,],c=c,ls='dotted',label=f'FT{ft1}')
+        r = psdslam_dict[key][ift,] / psdmlam_dict[key][ift,]
+        axs['sat'][iplot].semilogx(wnum,r*100.0,c=c,label=f'FT{ft1}')
+        r = psdlam_dict[key][ift,] / psdmlam_dict[key][ift,]
+        axs['esat'][iplot].semilogx(wnum,r*100.0,c=c,label=f'FT{ft1}')
         if ift==0:
-            axsgr[irow,icol].set_title(labels[key])
-            axssp[irow,icol].set_title(labels[key])
-            axssgr[irow,icol].set_title(labels[key])
-            axsssp[irow,icol].set_title(labels[key])
+            for figname in axs.keys():
+                #axs[figname][iplot].set_title(f"{captions[iplot]} {labels[key]}",x=0.01,ha='left')
+                annotate_dict = {
+                    'xy':(0,1),'xycoords':'axes fraction',
+                    'xytext':(0.5,-0.5),'textcoords':'offset fontsize',
+                    'fontsize':'medium','va':'top','ha':'left',
+                    'bbox':dict(facecolor='0.7',edgecolor='none',pad=3.0)
+                }
+                if figname=='ssp':
+                    annotate_dict.update(
+                        xy=(1,1),
+                        xytext=(-0.5,-0.5),
+                        ha='right'
+                        )
+                axs[figname][iplot].annotate(f"{labels[key]}",**annotate_dict)
+        iplot+=1
         icol+=1
-        if icol>=2: icol=0; irow=1
+        if icol>=2: icol=1; irow=1
     handle_list.append(l1)
     label_list.append(f'FT{ft1}')
-for axgr in np.concatenate((axsgr.flatten(),axssgr.flatten())):
+for axgr in np.concatenate((axs['gr'],axs['sgr'])):
     axgr.set_xlabel('grid')
     axgr.grid()
+    axgr.set_ylim(0.05,2.05)
 #    axgr.legend()
-for axsp in np.concatenate((axssp.flatten(),axsssp.flatten())):
-    axsp.grid()
-#    axsp.legend()
-    axsp.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
-    #axsp.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
-    #axsp.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
-    axsp.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,12,2]))
-    axsp.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','12','2']))
-    secax = axsp.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
-    secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
-    secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
-    secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-axsgr[0,0].set_ylabel('RMSE')
-axssp[0,0].set_ylabel('Error')
-axsgr[1,0].set_ylabel('RMSE')
-axssp[1,0].set_ylabel('Error')
-axssgr[0,0].set_ylabel('STD')
-axsssp[0,0].set_ylabel('Variance')
-axssgr[1,0].set_ylabel('STD')
-axsssp[1,0].set_ylabel('Variance')
+for i,axssp in enumerate([axs['sp'],axs['ssp'],axs['sat'],axs['esat']]):
+    for j,axsp in enumerate(axssp):
+        axsp.grid()
+        if i<=1:
+            axsp.set_ylim(1.0e-7,1.0e1)
+        #elif i==1:
+        #    axsp.set_ylim(1.0e-7,1.0e1)
+        else:
+            axsp.set_ylim(0.0,100.0)
+    #    axsp.legend()
+        #axsp.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+        #axsp.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+        axsp.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,12,2]))
+        secax = axsp.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
+        secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+        #if j<2:
+        #axsp.xaxis.set_major_formatter(NullFormatter())
+        secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+        secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+        #else:
+        axsp.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
+        axsp.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','12','2']))
+        #secax.xaxis.set_major_formatter(NullFormatter())
+#axs['gr'][0].set_ylabel('RMSE')
+#axs['sp'][0].set_ylabel('Error')
+#axs['sgr'][0].set_ylabel('spread')
+#axs['ssp'][0].set_ylabel('mean (solid), prtb (dotted)')
+#axs['sat'][0].set_ylabel(r'$V^\prime/V_b$ [%]')
+#axs['esat'][0].set_ylabel(r'$V_e/V_b$ [%]')
+for i in range(len(axs['gr'])):
+    axs['gr'][i].set_ylabel('RMSE')
+    axs['sp'][i].set_ylabel('Error')
+    axs['sgr'][i].set_ylabel('spread')
+    axs['ssp'][i].set_ylabel('mean (solid), prtb (dotted)')
+    axs['sat'][i].set_ylabel(r'$V^\prime/V_b$ [%]')
+    axs['esat'][i].set_ylabel(r'$V_e/V_b$ [%]')
+#axsgr[1,1].set_ylabel('RMSE')
+#axssp[1,1].set_ylabel('Error')
+#axssgr[1,1].set_ylabel('STD')
+#axsssp[1,1].set_ylabel('Variance')
 #axsgr[1,0].remove()
 #axssp[1,0].remove()
-axsgr[0,1].legend(handle_list, label_list, loc='upper left', bbox_to_anchor=(1.01,1.01))
-axssp[0,1].legend(handle_list, label_list, loc='upper left', bbox_to_anchor=(1.01,1.01))
-axssgr[0,1].legend(handle_list, label_list, loc='upper left', bbox_to_anchor=(1.01,1.01))
-axsssp[0,1].legend(handle_list, label_list, loc='upper left', bbox_to_anchor=(1.01,1.01))
-figgr.suptitle(f'{ptlong[pt]}')
-figsp.suptitle(f'{ptlong[pt]}')
+#axssgr[1,0].remove()
+#axsssp[1,0].remove()
+legend_dict = dict(loc='upper left', bbox_to_anchor=(1.01,1.1),facecolor='0.7',fontsize=12)
+axs['gr'][ncols-1].legend(handle_list, label_list, **legend_dict)
+axs['sp'][ncols-1].legend(handle_list, label_list, **legend_dict)
+axs['sgr'][ncols-1].legend(handle_list, label_list, **legend_dict)
+axs['ssp'][ncols-1].legend(handle_list, label_list, **legend_dict)
+axs['sat'][ncols-1].legend(handle_list, label_list, **legend_dict)
+axs['esat'][ncols-1].legend(handle_list, label_list, **legend_dict)
+figgr.savefig(figdir/f"{model}_xd_comp_{op}_{pt}.pdf",dpi=600)
+figsp.savefig(figdir/f"{model}_errspectra_comp_{op}_{pt}.pdf",dpi=600)
+figgr.suptitle(f'Error')
+figsp.suptitle(f'Error')
 figgr.savefig(figdir/f"{model}_xd_comp_{op}_{pt}.png",dpi=300)
 figsp.savefig(figdir/f"{model}_errspectra_comp_{op}_{pt}.png",dpi=300)
-figsgr.suptitle(f'{ptlong[pt]}, spread')
-figssp.suptitle(f'{ptlong[pt]}, spread')
+figsgr.savefig(figdir/f"{model}_xs_comp_{op}_{pt}.pdf",dpi=600)
+figssp.savefig(figdir/f"{model}_spectra_comp_{op}_{pt}.pdf",dpi=600)
+figsgr.suptitle(f'Spread')
+figssp.suptitle(f'Variance power spectra')
 figsgr.savefig(figdir/f"{model}_xs_comp_{op}_{pt}.png",dpi=300)
-figssp.savefig(figdir/f"{model}_sprdspectra_comp_{op}_{pt}.png",dpi=300)
+figssp.savefig(figdir/f"{model}_spectra_comp_{op}_{pt}.png",dpi=300)
+figsat.savefig(figdir/f"{model}_varsat_comp_{op}_{pt}.pdf",dpi=600)
+figesat.savefig(figdir/f"{model}_esat_comp_{op}_{pt}.pdf",dpi=600)
+figsat.suptitle(f'perturbation saturation')
+figesat.suptitle(f'error saturation')
+figsat.savefig(figdir/f"{model}_varsat_comp_{op}_{pt}.png",dpi=300)
+figesat.savefig(figdir/f"{model}_esat_comp_{op}_{pt}.png",dpi=300)
 plt.show()
 plt.close(fig=figgr)
 plt.close(fig=figsp)
 plt.close(fig=figsgr)
 plt.close(fig=figssp)
+plt.close(fig=figsat)
+plt.close(fig=figesat)
 exit()
 for ift in range(isave,nft,isave):
     ft1 = ft[ift]
+    # RMSE in state space
     figgr, axgr = plt.subplots(figsize=[8,5],constrained_layout=True)
+    # Error in spectral space
     figsp, axsp = plt.subplots(figsize=[8,6],constrained_layout=True)
+    # Variance power spectra and ratio
+    figr, axsr = plt.subplots(ncols=3,figsize=[12,6],constrained_layout=True)
 
     #if preGM:
     #    axgr.plot(ix_gm, xdgm_dict[preGMpt][ift,],\
@@ -482,8 +603,15 @@ for ift in range(isave,nft,isave):
             c=linecolor[key],ls='dashed')
         axsp.loglog(wnum,psdlam_dict[key][ift//isave,],\
             c=linecolor[key],label=labels[key])
-        axsp.loglog(wnum,psdslam_dict[key][ift,],\
-            c=linecolor[key],ls='dashed')
+        axsr[0].loglog(wnum,psdmlam_dict[key][ift,],\
+            c=linecolor[key],ls='dashed',label=labels[key])
+        axsr[1].loglog(wnum,psdslam_dict[key][ift,],\
+            c=linecolor[key],ls='dotted',label=labels[key])
+        if key != 'dscl':
+            rm = (psdmlam_dict[key][ift,] - psdmlam_dict['dscl'][ift,])/psdmlam_dict[key][ift,]
+            rs = (psdslam_dict[key][ift,] - psdslam_dict['dscl'][ift,])/psdslam_dict[key][ift,]
+            axsr[2].semilogx(wnum,rm*100,c=linecolor[key],ls='dashed')
+            axsr[2].semilogx(wnum,rs*100,c=linecolor[key],ls='dotted')
 
     #axgr.set_ylabel('RMSE')
     axgr.set_xlabel('grid')
@@ -495,6 +623,7 @@ for ift in range(isave,nft,isave):
     #ymin = 0.15
     #axgr.set_ylim(ymin,ymax)
 
+    axsp.set_ylabel('Error')
     axsp.grid()
     axsp.legend()
     axsp.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
@@ -507,12 +636,37 @@ for ift in range(isave,nft,isave):
     secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
     secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
     
-    figgr.suptitle(f'{ptlong[pt]} FT{ft1}')
-    figsp.suptitle(f'{ptlong[pt]} FT{ft1}')
+    for i,axr in enumerate(axsr):
+        axr.grid()
+        axr.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
+        #axr.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
+        #axr.xaxis.set_major_formatter(FixedFormatter([r'$\frac{180}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$',r'$\frac{1}{2\pi}$']))
+        axr.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,12,2]))
+        axr.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','12','2']))
+        secax = axr.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
+        secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+        secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+        secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+    rlines = [Line2D([0],[0],c='k',ls='dashed',lw=2.0),Line2D([0],[0],c='k',ls='dotted',lw=2.0)]
+    rlabels = ['mean','prtb']
+    axsr[0].legend(fontsize=12)
+    axsr[1].legend(fontsize=12)
+    axsr[0].set_title('mean',fontsize=14)
+    axsr[1].set_title('prtb',fontsize=14)
+    axsr[1].sharey(axsr[0])
+    axsr[2].set_title('(LAM DA - No LAM DA)/(LAM DA)',fontsize=14)
+    axsr[2].legend(rlines,rlabels,fontsize=12)
+    axsr[2].set_ylabel('%')
+    
+    figgr.suptitle(f'FT{ft1}')
+    figsp.suptitle(f'FT{ft1}')
+    figr.suptitle(f'FT{ft1}')
     figgr.savefig(figdir/f"{model}_xd_ft{ft1:03d}_{op}_{pt}.png",dpi=300)
     #figgr.savefig(figdir/f"{model}_xd_ft{ft}_{op}.pdf")
     figsp.savefig(figdir/f"{model}_errspectra_ft{ft1:03d}_{op}_{pt}.png",dpi=300)
     #figsp.savefig(figdir/f"{model}_errspectra_f_{op}.pdf")
+    figr.savefig(figdir/f"{model}_compspectra_ft{ft1:03d}_{op}_{pt}.png",dpi=300)
     plt.show(block=False)
     plt.close(fig=figgr)
     plt.close(fig=figsp)
+    plt.close(fig=figr)

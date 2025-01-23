@@ -101,11 +101,17 @@ if not figpdfdir.exists():
     figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
-labels = {"dscl":"No LAM DA","conv":"LAM DA", "lsb":"BLSB+DA", "nest":"Nested DA"}
+labels = {"dscl":"No LAM DA","conv":f"{ptlong[pt]}", "lsb":f"BLSB+{ptlong[pt]}", "nest":f"Nested {ptlong[pt]}"}
 linecolor = {"dscl":"k","conv":"tab:blue","lsb":'tab:orange',"nest":'tab:green'}
-captions = {"envar":"(b)","var":"(a)"}
+if obsloc == '':
+    captions = {"envar":"(b) ","var":"(a) "}
+    dcaptions = {"envar":"(d) ","var":"(c) "}
+else:
+    captions = {"envar":"(a) ","var":""}
+    dcaptions = {"envar":"(b) ","var":""}
 
 fig, ax = plt.subplots(figsize=[12,6],constrained_layout=True)
+figd, axd = plt.subplots(figsize=[12,6],constrained_layout=True)
 figs, sax = plt.subplots(figsize=[12,6],constrained_layout=True)
 fig0, (ax00,ax01,ax02) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
 #fig1, (ax10,ax11,ax12) = plt.subplots(nrows=3,figsize=[12,12],constrained_layout=True)
@@ -161,6 +167,14 @@ for key in keys:
         print("{}, forecast RMSE = {}".format(key,np.mean(e[ns:])))
     stda = np.loadtxt(fs)
     ax.plot(t[ns:],e[ns:],c=linecolor[key],label=labels[key]+f'={np.mean(e[ns:]):.3f}')
+    if key=='dscl':
+        #eref = e
+        pass
+    elif key=='conv':
+        eref = e
+    else:
+        d = e - eref
+        axd.plot(t[ns:],d[ns:],c=linecolor[key],label=labels[key])
     ax00.plot(t[ns:ns+nt1],e[ns:ns+nt1],c=linecolor[key],label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     ax01.plot(t[ns+nt1:ns+2*nt1],e[ns+nt1:ns+2*nt1],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
     ax02.plot(t[ns+2*nt1:],e[ns+2*nt1:],c=linecolor[key])#,label=labels[key]+f'={np.mean(e[ns:]):.3f}')
@@ -190,6 +204,19 @@ ax.set_xlabel('days')
 ax.legend(ncol=2,loc='upper right',bbox_to_anchor=(1.01,1.05))
 #ax.legend(loc='upper left',bbox_to_anchor=(0.82,1.0),\
 #    title=f'{ptlong[pt]} time average')
+#axd.set_ylim(-1.2,1.2)
+axd.set_ylim(-0.5,0.5)
+axd.hlines([0.0],0,1,colors='k',ls='dotted',lw=2.5,transform=axd.get_yaxis_transform())
+#axd.set_ylabel('RMSE difference from No LAM DA')
+#axd.legend(loc='lower right',bbox_to_anchor=(1.01,-0.025))
+axd.set_ylabel(f'RMSE difference from {ptlong[pt]}')
+axd.legend(loc='upper right',bbox_to_anchor=(1.01,1.025))
+axd.set_xlim(10,250)
+axd.set_xticks([10,40,70,100,130,160,190,220,250])
+axd.set_xticks(t[ns-1:na:40],minor=True)
+axd.grid()
+axd.set_xlabel('days')
+#
 ax02.set_xlabel('days')
 ax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=f'{ptlong[pt]} time average')
@@ -209,17 +236,17 @@ for sax0 in [sax00,sax01,sax02]:
 sax02.set_xlabel('days')
 sax00.legend(loc='upper left',bbox_to_anchor=(1.01,0.95),\
     title=ptlong[pt]+' time average \nof STD/RMSE')
-if obsloc == '':
-    fig.suptitle(captions[pt]+' '+ptlong[pt],ha='left',x=0.05,fontsize=24)
-else:
-    fig.suptitle(ptlong[pt],ha='left',x=0.1,fontsize=24)
+#fig.suptitle(captions[pt]+ptlong[pt],ha='left',x=0.05,fontsize=24)
+figd.suptitle(dcaptions[pt]+ptlong[pt],ha='left',x=0.05,fontsize=24)
 if anl:
     fig.savefig(figpngdir/'{}_e_lam_{}_{}.png'.format(model,op,pt),dpi=300)
+    figd.savefig(figpngdir/'{}_edzoom_lsb_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     fig0.savefig(figpngdir/'{}_e3_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     #fig1.savefig(figpngdir/'{}_e_lam_resample_{}_{}.png'.format(model,op,pt),dpi=300)
     figs.savefig(figpngdir/'{}_stda_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     figs0.savefig(figpngdir/'{}_ss3_lam_{}_{}.png'.format(model,op,pt),dpi=300)
     fig.savefig(figpdfdir/'{}_e_lam_{}_{}.pdf'.format(model,op,pt))
+    figd.savefig(figpdfdir/'{}_edzoom_lsb_lam_{}_{}.pdf'.format(model,op,pt))
     fig0.savefig(figpdfdir/'{}_e3_lam_{}_{}.pdf'.format(model,op,pt))
     #fig1.savefig(figpdfdir/'{}_e_lam_resample_{}_{}.pdf'.format(model,op,pt))
     figs.savefig(figpdfdir/'{}_stda_lam_{}_{}.pdf'.format(model,op,pt))
@@ -231,6 +258,7 @@ else:
 #    fig1.savefig(figpdfdir/'{}_stdf_lam_{}_{}.pdf'.format(model,op,pt))
 #plt.show()
 plt.close(fig=fig)
+plt.close(fig=figd)
 plt.close(fig=fig0)
 #plt.close(fig=fig1)
 plt.close(fig=figs)
@@ -263,7 +291,7 @@ ax.set_ylim(0.0,2.0)
 ax.grid(axis='y')
 ax.set_title(ptlong[pt])
 fig.savefig(figpngdir/'{}_ebox_lam_{}_{}.png'.format(model,op,pt),dpi=300)
-plt.show()
+#plt.show()
 exit()
 
 # bootstrap

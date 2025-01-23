@@ -26,7 +26,7 @@ ns = 40 # spinup
 datadir = Path(f'/Volumes/FF520/nested_envar/data/{model}')
 datadir = Path(f'../work/{model}')
 preGMpt = 'envar'
-ldscl=False
+ldscl=True
 obsloc = ''
 if len(sys.argv)>5:
     obsloc = sys.argv[5]
@@ -41,6 +41,18 @@ lamdir  = datadir / f'var_vs_envar_shrink_dct_preGM{obsloc}_m80obs30'
 #    figdir = datadir
 #else:
 figdir = lsbdir
+figpngdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpng')
+figpdfdir = Path(os.environ['HOME']+'/Writing/nested_envar/figpdf')
+if obsloc == '':
+    figpngdir = figpngdir / 'uniform'
+    figpdfdir = figpdfdir / 'uniform'
+else:
+    figpngdir = figpngdir / obsloc[1:]
+    figpdfdir = figpdfdir / obsloc[1:]
+if not figpngdir.exists():
+    figpngdir.mkdir(parents=True)
+if not figpdfdir.exists():
+    figpdfdir.mkdir(parents=True)
 
 ptlong = {"envar":"EnVar","var":"3DVar"}
 labels = {"dscl":"No LAM DA","conv":"DA", "lsb":"BLSB+DA", "nest":"Nested DA"}
@@ -87,6 +99,7 @@ fig1d, ax1d = plt.subplots(figsize=[12,6],constrained_layout=True)
 #axi.loglog(wnum_gm,psd_gm,c='gray',lw=4.0,label='GM')
 
 psd_incr = {}
+psd_mean = {}
 psd_sprd = {}
 if ldscl:
     key='dscl'
@@ -109,17 +122,21 @@ if ldscl:
     axi.loglog(wnum,psd_dscl,c=linecolor[key],lw=2.0,label=labels[key])
     psd_incr[key] = psd_dscl
     if pt=='envar':
+        psdm_dscl = np.zeros_like(psd_dscl)
         psds_dscl = np.zeros_like(psd_dscl)
         for i in range(ns,na):
             f = dscldir/"data/{2}/{0}_gm_ua_{1}_{2}_cycle{3}.npy".format(model,op,preGMpt,i)
             xa1 = np.load(f)
             gm2lam = interp1d(ix_gm,xa1,axis=0)
             xadscl = gm2lam(ix_lam)
+            _, psd1 = nmc_lam.psd(xadscl,axis=0,average=False)
+            psdm_dscl = psdm_dscl + psd1.mean(axis=1)
             xadscl = xadscl - np.mean(xadscl,axis=1)[:,None]
-            _, psd1 = nmc_lam.psd(xadscl,axis=0)
-            psds_dscl = psds_dscl + psd1
+            _, psd1 = nmc_lam.psd(xadscl,axis=0,average=False)
+            psds_dscl = psds_dscl + psd1.mean(axis=1)
         #xsadscl = np.load(f)
         #wnum, psds_dscl = nmc_lam.psd(xsadscl,axis=1)
+        psd_mean[key] = psdm_dscl / float(na-ns)
         psd_sprd[key] = psds_dscl / float(na-ns)
     #ax.plot(ix_lam, np.mean(xsadscl,axis=0),\
     #    c='k',ls='dashed')
@@ -147,7 +164,7 @@ for key in ['conv','lsb','nest']:
     #wnum, psd_lam = nmc_lam.psd(xalam,axis=1)
     #axa.loglog(wnum,psd_lam,c=linecolor[key],lw=2.0,label=labels[key])
     wnum, psd_lam = nmc_lam.psd(incrlam,axis=1)
-    if key!='lsb':
+    if pt!='envar' or key!='lsb':
         axi.loglog(wnum,psd_lam,c=linecolor[key],lw=2.0,label=labels[key])
     psd_incr[key] = psd_lam
     if pt=='envar':
@@ -157,6 +174,7 @@ for key in ['conv','lsb','nest']:
         #    f = lamdir/"xsalam_{}_{}_nest.npy".format(op,pt)
         #else:
         #    f = lsbdir/"xsalam_{}_{}.npy".format(op,pt)
+        psdm_lam = np.zeros(psd_lam.size)
         psds_lam = np.zeros(psd_lam.size)
         if key=='lsb':
             incrlsb = []
@@ -172,9 +190,11 @@ for key in ['conv','lsb','nest']:
                 xbblam = np.load(fbb)
                 incrlsb.append(xbblam.mean(axis=1) - xblam[i,])
             xalam = np.load(f)
+            _, psd1 = nmc_lam.psd(xalam,axis=0,average=False)
+            psdm_lam = psdm_lam + psd1.mean(axis=1)
             xaprtb = xalam - np.mean(xalam,axis=1)[:,None]
-            wnum_s, psd1 = nmc_lam.psd(xaprtb,axis=0)
-            psds_lam = psds_lam + psd1
+            wnum_s, psd1 = nmc_lam.psd(xaprtb,axis=0,average=False)
+            psds_lam = psds_lam + psd1.mean(axis=1)
             if key=='lsb':
                 incrda.append(xalam.mean(axis=1)-xbblam.mean(axis=1))
         if key=='lsb':
@@ -192,6 +212,7 @@ for key in ['conv','lsb','nest']:
             psd_incr[key+'da'] = psd
         #xsalam = np.load(f)
         #wnum, psds_lam = nmc_lam.psd(xsalam,axis=1)
+        psd_mean[key] = psdm_lam / float(na-ns)
         psd_sprd[key] = psds_lam / float(na-ns)
     #if pt == 'var' or pt == 'var_nest':
     #    ax.plot(ix_lam[1:-1], np.mean(xsalam,axis=0),\
@@ -228,39 +249,53 @@ yimin, yimax = axi.get_ylim()
 #axb.set_ylabel('first guess')
 #axa.set_ylabel('analysis')
 axi.vlines([24],0,1,colors='magenta',ls='dashed',zorder=0,transform=ax.get_xaxis_transform())
-axi.set_ylim(1e-8,2e-2)
-axi.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+axi.set_ylim(4.0e-7,3.0e-2) #1e-8,2e-2)
+axi.legend() #loc='upper left',bbox_to_anchor=(1.0,1.0))
 axi.set_ylabel('increment')
 fig.suptitle(ptlong[pt])
-fig.savefig(figdir/f"{model}_incrspectra_{op}_{pt}.png",dpi=300)
-fig.savefig(figdir/f"{model}_incrspectra_{op}_{pt}.pdf")
+fig.savefig(figpngdir/f"{model}_incrspectra_{op}_{pt}.png",dpi=300)
+fig.savefig(figpdfdir/f"{model}_incrspectra_{op}_{pt}.pdf")
 plt.show(block=False)
 
 ax1d.set_xlabel('day')
 ax1d.set_ylabel('spatial averaged rms increment')
 ax1d.legend(loc='upper left',bbox_to_anchor=(0.82,1.0),title=ptlong[pt])
-fig1d.savefig(figdir/f"{model}_incr1d_{op}_{pt}.png")
+#fig1d.savefig(figpngdir/f"{model}_incr1d_{op}_{pt}.png")
 plt.show()
 plt.close()
 
 if pt=='envar':
-    fig, (axs,axi) = plt.subplots(nrows=2,sharex=True,figsize=[8,6],constrained_layout=True)
-    for key in psd_incr.keys():
+    #fig, (axs,axi) = plt.subplots(nrows=2,sharex=True,figsize=[8,6],constrained_layout=True)
+    fig, axs = plt.subplots(figsize=[8,7],constrained_layout=True)
+    figr, axrs = plt.subplots(ncols=3,figsize=[12,6],constrained_layout=True)
+    rlabels = ['mean','prtb']
+    rlines = [Line2D([0],[0],lw=2.0,ls='dashed',c='k'),Line2D([0],[0],lw=2.0,ls='dotted',c='k')]
+    for key in psd_sprd.keys():
         if key!='lsbb' and key!='lsbda':
             if key=='dscl':
                 axs.loglog(wnum,psd_sprd[key],c=linecolor[key],lw=2.0,label=labels[key])
+                axrs[0].loglog(wnum,psd_mean[key],c=linecolor[key],lw=2.0,ls='dashed',label=labels[key])
+                axrs[1].loglog(wnum,psd_sprd[key],c=linecolor[key],lw=2.0,ls='dotted',label=labels[key])
             else:
                 axs.loglog(wnum_s,psd_sprd[key],c=linecolor[key],lw=2.0,label=labels[key])
-            if key!='lsb':
-                axi.loglog(wnum,psd_incr[key],c=linecolor[key],lw=2.0,label=labels[key])
-        elif key=='lsbb':
-            axi.loglog(wnum,psd_incr[key],ls='dashed',c=linecolor['lsb'],lw=2.0,label=labels['lsb']+'(LSB)')
-        else:
-            axi.loglog(wnum,psd_incr[key],ls='dotted',c=linecolor['lsb'],lw=2.0,label=labels['lsb']+'(DA)')
+                axrs[0].loglog(wnum_s,psd_mean[key],c=linecolor[key],lw=2.0,ls='dashed',label=labels[key])
+                axrs[1].loglog(wnum_s,psd_sprd[key],c=linecolor[key],lw=2.0,ls='dotted',label=labels[key])
+                r = (psd_mean[key] - psd_mean['dscl'])/psd_mean[key]
+                axrs[2].semilogx(wnum_s, r*100, c=linecolor[key],lw=2.0,ls='dashed') #,label=labels[key])
+                r = (psd_sprd[key] - psd_sprd['dscl'])/psd_sprd[key]
+                axrs[2].semilogx(wnum_s, r*100, c=linecolor[key],lw=2.0,ls='dotted') #,label=labels[key])
+            #if key!='lsb':
+            #    axi.loglog(wnum,psd_incr[key],c=linecolor[key],lw=2.0,label=labels[key])
+        #elif key=='lsbb':
+        #    axi.loglog(wnum,psd_incr[key],ls='dashed',c=linecolor['lsb'],lw=2.0,label=labels['lsb']+'(LSB)')
+        #else:
+        #    axi.loglog(wnum,psd_incr[key],ls='dotted',c=linecolor['lsb'],lw=2.0,label=labels['lsb']+'(DA)')
     #ymin, ymax = axs.get_ylim()
-    ymin=1e-8; ymax=1e-1
-    for i,ax in enumerate([axs,axi]):
-        ax.set_ylim(ymin,ymax)
+    #ymin=1e-8; ymax=1e-1
+    ymin=4e-7; ymax=3e-2
+    for i,ax in enumerate([axs]+axrs.tolist()):
+        if i==0:
+            ax.set_ylim(ymin,ymax)
         ax.grid()
         ax.vlines([24],0,1,colors='magenta',ls='dashed',zorder=0,transform=ax.get_xaxis_transform())
         #ax.xaxis.set_major_locator(FixedLocator([180./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi,0.5/np.pi]))
@@ -268,21 +303,34 @@ if pt=='envar':
         ax.xaxis.set_major_locator(FixedLocator([480,240,120,60,30,12,2]))
         secax = ax.secondary_xaxis('top',functions=(wnum2wlen,wlen2wnum))
         secax.xaxis.set_major_locator(FixedLocator([np.pi,np.pi/6.,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
-        if i==1:
-            ax.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
-            ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','12','2']))
-        else:
-            ax.xaxis.set_major_formatter(NullFormatter())
-        if i==0:
-            secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
-            secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-        else:
-            secax.xaxis.set_major_formatter(NullFormatter())
-    axi.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+        #if i==1:
+        ax.set_xlabel(r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)")
+        ax.xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','12','2']))
+        #else:
+        #    ax.xaxis.set_major_formatter(NullFormatter())
+        #if i==0:
+        secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+        secax.xaxis.set_major_formatter(FixedFormatter([r'$\pi$',r'$\frac{\pi}{6}$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+        #else:
+        #    secax.xaxis.set_major_formatter(NullFormatter())
+    #axi.legend(loc='upper left',bbox_to_anchor=(1.0,1.0))
+    axs.legend() #loc='upper left',bbox_to_anchor=(1.0,1.0))
     axs.set_ylabel('spread')
-    axi.set_ylabel('increment')
+    #axi.set_ylabel('increment')
     fig.suptitle(ptlong[pt])
-    fig.savefig(figdir/f"{model}_incr+sprdspectra_{op}_{pt}.png",dpi=300)
-    fig.savefig(figdir/f"{model}_incr+sprdspectra_{op}_{pt}.pdf")
+    #fig.savefig(figdir/f"{model}_incr+sprdspectra_{op}_{pt}.png",dpi=300)
+    #fig.savefig(figdir/f"{model}_incr+sprdspectra_{op}_{pt}.pdf")
+    fig.savefig(figpngdir/f"{model}_sprdspectra_{op}_{pt}.png",dpi=300)
+    fig.savefig(figpdfdir/f"{model}_sprdspectra_{op}_{pt}.pdf")
+    axrs[0].legend(fontsize=12)
+    axrs[0].set_title('mean',fontsize=14)
+    axrs[1].set_title('prtb',fontsize=14)
+    axrs[1].sharey(axrs[0])
+    axrs[2].set_title('(LAM DA - No LAM DA)/(LAM DA)',fontsize=14)
+    axrs[2].legend(rlines,rlabels,fontsize=12)
+    axrs[2].set_ylabel('%')
+    figr.suptitle(ptlong[pt])
+    figr.savefig(figpngdir/f"{model}_compspectra_{op}_{pt}.png",dpi=300)
+    figr.savefig(figpdfdir/f"{model}_compspectra_{op}_{pt}.pdf")
     plt.show() #block=False)
     plt.close()
