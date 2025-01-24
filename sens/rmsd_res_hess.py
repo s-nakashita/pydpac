@@ -97,6 +97,8 @@ for method in methods:
 for j, ax in enumerate(axs.flatten()):
     axm = axsm.flatten()[j]
     axr = axsr.flatten()[j]
+    ymin, ymax = axm.get_ylim()
+    axr.set_ylim(ymin,ymax)
     for ax1 in [ax,axm,axr]:
         if j>=len(member)-1:
             #ax1.remove()
