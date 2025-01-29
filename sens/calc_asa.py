@@ -47,6 +47,12 @@ def jac(x,*args):
     dJdx = np.roll(dJdxtmp,-nxh+ic,axis=0)
     return dJdx
 
+enasas = ['minnorm','diag','ridge','pcr','pls','pls_vip','lasso','elnet']
+cmap = plt.get_cmap('tab20')
+colors = {'asa':cmap(0),'minnorm':cmap(2),'diag':cmap(4),'pcr':cmap(6),'ridge':cmap(8),'pls':cmap(10),'pls_vip':cmap(11),'std':cmap(12),'lasso':cmap(14),'elnet':cmap(16)}
+markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','pls_vip':'x','std':'^','lasso':'p','elnet':'d'}
+ms = {'asa':8,'minnorm':5,'diag':5,'pcr':5,'ridge':5,'pls':5,'pls_vip':5,'std':5,'lasso':5,'elnet':5}
+
 if __name__=="__main__":
     
     argsin = parser.parse_args()
@@ -71,8 +77,9 @@ if __name__=="__main__":
     if not savedir.exists(): savedir.mkdir(parents=True)
 
     icyc0 = 50
-    nsample = 1 #000
-    cv=True
+    nsample = 1000
+    nplot = 8
+    cv=False
     if not recomp_asa:
         dJdx0_dict={}
         dx0opt_dict={}
@@ -90,7 +97,21 @@ if __name__=="__main__":
     rmsdx_dict = {}
     corrdJ_dict = {}
     solverlist=['minnorm','diag','ridge','pcr','pls','lasso','elnet']
+    solverlist=['pls','pls_vip']
+    solvercvlist = ['lasso','elnet'] #,'ridge'
     #solverlist=['std']
+    if cv:
+        cvdirs = dict()
+        cvdict = dict()
+        for solver in solvercvlist:
+            if solver in solverlist:
+                cvdir = Path(f'fig{metric}/{solver}_cv')
+                if not cvdir.exists(): cvdir.mkdir()
+                cvdirs[solver] = cvdir
+                if solver == 'lasso' or solver == 'ridge':
+                    cvdict[solver] = dict(alpha=[])
+                elif solver == 'elnet':
+                    cvdict[solver] = dict(alpha=[],l1_ratio=[])
 
     for solver in solverlist:
         dJdx0_dict[solver] = []
@@ -100,10 +121,8 @@ if __name__=="__main__":
             rmsdJ_dict[solver] = []
             rmsdx_dict[solver] = []
             corrdJ_dict[solver] = []
-    markers=['*','o','v','s','P','X','p','d']
     marker_style=dict(markerfacecolor='none')
-    cmap = plt.get_cmap('tab10')
-
+    
     cycles = []
     if not recomp_asa:
         ics = ds_asa.ic.values
@@ -171,7 +190,8 @@ if __name__=="__main__":
             logfile = f"log/{solver}_vt{vt}ne{nens}{metric}"
             if n_components is not None:
                 logfile = f"log/{solver}_vt{vt}ne{nens}nc{n_components}{metric}"
-            enasa = EnASA(vt,X0,Je,solver=solver,logfile=logfile)
+            esatype=solver
+            enasa = EnASA(vt,X0,Je,esatype=esatype,logfile=logfile)
             kwargs = dict(n_components=n_components,cthres=0.99,cv=cv)
             if solver != 'std':
                 dJedx0 = enasa(**kwargs)
@@ -179,10 +199,15 @@ if __name__=="__main__":
                 if metric=='_en':
                     scale = 0.1/np.linalg.norm(dxe0opt,ord=2)/np.exp((vt-24)*ldble)
                     dxe0opt = dxe0opt * scale
-                if cv and (solver == 'lasso' or solver == 'elnet'):
-                    figdir = Path(f"fig{metric}/{solver}_cv")
+                if cv and (solver in solvercvlist):
+                    figdir = cvdirs[solver]/f"c{icyc}"
                     if not figdir.exists(): figdir.mkdir(parents=True)
                     enasa.check_cv(figdir=str(figdir))
+                    if solver=='elnet':
+                        cvdict[solver]['alpha'].append(enasa.alpha)
+                        cvdict[solver]['l1_ratio'].append(enasa.l1_ratio)
+                    else:
+                        cvdict[solver]['alpha'].append(enasa.alpha)
             else:
                 dxe0opt = enasa.calc_dxeopt()
                 dJedx0 = -1.0*dxe0opt
@@ -197,10 +222,10 @@ if __name__=="__main__":
                 rmsdx_dict[solver].append(np.sqrt(np.mean((dxe0opt-dx0opt)**2)))
                 corr=np.correlate(dJedx0,dJdx0)/np.linalg.norm(dJedx0,ord=2)/np.linalg.norm(dJdx0,ord=2)
                 corrdJ_dict[solver].append(corr[0])
-                if i==0: 
+                if i<nplot: 
                     print(f"{solver} score={enasa.score()} err={enasa.err}")
                     if solver=='minnorm': print(f"nrank={enasa.nrank}")
-        if i==0:
+        if i<nplot:
             print(f"ic={ic}")
             figdir = Path(f"fig/vt{vt}ne{nens}{metric}/c{icyc}")
             if n_components is not None:
@@ -208,6 +233,7 @@ if __name__=="__main__":
             if not figdir.exists(): figdir.mkdir(parents=True)
             nxh = xa.size // 2
             fig, axs = plt.subplots(nrows=3,sharex=True,figsize=[8,8],constrained_layout=True)
+            figj, axj = plt.subplots(figsize=[8,4],constrained_layout=True)
             axs[0].plot(np.roll(xb0,nxh-ic,axis=0),label='FT00')
             axs[0].plot(np.roll(xa,nxh-ic,axis=0),label='analysis')
             axs[0].plot(np.roll(xf,nxh-ic,axis=0),label=f'FT{vt}')
@@ -216,18 +242,33 @@ if __name__=="__main__":
                 if key=='asa':
                     axs[1].plot(np.roll(dJdx0_dict[key][i],nxh-ic),label=key,lw=2.0)
                     axs[2].plot(np.roll(dx0opt_dict[key][i],nxh-ic),label=key,lw=2.0)
+                    ymin1, ymax1 = axs[1].get_ylim()
+                    ymin2, ymax2 = axs[2].get_ylim()
+                    axj.plot(np.roll(dJdx0_dict[key][i],nxh-ic),label=key,lw=2.0,alpha=0.5)
                 else:
-                    axs[1].plot(np.roll(dJdx0_dict[key][i],nxh-ic),ls='dashed',marker=markers[j],label=f'EnASA,{key}',**marker_style)
-                    axs[2].plot(np.roll(dx0opt_dict[key][i],nxh-ic),ls='dashed',marker=markers[j],label=f'EnASA,{key}',**marker_style)
+                    axs[1].plot(np.roll(dJdx0_dict[key][i],nxh-ic),ls='dashed',c=colors[key],marker=markers[key],label=f'EnASA,{key}',**marker_style)
+                    axs[2].plot(np.roll(dx0opt_dict[key][i],nxh-ic),ls='dashed',c=colors[key],marker=markers[key],label=f'EnASA,{key}',**marker_style)
+                    if key!='diag':
+                        axj.plot(np.roll(dJdx0_dict[key][i],nxh-ic),ls='dashed',c=colors[key],marker=markers[key],label=f'{key}',**marker_style)
             for ax in axs:
                 ax.vlines([nxh],0,1,colors='r',transform=ax.get_xaxis_transform())
                 ax.legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
                 ax.grid()
             axs[1].set_title('dJ/dx0')
             axs[2].set_title('dxopt')
+            axs[1].set_ylim(ymin1,ymax1)
+            axs[2].set_ylim(ymin2,ymax2)
             fig.suptitle(f'vt={vt}h, Nens={nens}')
             fig.savefig(figdir/'x+dJdx0+dxopt.png')
-            plt.close()
+            plt.close(fig=fig)
+#            
+            axj.vlines([nxh],0,1,colors='r',transform=axj.get_xaxis_transform())
+            axj.legend(loc='upper left',bbox_to_anchor=(1.01,1.0))
+            axj.grid()
+            axj.set_title(f'dJ/dx0 cycle{icyc} FT{vt} {nens} member')
+            figj.savefig(figdir/'dJdx0.png')
+            plt.close(fig=figj)
+#            
             fig, axs = plt.subplots(nrows=2,sharex=True,figsize=[8,6],constrained_layout=True)
             axs[0].plot(np.roll(xb0,nxh-ic,axis=0),c='k',lw=2.0)
             axs[1].plot(np.roll(xf,nxh-ic,axis=0),c='k',lw=2.0)
@@ -240,26 +281,61 @@ if __name__=="__main__":
             axs[1].set_title(f'FT{vt}')
             fig.suptitle(f'vt={vt}h, Nens={nens}')
             fig.savefig(figdir/'xe.png')
-            plt.close()
-            fig, axs = plt.subplots(ncols=2,constrained_layout=True)
+            plt.close(fig=fig)
+#
+            #fig, axs = plt.subplots(figsize=[8,4],ncols=2,constrained_layout=True)
+            fig, ax = plt.subplots(figsize=[4,4],constrained_layout=True)
             for i,key in enumerate(Jeest.keys()):
-                if key=='diag':
-                    axs[0].plot(Je,Jeest[key],lw=0.0,marker=markers[i],c=cmap(i+1),label=key,**marker_style)
-                else:
-                    axs[1].plot(Je,Jeest[key],lw=0.0,marker=markers[i],c=cmap(i+1),label=key,**marker_style)
-            for ax in axs:
-                ymin, ymax = ax.get_ylim()
-                line = np.linspace(ymin,ymax,100)
-                ax.plot(line,line,color='k',zorder=0)
-                ax.set_xlabel('observed (centering)')
-                ax.set_ylabel('estimated (centering)')
-                ax.set_title(f'Je, vt={vt}h, Nens={nens}')
-                ax.legend()
-                #ax.set_title(key)
-                ax.grid()
-                ax.set_aspect(1.0)
+                if key!='diag':
+                #    ax.plot(Je,Jeest[key],lw=0.0,c=colors[key],marker=markers[key],label=key,**marker_style)
+                #else:
+                    ax.plot(Je,Jeest[key],lw=0.0,c=colors[key],marker=markers[key],label=key,**marker_style)
+            #for ax in axs:
+            ymin, ymax = ax.get_ylim()
+            line = np.linspace(ymin,ymax,100)
+            ax.plot(line,line,color='k',zorder=0)
+            ax.set_xlabel('observed (centering)')
+            ax.set_ylabel('estimated (centering)')
+            ax.set_title(f'Je cycle{icyc} FT{vt} {nens} member')
+            ax.legend()
+            #ax.set_title(key)
+            ax.grid()
+            ax.set_aspect(1.0)
             fig.savefig(figdir/'Je.png')
-            plt.close()
+            plt.close(fig='all')
+    if cv:
+        for solver in cvdirs.keys():
+            if solver == 'elnet':
+                fig, axs = plt.subplots(nrows=2,sharex=True,figsize=[6,8],constrained_layout=True)
+                axs[0].plot(cycles,cvdict[solver]['alpha'])
+                axs[1].plot(cycles,cvdict[solver]['l1_ratio'])
+                alpha_mean = np.array(cvdict[solver]['alpha']).mean()
+                l1_mean = np.array(cvdict[solver]['l1_ratio']).mean()
+                axs[0].hlines([alpha_mean],0,1,colors='r',ls='dashed',transform=axs[0].get_yaxis_transform(),label=r'$\overline{\alpha}=$'+f'{alpha_mean:.2e}')
+                axs[1].hlines([l1_mean],0,1,colors='r',ls='dashed',transform=axs[1].get_yaxis_transform(),label=r'$\overline{\rho}=$'+f'{l1_mean:.2f}')
+                axs[0].legend()
+                axs[1].legend()
+                axs[0].set_title(r'$\alpha$')
+                axs[1].set_title(r'$\rho$')
+                fig.suptitle(
+                    r'$E(\boldsymbol{w})=\frac{1}{2N}\|\boldsymbol{y}-\mathbf{X}\boldsymbol{w}\|_2^2 + \alpha \rho \|\boldsymbol{w}\|_1 + \frac{\alpha(1-\rho)}{2} \|\boldsymbol{w}\|_2^2$'
+                )
+            else:
+                fig, ax = plt.subplots(figsize=[6,6])
+                ax.plot(cycles,cvdict[solver]['alpha'])
+                alpha_mean = np.array(cvdict[solver]['alpha']).mean()
+                ax.hlines([alpha_mean],0,1,colors='r',ls='dashed',transform=ax.get_yaxis_transform(),label=r'$\overline{\alpha}=$'+f'{alpha_mean:.2e}')
+                ax.legend()
+                if solver=='lasso':
+                    ax.set_title(
+                    r'$E(\boldsymbol{w})=\frac{1}{2N}\|\boldsymbol{y}-\mathbf{X}\boldsymbol{w}\|_2^2 + \alpha \|\boldsymbol{w}\|_1$'
+                    )
+                else:
+                    ax.set_title(
+                    r'$E(\boldsymbol{w})=\frac{1}{2N}\|\boldsymbol{y}-\mathbf{X}\boldsymbol{w}\|_2^2 + \alpha \|\boldsymbol{w}\|_2^2$'
+                    )
+            fig.savefig(cvdirs[solver]/f'optparams_vt{vt}ne{nens}.png')
+            plt.close(fig=fig)
     if nsample < 1000: exit()
 
     # save results to netcdf

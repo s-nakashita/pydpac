@@ -9,11 +9,9 @@ import argparse
 
 datadir = Path('data')
 
-cmap = plt.get_cmap('tab10')
-enasas = ['minnorm','diag','ridge','pcr','pls']
-colors = {'asa':cmap(0),'minnorm':cmap(1),'diag':cmap(2),'pcr':cmap(3),'ridge':cmap(4),'pls':cmap(5),'std':cmap(6)}
-markers = {'asa':'*','minnorm':'o','diag':'v','pcr':'s','ridge':'P','pls':'X','std':'^'}
-ms = {'asa':8,'minnorm':5,'diag':5,'pcr':5,'ridge':5,'pls':5,'std':5}
+enasas = ['minnorm','ridge','pcr','pls','pls_vip']
+from calc_asa import colors, markers, ms
+
 dJlim = {24:0.2,48:1.0,72:2.0,96:3.6}
 dxlim = {24:0.02,48:0.02,72:0.02,96:0.02}
 
@@ -119,19 +117,19 @@ for ax in np.concatenate((axsdJ.flatten(),axsdx.flatten())):
     ax.fill_between(x[i0:i1],0,1,\
         color='gray',alpha=0.5,transform=ax.get_xaxis_transform(),zorder=0)
 
-#for ax in axsdJ.flatten():
-#    ax.set_ylim(-dJlim[vt],dJlim[vt])
-#    ax.grid()
-#for ax in axsdx.flatten():
-#    ax.set_ylim(-dxlim[vt],dxlim[vt])
-#    ax.grid()
-for axs in [axsdJ,axsdx]:
-    for i,ax in enumerate(axs.flatten()):
-        #if i==0:
-        #    ymin,ymax = ax.get_ylim()
-        #else:
-        #    ax.set_ylim(ymin,ymax)
-        ax.grid()
+for ax in axsdJ.flatten():
+    ax.set_ylim(-dJlim[vt],dJlim[vt])
+    ax.grid()
+for ax in axsdx.flatten():
+    ax.set_ylim(-dxlim[vt],dxlim[vt])
+    ax.grid()
+#for axs in [axsdJ,axsdx]:
+#    for i,ax in enumerate(axs.flatten()):
+#        if i==0:
+#            ymin,ymax = ax.get_ylim()
+#        else:
+#            ax.set_ylim(ymin,ymax)
+#        ax.grid()
 if len(ds_dict) < axsdJ.size:
     for i in range(len(ds_dict),axsdJ.size):
         axsdJ.flatten()[i].remove()

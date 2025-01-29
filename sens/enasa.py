@@ -3,15 +3,15 @@ from numpy.random import default_rng
 from numpy import linalg as la
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LinearRegression, Lasso, LassoCV, ElasticNet, ElasticNetCV
+from sklearn.linear_model import LinearRegression, Lasso, LassoCV, ElasticNet, ElasticNetCV, Ridge, RidgeCV
 from sklearn.pipeline import make_pipeline
 from sklearn.cross_decomposition import PLSRegression, PLSCanonical
 import matplotlib.pyplot as plt
 import logging
 
 class EnASA():
-    def __init__(self,vt,X0,Je,solver='minnorm',logfile='minnorm',seed=None):
-        self.solver = solver
+    def __init__(self,vt,X0,Je,esatype='minnorm',logfile='minnorm',seed=None):
+        self.esatype = esatype
         self.vt = vt
         self.X0 = X0 #centered
         self.Je = Je #centered
@@ -24,23 +24,25 @@ class EnASA():
         self.rng = default_rng(seed=seed)
         
     def __call__(self,nrank=None,cthres=None,mu=0.01,n_components=None,vip=False,threshold=1.0,alpha=1.0,l1_ratio=0.5,a=1.0,b=0.01,cv=False):
-        if self.solver=='minnorm':
+        if self.esatype=='minnorm':
             dJedx0_s = self.enasa_minnorm(nrank=nrank,cthres=cthres)
-        elif self.solver=='minvar':
+        elif self.esatype=='minvar':
             dJedx0_s = self.enasa_minvar()
-        elif self.solver=='diag':
+        elif self.esatype=='diag':
             dJedx0_s = self.enasa_diag()
-        elif self.solver=='psd':
+        elif self.esatype=='psd':
             dJedx0_s = self.enasa_psd()
-        elif self.solver=='ridge':
-            dJedx0_s = self.enasa_ridge(mu=mu)
-        elif self.solver=='pcr':
+        elif self.esatype=='ridge':
+            dJedx0_s = self.enasa_ridge(mu=mu) #,cv=cv)
+        elif self.esatype=='pcr':
             dJedx0_s = self.enasa_pcr(n_components=n_components,cthres=cthres)
-        elif self.solver=='pls':
-            dJedx0_s = self.enasa_pls(n_components=n_components,vip=vip,threshold=threshold)
-        elif self.solver=='lasso':
+        elif self.esatype=='pls':
+            dJedx0_s = self.enasa_pls(n_components=n_components)
+        elif self.esatype=='pls_vip':
+            dJedx0_s = self.enasa_pls(n_components=n_components,vip=True,threshold=threshold)
+        elif self.esatype=='lasso':
             dJedx0_s = self.enasa_lasso(alpha=alpha,cv=cv)
-        elif self.solver=='elnet':
+        elif self.esatype=='elnet':
             dJedx0_s = self.enasa_elnet(alpha=alpha,l1_ratio=l1_ratio,a=a,b=b,cv=cv)
         #print(f"dJedx0_s.shape={dJedx0_s.shape}")
         self.rescaling(dJedx0_s)
@@ -48,12 +50,17 @@ class EnASA():
         return self.dJedx0
 
     def rescaling(self,dJedx0_s):
-        if self.solver == 'pcr':
+        if self.esatype == 'pcr':
             #self.dJedx0 = dJedx0_s.copy()
             self.dJedx0 = dJedx0_s / self.std.scale_
             self.err = self.reg.intercept_ - np.dot(self.std.mean_, dJedx0_s)
-        elif self.solver == 'pls':
+        elif self.esatype == 'pls':
             self.dJedx0 = dJedx0_s.copy()
+            #self.dJedx0 = dJedx0_s / self.pls._x_std
+            self.err = self.pls.intercept_ - np.dot(self.pls._x_mean, dJedx0_s)
+        elif self.esatype == 'pls_vip':
+            self.dJedx0 = np.zeros(self.nx)
+            self.dJedx0[self.val_sel] = dJedx0_s[:]
             #self.dJedx0 = dJedx0_s / self.pls._x_std
             self.err = self.pls.intercept_ - np.dot(self.pls._x_mean, dJedx0_s)
         else:
@@ -65,18 +72,22 @@ class EnASA():
             X = self.X
         if beta is None:
             beta = self.dJedx0
-        #if self.solver == 'pcr':
+        #if self.esatype == 'pcr':
         #    Je_est1 = self.pcr.predict(self.X)
-        if self.solver == 'pls':
+        if self.esatype == 'pls':
             Je_est = self.pls.predict(X)
+        elif self.esatype == 'pls_vip':
+            Je_est = self.pls.predict(self.Xsel)
         else:
             Je_est = np.dot(X,beta) + self.err
         return Je_est.ravel()
 
     def score(self):
-        if self.solver == 'pls':
+        if self.esatype == 'pls':
             return self.pls.score(self.X,self.Je)
-        #elif self.solver == 'pcr':
+        elif self.esatype == 'pls_vip':
+            return self.pls.score(self.Xsel,self.Je)
+        #elif self.esatype == 'pcr':
         #    print(self.pcr.score(self.X,self.Je))
         else:
             u = np.sum((self.Je - self.estimate())**2)
@@ -130,19 +141,19 @@ class EnASA():
     def enasa_pcr(self,n_components=None,cthres=None):
         # n_components: Number of components to keep. if n_components is not set all components are kept:
         # n_components == min(n_samples, n_features)
-        # If n_components == 'mle' and svd_solver == 'full', Minka’s MLE is used to guess the dimension. Use of n_components == 'mle' will interpret svd_solver == 'auto' as svd_solver == 'full'.
-        # If 0 < n_components < 1 and svd_solver == 'full', select the number of components such that the amount of variance that needs to be explained is greater than the percentage specified by n_components.
-        # If svd_solver == 'arpack', the number of components must be strictly less than the minimum of n_features and n_samples.
+        # If n_components == 'mle' and svd_esatype == 'full', Minka’s MLE is used to guess the dimension. Use of n_components == 'mle' will interpret svd_esatype == 'auto' as svd_esatype == 'full'.
+        # If 0 < n_components < 1 and svd_esatype == 'full', select the number of components such that the amount of variance that needs to be explained is greater than the percentage specified by n_components.
+        # If svd_esatype == 'arpack', the number of components must be strictly less than the minimum of n_features and n_samples.
         # Hence, the None case results in:
         # n_components == min(n_samples, n_features) - 1
         #
         if n_components is None and cthres is not None:
             nc = cthres
-            svd_solver = 'full'
+            svd_esatype = 'full'
         else:
             nc = n_components
-            svd_solver = 'auto'
-        self.pcr = make_pipeline(StandardScaler(),PCA(n_components=nc,svd_solver=svd_solver), LinearRegression()).fit(self.X,self.Je)
+            svd_esatype = 'auto'
+        self.pcr = make_pipeline(StandardScaler(),PCA(n_components=nc,svd_esatype=svd_esatype), LinearRegression()).fit(self.X,self.Je)
         self.std = self.pcr.named_steps["standardscaler"]
         self.pca = self.pcr.named_steps["pca"]
         self.reg = self.pcr.named_steps["linearregression"]
@@ -151,12 +162,20 @@ class EnASA():
         self.logger.info(f"nrank {self.pca.n_components_} contrib {np.sum(contrib)*1e2:.2f}%")
         return dJedx0_s
 
-    def enasa_ridge(self,X=None,Y=None,mu=0.01):
+    def enasa_ridge(self,X=None,Y=None,mu=0.01,alphas=(0.001,0.01,0.1,1.0,10.0),cv=False):
         if X is None:
             X = self.X
         if Y is None:
             Y = self.Je
-        dJedx0_s = np.dot(np.dot(np.linalg.inv(np.dot(X.T,X)+mu*np.eye(X.shape[1])),X.T),Y)
+        self.alpha = mu / X.shape[0]
+        if cv:
+            self.ridge = RidgeCV(alphas=alphas,store_cv_results=True).fit(X,Y)
+            self.alphas = alphas
+            self.alpha = self.ridge.alpha_
+        else:
+            self.ridge = Ridge(alpha=self.alpha,copy_X=True).fit(X,Y)
+        dJedx0_s = self.ridge.coef_
+        #dJedx0_s = np.dot(np.dot(np.linalg.inv(np.dot(X.T,X)+mu*np.eye(X.shape[1])),X.T),Y)
         return dJedx0_s
 
     def enasa_pls(self,X=None,Y=None,n_components=None,vip=False,threshold=1.0):
@@ -169,10 +188,9 @@ class EnASA():
             Y = self.Je
         self.pls = PLSRegression(n_components=n_components,copy=True).fit(X,Y)
         #self.pls = PLSCanonical(n_components=1).fit(self.X,self.Je)
-        dJedx0_s = self.pls.coef_[0,:]
         if vip:
             # evaluate variable importance for projection score
-            vip = np.zeros_like(dJedx0_s)
+            vip = np.zeros(self.nx)
             ssyr = (self.pls.y_loadings_[0,:]**2)*np.diag(self.pls.y_scores_.T@self.pls.y_scores_)
             ssytotal = np.sum(ssyr)
             wgts = self.pls.x_weights_/la.norm(self.pls.x_weights_,ord=2,axis=0)
@@ -180,9 +198,9 @@ class EnASA():
                 vip[i] = vip[i] + np.sum(ssyr*wgts[i,:]*wgts[i,:])/ssytotal
             self.vip = np.sqrt(vip*self.nx)
             self.val_sel = np.arange(self.nx)[self.vip > threshold]
-            Xsel = X[:,self.val_sel]
-            self.pls = PLSRegression(n_components=n_components,copy=True).fit(Xsel,Y)
-            dJedx0_s = self.pls.coef_[0,:]
+            self.Xsel = X[:,self.val_sel]
+            self.pls = PLSRegression(n_components=n_components,copy=True).fit(self.Xsel,Y)
+        dJedx0_s = self.pls.coef_[0,:]
         return dJedx0_s
 
     def enasa_lasso(self,X=None,Y=None,alpha=1.0,cv=False):
@@ -270,9 +288,9 @@ class EnASA():
                 if i==0 and k==0:
                     print(f"train_index={train_index}, val_index={val_index}")
                     print(f"X_train={X_train.shape}, Y_train={Y_train.shape}, X_val={X_val.shape}, Y_val={Y_val.shape}")
-                if self.solver=='ridge':
-                    beta_tmp = self.enasa_ridge(X=X_train,Y=Y_train,mu=p)
-                elif self.solver=='pls':
+                #if self.esatype=='ridge':
+                #    beta_tmp = self.enasa_ridge(X=X_train,Y=Y_train,mu=p)
+                if self.esatype=='pls':
                     beta_tmp = self.enasa_pls(X=X_train,Y=Y_train,n_components=p)
                 beta = self.rescaling(beta_tmp)
                 # validation
@@ -284,13 +302,19 @@ class EnASA():
         return popt, press
 
     def check_cv(self,figdir='.'):
-        if self.solver=='lasso':
+        if self.esatype=='ridge':
+            fig, ax = plt.subplots()
+            ax.plot(self.alphas,self.ridge.cv_results_.mean(axis=0))
+            ax.vlines([self.alpha],0,1,colors='r',ls='dashed',transform=ax.get_xaxis_transform())
+            ax.set_title(f'optimal alpha={self.alpha:.2f}')
+            fig.savefig(figdir+f'/cv_ridge_vt{self.vt}ne{self.nens}.png')
+        elif self.esatype=='lasso':
             fig, ax = plt.subplots()
             ax.plot(self.lasso.alphas_,self.lasso.mse_path_.mean(axis=1))
             ax.vlines([self.alpha],0,1,colors='r',ls='dashed',transform=ax.get_xaxis_transform())
             ax.set_title(f'optimal alpha={self.alpha:.2f}')
             fig.savefig(figdir+f'/cv_lasso_vt{self.vt}ne{self.nens}.png')
-        elif self.solver=='elnet':
+        elif self.esatype=='elnet':
             fig, ax = plt.subplots()
             n_l1_ratio, n_alpha, n_folds = self.elnet.mse_path_.shape
             cmap = plt.get_cmap('tab10')
@@ -301,4 +325,4 @@ class EnASA():
             ax.set_title(f'optimal parameters: l1_ratio={self.l1_ratio:.2f}, alpha={self.alpha:.2f}')
             fig.savefig(figdir+f'/cv_elnet_vt{self.vt}ne{self.nens}.png')
         else:
-            print(f"invalid EnASA type: {self.solver}")
+            print(f"invalid EnASA type: {self.esatype}")
