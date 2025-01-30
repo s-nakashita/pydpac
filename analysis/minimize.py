@@ -98,7 +98,7 @@ class Minimize():
 
     def minimize_gd(self, x0, callback=None):
         from scipy.optimize import line_search
-        from scipy.optimize.linesearch import LineSearchWarning
+        from scipy.optimize._linesearch import LineSearchWarning
         
         if self.args is not None:
             old_fval = self.func(x0, *self.args)
@@ -218,7 +218,7 @@ class Minimize():
     def minimize_newton(self, w0, callback=None, 
                     delta=1e-10, mu=0.5, c1=1e-4, c2=0.9):
         from scipy.optimize import line_search
-        from scipy.optimize.linesearch import LineSearchWarning
+        from scipy.optimize._linesearch import LineSearchWarning
         def pcg(g, H, M, delta=1e-10, eps=None, maxiter=30):
             j = 0
             pj = np.zeros_like(g)

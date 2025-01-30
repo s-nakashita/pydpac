@@ -18,8 +18,8 @@ class EnVAR():
 
     def __init__(self, state_size, nmem, obs, pt="envar",
         nvars=1,ndims=1,
-        iinf=None, infl_parm=1.0, 
-        iloc=None, lsig=-1.0, ss=False, getkf=False,
+        linf=False, iinf=None, infl_parm=1.0, 
+        lloc=False, iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=True, model="model"):
@@ -36,6 +36,8 @@ class EnVAR():
         # for 2 or more dimensional data
         self.ndims = ndims
         # inflation
+        self.linf = linf # inflation switch
+        self.infltype = {-99:'No',-3:'adap.pre-mul.D21',-2:'adap.pre-mul.L09',-1:'fix.pre-mul',0:'post-mul',1:'add',2:'RTPP',3:'RTPS',4:'mul-lin'}
         self.iinf = iinf # iinf = None->No inflation
                          #      = -3  ->Adaptive pre-multiplicative inflation (Duc et al. 2021)
                          #      = -2  ->Adaptive pre-multiplicative inflation (Liu et al. 2009)
@@ -47,12 +49,17 @@ class EnVAR():
                          #      >= 4  ->Multiplicative linear inflation (Duc et al. 2020)
         self.infl_parm = infl_parm # inflation parameter
         if self.iinf is None:
-            self.iinf = -99
+            if self.linf:
+                self.iinf = -1
+            else:
+                self.iinf = -99
         if self.iinf == -2:
             self.infladap = infladap()
         paramtype = self.iinf - 4
         self.inflfunc = inflfunc("mult",paramtype=paramtype)
         # localization
+        self.lloc = lloc # localization switch
+        self.loctype = {None:'No',0:'R-loc',1:'EVD',2:'Modulation'}
         self.iloc = iloc # iloc = None->No localization
                          #      <=0   ->R-localization (TODO: implement)
                          #      = 1   ->Eigen value decomposition of localized Pf
@@ -60,6 +67,9 @@ class EnVAR():
         self.lsig = lsig # localization parameter
         self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
         self.getkf = getkf # ensemble reduction method : True->Use reduced gain (Bishop et al. 2017)
+        if self.iloc is None:
+            if self.lloc:
+                self.iloc = 1
         if calc_dist is None:
             self.calc_dist = self._calc_dist
         else:
@@ -80,7 +90,7 @@ class EnVAR():
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"iinf={self.iinf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
+        logger.info(f"inf={self.infltype[self.iinf]} loc={self.loctype[self.iloc]} ltlm={self.ltlm} incremental={self.incremental}")
         if self.iloc is not None:
           #if self.iloc <= 0:
           #  from .lmlef import Lmlef
