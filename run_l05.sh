@@ -38,11 +38,23 @@ rm -rf timer
 touch timer
 if [ $model_error = True ]; then
 if [ $model = l05II ]; then
+if [ ! -f ${cdir}/data/l05III/truth.npy ]; then
+echo "Please create nature run first by executing model/lorenz3.py"
+exit
+fi
 ln -fs ${cdir}/data/l05III/truth.npy .
 elif [ $model = l05IIm ]; then
+if [ ! -f ${cdir}/data/l05IIIm/truth.npy ]; then
+echo "Please create nature run first by executing model/lorenz3m.py"
+exit
+fi
 ln -fs ${cdir}/data/l05IIIm/truth.npy .
 fi
 else
+if [ ! -f ${cdir}/data/${model}/truth.npy ]; then
+echo "Please create nature run first"
+exit
+fi
 ln -fs ${cdir}/data/${model}/truth.npy .
 fi
 rseed=514

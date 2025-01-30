@@ -1,15 +1,31 @@
 try:
     from .lbfgs import lbfgs, lb3
+    lbfgs_exist=True
 except ImportError:
-    from lbfgs import lbfgs, lb3
+    try:
+        from lbfgs import lbfgs, lb3
+        lbfgs_exist=True
+    except ImportError:
+        lbfgs_exist=False
 try:
     from .cgf import cgfam, cvsmod, cgdd
+    cgf_exist=True
 except ImportError:
-    from cgf import cgfam, cvsmod, cgdd
+    try:
+        from cgf import cgfam, cvsmod, cgdd
+        cgf_exist=True
+    except ImportError:
+        cgf_exist=False
 try:
     from .file_utility import file_utility
+    futil_exist=True
 except ImportError:
-    from file_utility import file_utility
+    try:
+        from file_utility import file_utility
+        futil_exist=True
+    except ImportError:
+        futil_exist=False
+
 import numpy as np
 import numpy.linalg as la
 import scipy.optimize as spo
@@ -431,6 +447,8 @@ class Minimize():
         return wk, warnflag
 
     def minimize_lbfgs(self, x0, callback=None):
+        if not lbfgs_exist:
+            raise ImportError('LBFGS cannot be used. Compile analysis/lbfgs.f first.')
         lb3.mp = 10
         lb3.lp = 11
         file_utility.file_open(lb3.mp, "minimize_monitor.log")
@@ -576,6 +594,8 @@ class Minimize():
         return xk, iflag
 
     def minimize_cgf(self, x0, callback=None):
+        if not cgf_exist:
+            raise ImportError('CG+ cannot be used. Compile cgfam.f first.')
         cgdd.mp = 10
         cgdd.lp = 11
         file_utility.file_open(cgdd.mp, "minimize_monitor_cg.log")

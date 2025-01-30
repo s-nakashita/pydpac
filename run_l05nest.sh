@@ -1,18 +1,12 @@
 #!/bin/sh
 # This is a run script for Nesting Lorenz experiment
-export OMP_NUM_THREADS=4
-#alias python=python3.9
+#export OMP_NUM_THREADS=4
+alias python=python3
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
 #perturbations="envar_nest envar" # var_nest var"
-#perturbations="mlef"
 perturbations="envar_nest"
-#datype="4dmlef"
-#perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
-#perturbations="lmlefcw lmlefy mlef"
-#perturbations="mlef 4dmlef mlefbe"
-#perturbations="etkfbm"
 na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
@@ -50,7 +44,7 @@ ddir=${cdir}/work/${model}
 #ddir=/Volumes/FF520/nested_envar/data/${model}
 preGM=False
 preGMda="envar"
-preGMdir="/Users/nakashita/Development/pydpac/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}"
+preGMdir="${cdir}/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/${preGMda}_dscl_m${nmem}obs${nobs}"
 #preGMdir="${ddir}/var_vs_envar_nest_ntrunc${ntrunc}_m${nmem}obs${nobs}"
 wdir=${ddir}/${exp}
@@ -64,8 +58,16 @@ cd $wdir
 echo ` pwd `
 cp ${cdir}/logging_config.ini .
 if [ ${model} = l05nest ]; then
+if [ ! -f ${cdir}/data/l05III/truth.npy ]; then
+echo "Please create nature run first by executing model/lorenz3.py"
+exit
+fi
 ln -fs ${cdir}/data/l05III/truth.npy .
 elif [ ${model} = l05nestm ]; then
+if [ ! -f ${cdir}/data/l05IIIm/truth.npy ]; then
+echo "Please create nature run first by executing model/lorenz3m.py"
+exit
+fi
 ln -fs ${cdir}/data/l05IIIm/truth.npy .
 #ln -fs ${ddir}/truth.npy .
 fi
@@ -81,8 +83,6 @@ rseed=`expr $rseed + 0`
 #rseed=92863
 #cp ../var_vs_envar_shrink_dct_preGM${obsloc}_m${nmem}obs${nobs}/obs*.npy .
 #rseed=504770
-roseed=None #514
-rseed=504770
 roseed=None #514
 mkdir -p data
 for op in ${operators}; do

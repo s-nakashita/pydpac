@@ -3,12 +3,8 @@
 alias python=python3
 model="l96"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic" # cubic"
-#perturbations="var 4dvar letkf 4dletkf mlefy 4dmlefy"
+operators="linear"
 datype="enkf"
-#perturbations="4dvar 4dletkf ${datype}be ${datype}bm ${datype}cw ${datype}y"
-#perturbations="lmlefcw lmlefy mlef"
-#perturbations="mlef 4dmlef mlefbe"
 perturbations="eakf srf etkf po letkf"
 na=100 # Number of assimilation cycle
 nmem=20 # ensemble size
@@ -85,32 +81,6 @@ for op in ${operators}; do
       mv l96_infl_${op}_${pt}.txt infl_${op}_${pert}.txt
     fi
     mv l96_pdr_${op}_${pt}.txt pdr_${op}_${pert}.txt
-    #if [ "${pert:4:1}" = "b" ]; then
-    #mv l96_rho_${op}_${pt}.npy l96_rho_${op}_${pert}.npy
-    #fi
-    #for icycle in $(seq 0 $((${na} - 1))); do
-    #  if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
-    #    mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
-    #  fi
-    #  if test -e l96_ua_${op}_${pt}_cycle${icycle}.npy; then
-    #    mv l96_ua_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_${op}_${pert}_cycle${icycle}.npy
-    #  fi
-    ##  mv Wmat_${op}_${pt}_cycle${icycle}.npy ${pert}/Wmat_${op}_cycle${icycle}.npy
-    ##  mv l96_K_${op}_${pt}_cycle$icycle.npy l96_K_${op}_${pert}_cycle$icycle.npy
-    ##  mv l96_dxaorig_${op}_${pt}_cycle$icycle.npy l96_dxaorig_${op}_${pert}_cycle$icycle.npy
-    ##  mv l96_dxa_${op}_${pt}_cycle$icycle.npy l96_dxa_${op}_${pert}_cycle$icycle.npy
-    ##  mv l96_pa_${op}_${pt}_cycle$icycle.npy l96_pa_${op}_${pert}_cycle$icycle.npy
-    ##  mv l96_pf_${op}_${pt}_cycle$icycle.npy l96_pf_${op}_${pert}_cycle$icycle.npy
-    ##  mv l96_spf_${op}_${pt}_cycle$icycle.npy l96_spf_${op}_${pert}_cycle$icycle.npy
-    ##  if [ "${pert:4:1}" = "b" ]; then
-    ##  mv l96_lpf_${op}_${pt}_cycle$icycle.npy l96_lpf_${op}_${pert}_cycle$icycle.npy
-    ##  mv l96_lspf_${op}_${pt}_cycle$icycle.npy l96_lspf_${op}_${pert}_cycle$icycle.npy
-    ##  fi
-    #done
-    #python ${cdir}/plot/plotk.py ${op} l96 ${na} ${pert}
-    #python ${cdir}/plot/plotdxa.py ${op} l96 ${na} ${pert}
-    #python ${cdir}/plot/plotpf.py ${op} l96 ${na} ${pert}
-    #python ${cdir}/plot/plotlpf.py ${op} l96 ${na} ${pert} 
     mkdir -p data/${pert}
     mv l96_*_${op}_${pt}_cycle*.npy data/${pert}
   done
