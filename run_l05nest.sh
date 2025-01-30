@@ -197,23 +197,15 @@ for op in ${operators}; do
       mv ${model}_gm_rho_${op}_${pt}.npy ${model}_rhogm_${op}_${pert}.npy
       mv ${model}_lam_rho_${op}_${pt}.npy ${model}_rholam_${op}_${pert}.npy
       icycle=$((${na} - 1))
-      #for icycle in $(seq 0 $((${na} - 1))); do
-      #if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
-      #  mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
-      #fi
       if test -e ${model}_gm_pa_${op}_${pt}_cycle${icycle}.npy; then
         mv ${model}_gm_pa_${op}_${pt}_cycle${icycle}.npy ${model}_pagm_${op}_${pert}_cycle${icycle}.npy
       fi
       if test -e ${model}_lam_pa_${op}_${pt}_cycle${icycle}.npy; then
         mv ${model}_lam_pa_${op}_${pt}_cycle${icycle}.npy ${model}_palam_${op}_${pert}_cycle${icycle}.npy
       fi
-      #done
       python ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
     fi
-    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
     python ${cdir}/plot/plotpf_nest.py ${op} ${model} ${na} ${pert} 1 100
-    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     #done
     mkdir -p data/${pert}
     for vname in d dh dx pa pf spf ua uf; do
@@ -235,10 +227,7 @@ for op in ${operators}; do
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} F
   python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na}
-  #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
-  #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
-  #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
   if [ ${extfcst} = True ]; then 
   python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}

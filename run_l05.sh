@@ -127,29 +127,6 @@ for op in ${operators}; do
     if [ "${loctype}" = "b" ]; then
     mv ${model}_rho_${op}_${pt}.npy ${model}_rho_${op}_${pert}.npy
     fi
-    #for icycle in $(seq 0 $((${na} - 1))); do
-    #  if test -e wa_${op}_${pt}_cycle${icycle}.npy; then
-    #    mv wa_${op}_${pt}_cycle${icycle}.npy ${pert}/wa_${op}_cycle${icycle}.npy
-    #  fi
-    #  if test -e ${model}_ua_${op}_${pt}_cycle${icycle}.npy; then
-    #    mv ${model}_ua_${op}_${pt}_cycle${icycle}.npy ${pert}/ua_${op}_${pert}_cycle${icycle}.npy
-    #  fi
-    #  mv Wmat_${op}_${pt}_cycle${icycle}.npy ${pert}/Wmat_${op}_cycle${icycle}.npy
-    #  mv ${model}_K_${op}_${pt}_cycle$icycle.npy ${model}_K_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_dxaorig_${op}_${pt}_cycle$icycle.npy ${model}_dxaorig_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_dxa_${op}_${pt}_cycle$icycle.npy ${model}_dxa_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_pa_${op}_${pt}_cycle$icycle.npy ${model}_pa_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_pf_${op}_${pt}_cycle$icycle.npy ${model}_pf_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_spf_${op}_${pt}_cycle$icycle.npy ${model}_spf_${op}_${pert}_cycle$icycle.npy
-    #  if [ "${pert:4:1}" = "b" ]; then
-    #  mv ${model}_lpf_${op}_${pt}_cycle$icycle.npy ${model}_lpf_${op}_${pert}_cycle$icycle.npy
-    #  mv ${model}_lspf_${op}_${pt}_cycle$icycle.npy ${model}_lspf_${op}_${pert}_cycle$icycle.npy
-    #  fi
-    #done
-    #python ${cdir}/plot/plotk.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotdxa.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-    #python ${cdir}/plot/plotlpf.py ${op} ${model} ${na} ${pert} 
     mkdir -p data/${pert}
     mv ${model}_*_cycle*.npy data/${pert}
     done #iinf
@@ -158,13 +135,13 @@ for op in ${operators}; do
     python ${cdir}/plot/plotpdr.py ${op} ${model} ${na} ${pert0} infl
     python ${cdir}/plot/plotinfl.py ${op} ${model} ${na} ${pert0} infl
   done #pert
-#  python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
-#  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
+  python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
+  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
-#  python ${cdir}/plot/plotxa.py ${op} ${model} ${na} ${model_error}
+  python ${cdir}/plot/plotxa.py ${op} ${model} ${na} ${model_error}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
-#  python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na} ${model_error}
+  python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na} ${model_error}
 #  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh.py ${op} ${model} ${na}
   rm ${model}_jh_${op}_*_cycle*.txt ${model}_gh_${op}_*_cycle*.txt ${model}_alpha_${op}_*_cycle*.txt
