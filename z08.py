@@ -44,7 +44,7 @@ nobs =   81 # number of observation
 sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-3, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-3}
 # forecast type (ensemble or deterministic)
-ftype = {"mlef":"ensemble","etkf":"ensemble",\
+ftype = {"mlef":"ensemble","mlefw":"ensemble","etkf":"ensemble",\
     "po":"ensemble","srf":"ensemble","letkf":"ensemble",\
     "kf":"deterministic","var":"deterministic"}
 
@@ -54,6 +54,7 @@ linf = False
 infl_parm = 1.0
 lloc = False
 lsig = -1.0
+iloc = None
 ltlm = True
 
 ## read from commant options
@@ -96,16 +97,32 @@ obs = Obs(op, obs_s)
 # assimilation method
 if pt == "mlef":
     from analysis.mlef import Mlef
-    analysis = Mlef(pt, nmem, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
+    analysis = Mlef(pt, nx, nmem, obs, \
+        linf=linf, infl_parm=infl_parm, \
+        iloc=iloc, lsig=lsig, \
+        ltlm=ltlm, model=model)
+elif pt == "mlefw":
+    from analysis.mlefw import Mlefw
+    analysis = Mlefw(pt, nx, nmem, obs, \
+        linf=linf, infl_parm=infl_parm, \
+        iloc=iloc, lsig=lsig, \
+        ltlm=ltlm, model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
-    analysis = EnKF(pt, nmem+1, obs, infl_parm, lsig, linf, lloc, ltlm, model=model)
+    analysis = EnKF(pt, nx, nmem+1, obs, \
+        linf=linf, infl_parm=infl_parm, \
+        iloc=iloc, lsig=lsig, ss=True, getkf=False, \
+        ltlm=ltlm, model=model)
 elif pt == "kf":
     from analysis.kf import Kf
-    analysis = Kf(pt, obs, infl_parm, linf, step, nt, model=model)
+    analysis = Kf(obs, 
+    infl=infl_parm, linf=linf, 
+    step=step, nt=nt, model=model)
 elif pt == "var":
     from analysis.var import Var
-    analysis = Var(pt, obs, model=model)
+    sigb=np.sqrt(0.1)
+    lb=-1.0
+    analysis = Var(obs, sigb=sigb, lb=lb, model=model)
 
 # functions load
 params = {"step":step, "obs":obs, "analysis":analysis, \
@@ -138,7 +155,7 @@ if __name__ == "__main__":
         e[0] = np.sqrt(np.mean((uf[0, :] - ut[0, :])**2))
     chi = np.zeros(na)
     innov = np.zeros((na,yobs.shape[1]))
-    dof = np.zeros(na)
+    dfs = np.zeros(na)
     dpa = np.zeros(na)
     ndpa = np.zeros(na)
     for i in range(na):
@@ -147,8 +164,8 @@ if __name__ == "__main__":
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis".format(i))
-        #if i in range(4):
-        if i < 0:
+        if i in range(na):
+        #if i < 0:
             u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
                 save_hist=True, save_dh=True, icycle=i)
         else:
@@ -156,21 +173,21 @@ if __name__ == "__main__":
             
         ua[i] = u
         sqrtpa[i] = pa
-        if pt == "mlef":
+        if pt == "mlef" or pt == "mlefw":
             dpa[i] = np.sum(np.diag(pa@pa.T))
             ndpa[i] = np.sum(pa@pa.T) - dpa[i]
         else:
             dpa[i] = np.sum(np.diag(pa))
             ndpa[i] = np.sum(pa) - dpa[i]
         chi[i] = chi2
-        dof[i] = ds
+        dfs[i] = ds
         innov[i] = innv
         if i < na-1:
             u = func.forecast(u, pa)
             pf = analysis.calc_pf(u, pa, i+1)
             uf[i+1] = u
         if ft == "ensemble":
-            if pt == "mlef":
+            if pt == "mlef" or pt == "mlefw":
                 e[i+1] = np.sqrt(np.mean((ua[i, :, 0] - ut[i, :])**2))
             else:
                 e[i+1] = np.sqrt(np.mean((np.mean(ua[i, :, :], axis=1) - ut[i, :])**2))
@@ -181,17 +198,19 @@ if __name__ == "__main__":
     np.save("{}_uf_{}_{}.npy".format(model, op, pt), uf)
     np.save("{}_ua_{}_{}.npy".format(model, op, pt), ua)
     np.save("{}_pa_{}_{}.npy".format(model, op, pt), sqrtpa)
-    np.savetxt("{}_dpa_{}_{}.txt".format(model, op, pt), dpa)
-    np.savetxt("{}_ndpa_{}_{}.txt".format(model, op, pt), ndpa)
     
     if len(sys.argv) > 7:
         oberr = str(int(obs_s*1e5)).zfill(5)
         np.savetxt("{}_e_{}_{}_oberr{}.txt".format(model, op, pt, oberr), e)
         np.savetxt("{}_chi_{}_{}_oberr{}.txt".format(model, op, pt, oberr), chi)
-        np.savetxt("{}_dof_{}_{}_oberr{}.txt".format(model, op, pt, oberr), dof)
+        np.savetxt("{}_dfs_{}_{}_oberr{}.txt".format(model, op, pt, oberr), dfs)
+        np.savetxt("{}_dpa_{}_{}_oberr{}.txt".format(model, op, pt, oberr), dpa)
+        #np.savetxt("{}_ndpa_{}_{}_oberr{}.txt".format(model, op, pt, oberr), ndpa)
     else:
         np.savetxt("{}_e_{}_{}.txt".format(model, op, pt), e)
         np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
-        np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
+        np.savetxt("{}_dfs_{}_{}.txt".format(model, op, pt), dfs)
+        np.savetxt("{}_dpa_{}_{}.txt".format(model, op, pt), dpa)
+        #np.savetxt("{}_ndpa_{}_{}.txt".format(model, op, pt), ndpa)
     #if ft == "ensemble":
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)

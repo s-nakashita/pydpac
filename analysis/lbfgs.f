@@ -6,14 +6,15 @@ C     LBFGS SUBROUTINE
 C     ****************
 C
       SUBROUTINE LBFGS(N,M,X,F,G,DIAGCO,DIAG,IPRINT,EPS,XTOL,W,IFLAG,
-     *       IREST, XK, DK, STPK, OFLAG)
+     *       IREST, XK, DK, STPK, WK, OFLAG)
 C
       INTEGER, INTENT(IN) :: N,M,IPRINT(2)
       INTEGER, INTENT(IN) :: IFLAG, IREST
       INTEGER, INTENT(OUT) :: OFLAG
-      DOUBLE PRECISION, INTENT(INOUT) :: X(N),G(N),DIAG(N),
-     * W(N*(2*M+1)+2*M)
-      DOUBLE PRECISION, INTENT(OUT) :: XK(N), DK(N), STPK
+      DOUBLE PRECISION, INTENT(INOUT) :: X(N),G(N),DIAG(N)
+      DOUBLE PRECISION, INTENT(INOUT) :: W(N*(2*M+1)+2*M)
+      DOUBLE PRECISION, INTENT(OUT) :: XK(N), DK(N), STPK,
+     * WK(N*(2*M+1)+2*M) 
       DOUBLE PRECISION, INTENT(IN) :: F,EPS,XTOL
       LOGICAL, INTENT(IN) :: DIAGCO
 C     intent(in) N, M, IPRINT(2), F, G(N), DIAGCO, DIAG, IPRINT, EPS, XTOL, W
@@ -237,7 +238,7 @@ C
       DOUBLE PRECISION GTOL,ONE,ZERO,GNORM,DDOT,STP1,FTOL,STPMIN,
      .                 STPMAX,STP,YS,YY,SQ,YR,BETA,XNORM
       INTEGER MP,LP,ITER,NFUN,POINT,ISPT,IYPT,MAXFEV,INFO,
-     .        BOUND,NPT,CP,I,J,NFEV,INMC,IYCN,ISCN,NRST
+     .        BOUND,NPT,CP,I,J,NFEV,INMC,IYCN,ISCN,NRST,LWORK
       LOGICAL FINISH, NEW
 C
       SAVE
@@ -255,8 +256,10 @@ C      PRINT*, IPRINT
 C      PRINT*, EPS, XTOL
 C      PRINT*, SIZE(W)
 C      PRINT*, IFLAG
-
+      LWORK= SIZE(W)
       IF(IFLAG.EQ.0) GO TO 10
+      WRITE(MP,8) IFLAG, INFO
+  8   FORMAT('IFLAG=',I2,x,'INFO=',I2/)
       GO TO (172,100,80) IFLAG
   10  ITER= 0
       IF(N.LE.0.OR.M.LE.0) GO TO 196
@@ -332,6 +335,8 @@ C         IFLAG=2
 C         PRINT*, "RETURN FROM L320"
          DO 92 I=1,n
  92      XK(I) = X(I)
+         DO 93 I=1,LWORK
+ 93      WK(I) = W(I)
          RETURN
       ENDIF
  100  CONTINUE
@@ -412,8 +417,10 @@ C        IFLAG=1
 C        PRINT*, "IFLAG=", OFLAG
 C        PRINT*, "RETURN FROM L385"
         STPK = STP
-        DO 174 I=1,N 
- 174    XK(I) = X(I)
+        DO 173 I=1,N 
+ 173    XK(I) = X(I)
+        DO 174 I=1,LWORK
+ 174    WK(I) = W(I)
         RETURN
       ENDIF
       IF (INFO .NE. 1) GO TO 190
@@ -447,6 +454,8 @@ C         PRINT*, "RETURN FROM L413"
          STPK = STP
          DO 176 I=1,N
  176     XK(I) = X(I)
+         DO 177 I=1,LWORK
+ 177     WK(I) = W(I)
          RETURN
       ELSE
          OFLAG=3
@@ -454,6 +463,8 @@ C         PRINT*, "RETURN FROM L413"
          STPK = STP
          DO 178 I=1,N
  178     XK(I) = X(I)
+         DO 179 I=1,LWORK
+ 179     WK(I) = W(I)
          RETURN
       ENDIF
 C      GO TO 80
@@ -468,13 +479,17 @@ C 190  IFLAG=-1
       STPK = STP
       DO 192 I=1,N
  192     XK(I) = X(I)
+      DO 193 I=1,LWORK
+ 193     WK(I) = W(I)
       RETURN
 C 195  IFLAG=-2
  195  OFLAG=-2
       IF(LP.GT.0) WRITE(LP,235) I
       STPK = STP
-      DO 197 J=1,N
- 197     XK(J) = X(J)
+      DO 194 J=1,N
+ 194     XK(J) = X(J)
+      DO 197 I=1,LWORK
+ 197     WK(I) = W(I)
       RETURN
 C 196  IFLAG= -3
  196  OFLAG= -3
@@ -482,6 +497,8 @@ C 196  IFLAG= -3
       STPK = STP
       DO 198 I=1,N
  198     XK(I) = X(I)
+      DO 199 I=1,LWORK
+ 199     WK(I) = W(I)
 C
 C     FORMATS
 C     -------

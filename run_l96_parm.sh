@@ -1,62 +1,148 @@
 #!/bin/sh
 # This is a run script for parameter sensitivity experiment
+export OMP_NUM_THREADS=4
+alias python=python3
+model=l96
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic cubic"
-perturbations="mlef etkf po srf letkf kf var" # var4d"
-na=500 # Number of assimilation cycle
-linf="T" # "T":Apply inflation "F":Not apply
-lloc="T" # "T":Apply localization "F":Not apply
-ltlm="F" # "T":Use tangent linear approximation "F":Not use
-a_window=5
-exp="l96_nt"
+perturbations="envar"
+datype="envar"
+na=300 # Number of assimilation cycle
+nmem=${1:-28}
+nobs=40
+linf=True  # True:Apply inflation False:Not apply
+lloc=False # True:Apply localization False:Not apply
+ltlm=False # True:Use tangent linear approximation False:Not use
+a_window=1
+ptype=infl
+iinf=3
+exp="${datype}_nmem${nmem}_infl${iinf}"
 echo ${exp}
-rm -rf ${exp}
-mkdir ${exp}
-cd ${exp}
+cdir=` pwd `
+wdir=work/${model}/${exp}
+rm -rf $wdir
+mkdir -p $wdir
+cd $wdir
+cp ${cdir}/logging_config.ini .
+rm -rf obs*.npy
+rm -rf *.log
+rm -rf timer
+touch timer
 #sig="1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 15.0"
 #inf="1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9"
 #Nobs="40 35 30 25 20 15 10"
-#Nmem="40 35 30 25 20 15 10 5"
+Nmem="16 20 24 28 32 36 40"
 Nt="1 2 3 4 5 6 7 8"
-cp ../logging_config.ini .
+sigb_list="0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8"
+lb_list="-1.0 1.0 2.0 3.0 4.0 5.0"
+if [ $iinf -lt 1 ]; then
+infllist="1.0 1.05 1.1 1.15 1.2 1.25"
+elif [ $iinf -eq 1 ]; then
+infllist="0.0 0.05 0.1 0.15 0.2 0.25"
+elif [ $iinf -lt 4 ]; then
+infllist="0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0"
+else
+infllist="0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.1 2.2 2.3 2.4 2.5"
+fi
+touch params.txt
 for op in ${operators}; do
-  for pt in ${perturbations}; do
-    #for lsig in ${sig}; do
-    #for infl_parm in ${inf}; do
-    #for nobs in ${Nobs}; do
-    #for nmem in ${Nmem}; do
-    for nt in ${Nt}; do
-      #echo ${op} ${pt} ${na} ${linf} ${lsig} ${ltlm} ${a_window}
-      #echo ${op} ${pt} ${na} ${infl_parm} ${lloc} ${ltlm} ${a_window}
-      #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nobs}
-      #echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nmem}
-      echo ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nt}
-      for count in $(seq 1 50); do
-        #python ../l96.py ${op} ${pt} ${na} ${linf} ${lsig} ${ltlm} ${a_window} > l96_${op}_${pt}.log 2>&1
-        #python ../l96.py ${op} ${pt} ${na} ${infl_parm} ${lloc} ${ltlm} ${a_window} > l96_${op}_${pt}.log 2>&1
-        #python ../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nobs} > l96_${op}_${pt}.log 2>&1
-        #python ../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nmem} > l96_${op}_${pt}.log 2>&1
-        python ../l96.py ${op} ${pt} ${na} ${linf} ${lloc} ${ltlm} ${nt} > l96_${op}_${pt}.log 2>&1
+  echo $ptype > params.txt
+  #for lsig in ${sig}; do
+  for infl_parm in ${infllist}; do
+    echo $infl_parm >> params.txt
+    ptmp=$infl_parm
+  #for nobs in ${Nobs}; do
+  #for nmem in ${Nmem}; do
+  #  echo $nmem >> params.txt
+  #  ptmp=$nmem
+  #for a_window in ${Nt}; do
+  #for sigb in ${sigb_list}; do
+  #for lb in ${lb_list}; do
+    for pert in ${perturbations}; do
+      echo $pert
+      cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
+      gsed -i -e "2i \ \"op\":\"${op}\"," config.py
+      gsed -i -e "2i \ \"na\":${na}," config.py
+      gsed -i -e "2i \ \"nobs\":${nobs}," config.py
+      gsed -i -e "/nmem/s/40/${nmem}/" config.py
+      if [ $linf = True ];then
+        gsed -i -e '/linf/s/False/True/' config.py
+        gsed -i -e "4i \ \"iinf\":${iinf}," config.py
+        if [ $ptype != infl ]; then
+          if [ $nmem -lt 18 ]; then
+            infl_parm=0.6
+          elif [ $nmem -lt 22 ]; then
+            infl_parm=0.3
+          elif [ $nmem -lt 30 ]; then
+            infl_parm=0.2
+          else
+            infl_parm=0.1
+          fi
+          gsed -i -e "6i \ \"infl_parm\":${infl_parm}," config.py
+        fi
+      else
+        gsed -i -e '/linf/s/True/False/' config.py
+      fi
+      if [ $ltlm = True ];then
+        gsed -i -e '/ltlm/s/False/True/' config.py
+      else
+        gsed -i -e '/ltlm/s/True/False/' config.py
+      fi
+      sed -i -e '/ss/s/False/True/' config.py
+      sed -i -e '/getkf/s/True/False/' config.py
+      if [ $ptype = loc ]; then
+        gsed -i -e "6i \ \"lsig\":${lsig}," config.py
+      fi
+      if [ $ptype = infl ]; then
+        gsed -i -e "6i \ \"infl_parm\":${infl_parm}," config.py
+      fi
+      if [ $ptype = sigb ]; then
+        gsed -i -e "6i \ \"sigb\":${sigb}," config.py
+      fi
+      if [ $ptype = lb ]; then
+        gsed -i -e "6i \ \"lb\":${lb}," config.py
+      fi
+      cat config.py
+      ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
+      pt=${ptline#\"*}; pt=${pt%\"*}
+      echo $pt
+      for count in $(seq 1 10); do
+        echo $count
+        start_time=$(date +"%s")
+        python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
         wait
-        echo ${count}
-        cp l96_e_${op}_${pt}.txt e_${op}_${pt}_${count}.txt
+        end_time=$(date +"%s")
+        cputime=`echo "scale=3; ${end_time}-${start_time}" | bc`
+        echo "${op} ${pert} ${count} ${cputime}" >> timer
+        mv ${model}_e_${op}_${pt}.txt e_${op}_${pt}_${count}.txt
+        mv ${model}_stda_${op}_${pt}.txt stda_${op}_${pt}_${count}.txt
+        mv ${model}_xdmean_${op}_${pt}.txt xdmean_${op}_${pt}_${count}.txt
+        mv ${model}_xsmean_${op}_${pt}.txt xsmean_${op}_${pt}_${count}.txt
+        mv ${model}_pdr_${op}_${pt}.txt pdr_${op}_${pt}_${count}.txt
         rm obs*.npy
       done
-      python ../plot/calc_mean.py ${op} l96 ${na} ${count} e ${pt}
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} e ${pt}
       rm e_${op}_${pt}_*.txt
-      #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${lsig}.txt
-      #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${infl_parm}.txt
-      #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${nobs}.txt
-      #cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${nmem}.txt
-      cp l96_e_${op}_${pt}.txt l96_e_${op}_${pt}_${nt}.txt
-    done
-  done
-  #python ../plot/ploteparam.py ${op} l96 ${na} loc
-  #python ../plot/ploteparam.py ${op} l96 ${na} infl
-  #python ../plot/ploteparam.py ${op} l96 ${na} nobs
-  #python ../plot/ploteparam.py ${op} l96 ${na} nmem
-  python ../plot/ploteparam.py ${op} l96 ${na} nt
-  rm obs*.npy
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} stda ${pt}
+      rm stda_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xdmean ${pt}
+      rm xdmean_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} xsmean ${pt}
+      rm xsmean_${op}_${pt}_*.txt
+      python ${cdir}/plot/calc_mean.py ${op} ${model} ${na} ${count} pdr ${pt}
+      rm pdr_${op}_${pt}_*.txt
+      mv ${model}_e_${op}_${pt}.txt ${model}_e_${op}_${pert}_${ptmp}.txt
+      mv ${model}_stda_${op}_${pt}.txt ${model}_stda_${op}_${pert}_${ptmp}.txt
+      mv ${model}_xdmean_${op}_${pt}.txt ${model}_xdmean_${op}_${pert}_${ptmp}.txt
+      mv ${model}_xsmean_${op}_${pt}.txt ${model}_xsmean_${op}_${pert}_${ptmp}.txt
+      mv ${model}_pdr_${op}_${pt}.txt ${model}_pdr_${op}_${pert}_${ptmp}.txt
+    done #pert
+  done #params
+  cat params.txt
+  python ${cdir}/plot/ploteparam.py ${op} ${model} ${na} ${ptype}
+  python ${cdir}/plot/plotxdparam.py ${op} ${model} ${na} ${ptype}
+  rm ${model}*cycle*.npy ${model}*cycle*.txt
+  #rm obs*.npy
 done
-rm l96*.txt 
-rm l96*.npy 
+#rm ${model}*.txt 
+#rm ${model}*.npy 

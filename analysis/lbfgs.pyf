@@ -3,7 +3,7 @@
 
 python module lbfgs ! in 
     interface  ! in :lbfgs
-        subroutine lbfgs(n,m,x,f,g,diagco,diag,iprint,eps,xtol,w,iflag,irest,xk,dk,stpk,oflag) ! in :lbfgs:lbfgs.f
+        subroutine lbfgs(n,m,x,f,g,diagco,diag,iprint,eps,xtol,w,iflag,irest,xk,dk,stpk,wk,oflag) ! in :lbfgs:lbfgs.f
             integer, optional,intent(in),check(len(x)>=n),depend(x) :: n=len(x)
             integer intent(in) :: m
             double precision dimension(n),intent(inout) :: x
@@ -20,6 +20,7 @@ python module lbfgs ! in
             double precision dimension(n),intent(out),depend(n) :: xk
             double precision dimension(n),intent(out),depend(n) :: dk
             double precision intent(out) :: stpk
+            double precision dimension(n*(2*m+1)+2*m),intent(out),depend(n,m) :: wk
             integer intent(out) :: oflag
             integer :: mp
             integer :: lp
@@ -109,5 +110,5 @@ python module lbfgs ! in
     end interface 
 end python module lbfgs
 
-! This file was auto-generated with f2py (version:2).
+! This file was auto-generated with f2py (version:1.21.0).
 ! See http://cens.ioc.ee/projects/f2py2e/
