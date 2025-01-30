@@ -33,7 +33,7 @@ Following DA algorithms are implemented.
 
 - `burgers.py`: A spatially one-dimensional advection and diffusion model ([Burgers 1948](https://doi.org/10.1016/S0065-2156(08)70100-5))
 
-- `kdvb.py': A one-dimensional Korteweg&ndash;de Vries&ndash;Burgers (KdVB) model ([Marchant and Smyth 2002](https://doi.org/10.1098/rspa.2001.0868))
+- `kdvb.py`: A one-dimensional Korteweg&ndash;de Vries&ndash;Burgers (KdVB) model ([Marchant and Smyth 2002](https://doi.org/10.1098/rspa.2001.0868))
 
 # Source code for the submitted article
 
