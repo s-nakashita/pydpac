@@ -282,22 +282,22 @@ elif pt == "mlef_nest" or pt == "mlef_nestc":
 elif pt == "envar":
     from analysis.envar import EnVAR
     analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, \
-            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
-            iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
+            linf=params_gm["linf"], iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
+            lloc=params_gm["lloc"], iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     if params_lam["anlsp"]:
         analysis_lam = EnVAR(nx_lam-2, params_lam["nmem"], obs_lam, \
-            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
-            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            linf=params_lam["linf"], iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
+            lloc=params_lam["lloc"], iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
     else:
         analysis_lam = EnVAR(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
-            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
-            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            linf=params_lam["linf"], iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
+            lloc=params_lam["lloc"], iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
@@ -305,8 +305,8 @@ elif pt == "envar_nest" or pt == "envar_nestc":
     from analysis.envar import EnVAR
     from analysis.envar_nest import EnVAR_nest
     analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, pt=pt, \
-            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
-            iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
+            linf=params_gm["linf"], iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
+            lloc=params_gm["lloc"], iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
@@ -316,8 +316,8 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
-            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
-            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            linf=params_lam["linf"], iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            lloc=params_lam["lloc"], iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam",\
@@ -328,8 +328,8 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
-            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
-            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            linf=params_lam["linf"], iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            lloc=params_lam["lloc"], iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam",\
@@ -993,7 +993,7 @@ if __name__ == "__main__":
     if params_gm["iinf"] == -3 and len(analysis_gm.inflfunc.rhosave) > 0:
         logger.info(len(analysis_gm.inflfunc.rhosave))
         np.savetxt("{}_infl_gm_{}_{}.txt".format(model, op, pt), np.array(analysis_gm.inflfunc.rhosave))
-    if len(analysis_gm.inflfunc.pdrsave) > 0:
+    if params_gm["linf"] and len(analysis_gm.inflfunc.pdrsave) > 0:
         logger.info(len(analysis_gm.inflfunc.pdrsave))
         np.savetxt("{}_pdr_gm_{}_{}.txt".format(model, op, pt), np.array(analysis_gm.inflfunc.pdrsave))
     if params_lam["iinf"] == -2 and len(analysis_lam.infladap.asave) > 0:
@@ -1002,6 +1002,6 @@ if __name__ == "__main__":
     if params_lam["iinf"] == -3 and len(analysis_lam.inflfunc.rhosave) > 0:
         logger.info(len(analysis_lam.inflfunc.rhosave))
         np.savetxt("{}_infl_lam_{}_{}.txt".format(model, op, pt), np.array(analysis_lam.inflfunc.rhosave))
-    if len(analysis_lam.inflfunc.pdrsave) > 0:
+    if params_lam["linf"] and len(analysis_lam.inflfunc.pdrsave) > 0:
         logger.info(len(analysis_lam.inflfunc.pdrsave))
         np.savetxt("{}_pdr_lam_{}_{}.txt".format(model, op, pt), np.array(analysis_lam.inflfunc.pdrsave))

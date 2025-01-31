@@ -26,8 +26,8 @@ class EnVAR_nest():
         crosscov=False, ortho=True, coef_a=None, \
         ridge=False, ridge_dx=False, reg=False, mu=0.1,
         nvars=1, ndims=1, 
-        iinf=None, infl_parm=1.0, infl_parm_lrg=1.0,
-        iloc=None, lsig=-1.0, ss=False, getkf=False,
+        linf=False, iinf=None, infl_parm=1.0, infl_parm_lrg=1.0,
+        lloc=False, iloc=None, lsig=-1.0, ss=False, getkf=False,
         l_mat=None, l_sqrt=None,
         calc_dist=None, calc_dist1=None, 
         ltlm=False, incremental=True, model="model", **trunc_kwargs):
@@ -58,6 +58,8 @@ class EnVAR_nest():
         # for 2 or more dimensional data
         self.ndims = ndims
         # inflation
+        self.linf = linf # inflation switch
+        self.infltype = {-99:'No',-3:'adap.pre-mul.D21',-2:'adap.pre-mul.L09',-1:'fix.pre-mul',0:'post-mul',1:'add',2:'RTPP',3:'RTPS',4:'mul-lin'}
         self.iinf = iinf # iinf = None->No inflation
                          #      = -3  ->Adaptive pre-multiplicative inflation (Duc et al. 2021)
                          #      = -2  ->Adaptive pre-multiplicative inflation (Liu et al. 2009)
@@ -70,12 +72,17 @@ class EnVAR_nest():
         self.infl_parm = infl_parm # inflation parameter
         self.infl_parm_lrg = infl_parm_lrg # inflation parameter for large-scale error cov.
         if self.iinf is None:
-            self.iinf = -99
+            if self.linf:
+                self.iinf = -1
+            else:
+                self.iinf = -99
         if self.iinf == -2:
             self.infladap = infladap()
         paramtype = self.iinf - 4
         self.inflfunc = inflfunc("mult",paramtype=paramtype)
         # localization (TODO: implementation)
+        self.lloc = lloc # localization switch
+        self.loctype = {None:'No',0:'R-loc',1:'EVD',2:'Modulation'}
         self.iloc = iloc # iloc = None->No localization
                          #      <=0   ->R-localization
                          #      = 1   ->Eigen value decomposition of localized Pf
@@ -111,7 +118,7 @@ class EnVAR_nest():
         logger.info(f"model : {self.model}")
         logger.info(f"ndim={self.ndim} nmem={self.nmem}")
         logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig} infl_parm_lrg={self.infl_parm_lrg}")
-        logger.info(f"iinf={self.iinf} iloc={self.iloc} ltlm={self.ltlm} incremental={self.incremental}")
+        logger.info(f"inf={self.infltype[self.iinf]} loc={self.loctype[self.iloc]} ltlm={self.ltlm} incremental={self.incremental}")
         logger.info(f"crosscov={self.crosscov}")
         if self.crosscov and self.ortho and (self.coef_a is not None):
             logger.info(f"prescribed coef_a={self.coef_a:.3e}")

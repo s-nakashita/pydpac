@@ -25,7 +25,8 @@ linecolor = {
     "mlefy":"tab:orange",
     "mlefbe":"tab:red",
     "mlefbm":"tab:pink"
-    }infltype = {
+    }
+infltype = {
     -3:r'$g(\gamma)=\rho\gamma$',
     -2:'adap-pre-mi',
     -1:'pre-mi',
