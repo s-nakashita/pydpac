@@ -5,17 +5,18 @@ export OMP_NUM_THREADS=4
 model="l05IIm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear"
-perturbations="mlef envar"
+perturbations="envar"
 na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
-nobs=15 # observation volume
-linf=False # True:Apply inflation False:Not apply
+nobs=30 # observation volume
+linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-model_error=False
+iinf=-2
+model_error=True
 functype=gc5
 a=-0.2
-exp="mlef+envar_noinfl_mem${nmem}obs${nobs}"
+exp="envar_infl_mem${nmem}obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 if [ $model_error = True ]; then
@@ -33,19 +34,34 @@ rm -rf timer
 touch timer
 if [ $model_error = True ]; then
 if [ $model = l05II ]; then
+if [ ! -f ${cdir}/data/l05III/truth.npy ]; then
+echo "Please create nature run first by executing model/lorenz3.py"
+exit
+fi
 ln -fs ${cdir}/data/l05III/truth.npy .
 elif [ $model = l05IIm ]; then
+if [ ! -f ${cdir}/data/l05IIIm/truth.npy ]; then
+echo "Please create nature run first by executing model/lorenz3m.py"
+exit
+fi
 ln -fs ${cdir}/data/l05IIIm/truth.npy .
 fi
 else
+if [ ! -f ${cdir}/data/${model}/truth.npy ]; then
+echo "Please create nature run first"
+exit
+fi
 ln -fs ${cdir}/data/${model}/truth.npy .
 fi
-rseed=509
-roseed=517
+rseed=514
+roseed=515
 for op in ${operators}; do
-  for pert in ${perturbations}; do
-    echo $pert
-    cp ${cdir}/analysis/config/config_${pert}_sample.py config.py
+  for pert0 in ${perturbations}; do
+    echo $pert0
+    pert=${pert0}
+    for iinf in $(seq -3 5);do
+    pert=${pert0}_${iinf}
+    cp ${cdir}/analysis/config/config_${pert0}_sample.py config.py
     gsed -i -e "2i \ \"op\":\"${op}\"," config.py
     gsed -i -e "2i \ \"na\":${na}," config.py
     gsed -i -e "2i \ \"nobs\":${nobs}," config.py
@@ -53,7 +69,17 @@ for op in ${operators}; do
     gsed -i -e "2i \ \"rseed\":${rseed}," config.py
     gsed -i -e "2i \ \"roseed\":${roseed}," config.py
     if [ $linf = True ];then
-    gsed -i -e '/linf/s/False/True/' config.py
+      gsed -i -e '/linf/s/False/True/' config.py
+      gsed -i -e "4i \ \"iinf\":${iinf}," config.py
+      if [ $iinf -lt 1 ]; then
+        gsed -i -e "5i \ \"infl_parm\":1.1," config.py
+      elif [ $iinf -eq 1 ]; then
+        gsed -i -e "5i \ \"infl_parm\":0.2," config.py
+      elif [ $iinf -lt 4 ]; then
+        gsed -i -e "5i \ \"infl_parm\":0.3," config.py
+      else
+        gsed -i -e "5i \ \"infl_parm\":0.3," config.py
+      fi
     else
     gsed -i -e '/linf/s/True/False/' config.py
     fi
@@ -88,8 +114,23 @@ for op in ${operators}; do
     mv ${model}_stdf_${op}_${pt}.txt stdf_${op}_${pert}.txt
     mv ${model}_xdfmean_${op}_${pt}.txt xdfmean_${op}_${pert}.txt
     mv ${model}_xsfmean_${op}_${pt}.txt xsfmean_${op}_${pert}.txt
-    #python ${cdir}/plot/plotpf.py ${op} ${model} ${na} ${pert}
-  done
+    if [ $iinf -le -2 ]; then
+      mv ${model}_infl_${op}_${pt}.txt infl_${op}_${pert}.txt
+    fi
+    mv ${model}_pdr_${op}_${pt}.txt pdr_${op}_${pert}.txt
+
+    loctype=`echo $pert | cut -c5-5`
+    if [ "${loctype}" = "b" ]; then
+    mv ${model}_rho_${op}_${pt}.npy ${model}_rho_${op}_${pert}.npy
+    fi
+    mkdir -p data/${pert}
+    mv ${model}_*_cycle*.npy data/${pert}
+    done #iinf
+    python ${cdir}/plot/plote.py ${op} ${model} ${na} ${pert0} infl
+    python ${cdir}/plot/plotxd.py ${op} ${model} ${na} ${pert0} infl
+    python ${cdir}/plot/plotpdr.py ${op} ${model} ${na} ${pert0} infl
+    python ${cdir}/plot/plotinfl.py ${op} ${model} ${na} ${pert0} infl
+  done #pert
   python ${cdir}/plot/plote.py ${op} ${model} ${na} 
   python ${cdir}/plot/plotxd.py ${op} ${model} ${na} 
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
@@ -97,13 +138,12 @@ for op in ${operators}; do
   python ${cdir}/plot/plotxa.py ${op} ${model} ${na} ${model_error}
   #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra.py ${op} ${model} ${na} ${model_error}
-  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc.py ${op} ${model} ${na}; fi
+#  if [ ${na} -gt 1000 ]; then python ${cdir}/plot/nmc.py ${op} ${model} ${na}; fi
   python ${cdir}/plot/plotjh+gh.py ${op} ${model} ${na}
   rm ${model}_jh_${op}_*_cycle*.txt ${model}_gh_${op}_*_cycle*.txt ${model}_alpha_${op}_*_cycle*.txt
+#  python ${cdir}/plot/plotinfl.py ${op} ${model} ${na}
   
   #rm obs*.npy
 done
 #rm ${model}*.txt 
 #rm ${model}_*_cycle*.npy 
-mkdir -p data
-mv ${model}_*_cycle*.npy data/

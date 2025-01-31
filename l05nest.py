@@ -70,7 +70,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
 infl_gm_l = {"mlef":1.1,"envar":1.1,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_gm = {"linear": infl_gm_l}
-infl_lam_l = {"mlef":1.05,"mlef_nest":1.1,"mlef_nestc":1.1,"envar":1.05,"envar_nest":1.25,"envar_nestc":1.0,\
+infl_lam_l = {"mlef":1.05,"mlef_nest":1.1,"mlef_nestc":1.1,"envar":1.05,"envar_nest":1.2,"envar_nestc":1.0,\
     "etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_lam = {"linear": infl_lam_l}
@@ -102,6 +102,7 @@ params_gm["obsloctype"] = "regular" # observation location type
 params_gm["op"]         = "linear" # observation operator type
 params_gm["sigo"]       = sigma[params_gm["op"]] # observation error standard deviation
 params_gm["na"]         =  100     # number of analysis cycle
+params_gm["nspinup"]    = params_gm["na"] // 5 # spinup period
 params_gm["nt"]         =  1       # number of step per forecast (=6 hour)
 params_gm["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 ### assimilation method settings
@@ -117,6 +118,7 @@ else:
     params_gm["lb"]     = 16.93
     params_gm["a"]      = 0.22
 params_gm["linf"]       =  False   # inflation flag
+params_gm["iinf"]       =  None    # inflation type
 params_gm["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params_gm["lloc"]       =  False   # localization flag
 params_gm["lsig"]       = -1.0     # localization radius
@@ -183,7 +185,7 @@ sigo= params_lam["sigo"]
 ft  = ftype[pt]
 global na, a_window
 na = params_lam["na"]
-nspinup = na // 5
+nspinup = params_lam["nspinup"]
 a_window = params_lam["a_window"]
 params_gm["ft"] = ft
 params_lam["ft"] = ft
@@ -223,7 +225,7 @@ if a_window < 1:
 if pt == "mlef":
     from analysis.mlef import Mlef
     analysis_gm = Mlef(nx_gm, params_gm["nmem"], obs_gm, \
-            linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
@@ -234,14 +236,14 @@ if pt == "mlef":
 #        os.rename(rhofile,rhofile_new)
     if params_lam["anlsp"]:
         analysis_lam = Mlef(nx_lam-2, params_lam["nmem"], obs_lam, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
     else:
         analysis_lam = Mlef(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
@@ -254,7 +256,7 @@ elif pt == "mlef_nest" or pt == "mlef_nestc":
     from analysis.mlef import Mlef
     from analysis.mlef_nest import Mlef_nest
     analysis_gm = Mlef(nx_gm, params_gm["nmem"], obs_gm, pt=pt, \
-            linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
@@ -263,7 +265,7 @@ elif pt == "mlef_nest" or pt == "mlef_nestc":
         analysis_lam = Mlef_nest(nx_lam-2, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[1:-1], ntrunc=params_lam["ntrunc"],\
             crosscov=params_lam["crosscov"], pt=pt, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
@@ -272,7 +274,7 @@ elif pt == "mlef_nest" or pt == "mlef_nestc":
         analysis_lam = Mlef_nest(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
             step.ix_gm, step.ix_lam[nsp:-nsp], ntrunc=params_lam["ntrunc"],\
             crosscov=params_lam["crosscov"], pt=pt, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
@@ -280,21 +282,21 @@ elif pt == "mlef_nest" or pt == "mlef_nestc":
 elif pt == "envar":
     from analysis.envar import EnVAR
     analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, \
-            linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     if params_lam["anlsp"]:
         analysis_lam = EnVAR(nx_lam-2, params_lam["nmem"], obs_lam, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
     else:
         analysis_lam = EnVAR(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
@@ -303,7 +305,7 @@ elif pt == "envar_nest" or pt == "envar_nestc":
     from analysis.envar import EnVAR
     from analysis.envar_nest import EnVAR_nest
     analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, pt=pt, \
-            linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
@@ -314,7 +316,7 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
@@ -326,7 +328,7 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
@@ -335,13 +337,13 @@ elif pt == "envar_nest" or pt == "envar_nestc":
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis_gm = EnKF(pt, nx_gm, params_gm["nmem"], obs_gm, \
-        linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+        iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
         iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
         ss=params_gm["ss"], getkf=params_gm["getkf"], \
         ltlm=params_gm["ltlm"], \
         calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm, model=model+"_gm")
     analysis_lam = EnKF(pt, nx_lam, params_lam["nmem"], obs_lam, \
-        linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+        iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
         iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
         ss=params_lam["ss"], getkf=params_lam["getkf"], \
         ltlm=params_lam["ltlm"], \
@@ -349,10 +351,10 @@ elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
 elif pt == "kf":
     from analysis.kf import Kf
     analysis_gm = Kf(obs_gm, 
-    infl=params_gm["infl_parm"], linf=params_gm["linf"], 
+    infl=params_gm["infl_parm"], iinf=params_gm["iinf"], 
     step=step.gm, nt=params_gm["nt"], model=model+"_gm")
     analysis_lam = Kf(obs_lam, 
-    infl=params_lam["infl_parm"], linf=params_lam["linf"], 
+    infl=params_lam["infl_parm"], iinf=params_lam["iinf"], 
     step=step.lam, nt=params_lam["nt"], model=model+"_lam")
 elif pt == "var":
     from analysis.var import Var
@@ -477,22 +479,22 @@ elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
     from analysis.enkf4d import EnKF4d
     #a_window = 5
     analysis_gm = EnKF4d(pt, nx_gm, params_gm["nmem"], obs_gm, step.gm, params_gm["nt"], a_window, \
-        linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], 
+        iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], 
         iloc=params_gm["iloc"], lsig=params_gm["lsig"], calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm, \
         ltlm=params_gm["ltlm"], model=model+"_gm")
     analysis_lam = EnKF4d(pt, nx_lam, params_lam["nmem"], obs_lam, step.lam, params_lam["nt"], a_window, \
-        linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], 
+        iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], 
         iloc=params_lam["iloc"], lsig=params_lam["lsig"], calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam, \
         ltlm=params_lam["ltlm"], model=model+"_lam")
 elif pt == "4dmlef":
     #a_window = 5
     from analysis.mlef4d import Mlef4d
     analysis_gm = Mlef4d(nx_gm, params_gm["nmem"], obs_gm, step.gm, params_gm["nt"], a_window, \
-            linf=params_gm["linf"], infl_parm=params_gm["infl_parm"], \
+            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
             iloc=params_gm["iloc"], lsig=params_gm["lsig"], calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm, \
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     analysis_lam = Mlef4d(nx_lam, params_lam["nmem"], obs_lam, step.lam, params_lam["nt"], a_window, \
-            linf=params_lam["linf"], infl_parm=params_lam["infl_parm"], \
+            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
             iloc=params_lam["iloc"], lsig=params_lam["lsig"], calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam, \
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
 """
@@ -985,3 +987,21 @@ if __name__ == "__main__":
     np.savetxt("{}_xdfmean_lam_{}_{}.txt".format(model, op, pt), xdfmean_lam)
     np.savetxt("{}_xsfmean_lam_{}_{}.txt".format(model, op, pt), xsfmean_lam)
     
+    if params_gm["iinf"] == -2 and len(analysis_gm.infladap.asave) > 0:
+        logger.info(len(analysis_gm.infladap.asave))
+        np.savetxt("{}_infl_gm_{}_{}.txt".format(model, op, pt), np.array(analysis_gm.infladap.asave))
+    if params_gm["iinf"] == -3 and len(analysis_gm.inflfunc.rhosave) > 0:
+        logger.info(len(analysis_gm.inflfunc.rhosave))
+        np.savetxt("{}_infl_gm_{}_{}.txt".format(model, op, pt), np.array(analysis_gm.inflfunc.rhosave))
+    if len(analysis_gm.inflfunc.pdrsave) > 0:
+        logger.info(len(analysis_gm.inflfunc.pdrsave))
+        np.savetxt("{}_pdr_gm_{}_{}.txt".format(model, op, pt), np.array(analysis_gm.inflfunc.pdrsave))
+    if params_lam["iinf"] == -2 and len(analysis_lam.infladap.asave) > 0:
+        logger.info(len(analysis_lam.infladap.asave))
+        np.savetxt("{}_infl_lam_{}_{}.txt".format(model, op, pt), np.array(analysis_lam.infladap.asave))
+    if params_lam["iinf"] == -3 and len(analysis_lam.inflfunc.rhosave) > 0:
+        logger.info(len(analysis_lam.inflfunc.rhosave))
+        np.savetxt("{}_infl_lam_{}_{}.txt".format(model, op, pt), np.array(analysis_lam.inflfunc.rhosave))
+    if len(analysis_lam.inflfunc.pdrsave) > 0:
+        logger.info(len(analysis_lam.inflfunc.pdrsave))
+        np.savetxt("{}_pdr_lam_{}_{}.txt".format(model, op, pt), np.array(analysis_lam.inflfunc.pdrsave))

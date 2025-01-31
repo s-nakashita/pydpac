@@ -1,18 +1,23 @@
 #!/bin/sh
 # This is a run script for Nesting Lorenz experiment
-export OMP_NUM_THREADS=4
-#alias python=python3.9
+#export OMP_NUM_THREADS=4
+alias python=python3
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear"
 perturbations="envar_nest envar var_nest var"
 na=100 # Number of assimilation cycle
+operators="linear" # quadratic" # cubic"
+#perturbations="envar_nest envar" # var_nest var"
+perturbations="envar_nest"
+na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 extfcst=False # for NMC
+iinf=-3
 blending=False # LSB
 blsb=False
 alsb=True
@@ -31,7 +36,7 @@ cdir=` pwd `
 ddir=${cdir}/work/${model}
 preGM=False
 preGMda="envar"
-preGMdir="${ddir}/var_vs_envar_dscl_m${nmem}obs${nobs}"
+preGMdir="${cdir}/work/${model}/var_vs_envar_dscl_m${nmem}obs${nobs}"
 wdir=${ddir}/${exp}
 #if [ ! -d $wdir ]; then
 #  echo "No such directory ${wdir}"
@@ -40,15 +45,24 @@ wdir=${ddir}/${exp}
 #rm -rf $wdir
 mkdir -p $wdir
 cd $wdir
+echo ` pwd `
 cp ${cdir}/logging_config.ini .
 if [ ${model} = l05nest ]; then
+if [ ! -f ${cdir}/data/l05III/truth.npy ]; then
+echo "Please create nature run first by executing model/lorenz3.py"
+exit
+fi
 ln -fs ${cdir}/data/l05III/truth.npy .
 elif [ ${model} = l05nestm ]; then
+if [ ! -f ${cdir}/data/l05IIIm/truth.npy ]; then
+echo "Please create nature run first by executing model/lorenz3m.py"
+exit
+fi
 ln -fs ${cdir}/data/l05IIIm/truth.npy .
 #ln -fs ${ddir}/truth.npy .
 fi
 rm -rf obs*.npy
-rm -rf *.log
+#rm -rf *.log
 rm -rf timer
 touch timer
 if [ $preGM = True ]; then
@@ -70,6 +84,7 @@ for op in ${operators}; do
     gsed -i -e "/nmem/s/40/${nmem}/" config.py
     if [ $linf = True ];then
     gsed -i -e '/linf/s/False/True/' config.py
+    gsed -i -e "4i \ \"iinf\":${iinf}," config.py
     else
     gsed -i -e '/linf/s/True/False/' config.py
     fi
@@ -159,29 +174,29 @@ for op in ${operators}; do
     end_time=$(date +"%s")
     echo "${op} ${pert}" >> timer
     echo "scale=3; (${end_time}-${start_time})/1000" | bc >> timer
-    mv ${model}_e_gm_${op}_${pt}.txt e_gm_${op}_${pert}.txt
-    mv ${model}_stda_gm_${op}_${pt}.txt stda_gm_${op}_${pert}.txt
-    mv ${model}_xdmean_gm_${op}_${pt}.txt xdmean_gm_${op}_${pert}.txt
-    mv ${model}_xsmean_gm_${op}_${pt}.txt xsmean_gm_${op}_${pert}.txt
-    mv ${model}_ef_gm_${op}_${pt}.txt ef_gm_${op}_${pert}.txt
-    mv ${model}_stdf_gm_${op}_${pt}.txt stdf_gm_${op}_${pert}.txt
-    mv ${model}_xdfmean_gm_${op}_${pt}.txt xdfmean_gm_${op}_${pert}.txt
-    mv ${model}_xsfmean_gm_${op}_${pt}.txt xsfmean_gm_${op}_${pert}.txt
-    mv ${model}_xagm_${op}_${pt}.npy xagm_${op}_${pert}.npy
-    mv ${model}_xsagm_${op}_${pt}.npy xsagm_${op}_${pert}.npy
-    mv ${model}_xfgm_${op}_${pt}.npy xfgm_${op}_${pert}.npy
-    mv ${model}_e_lam_${op}_${pt}.txt e_lam_${op}_${pert}.txt
-    mv ${model}_stda_lam_${op}_${pt}.txt stda_lam_${op}_${pert}.txt
-    mv ${model}_xdmean_lam_${op}_${pt}.txt xdmean_lam_${op}_${pert}.txt
-    mv ${model}_xsmean_lam_${op}_${pt}.txt xsmean_lam_${op}_${pert}.txt
-    mv ${model}_ef_lam_${op}_${pt}.txt ef_lam_${op}_${pert}.txt
-    mv ${model}_stdf_lam_${op}_${pt}.txt stdf_lam_${op}_${pert}.txt
-    mv ${model}_xdfmean_lam_${op}_${pt}.txt xdfmean_lam_${op}_${pert}.txt
-    mv ${model}_xsfmean_lam_${op}_${pt}.txt xsfmean_lam_${op}_${pert}.txt
-    mv ${model}_xalam_${op}_${pt}.npy xalam_${op}_${pert}.npy
-    mv ${model}_xsalam_${op}_${pt}.npy xsalam_${op}_${pert}.npy
-    mv ${model}_xflam_${op}_${pt}.npy xflam_${op}_${pert}.npy
+    for vtype in e stda xdmean xsmean ef stdf xdfmean xsfmean infl pdr; do
+      mv ${model}_${vtype}_gm_${op}_${pt}.txt ${vtype}_gm_${op}_${pert}.txt
+      mv ${model}_${vtype}_lam_${op}_${pt}.txt ${vtype}_lam_${op}_${pert}.txt
+    done
+    for vtype in xa xsa xf xsf; do
+      mv ${model}_${vtype}gm_${op}_${pt}.npy ${vtype}gm_${op}_${pert}.npy
+      mv ${model}_${vtype}lam_${op}_${pt}.npy ${vtype}lam_${op}_${pert}.npy
+    done
+    loctype=`echo $pert | cut -c5-5`
+    if [ "${loctype}" = "b" ]; then
+      mv ${model}_gm_rho_${op}_${pt}.npy ${model}_rhogm_${op}_${pert}.npy
+      mv ${model}_lam_rho_${op}_${pt}.npy ${model}_rholam_${op}_${pert}.npy
+      icycle=$((${na} - 1))
+      if test -e ${model}_gm_pa_${op}_${pt}_cycle${icycle}.npy; then
+        mv ${model}_gm_pa_${op}_${pt}_cycle${icycle}.npy ${model}_pagm_${op}_${pert}_cycle${icycle}.npy
+      fi
+      if test -e ${model}_lam_pa_${op}_${pt}_cycle${icycle}.npy; then
+        mv ${model}_lam_pa_${op}_${pt}_cycle${icycle}.npy ${model}_palam_${op}_${pert}_cycle${icycle}.npy
+      fi
+      python ${cdir}/plot/plotpa_nest.py ${op} ${model} ${na} ${pert}
+    fi
     python ${cdir}/plot/plotpf_nest.py ${op} ${model} ${na} ${pert} 1 100
+    #done
     mkdir -p data/${pert}
     for vname in d dh dx pa pf spf ua uf; do
       mv ${model}_*_${vname}_${op}_${pert}_cycle*.npy data/${pert}
@@ -202,10 +217,7 @@ for op in ${operators}; do
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na}
   python ${cdir}/plot/plote_nest.py ${op} ${model} ${na} F
   python ${cdir}/plot/plotxd_nest.py ${op} ${model} ${na}
-  #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
-  #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
   python ${cdir}/plot/plotxa_nest.py ${op} ${model} ${na}
-  #python ${cdir}/plot/plotdof.py ${op} ${model} ${na}
   python ${cdir}/plot/ploterrspectra_nest.py ${op} ${model} ${na}
   if [ ${extfcst} = True ]; then 
   python ${cdir}/plot/nmc_nest.py ${op} ${model} ${na}
@@ -214,6 +226,8 @@ for op in ${operators}; do
   rm ${model}_*_jh_${op}_*_cycle*.txt && \
   rm ${model}_*_gh_${op}_*_cycle*.txt
   rm ${model}_*_alpha_${op}_*_cycle*.txt
+  python ${cdir}/plot/plotinfl_nest.py ${op} ${model} ${na}
+  python ${cdir}/plot/plotpdr_nest.py ${op} ${model} ${na}
   #rm obs*.npy
 done
 #rm ${model}*.txt 

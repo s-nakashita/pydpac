@@ -5,20 +5,21 @@ export OMP_NUM_THREADS=4
 model="l05nestm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
 operators="linear" # quadratic" # cubic"
-perturbations="envar_nest"
+perturbations="envar_nest envar"
 na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
 nobs=30 # observation volume
 linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-ntest=10
+ntest=1
 ptype=infl
+iinf=2
 functype=gc5
 #lgsig=110
 #llsig=70
 obsloc=${1}
-exp="envar_nest_preGM${obsloc}_${ptype}_mem${nmem}obs${nobs}"
+exp="envar_preGM${obsloc}_${ptype}${iinf}_mem${nmem}obs${nobs}"
 echo ${exp}
 cdir=` pwd `
 ddir=${cdir}/work/${model}
@@ -43,7 +44,11 @@ nmemlist="40 80 120 160 200 240"
 lsiglist="20 30 40 50 60 70 80 90 100"
 nobslist="480 240 120 60 30 15"
 sigolist="1.0 0.5 0.3 0.1 0.05 0.03"
+if [ $iinf -eq -1 ] || [ $iinf -eq 0 ]; then
 infllist="1.0 1.05 1.1 1.15 1.2 1.25 1.3 1.35 1.4 1.45 1.5"
+else
+infllist="0.2 0.4 0.6 0.8"
+fi
 sigblist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
 #sigvlist="0.4 0.6 0.8 1.0 1.2 1.4 1.6"
 sigvlist="0.2"
@@ -101,6 +106,7 @@ for op in ${operators}; do
       gsed -i -e "/nmem/s/40/${nmem}/" config.py
       if [ $linf = True ];then
         gsed -i -e '/linf/s/False/True/' config.py
+        gsed -i -e "4i \ \"iinf\":${iinf}," config.py
       else
         gsed -i -e '/linf/s/True/False/' config.py
       fi
@@ -111,6 +117,9 @@ for op in ${operators}; do
       fi
       #sed -i -e '/ss/s/False/True/' config.py
       #sed -i -e '/getkf/s/True/False/' config.py
+      if [ ! -z $obsloc ]; then
+        gsed -i -e "5i \ \"obsloctype\":\"${obsloc#_}\"," config.py
+      fi
       if [ $ptype = sigo ]; then
         gsed -i -e "6i \ \"sigo\":${sigo}," config.py
       fi

@@ -107,6 +107,7 @@ params["nobs"]       =  40      # observation number (nobs<=nx)
 params["obsloctype"] = "regular" # observation location type
 params["op"]         = "linear" # observation operator type
 params["na"]         =  100     # number of analysis cycle
+params["nspinup"]    = params["na"]//5    # spinup periods
 params["nt"]         =  int(dt6h/dt)      # number of step per forecast (=6 hour)
 params["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 ### assimilation method settings
@@ -122,6 +123,7 @@ else:
     params["lb"]     = 24.6     # (For var & 4dvar) correlation length for background error covariance in degree
     params["a"]      = -0.2     # (For var & 4dvar) background error correlation function shape parameter
 params["linf"]       =  False   # inflation flag
+params["iinf"]       =  None    # inflation type
 params["infl_parm"]  = -1.0     # multiplicative inflation coefficient
 params["lloc"]       =  False   # localization flag
 params["lsig"]       = -1.0     # localization radius
@@ -172,21 +174,21 @@ if a_window < 1:
 if pt == "mlef":
     from analysis.mlef import Mlef
     analysis = Mlef(state_size, params["nmem"], obs_mod, \
-            linf=params["linf"], infl_parm=params["infl_parm"], \
+            iinf=params["iinf"], infl_parm=params["infl_parm"], \
             iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 elif pt == "envar":
     from analysis.envar import EnVAR
     analysis = EnVAR(state_size, params["nmem"], obs_mod, \
-            linf=params["linf"], infl_parm=params["infl_parm"], \
+            iinf=params["iinf"], infl_parm=params["infl_parm"], \
             iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis = EnKF(pt, state_size, params["nmem"], obs_mod, \
-        linf=params["linf"], infl_parm=params["infl_parm"], \
+        iinf=params["iinf"], infl_parm=params["infl_parm"], \
         iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
         ltlm=params["ltlm"], \
         calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
@@ -258,7 +260,8 @@ if __name__ == "__main__":
     dof = np.zeros(na)
 
     stdf[0] = np.sqrt(np.trace(pf)/pf.shape[0])
-    xsfmean += np.diag(pf)
+    if params["nspinup"] <= 0:
+        xsfmean += np.diag(pf)
     if params["extfcst"]:
         ## extended forecast
         xf12 = np.zeros((na+1,nx))
@@ -390,7 +393,8 @@ if __name__ == "__main__":
             if ft=="ensemble" and i >= 100:
                 np.save("{}_pf_{}_{}_cycle{}.npy".format(model, op, pt, i), pf)
             stdf[i+1] = np.sqrt(np.trace(pf)/pf.shape[0])
-            xsfmean += np.diag(pf)
+            if i>=params["nspinup"]:
+                xsfmean += np.diag(pf)
 
             if params["extfcst"]:
                 ## extended forecast
@@ -437,18 +441,21 @@ if __name__ == "__main__":
                 xt2mod = interp1d(np.arange(xt.shape[1]),xt[k])
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt2mod(ix))**2))
                 ef[k] = np.sqrt(np.mean((xf[k, :] - xt2mod(ix))**2))
-                xdmean += (xa[k,:] - xt2mod(ix))**2
-                xdfmean += (xf[k,:] - xt2mod(ix))**2
+                if k>=params["nspinup"]:
+                    xdmean += (xa[k,:] - xt2mod(ix))**2
+                    xdfmean += (xf[k,:] - xt2mod(ix))**2
         else:
             xt2mod = interp1d(np.arange(xt.shape[1]),xt[i])
             e[i] = np.sqrt(np.mean((xa[i, :] - xt2mod(ix))**2))
             ef[i] = np.sqrt(np.mean((xf[i, :] - xt2mod(ix))**2))
-            xdmean += (xa[i,:] - xt2mod(ix))**2
-            xdfmean += (xf[i,:] - xt2mod(ix))**2
+            if i>=params["nspinup"]:
+                xdmean += (xa[i,:] - xt2mod(ix))**2
+                xdfmean += (xf[i,:] - xt2mod(ix))**2
         stda[i] = np.sqrt(np.trace(pa)/nx)
         xsa[i] = np.sqrt(np.diag(pa))
-        xsmean += np.diag(pa)
-        nanl += 1
+        if i>=params["nspinup"]:
+            xsmean += np.diag(pa)
+            nanl += 1
 
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
@@ -467,11 +474,25 @@ if __name__ == "__main__":
     np.savetxt("{}_chi_{}_{}.txt".format(model, op, pt), chi)
     np.savetxt("{}_dof_{}_{}.txt".format(model, op, pt), dof)
 
-    xdmean = np.sqrt(xdmean/float(nanl))
-    xsmean = np.sqrt(xsmean/float(nanl))
-    xdfmean = np.sqrt(xdfmean/float(nanl))
-    xsfmean = np.sqrt(xsfmean/float(nanl))
-    np.savetxt("{}_xdmean_{}_{}.txt".format(model, op, pt), xdmean)
-    np.savetxt("{}_xsmean_{}_{}.txt".format(model, op, pt), xsmean)
-    np.savetxt("{}_xdfmean_{}_{}.txt".format(model, op, pt), xdfmean)
-    np.savetxt("{}_xsfmean_{}_{}.txt".format(model, op, pt), xsfmean)
+    if nanl>0:
+        xdmean = np.sqrt(xdmean/float(nanl))
+        xsmean = np.sqrt(xsmean/float(nanl))
+        xdfmean = np.sqrt(xdfmean/float(nanl))
+        xsfmean = np.sqrt(xsfmean/float(nanl))
+        np.savetxt("{}_xdmean_{}_{}.txt".format(model, op, pt), xdmean)
+        np.savetxt("{}_xsmean_{}_{}.txt".format(model, op, pt), xsmean)
+        np.savetxt("{}_xdfmean_{}_{}.txt".format(model, op, pt), xdfmean)
+        np.savetxt("{}_xsfmean_{}_{}.txt".format(model, op, pt), xsfmean)
+
+    if params["iinf"]==-2:
+        logger.info(len(analysis.infladap.asave))
+        # save adaptive inflation
+        np.savetxt("{}_infl_{}_{}.txt".format(model, op, pt), np.array(analysis.infladap.asave))
+    if params["iinf"]==-3:
+        logger.info(len(analysis.inflfunc.rhosave))
+        # save adaptive inflation
+        np.savetxt("{}_infl_{}_{}.txt".format(model, op, pt), np.array(analysis.inflfunc.rhosave))
+    if len(analysis.inflfunc.pdrsave)>0:
+        logger.info(len(analysis.inflfunc.pdrsave))
+        # save posterior diagnostic ratio
+        np.savetxt("{}_pdr_{}_{}.txt".format(model, op, pt), np.array(analysis.inflfunc.pdrsave))

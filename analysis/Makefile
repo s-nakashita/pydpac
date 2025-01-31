@@ -5,16 +5,16 @@ LIBS = -lblas
 all: lbfgs cgf file_utility
 
 lbfgs: lbfgs.f
-	$(PFC) $< -h lbfgs.pyf -m $@
-	$(PFC) -c lbfgs.pyf $<
+	$(PFC) -c $< -m $@ --backend meson
+	install_name_tool -add_rpath /opt/local/lib/libgcc lbfgs.cpython-312-darwin.so
 
 cgf: cgsearch.f cgfam.f
-	$(PFC) $^ -h cgf.pyf -m $@
-	$(PFC) -c cgf.pyf $(LDFLAGS) $(LIBS) $^
+	$(PFC) -c $^ -m $@ --backend meson $(LDFLAGS) $(LIBS)
+	install_name_tool -add_rpath /opt/local/lib/libgcc cgf.cpython-312-darwin.so
 
 file_utility: file_utility.f90
-	$(PFC) $< -h file_utility.pyf -m $@
-	$(PFC) -c file_utility.pyf $<
+	$(PFC) -c $< -m $@ --backend meson
+	install_name_tool -add_rpath /opt/local/lib/libgcc file_utility.cpython-312-darwin.so
 
 clean: 
-	rm -f *.pyf
+	rm -f *.cpython*.so

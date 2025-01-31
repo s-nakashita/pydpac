@@ -174,7 +174,7 @@ if __name__ == "__main__":
     z = []
     #z0 = np.sin(np.arange(nx)*2.0*np.pi/30.0)
     z0 = np.random.rand(nx)
-    z0.astype('<d').tofile(figdir/f'z0_n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.npy')
+    z0.astype('<d').tofile(figdir/f'z0_n{nx}k{nk}i{ni}F{int(F)}b{int(b)}c{c:.1f}.npy')
     z.append(z0)
     for k in range(nt):
         z0 = l3(z0)
@@ -189,7 +189,7 @@ if __name__ == "__main__":
 
     #z = np.array(z)
     #print(z.shape)
-    #np.save(figdir/f'n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.npy',z)
+    #np.save(figdir/f'n{nx}k{nk}i{ni}F{int(F)}b{int(b)}c{c:.1f}.npy',z)
     #exit()
 
     fig, axs = plt.subplots(ncols=2,figsize=[12,12],sharey=True,constrained_layout=True)
@@ -213,7 +213,7 @@ if __name__ == "__main__":
     axs[0].set_title("Z")
     axs[1].set_title(r"X+Y($\times$4)")
     fig.suptitle(f"Lorenz III, N={nx}, K={nk}, I={ni}, F={F}, b={b}, c={c}")
-    fig.savefig(figdir/f"n{nx}k{nk}i{ni}F{int(F)}c{c:.1f}.png",dpi=300)
+    fig.savefig(figdir/f"n{nx}k{nk}i{ni}F{int(F)}b{int(b)}c{c:.1f}.png",dpi=300)
     plt.show()
 
     nt1yr = int(0.05 / h) * 4 * 365 # 1 year
@@ -226,4 +226,4 @@ if __name__ == "__main__":
     datadir = Path('../data/l05III')
     if not datadir.exists():
         datadir.mkdir(parents=True)
-    np.save(datadir/f'truth_n{nx}k{nk}i{ni}F{int(F)}b{int(b)}c{c:.1f}.npy',np.array(zsave))
+    np.save(datadir/'truth.npy',np.array(zsave))
