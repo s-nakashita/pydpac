@@ -31,15 +31,17 @@ Following DA algorithms are implemented.
 
 - `lorenz3.py`: A spatially one-dimensional chaotic model with scale interaction (type III model in [Lorenz 2005](https://doi.org/10.1175/JAS3430.1))
 
+<!---
 - `burgers.py`: A spatially one-dimensional advection and diffusion model ([Burgers 1948](https://doi.org/10.1016/S0065-2156%2808%2970100-5))
 
 - `kdvb.py`: A one-dimensional Korteweg&ndash;de Vries&ndash;Burgers (KdVB) model ([Marchant and Smyth 2002](https://doi.org/10.1098/rspa.2001.0868))
 
-- `qgmain.py`: A two-dimensional quasi-geostrophic model ([Sakov and Oke 2008](https://doi.org/10.1111/j.1600-8070.2007.00299.x),[Enomoto 2022](https://www.dpri.kyoto-u.ac.jp/nenpo/no65/ronbunB/a65b0p12.pdf))
+- `qgmain.py`: A two-dimensional quasi-geostrophic model ([Sakov and Oke 2008](https://doi.org/10.1111/j.1600-0870.2007.00299.x), [Enomoto and Nakashita 2022 (in Japanese)](https://www.dpri.kyoto-u.ac.jp/nenpo/no65/ronbunB/a65b0p12.pdf))
+--->
 
 # Source code for the submitted article
 
-To try the ensemble variational blending DA in the Nested Lorenz system (Nakashita and Enomoto, *Tellus A*, accepted), follow the steps below. 
+To try the ensemble variational blending DA in the Nested Lorenz system (Nakashita and Enomoto 2025, *Tellus A*, accepted), follow the steps below. 
 
 1. Run `model/lorenz3m.py` to create a nature run.
 
