@@ -13,6 +13,7 @@ Following DA algorithms are implemented.
 - Deterministic DA
     * Kalman filter ([Kalman 1960](https://doi.org/10.1115/1.3662552))
     * 3-dimensional, 4-dimensional variational method (3DVar, 4DVar; [Talagrand and Courtier 1987](https://doi.org/10.1002/qj.49711347812))
+    * (For nesting system) 3-dimensional variational blending assimilation ([Guidard and Fischer 2008](https://doi.org/10.1002/qj.215))
 - Ensemble DA
     * Ensemble Kalman Filter ([Evensen 1994](https://doi.org/10.1029/94JC00572))
         + Ensemble transform Kalman filter (ETKF; [Bishop et al. 2001](https://doi.org/10.1175/1520-0493%282001%29129%3C0420:ASWTET%3E2.0.CO;2))
@@ -22,6 +23,7 @@ Following DA algorithms are implemented.
         + Local ensemble transform Kalman filter (LETKF; [Hunt et al. 2007](https://doi.org/10.1016/j.physd.2006.11.008))
     * Maximum likelihood ensemble filter (MLEF; [Zupanski 2005](https://doi.org/10.1175/MWR2946.1), [Zupanski et al. 2008](https://doi.org/10.1002/qj.251))
     * Ensemble variational method (EnVar; [Liu et al. 2008](https://doi.org/10.1175/2008MWR2312.1))
+    * (For nesting system) ensemble variational blending assimilation (Nakashita and Enomoto 2025)
 
 # Implemented models
 
