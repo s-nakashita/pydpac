@@ -158,7 +158,7 @@ if __name__ == "__main__":
     plt.rcParams['font.size'] = 16
     import sys
     sys.path.append('../plot')
-    from nmc_tools import psd, wnum2wlen, wlen2wnum
+    from nmc_tools import NMC_tools, wnum2wlen, wlen2wnum
     from pathlib import Path
 
     nx = 960
@@ -174,58 +174,57 @@ if __name__ == "__main__":
     #exit()
     xaxis = np.arange(nx)
     ix_rad = 2.0 * np.pi * xaxis / nx
+    nmc = NMC_tools(ix_rad,ttype='c')
 
     figdir = Path('lorenz/l05IIIm')
     if not figdir.exists():
         figdir.mkdir(parents=True)
 
-    #z0 = np.sin(np.arange(nx)*2.0*np.pi/30.0)
-    nt = 100 * 4 * nt6h
     z0 = np.random.rand(nx)
-    z0.astype('<d').tofile(figdir/f"z0_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy")
-    t = []
-    z = [z0]
-    en = []
-    sp = []
-    for k in range(nt):
-        print(f'{k/nt*100:.2f}%')
-        z0 = l3(z0)
-        if k>nt//10:
-            t.append(k*h)
-            en.append(np.mean(z0**2)/2.)
-            wnum, sp1 = psd(z0,ix_rad)
-            sp.append(sp1)
-        if (k+1)%nt6h==0:
-            z.append(z0)
-    z = np.array(z)
-    print(z.shape)
-    np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy",z)
-    exit()
-    x0, y0 = l3.decomp(z0)
-    plt.plot(z0)
-    plt.plot(x0)
-    plt.plot(y0)
-    plt.show()
-    plt.close()
-    #exit()
-    fig2, axs = plt.subplots(nrows=2,figsize=[6,12],constrained_layout=True)
-    days = np.array(t) / 0.05 / 4
-    axs[0].plot(days,en)
-    axs[0].set_xlabel('days')
-    axs[0].set_title(r'$\overline{X^2}/2$')
-    axs[1].semilogy(wnum, np.array(sp).mean(axis=0))
-    axs[1].set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
-    #axs[1].set_xscale('log')
-    #axs[1].xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
-    #axs[1].xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
-    axs[1].xaxis.set_major_locator(FixedLocator([480,240,120,60,30,1]))
-    axs[1].xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','1']))
-    #axs[1].set_xlim(0.5/np.pi,wnum[-1])
-    secax = axs[1].secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
-    secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
-    secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
-    secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
-    fig2.savefig(figdir/f"en+psd_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
+#    #z0.astype('<d').tofile(figdir/f"z0_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy")
+#    t = []
+#    z = [z0]
+#    en = []
+#    sp = []
+#    for k in range(nt):
+#        print(f'{k/nt*100:.2f}%')
+#        z0 = l3(z0)
+#        if k>nt//10:
+#            t.append(k*h)
+#            en.append(np.mean(z0**2)/2.)
+#            wnum, sp1 = nmc.psd(z0)
+#            sp.append(sp1)
+#        if (k+1)%nt6h==0:
+#            z.append(z0)
+#    z = np.array(z)
+#    print(z.shape)
+#    #np.save(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.npy",z)
+#    #exit()
+#    x0, y0 = l3.decomp(z0)
+#    plt.plot(z0)
+#    plt.plot(x0)
+#    plt.plot(y0)
+#    plt.show()
+#    plt.close()
+#    #exit()
+#    fig2, axs = plt.subplots(nrows=2,figsize=[6,12],constrained_layout=True)
+#    days = np.array(t) / 0.05 / 4
+#    axs[0].plot(days,en)
+#    axs[0].set_xlabel('days')
+#    axs[0].set_title(r'$\overline{X^2}/2$')
+#    axs[1].semilogy(wnum, np.array(sp).mean(axis=0))
+#    axs[1].set(xlabel=r"wave number ($\omega_k=\frac{2\pi}{\lambda_k}$)",title='variance power spectra')
+#    #axs[1].set_xscale('log')
+#    #axs[1].xaxis.set_major_locator(FixedLocator([240./np.pi,120./np.pi,60./np.pi,30./np.pi,1.0/np.pi]))
+#    #axs[1].xaxis.set_major_formatter(FixedFormatter([r'$\frac{240}{\pi}$',r'$\frac{120}{\pi}$',r'$\frac{60}{\pi}$',r'$\frac{30}{\pi}$',r'$\frac{1}{\pi}$']))
+#    axs[1].xaxis.set_major_locator(FixedLocator([480,240,120,60,30,1]))
+#    axs[1].xaxis.set_major_formatter(FixedFormatter(['480','240','120','60','30','1']))
+#    #axs[1].set_xlim(0.5/np.pi,wnum[-1])
+#    secax = axs[1].secondary_xaxis('top',functions=(wnum2wlen, wlen2wnum))
+#    secax.set_xlabel(r'wave length ($\lambda_k=\frac{2\pi}{\omega_k}$)')
+#    secax.xaxis.set_major_locator(FixedLocator([2.0*np.pi,np.pi/15.,np.pi/30.,np.pi/60.,np.pi/120.,np.pi/240.]))
+#    secax.xaxis.set_major_formatter(FixedFormatter([r'$2\pi$',r'$\frac{\pi}{15}$',r'$\frac{\pi}{30}$',r'$\frac{\pi}{60}$',r'$\frac{\pi}{120}$',r'$\frac{\pi}{240}$']))
+#    fig2.savefig(figdir/f"en+psd_n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
 
     fig, axs = plt.subplots(ncols=2,figsize=[12,12],sharey=True,constrained_layout=True)
     cmap = plt.get_cmap('tab10')
@@ -249,12 +248,13 @@ if __name__ == "__main__":
     fig.suptitle(f"Lorenz III, N={nx}, K={'+'.join([str(n) for n in nks])}\nI={ni}, F={F}, b={b}, c={c}")
     fig.savefig(figdir/f"n{nx}k{'+'.join([str(n) for n in nks])}i{ni}F{int(F)}b{b:.1f}c{c:.1f}.png",dpi=300)
     plt.show()
-    exit()
+    #exit()
 
     nt1yr = nt6h * 4 * 365 # 1 year
     ksave = nt6h # 6 hours
     zsave = []
     for k in range(nt1yr):
+        print(f'{k/nt1yr*100:.2f}%')
         z0 = l3(z0)
         if k%ksave==0:
             zsave.append(z0)

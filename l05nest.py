@@ -136,7 +136,9 @@ params_gm["saveGM"]     = False # preparing precomputed GM forecasts for LBC of 
 #
 params_lam = params_gm.copy()
 params_lam["lamstart"]  = 0 # first cycle of LAM analysis and forecast
-params_lam["blending"]  = False # large-scale background blending (Milan et al. 2023)
+params_lam["blending"]  = False # independent large-scale blending
+params_lam["blsb"]      = True # background blending (Milan et al. 2023)
+params_lam["alsb"]      = False # analysis blending (Yang 2005)
 params_lam["anlsp"]     = True # True: analyzed in the sponge region
 params_lam["sigb"]      =  0.6 # (For var & 4dvar) background error standard deviation
 params_lam["sigv"]      =  0.4 # (For var_nest) GM background error standard deviation in LAM space
@@ -280,22 +282,22 @@ elif pt == "mlef_nest" or pt == "mlef_nestc":
 elif pt == "envar":
     from analysis.envar import EnVAR
     analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, \
-            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
-            iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
+            linf=params_gm["linf"], iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
+            lloc=params_gm["lloc"], iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
     if params_lam["anlsp"]:
         analysis_lam = EnVAR(nx_lam-2, params_lam["nmem"], obs_lam, \
-            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
-            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            linf=params_lam["linf"], iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
+            lloc=params_lam["lloc"], iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
     else:
         analysis_lam = EnVAR(nx_lam-2*nsp, params_lam["nmem"], obs_lam, \
-            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
-            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            linf=params_lam["linf"], iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], \
+            lloc=params_lam["lloc"], iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam")
@@ -303,8 +305,8 @@ elif pt == "envar_nest" or pt == "envar_nestc":
     from analysis.envar import EnVAR
     from analysis.envar_nest import EnVAR_nest
     analysis_gm = EnVAR(nx_gm, params_gm["nmem"], obs_gm, pt=pt, \
-            iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
-            iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
+            linf=params_gm["linf"], iinf=params_gm["iinf"], infl_parm=params_gm["infl_parm"], \
+            lloc=params_gm["lloc"], iloc=params_gm["iloc"], lsig=params_gm["lsig"], \
             ss=params_gm["ss"], getkf=params_gm["getkf"], \
             calc_dist=step.calc_dist_gm, calc_dist1=step.calc_dist1_gm,\
             ltlm=params_gm["ltlm"], incremental=params_gm["incremental"], model=model+"_gm")
@@ -314,8 +316,8 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
-            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
-            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            linf=params_lam["linf"], iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            lloc=params_lam["lloc"], iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam",\
@@ -326,8 +328,8 @@ elif pt == "envar_nest" or pt == "envar_nestc":
             crosscov=params_lam["crosscov"], ortho=params_lam["ortho"], coef_a=params_lam["coef_a"], \
             ridge=params_lam["ridge"], ridge_dx=params_lam["ridge_dx"], reg=params_lam["reg"], mu=params_lam["hyper_mu"],\
             pt=pt, \
-            iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
-            iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
+            linf=params_lam["linf"], iinf=params_lam["iinf"], infl_parm=params_lam["infl_parm"], infl_parm_lrg=params_lam["infl_parm_lrg"], \
+            lloc=params_lam["lloc"], iloc=params_lam["iloc"], lsig=params_lam["lsig"], \
             ss=params_lam["ss"], getkf=params_lam["getkf"], \
             calc_dist=step.calc_dist_lam, calc_dist1=step.calc_dist1_lam,\
             ltlm=params_lam["ltlm"], incremental=params_lam["incremental"], model=model+"_lam",\
@@ -447,14 +449,14 @@ elif pt == "var_nest":
         ebkmat=None
         ekbmat=None
     if params_lam["anlsp"]:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1, cyclic=False, 
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[1:-1], ioffset=1, 
         bmat=bmat_lam, sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"],
         vmat=vmat, sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], 
         crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
         calc_dist1=step.calc_dist1_lam, calc_dist1_gm=step.calc_dist1_gm,
         model=model+"_lam",**trunc_kwargs)
     else:
-        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp, cyclic=False, 
+        analysis_lam = Var_nest(obs_lam, step.ix_gm, step.ix_lam[nsp:-nsp], ioffset=nsp, 
         bmat=bmat_lam, sigb=params_lam["sigb"], lb=params_lam["lb"], functype=params_lam["functype"], a=params_lam["a"],
         vmat=vmat, sigv=params_lam["sigv"], lv=params_lam["lv"], a_v=params_lam["a_v"], 
         crosscov=params_lam["crosscov"], coef_a=params_lam["coef_a"], ebkmat=ebkmat, ekbmat=ekbmat,
@@ -508,6 +510,9 @@ if params_lam["blending"]:
     # truncation operator using DCT
     trunc_kwargs.update({'resample':False})
     trunc_operator = Trunc1d(step.ix_lam,**trunc_kwargs)
+else:
+    params_lam["blsb"] = False
+    params_lam["alsb"] = False
 
 # functions load
 func = L05nest_func(step,obs,params_gm,params_lam,model=model)
@@ -667,7 +672,7 @@ if __name__ == "__main__":
             dof_gm[i:min(i+a_window,na)] = ds
             innov_gm[i:min(i+a_window,na),:innv.size] = innv
         if i >= params_lam["lamstart"]:
-            if params_lam["blending"]:
+            if params_lam["blending"] and params_lam["blsb"]:
                 logger.info("large-scale background blending")
                 udf = trunc_operator(H_gm2lam@u_gm - u_lam)
                 u_lam = u_lam + udf
@@ -694,6 +699,10 @@ if __name__ == "__main__":
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
                 u_lam[nsp:-nsp] = u_tmp[:,...]
                 #pa_lam[nsp:-nsp,nsp:-nsp] = pa_tmp[:,:]
+            if params_lam["blending"] and params_lam["alsb"]:
+                logger.info("large-scale analysis blending")
+                udf = trunc_operator(H_gm2lam@ua_gm - u_lam)
+                u_lam = u_lam + udf
             if ft=="ensemble":
                 pa_lam = analysis_lam.calc_pf(u_lam)
             #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
@@ -984,7 +993,7 @@ if __name__ == "__main__":
     if params_gm["iinf"] == -3 and len(analysis_gm.inflfunc.rhosave) > 0:
         logger.info(len(analysis_gm.inflfunc.rhosave))
         np.savetxt("{}_infl_gm_{}_{}.txt".format(model, op, pt), np.array(analysis_gm.inflfunc.rhosave))
-    if len(analysis_gm.inflfunc.pdrsave) > 0:
+    if params_gm["linf"] and len(analysis_gm.inflfunc.pdrsave) > 0:
         logger.info(len(analysis_gm.inflfunc.pdrsave))
         np.savetxt("{}_pdr_gm_{}_{}.txt".format(model, op, pt), np.array(analysis_gm.inflfunc.pdrsave))
     if params_lam["iinf"] == -2 and len(analysis_lam.infladap.asave) > 0:
@@ -993,6 +1002,6 @@ if __name__ == "__main__":
     if params_lam["iinf"] == -3 and len(analysis_lam.inflfunc.rhosave) > 0:
         logger.info(len(analysis_lam.inflfunc.rhosave))
         np.savetxt("{}_infl_lam_{}_{}.txt".format(model, op, pt), np.array(analysis_lam.inflfunc.rhosave))
-    if len(analysis_lam.inflfunc.pdrsave) > 0:
+    if params_lam["linf"] and len(analysis_lam.inflfunc.pdrsave) > 0:
         logger.info(len(analysis_lam.inflfunc.pdrsave))
         np.savetxt("{}_pdr_lam_{}_{}.txt".format(model, op, pt), np.array(analysis_lam.inflfunc.pdrsave))

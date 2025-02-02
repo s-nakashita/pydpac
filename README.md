@@ -35,9 +35,11 @@ Following DA algorithms are implemented.
 
 - `kdvb.py`: A one-dimensional Korteweg&ndash;de Vries&ndash;Burgers (KdVB) model ([Marchant and Smyth 2002](https://doi.org/10.1098/rspa.2001.0868))
 
+- `qgmain.py`: A two-dimensional quasi-geostrophic model ([Sakov and Oke 2008](https://doi.org/10.1111/j.1600-8070.2007.00299.x),[Enomoto 2022](https://www.dpri.kyoto-u.ac.jp/nenpo/no65/ronbunB/a65b0p12.pdf))
+
 # Source code for the submitted article
 
-To try the ensemble variational blending DA in the Nested Lorenz system (Nakashita and Enomoto, submitted to *Tellus A*), follow the steps below. 
+To try the ensemble variational blending DA in the Nested Lorenz system (Nakashita and Enomoto, *Tellus A*, accepted), follow the steps below. 
 
 1. Run `model/lorenz3m.py` to create a nature run.
 
@@ -50,4 +52,3 @@ To try the ensemble variational blending DA in the Nested Lorenz system (Nakashi
 * NAKASHITA, Saori: programmer
 * ENOMOTO, Takeshi: project lead
 
- 

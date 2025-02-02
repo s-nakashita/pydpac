@@ -94,10 +94,10 @@ for icycle in range(scycle,ecycle+1):
         pftmp = spftmp @ spftmp.T
         if ncycle_lam==0:
             pflam = pftmp
-            wnum_lam, psdlam, _ = nmc_lam.psd(spftmp,axis=0,average=True)
+            wnum_lam, psdlam = nmc_lam.psd(spftmp,axis=0,average=True)
         else:
             pflam = pflam + pftmp
-            wnum_lam, psdtmp, _ = nmc_lam.psd(spftmp,axis=0,average=True)
+            wnum_lam, psdtmp = nmc_lam.psd(spftmp,axis=0,average=True)
             psdlam = psdlam + psdtmp
         ncycle_lam += 1
     else:
@@ -107,10 +107,10 @@ for icycle in range(scycle,ecycle+1):
             pftmp = spftmp @ spftmp.T
             if ncycle_lam==0:
                 pflam = pftmp
-                wnum_lam, psdlam, _ = nmc_lam.psd(spftmp,axis=0,average=True)
+                wnum_lam, psdlam = nmc_lam.psd(spftmp,axis=0,average=True)
             else:
                 pflam = pflam + pftmp
-                wnum_lam, psdtmp, _ = nmc_lam.psd(spftmp,axis=0,average=True)
+                wnum_lam, psdtmp = nmc_lam.psd(spftmp,axis=0,average=True)
                 psdlam = psdlam + psdtmp
             ncycle_lam += 1
     f = "{}_lam_svmat_{}_{}_cycle{}.npy".format(model, op, pt, icycle)
@@ -119,10 +119,10 @@ for icycle in range(scycle,ecycle+1):
         vtmp = svtmp @ svtmp.T
         if not vmat_exist:
             vmat = vtmp
-            wnum_v, psdv, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
+            wnum_v, psdv = nmc_trunc.psd(svtmp,axis=0,average=True)
         else:
             vmat = vmat + vtmp
-            wnum_v, psdtmp, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
+            wnum_v, psdtmp = nmc_trunc.psd(svtmp,axis=0,average=True)
             psdv = psdv + psdtmp
         vmat_exist=True
     else:
@@ -132,10 +132,10 @@ for icycle in range(scycle,ecycle+1):
             vtmp = svtmp @ svtmp.T
             if not vmat_exist:
                 vmat = vtmp
-                wnum_v, psdv, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
+                wnum_v, psdv = nmc_trunc.psd(svtmp,axis=0,average=True)
             else:
                 vmat = vmat + vtmp
-                wnum_v, psdtmp, _ = nmc_trunc.psd(svtmp,axis=0,average=True)
+                wnum_v, psdtmp = nmc_trunc.psd(svtmp,axis=0,average=True)
                 psdv = psdv + psdtmp
             vmat_exist=True
 #    pa = None  

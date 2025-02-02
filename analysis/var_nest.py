@@ -23,7 +23,7 @@ class Var_nest():
     def __init__(self, obs, ix_gm, ix_lam, ioffset=0, \
         bmat=None, bsqrt=None, sigb=1.0, lb=-1.0, functype="gauss", a=0.5, \
         vmat=None, sigv=1.0, lv=-1.0, a_v=0.5, #ntrunc=None, ftrunc=None, \
-        crosscov=False, coef_a=0.0, ekbmat=None, ebkmat=None, cyclic=False, \
+        crosscov=False, coef_a=0.0, ekbmat=None, ebkmat=None, \
         calc_dist1=None, calc_dist1_gm=None, verbose=True, \
         model="model",**trunc_kwargs):
         self.pt = "var_nest" # DA type 
@@ -42,7 +42,7 @@ class Var_nest():
         #self.nv = self.i1 - self.i0 + 1
         #self.nv = self.ix_lam.size
         self.ioffset = ioffset # LAM index offset (for sponge)
-        self.cyclic = cyclic
+        self.cyclic = trunc_kwargs['cyclic']
         # LAM background error covariance
         self.bmat = bmat # prescribed background error covariance
         self.bsqrt = bsqrt # prescribed preconditioning matrix

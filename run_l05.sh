@@ -4,7 +4,7 @@ export OMP_NUM_THREADS=4
 #alias python=python3.9
 model="l05IIm"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic" # cubic"
+operators="linear"
 perturbations="envar"
 na=240 # Number of assimilation cycle
 nmem=80 # ensemble size
@@ -14,13 +14,9 @@ lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 iinf=-2
 model_error=True
-#L="-1.0 0.5 1.0 2.0"
-#lsig=120
 functype=gc5
 a=-0.2
-#exp="var_${functype}a${a}_obs${nobs}"
 exp="envar_infl_mem${nmem}obs${nobs}"
-#exp="${datype}_loc_hint"
 echo ${exp}
 cdir=` pwd `
 if [ $model_error = True ]; then
@@ -135,8 +131,8 @@ for op in ${operators}; do
     python ${cdir}/plot/plotpdr.py ${op} ${model} ${na} ${pert0} infl
     python ${cdir}/plot/plotinfl.py ${op} ${model} ${na} ${pert0} infl
   done #pert
-  python ${cdir}/plot/plote.py ${op} ${model} ${na} #mlef
-  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} #mlef
+  python ${cdir}/plot/plote.py ${op} ${model} ${na} 
+  python ${cdir}/plot/plotxd.py ${op} ${model} ${na} 
   #python ${cdir}/plot/plotchi.py ${op} ${model} ${na}
   #python ${cdir}/plot/plotinnv.py ${op} ${model} ${na} > innv_${op}.log
   python ${cdir}/plot/plotxa.py ${op} ${model} ${na} ${model_error}
