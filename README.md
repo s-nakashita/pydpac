@@ -1,14 +1,16 @@
 # About pydpac
 
-pydpac contains variational and ensemble-based data assimiliation (DA) algorithms and simple models written in pure Python. 
+**pydpac** contains variational and ensemble-based data assimiliation (DA) algorithms and simple models written in pure Python. 
 
-Run a jupyter notebook named `Demo.ipynb` to try an example with L96.
+Try `Demo.ipynb` for an example with L96.
+
+`main.py` describes the experimental parameters and provides modules for conducting an observation system simulation experiment (OSSE) along with `exp_func.py`. 
+
+`run.sh` provides the procedures to compare several DA algorithms.
 
 See `analysis/README.md` if you would like to use Fortran-based numerical optimization algorithms ([CG+](https://users.iems.northwestern.edu/~nocedal/CG+.html) by G. Liu, J. Nocedal, and R. Waltz, and [LBFGS](http://users.iems.northwestern.edu/~nocedal/lbfgs.html) by J. Nocedal).
 
 # Available DA algorithms
-
-Following DA algorithms are implemented.
 
 - Deterministic DA
     * Kalman filter ([Kalman 1960](https://doi.org/10.1115/1.3662552))
@@ -25,7 +27,7 @@ Following DA algorithms are implemented.
     * Ensemble variational method (EnVar; [Liu et al. 2008](https://doi.org/10.1175/2008MWR2312.1))
     * (For nesting system) ensemble variational blending assimilation (Nakashita and Enomoto 2025)
 
-# Implemented models
+# Forecast models
 
 - `lorenz.py`: A spatially one-dimensional chaotic model ([Lorenz 1995](https://www.ecmwf.int/node/10829), [Lorenz and Emanuel 1998](https://doi.org/10.1175/1520-0469%281998%29055<0399:OSFSWO>2.0.CO;2))
 
@@ -43,7 +45,7 @@ Following DA algorithms are implemented.
 
 # Source code for the submitted article
 
-To try the ensemble variational blending DA in the Nested Lorenz system (Nakashita and Enomoto 2025, *Tellus A*, accepted), follow the steps below. 
+To try the ensemble variational blending DA in the Nested Lorenz system (Nakashita and Enomoto 2025, *Tellus A*, accepted), checkout `v1.0.0` and follow the steps below. 
 
 1. Run `model/lorenz3m.py` to create a nature run.
 

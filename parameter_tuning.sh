@@ -2,18 +2,19 @@
 # This is a run script for parameter sensitivity experiment
 export OMP_NUM_THREADS=4
 alias python=python3
+#model=l96/l05II/l05III/l05IIm/l05IIIm
 model=l96
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear" # quadratic cubic"
+operators="linear"
 perturbations="envar"
 datype="envar"
-na=300 # Number of assimilation cycle
-nmem=${1:-28}
+na=100 # Number of assimilation cycle
+nmem=40
 nobs=40
 linf=True  # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-a_window=1
+model_error=False
 ptype=infl
 iinf=3
 exp="${datype}_nmem${nmem}_infl${iinf}"
@@ -102,6 +103,7 @@ for op in ${operators}; do
       if [ $ptype = lb ]; then
         gsed -i -e "6i \ \"lb\":${lb}," config.py
       fi
+      gsed -i -e "6i \ \"model_error\":${model_error}," config.py
       cat config.py
       ptline=$(awk -F: '(NR>1 && $1~/pt/){print $2}' config.py)
       pt=${ptline#\"*}; pt=${pt%\"*}
@@ -109,7 +111,7 @@ for op in ${operators}; do
       for count in $(seq 1 10); do
         echo $count
         start_time=$(date +"%s")
-        python ${cdir}/${model}.py > ${model}_${op}_${pert}.log 2>&1
+        python ${cdir}/main.py ${model} > ${op}_${pert}.log 2>&1
         wait
         end_time=$(date +"%s")
         cputime=`echo "scale=3; ${end_time}-${start_time}" | bc`
