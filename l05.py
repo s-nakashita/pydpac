@@ -174,22 +174,22 @@ if a_window < 1:
 if pt == "mlef":
     from analysis.mlef import Mlef
     analysis = Mlef(state_size, params["nmem"], obs_mod, \
-            iinf=params["iinf"], infl_parm=params["infl_parm"], \
-            iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
+            linf=params["linf"], iinf=params["iinf"], infl_parm=params["infl_parm"], \
+            lloc=params["lloc"], iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 elif pt == "envar":
     from analysis.envar import EnVAR
     analysis = EnVAR(state_size, params["nmem"], obs_mod, \
-            iinf=params["iinf"], infl_parm=params["infl_parm"], \
-            iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
+            linf=params["linf"], iinf=params["iinf"], infl_parm=params["infl_parm"], \
+            lloc=params["lloc"], iloc=params["iloc"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf":
     from analysis.enkf import EnKF
     analysis = EnKF(pt, state_size, params["nmem"], obs_mod, \
-        iinf=params["iinf"], infl_parm=params["infl_parm"], \
-        iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
+        linf=params["linf"], iinf=params["iinf"], infl_parm=params["infl_parm"], \
+        lloc=params["lloc"], iloc=params["iloc"], ss=params["ss"], getkf=params["getkf"], \
         ltlm=params["ltlm"], \
         calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
 elif pt == "kf":
@@ -305,32 +305,32 @@ if __name__ == "__main__":
         if i <= 100:
             ##if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
+                u, pa = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
                 for j in range(y.shape[0]):
-                    chi[i+j] = chi2
-                    innov[i+j,:innv.size] = innv
-                    dof[i+j] = ds
+                    chi[i+j] = analysis.chi2
+                    innov[i+j,:analysis.innv.size] = analysis.innv
+                    dof[i+j] = analysis.ds
             else:
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
+                u, pa = analysis(u, pf, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
-                chi[i] = chi2
-                innov[i] = innv
-                dof[i] = ds
+                chi[i] = analysis.chi2
+                innov[i] = analysis.innv
+                dof[i] = analysis.ds
         else:
             ##if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
+                u, pa = analysis(u, pf, y, yloc, icycle=i)
                 for j in range(y.shape[0]):
-                    chi[i+j] = chi2
-                    innov[i+j,:innv.size] = innv
-                    dof[i+j] = ds
+                    chi[i+j] = analysis.chi2
+                    innov[i+j,:analysis.innv.size] = analysis.innv
+                    dof[i+j] = analysis.ds
             else:
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)#,\
+                u, pa = analysis(u, pf, y[0], yloc[0], icycle=i)#,\
                 #    save_w=True)
-                chi[i] = chi2
-                innov[i] = innv
-                dof[i] = ds
+                chi[i] = analysis.chi2
+                innov[i] = analysis.innv
+                dof[i] = analysis.ds
         ## additive inflation
         #if linf:
         #    logger.info("==additive inflation==")

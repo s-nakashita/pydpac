@@ -67,9 +67,11 @@ class EnKF():
         self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
         self.getkf = getkf # ensemble reduction method : True->Gain ETKF (Bishop et al. 2017)
         self.bthres = bthres # variance threshold for modulation and EVD
-        if self.iloc is None:
-            if self.iloc:
+        if self.lloc:
+            if self.iloc is None:
                 self.iloc = 0
+        else:
+            self.iloc = None
         if calc_dist is None:
             def calc_dist(i):
                 dist = np.zeros(self.ndim)
@@ -549,19 +551,17 @@ class EnKF():
             dh = self.obs.h_operator(yloc, x1) - np.mean(self.obs.h_operator(yloc, x1), axis=1)[:, None]
         zmat = rmat @ dh
         d = y - np.mean(self.obs.h_operator(yloc, xa))
-        innv, chi2 = chi2_test(zmat, d)
-        ds = self.dfs(dy,nmem2)
-        logger.info("dfs={}".format(ds))
+        self.innv, self.chi2 = chi2_test(zmat, d)
+        self.ds = self.dfs(dy,nmem2)
+        logger.info("dfs={}".format(self.ds))
         
         #u = np.zeros_like(xb)
         #u = xa[:,:]
         if evalout:
             infl_mat = np.dot(zmat,zmat.T)
             evalb, _ = la.eigh(infl_mat)
-            eval = evalb[::-1] / (1.0 + evalb[::-1])
-            return xa, pa, spa, innv, chi2, ds, eval
-        else:
-            return xa, pa, spa, innv, chi2, ds
+            self.eval = evalb[::-1] / (1.0 + evalb[::-1])
+        return xa, pa #, spa, innv, chi2, ds
 
     def b_loc(self, sigma, nx):
         if sigma < 0.0:

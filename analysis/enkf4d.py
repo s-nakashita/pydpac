@@ -366,13 +366,13 @@ class EnKF4d():
         d = np.concatenate(d)
         logger.info("zmat shape={}".format(zmat.shape))
         logger.info("d shape={}".format(d.shape))
-        innv, chi2 = chi2_test(zmat, d)
-        ds = self.dfs(dy,nmem)
-        logger.info("dfs={}".format(ds))
+        self.innv, self.chi2 = chi2_test(zmat, d)
+        self.ds = self.dfs(dy,nmem)
+        logger.info("dfs={}".format(self.ds))
         
         #u = np.zeros_like(xb)
         #u = xa[:,:]
-        return xa, pa, spa, innv, chi2, ds
+        return xa, pa #, spa, innv, chi2, ds
 
     def b_loc(self, sigma, nx, ny):
         if sigma < 0.0:

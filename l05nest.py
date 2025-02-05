@@ -663,14 +663,14 @@ if __name__ == "__main__":
 #                    args_lam = (u_lam[nsp:-nsp],pf_lam[nsp:-nsp,nsp:-nsp],y_lam,yloc_lam)
             else:
                 args_gm = (u_gm,pf_gm,y[0],yloc[0])
-            ua_gm, pa_gm, _, innv, chi2, ds = analysis_gm(*args_gm, \
+            ua_gm, pa_gm = analysis_gm(*args_gm, \
                 save_hist=save_hist, save_dh=save_dh, icycle=i)
             #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
             #pafile_new=f"{model}_pagm_{op}_{pt}_cycle{i}.npy"
             #os.rename(pafile,pafile_new)
-            chi_gm[i:min(i+a_window,na)] = chi2
-            dof_gm[i:min(i+a_window,na)] = ds
-            innov_gm[i:min(i+a_window,na),:innv.size] = innv
+            chi_gm[i:min(i+a_window,na)] = analysis_gm.chi2
+            dof_gm[i:min(i+a_window,na)] = analysis_gm.ds
+            innov_gm[i:min(i+a_window,na),:analysis_gm.innv.size] = analysis_gm.innv
         if i >= params_lam["lamstart"]:
             if params_lam["blending"] and params_lam["blsb"]:
                 logger.info("large-scale background blending")
@@ -684,7 +684,7 @@ if __name__ == "__main__":
                 if pt == "var_nest" or pt == "envar_nest" or pt == "envar_nestc"\
                     or pt == "mlef_nest" or pt == "mlef_nestc":
                     args_lam = (u_lam[1:-1],pf_lam,y_lam,yloc_lam,u_gm)
-                u_tmp, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
+                u_tmp, pa_lam = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
                 u_lam[1:-1] = u_tmp[:,...]
             else:
@@ -695,7 +695,7 @@ if __name__ == "__main__":
                 if pt == "var_nest" or pt == "envar_nest" or pt == "envar_nestc"\
                     or pt == "mlef_nest" or pt == "mlef_nestc":
                     args_lam = (u_lam[nsp:-nsp],pf_lam,y_lam,yloc_lam,u_gm)
-                u_tmp, pa_lam, _, innv, chi2, ds = analysis_lam(*args_lam, \
+                u_tmp, pa_lam = analysis_lam(*args_lam, \
                     save_hist=save_hist, save_dh=save_dh, icycle=i)
                 u_lam[nsp:-nsp] = u_tmp[:,...]
                 #pa_lam[nsp:-nsp,nsp:-nsp] = pa_tmp[:,:]
@@ -708,10 +708,10 @@ if __name__ == "__main__":
             #pafile=f"{model}_pa_{op}_{pt}_cycle{i}.npy"
             #pafile_new=f"{model}_palam_{op}_{pt}_cycle{i}.npy"
             #os.rename(pafile,pafile_new)
-            chi_lam[i:min(i+a_window,na)] = chi2
-            dof_lam[i:min(i+a_window,na)] = ds
+            chi_lam[i:min(i+a_window,na)] = analysis_lam.chi2
+            dof_lam[i:min(i+a_window,na)] = analysis_lam.ds
             for ii in range(i,min(i+a_window,na)):
-                innov_lam[ii,iobs_lam[ii]==1.0] = innv[:]
+                innov_lam[ii,iobs_lam[ii]==1.0] = analysis_lam.innv[:]
         else:
             gm2lam = interp1d(step.ix_gm,ua_gm,axis=0)
             u_lam = gm2lam(step.ix_lam)

@@ -19,7 +19,7 @@ class Mlef4d():
     def __init__(self, state_size, nmem, obs, step, nt, a_window, 
                 nvars=1,ndims=1,
                 linf=False, infl_parm=1.0,
-                iloc=None, lsig=-1.0, calc_dist=None, calc_dist1=None,
+                lloc=False, iloc=None, lsig=-1.0, calc_dist=None, calc_dist1=None,
                 incremental=True,ltlm=False, model="model"):
         # necessary parameters
         self.pt = "4dmlef" # DA type (prefix 4d + MLEF)
@@ -40,11 +40,17 @@ class Mlef4d():
         self.linf = linf # True->Apply inflation False->Not apply
         self.infl_parm = infl_parm # inflation parameter
         # localization
+        self.lloc = lloc # True->Apply localization, False->Not apply
         self.iloc = iloc # iloc = None->No localization
                          #      <=0   ->R-localization (lmlef4d.py)
                          #      = 1   ->Eigen value decomposition of localized Pf
                          #      = 2   ->Modulated ensemble
         self.lsig = lsig # localization parameter
+        if self.lloc:
+            if self.iloc is None:
+                self.iloc = 1
+        else:
+            self.iloc = None
         if calc_dist is None:
             def calc_dist(self, i):
                 dist = np.zeros(self.ndim)
@@ -66,8 +72,10 @@ class Mlef4d():
         # forecast model name
         self.model = model
         logger.info(f"model : {self.model}")
-        logger.info(f"pt={self.pt} op={self.op} sig={self.sig} infl_parm={self.infl_parm} lsig={self.lsig}")
-        logger.info(f"linf={self.linf} iloc={self.iloc} ltlm={self.ltlm}")
+        logger.info(f"pt={self.pt} op={self.op} sig={self.sig}")
+        logger.info(f"linf={self.linf} infl_parm={self.infl_parm}")
+        logger.info(f"lsig={self.lsig} iloc={self.iloc}")
+        logger.info(f"ltlm={self.ltlm}")
         from .mlef import Mlef
         self.mlef = Mlef(self.ndim,self.nmem,self.obs,
                 #nvars=self.nvars,ndims=self.ndims,
@@ -360,9 +368,9 @@ class Mlef4d():
             d = np.concatenate(d)
             logger.info("zmat shape={}".format(zmat.shape))
             logger.info("d shape={}".format(d.shape))
-            innv, chi2 = chi2_test(zmat, d)
-            ds = self.dfs(zmat)
-            logger.info("dfs={}".format(ds))
+            self.innv, self.chi2 = chi2_test(zmat, d)
+            self.ds = self.dfs(zmat)
+            logger.info("dfs={}".format(self.ds))
             pa = pf @ tmat 
             if self.iloc is not None:
                 # random sampling
@@ -391,4 +399,4 @@ class Mlef4d():
             if save_dh:
                 np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
                 np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
-            return u, fpa, pa, innv, chi2, ds
+            return u, fpa #, pa, innv, chi2, ds

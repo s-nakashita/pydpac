@@ -377,13 +377,13 @@ class Var_nest():
         
         _, x, _, _, _ = self.prec(w)
         xa = xf + x
-        innv = np.zeros_like(ob)
+        self.innv = np.zeros_like(ob)
         fun = self.calc_j(w, *args_j)
-        chi2 = fun / nobs
+        self.chi2 = fun / nobs
 
         pai = self.calc_hess(w, *args_j)
         lam, v = la.eigh(pai)
-        dfs = xf.size - np.sum(1.0/lam)
+        self.ds = xf.size - np.sum(1.0/lam)
         spa = bsqrt @ v @ np.diag(1.0/np.sqrt(lam)) @ v.transpose()
         pa = np.dot(spa,spa.T)
         #spf = la.cholesky(pf)
@@ -391,8 +391,7 @@ class Var_nest():
         if evalout:
             tmp = np.dot(np.dot(rsqrtinv,JH),spa)
             infl_mat = np.dot(tmp,tmp.T)
-            eval, _ = la.eigh(infl_mat)
-            logger.debug("eval={}".format(eval))
-            return xa, pa, spa, innv, chi2, dfs, eval[::-1]
-        else:
-            return xa, pa, spa, innv, chi2, dfs
+            self.eval, _ = la.eigh(infl_mat)
+            self.eval = self.eval[::-1]
+            logger.debug("eval={}".format(self.eval))
+        return xa, pa #, spa, innv, chi2, dfs

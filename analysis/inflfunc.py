@@ -4,7 +4,7 @@ import logging
 logging.config.fileConfig("./logging_config.ini")
 logger = logging.getLogger('anl')
 
-# Linear inflation functions (Duc et al. 2020a, QJRMS)
+# Linear inflation functions (Duc et al. 2020a, QJRMS, <https://doi.org/10.1002/qj.3864>)
 #   f(lambda) = a*lambda + b
 # gamma = singular values of normalized ensemble perturbations in observation space
 # lambda = eigenvalues of transform matrix
@@ -206,6 +206,6 @@ if __name__ == "__main__":
     #fig.savefig("D20fig3.png")
     #fig.savefig("D20fig4.png")
     #fig.savefig("D20fig7.png")
-   # fig.savefig("D20fig8.png")
+    #fig.savefig("D20fig8.png")
     fig.savefig("D20fig10.png")
     plt.show()

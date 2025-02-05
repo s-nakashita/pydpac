@@ -12,9 +12,6 @@ from methods import perts
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
-model_error = False
-if len(sys.argv)>4:
-    model_error = (sys.argv[4]=='True')
 cmap = "coolwarm"
 f = "truth.npy"
 if not os.path.isfile(f):
@@ -29,7 +26,7 @@ xt2mod = interp1d(xs_t,xt,axis=1)
 xlim = 15.0
 for pt in perts:
     ## nature and analysis
-    f = "{}_xa_{}_{}.npy".format(model, op, pt)
+    f = "xa_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
@@ -42,17 +39,18 @@ for pt in perts:
     mp0 = axs[0].pcolormesh(xs_t, t, xt, shading='auto',\
         cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
     axs[0].set_xticks(xs_t[::(nx_t//8)])
-    axs[0].set_yticks(t[::(na//8)])
     axs[0].set_xlabel("site")
     axs[0].set_ylabel("DA cycle")
     axs[0].set_title("nature")
     p0 = fig.colorbar(mp0,ax=axs[0],orientation="horizontal")
     mp1 = axs[1].pcolormesh(xs, t, xa, shading='auto', \
     cmap=cmap, norm=Normalize(vmin=-xlim, vmax=xlim))
-    axs[1].set_xticks(xs[::(nx//8)])
-    axs[1].set_yticks(t[::(na//8)])
-    axs[1].set_xlabel("site")
     axs[1].set_title("analysis")
+    axs[1].set_xticks(xs[::(nx//8)])
+    axs[1].set_xlabel("site")
+    for ax in axs:
+        ax.set_yticks(t[::(na//8)])
+        ax.set_ylim(t[-1],t[0])
     p1 = fig.colorbar(mp1,ax=axs[1],orientation="horizontal")
     fig.suptitle("nature, analysis : "+pt+" "+op)
     fig.savefig("{}_xa_{}_{}.png".format(model,op,pt))
@@ -69,6 +67,7 @@ for pt in perts:
     cmap=cmap, norm=Normalize(vmin=-vlim, vmax=vlim))
     ax00.set_xticks(xs[::(nx//8)])
     ax00.set_yticks(t[::(na//8)])
+    ax00.set_ylim(t[-1],t[0])
     ax00.set_xlabel("site")
     p2 = fig.colorbar(mp2,ax=ax00,orientation="horizontal")
     ax01.plot(xs, np.abs(xd).mean(axis=0))
@@ -78,7 +77,7 @@ for pt in perts:
     for ax in [ax00,ax01]:
         ax.set_xlim(xs[0],xs[-1])
 #    if pt != "kf" and pt != "var" and pt != "4dvar":
-    f = "{}_xsa_{}_{}.npy".format(model, op, pt)
+    f = "xsa_{}_{}.npy".format(op, pt)
     if not os.path.isfile(f):
         print("not exist {}".format(f))
         continue
@@ -90,6 +89,7 @@ for pt in perts:
     mp3 = ax10.pcolormesh(xs, t, xsa, shading='auto')
     ax10.set_xticks(xs[::(nx//8)])
     ax10.set_yticks(t[::max(1,na//8)])
+    ax10.set_ylim(t[-1],t[0])
     ax10.set_xlabel("site")
     p3 = fig2.colorbar(mp3,ax=ax10,orientation="horizontal")
     ax11.plot(xs,xsa.mean(axis=0))

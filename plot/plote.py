@@ -72,6 +72,8 @@ else:
         linfl = True
         linecolor = inflcolor
         linestyle = ['solid', 'dashed', 'dashdot', 'dotted']
+    else:
+        linfl = False
     #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
     sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \

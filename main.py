@@ -1,30 +1,13 @@
-import sys
 import os
 import logging
 from logging.config import fileConfig
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from model.lorenz import L96
 from analysis.obs import Obs
-from l96_func import L96_func
+from exp_func import Exp_func
 
 logging.config.fileConfig("logging_config.ini")
-
-global nx, F, dt, dx
-
-model = "l96"
-# model parameter
-nx = 40     # number of points
-F  = 8.0    # forcing
-dt = 0.05 / 6  # time step (=1 hour)
-
-# forecast model forward operator
-step = L96(nx, dt, F)
-
-x = np.arange(nx)
-dx = x[1] - x[0]
-np.savetxt("ix.txt", x)
 
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -68,16 +51,18 @@ htype = {"operator": "linear", "perturbation": "mlef"}
 params["t0off"]      =  24      # initial offset between adjacent members
 params["t0c"]        =  500     # t0 for control
 params["nobs"]       =  40      # observation number (nobs<=nx)
+params["obsloctype"] = "regular" # observation location type
 params["op"]         = "linear" # observation operator type
 params["na"]         =  100     # number of analysis cycle
 params["nspinup"]    =  params["na"] // 5 # spinup periods
-params["nt"]         =   6      # number of step per forecast (=6 hour)
+params["nt"]         =  6       # number of step per forecast (=6 hour)
 params["namax"]      =  1460    # maximum number of analysis cycle (1 year)
 ### assimilation method settings
 params["pt"]         = "mlef"   # assimilation method
 params["nmem"]       =  20      # ensemble size (include control run)
 params["a_window"]   =  0       # assimilation window length
 params["sigb"]       =  0.6     # (For var & 4dvar) background error standard deviation
+params["functype"]   = "gc5"    # (For var & 4dvar) background error correlation function type
 params["lb"]         = -1.0     # (For var & 4dvar) correlation length for background error covariance
 params["linf"]       =  False   # inflation flag
 params["iinf"]       =  None    # inflation type
@@ -89,104 +74,198 @@ params["ss"]         =  False   # (For model space localization) statistical res
 params["getkf"]      =  False   # (For model space localization) gain form resampling flag
 params["ltlm"]       =  True    # flag for tangent linear observation operator
 params["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
+params["rseed"] = None # random seed
+params["roseed"] = None # random seed for obsope
 params["extfcst"]    = False    # extended forecast
+params["model_error"] = False # valid for l05II, True: perfect model experiment, False: inperfect model experiment
+params_keylist = params.keys()
 
-## update from configure file
-sys.path.append('./')
-from config import params as params_new
-params.update(params_new)
-global op, pt, ft
-op = params["op"]
-pt = params["pt"]
-ft = ftype[pt]
-global na, a_window
-na = params["na"]
-a_window = params["a_window"]
-params["ft"] = ft
-if params["linf"] and params["infl_parm"] == -1.0: 
-    params["infl_parm"] = dict_infl[params["op"]][params["pt"]]
-if params["lloc"]: params["lsig"] = dict_sig[params["op"]][params["pt"]]
+# (optional) save DA details
+save_hist_cycles = []
 
-# observation operator
-obs = Obs(op, sigma[op])
+def get_model(model):
+    global dt6h
+    dt6h = 0.05 # non-dimensional time step for lorenz models equivalent to 6 hours
+    if model=="l96":
+        from model.lorenz import L96 as Model
+        global nx, F, dt, dx
+        # model parameter
+        nx = 40     # number of points
+        F  = 8.0    # forcing
+        dt = dt6h / 6  # time step (=1 hour)
+        args = nx, dt, F
+    elif model=="l05II":
+        from model.lorenz2 import L05II as Model
+        # model parameter
+        nx = 240       # number of points
+        nk = 8         # advection length scale
+        F  = 10.0      # forcing
+        dt = dt6h / 6  # time step (=1 hour)
+        args = nx, nk, dt, F
+    elif model=="l05IIm":
+        from model.lorenz2m import L05IIm as Model
+        # model parameter
+        nx = 240           # number of points
+        nk = [64,32,16,8]  # advection length scales
+        F  = 15.0          # forcing
+        dt = dt6h / 36     # time step (=1/6 hour)
+        args = nx, nk, dt, F
+    elif model == "l05III":
+        from model.lorenz3 import L05III as Model
+        # model parameter
+        nx = 960       # number of points
+        nk = 32        # advection length scale
+        ni = 12        # spatial filter width
+        F  = 15.0      # forcing
+        b  = 10.0      # frequency of small-scale perturbation
+        c  = 0.6       # coupling factor
+        dt = dt6h / 6 / 6 # time step (=1/6 hour)
+        args = nx, nk, ni, b, c, dt, F
+    elif model == "l05IIIm":
+        from model.lorenz3m import L05IIIm as Model
+        #global ni, b, c 
+        # model parameter
+        nx = 960             # number of points
+        nk = [256,128,64,32] # advection length scales
+        ni = 12              # spatial filter width
+        F  = 15.0            # forcing
+        b  = 10.0            # frequency of small-scale perturbation
+        c  = 0.6             # coupling factor
+        dt = dt6h / 36       # time step (=1/6 hour)
+        args = nx, nk, ni, b, c, dt, F
 
-# assimilation class
-state_size = nx
-if a_window < 1:
-    if pt[:2] == "4d":
-        a_window = 5
-    else:
-        a_window = 1
-if pt == "mlef":
-    from analysis.mlef import Mlef
-    analysis = Mlef(state_size, params["nmem"], obs, \
+    # forecast model forward operator
+    step = Model(*args)
+    return step
+
+def get_daclass(params,step,obs_mod,model):
+    global a_window
+    for key in params_keylist:
+        if not key in params:
+            params[key] = None
+    # import assimilation class
+    pt = params["pt"]
+    a_window = params["a_window"]
+    if params["linf"] and params["infl_parm"] == -1.0: 
+        params["infl_parm"] = dict_infl[params["op"]][params["pt"]]
+    if params["lloc"]: params["lsig"] = dict_sig[params["op"]][params["pt"]]
+    if params["lb"] > 0.0:
+        params["lb"] = params["lb"] * np.pi / 180.0 # degree => radian
+    state_size = step.nx
+    if a_window < 1:
+        if pt[:2] == "4d":
+            a_window = 5
+        else:
+            a_window = 1
+    if pt == "mlef":
+        from analysis.mlef import Mlef
+        analysis = Mlef(state_size, params["nmem"], obs_mod, \
             linf=params["linf"], iinf=params["iinf"], infl_parm=params["infl_parm"], \
             lloc=params["lloc"], iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
             calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
-#elif pt == "mlefw":
-#    from analysis.mlefw import Mlefw
-#    analysis = Mlefw(pt, state_size, nmem, obs, \
-#        linf=linf, infl_parm=infl_parm, \
-#        iloc=iloc, lsig=lsig, ss=False, gain=False, \
-#        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-#        ltlm=ltlm, model=model)
-elif pt == "envar":
-    from analysis.envar import EnVAR
-    analysis = EnVAR(state_size, params["nmem"], obs, \
-        linf=params["linf"], iinf=params["iinf"], infl_parm=params["infl_parm"], \
-        lloc=params["lloc"], iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
-        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
-        ltlm=params["ltlm"], incremental=params["incremental"], model=model)
-elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf" or pt=="eakf":
-    from analysis.enkf import EnKF
-    analysis = EnKF(pt, state_size, params["nmem"], obs, \
-        linf=params["linf"], iinf=params["iinf"], infl_parm=params["infl_parm"], \
-        lloc=params["lloc"], iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
-        ltlm=params["ltlm"], \
-        calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
-elif pt == "kf":
-    from analysis.kf import Kf
-    analysis = Kf(obs, 
-    infl=params["infl_parm"], linf=params["linf"], 
-    step=step, nt=params["nt"], model=model)
-elif pt == "var":
-    from analysis.var import Var
-    analysis = Var(obs, 
-    sigb=params["sigb"], lb=params["lb"], model=model)
-elif pt == "4dvar":
-    from analysis.var4d import Var4d
-    #a_window = 5
-    sigb = params["sigb"] * np.sqrt(float(a_window))
-    analysis = Var4d(obs, step, params["nt"], a_window,
-    sigb=sigb, lb=params["lb"], model=model)
-elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
-    from analysis.enkf4d import EnKF4d
-    #a_window = 5
-    analysis = EnKF4d(pt, state_size, params["nmem"], obs, step, params["nt"], a_window, \
-        linf=params["linf"], infl_parm=params["infl_parm"], 
-        iloc=params["iloc"], lsig=params["lsig"], calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
-        ltlm=params["ltlm"], model=model)
-elif pt == "4dmlef":
-    #a_window = 5
-    from analysis.mlef4d import Mlef4d
-    analysis = Mlef4d(state_size, params["nmem"], obs, step, params["nt"], a_window, \
-            linf=params["linf"], infl_parm=params["infl_parm"], \
-            iloc=params["iloc"], lsig=params["lsig"], calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+    elif pt == "envar":
+        from analysis.envar import EnVAR
+        analysis = EnVAR(state_size, params["nmem"], obs_mod, \
+            linf=params["linf"], iinf=params["iinf"], infl_parm=params["infl_parm"],\
+            lloc=params["lloc"], iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
+            calc_dist=step.calc_dist, calc_dist1=step.calc_dist1,\
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
+    elif pt == "etkf" or pt == "po" or pt == "letkf" or pt == "srf" or pt=="eakf":
+        from analysis.enkf import EnKF
+        analysis = EnKF(pt, state_size, params["nmem"], obs_mod, \
+            linf=params["linf"], iinf=params["iinf"], infl_parm=params["infl_parm"], \
+            lloc=params["lloc"], iloc=params["iloc"], lsig=params["lsig"], ss=params["ss"], getkf=params["getkf"], \
+            ltlm=params["ltlm"], \
+            calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, model=model)
+    elif pt == "kf":
+        from analysis.kf import Kf
+        analysis = Kf(obs_mod, 
+        infl=params["infl_parm"], linf=params["linf"], 
+        step=step, nt=params["nt"], model=model)
+    elif pt == "var":
+        from analysis.var import Var
+        bmat = None
+        analysis = Var(obs_mod, nx, ix=ix, 
+        sigb=params["sigb"], lb=params["lb"], functype=params["functype"], a=params["a"], bmat=bmat, \
+        calc_dist1=step.calc_dist1, model=model)
+    elif pt == "4dvar":
+        from analysis.var4d import Var4d
+        #a_window = 5
+        sigb = params["sigb"] * np.sqrt(float(a_window))
+        analysis = Var4d(obs_mod, step, params["nt"], a_window,
+        sigb=sigb, lb=params["lb"], model=model)
+    elif pt == "4detkf" or pt == "4dpo" or pt == "4dletkf" or pt == "4dsrf":
+        from analysis.enkf4d import EnKF4d
+        #a_window = 5
+        analysis = EnKF4d(pt, state_size, params["nmem"], obs_mod, step, params["nt"], a_window, \
+            linf=params["linf"], infl_parm=params["infl_parm"], 
+            iloc=params["iloc"], lsig=params["lsig"], calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+            ltlm=params["ltlm"], model=model)
+    elif pt == "4dmlef":
+        #a_window = 5
+        from analysis.mlef4d import Mlef4d
+        analysis = Mlef4d(state_size, params["nmem"], obs_mod, step, params["nt"], a_window, \
+                linf=params["linf"], infl_parm=params["infl_parm"], \
+                iloc=params["iloc"], lsig=params["lsig"], calc_dist=step.calc_dist, calc_dist1=step.calc_dist1, \
+                ltlm=params["ltlm"], incremental=params["incremental"], model=model)
+    return analysis
 
-# functions load
-func = L96_func(step,obs,analysis,params)
+def main(model,params_in=None,save_results=True):
+    
+    ## get forecast model
+    step = get_model(model)
+    nx = step.nx
+    x = np.arange(nx)
+    dx = x[1] - x[0]
+    if save_results: np.savetxt("ix.txt", x)
 
-if __name__ == "__main__":
-    logger = logging.getLogger(__name__)
+    if params["model_error"] and model[:5] == 'l05II':
+        params["nx_true"] = 960
+    else:
+        params["nx_true"] = nx
+    intmod = params["nx_true"]//nx
+    ix = np.arange(0,params["nx_true"],intmod)
+
+    params["t0off"]      =  4*int(dt6h/step.dt)      # initial offset between adjacent members
+    params["t0c"]        =  100*int(dt6h/step.dt)     # t0 for control
+    params["nt"]         =  int(dt6h/step.dt)      # number of step per forecast (=6 hour)
+    if model[:3]=="l05":
+        if model[-1]=="m":
+            params["lb"]     = 16.93
+            params["a"]      = 0.22     # (For var & 4dvar) background error correlation function shape parameter
+        else:
+            params["lb"]     = 24.6
+            params["a"]      = -0.2
+    ## update parameters from input arguments
+    if params_in is not None:
+        params.update(params_in)
+
+    global op, pt, ft
+    op = params["op"]
+    pt = params["pt"]
+    ft = ftype[pt]
+    params["ft"] = ft
+
+    # observation operator
+    obs = Obs(op, sigma[op])
+    obs_mod = Obs(op, sigma[op], ix=ix)
+
+    # DA
+    analysis = get_daclass(params,step,obs_mod,model)
+    
+    # functions load
+    func = Exp_func(model,step,obs,params,save_data=save_results)
+
     logger.info("==initialize==")
-    xt, yobs = func.get_true_and_obs()
-    u, xa, xf, pa = func.initialize(opt=0)
+    xt, yobs = func.get_true_and_obs(obsloctype=params["obsloctype"])
+    u, xa, xf, pa, xsa = func.initialize(opt=0)
     logger.debug(u.shape)
-    #func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
+    if logger.isEnabledFor(logging.DEBUG):
+        func.plot_initial(u, xt[0], t0off)
     pf = analysis.calc_pf(u, cycle=0)
     
+    na = params["na"]
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
     e = np.zeros(na)
@@ -210,34 +289,16 @@ if __name__ == "__main__":
         xf48 = np.zeros((na+7,nx))
         ## extended forecast
         utmp = u.copy()
-        logger.info("id(u)=%s"%id(u))
-        logger.info("id(utmp)=%s"%id(utmp))
-        utmp = func.forecast(utmp)
-        if ft=="ensemble":
-            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                xf12[1] = utmp[:, 0]
-            else:
-                xf12[1] = np.mean(utmp, axis=1)
-        else:
-            xf12[1] = utmp
+        logger.debug("id(u)=%s"%id(u))
+        logger.debug("id(utmp)=%s"%id(utmp))
+        um, utmp = func.forecast(utmp)
+        xf12[1] = um
         for j in range(2): # 12h->24h
-            utmp = func.forecast(utmp)
-        if ft=="ensemble":
-            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                xf24[3] = utmp[:, 0]
-            else:
-                xf24[3] = np.mean(utmp, axis=1)
-        else:
-            xf24[3] = utmp
+            um, utmp = func.forecast(utmp)
+        xf24[3] = um
         for j in range(4): # 24h->48h
-            utmp = func.forecast(utmp)
-        if ft=="ensemble":
-            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                xf48[7] = utmp[:, 0]
-            else:
-                xf48[7] = np.mean(utmp, axis=1)
-        else:
-            xf48[7] = utmp
+            um, utmp = func.forecast(utmp)
+        xf48[7] = um
     
     nanl = 0
     for i in a_time:
@@ -246,15 +307,13 @@ if __name__ == "__main__":
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
-        #if i in [1, 50, 100, 150, 200, 250]:
-        if i < 0:
-            ##if a_window > 1:
+        if i in save_hist_cycles:
             if pt[:2] == "4d":
                 u, pa = analysis(u, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
                 for j in range(y.shape[0]):
                     chi[i+j] = analysis.chi2
-                    innov[i+j,:analysis.innv.size] = innv
+                    innov[i+j,:analysis.innv.size] = analysis.innv
                     dof[i+j] = analysis.ds
             else:
                 u, pa = analysis(u, pf, y[0], yloc[0], \
@@ -263,12 +322,11 @@ if __name__ == "__main__":
                 innov[i] = analysis.innv
                 dof[i] = analysis.ds
         else:
-            ##if a_window > 1:
             if pt[:2] == "4d":
                 u, pa = analysis(u, pf, y, yloc, icycle=i)
                 for j in range(y.shape[0]):
                     chi[i+j] = analysis.chi2
-                    innov[i+j,:analysis.innv.size] = analysis.innv
+                    innov[i+j,:innv.size] = analysis.innv
                     dof[i+j] = analysis.ds
             else:
                 u, pa = analysis(u, pf, y[0], yloc[0], icycle=i)#,\
@@ -276,15 +334,8 @@ if __name__ == "__main__":
                 chi[i] = analysis.chi2
                 innov[i] = analysis.innv
                 dof[i] = analysis.ds
-        ## additive inflation
-        #if linf:
-        #    logger.info("==additive inflation==")
-        #    if pt == "mlef" or pt == "4dmlef":
-        #        u[:, 1:] += np.random.randn(u.shape[0], u.shape[1]-1)
-        #    else:
-        #        u += np.random.randn(u.shape[0], u.shape[1])
         if ft=="ensemble":
-            if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
+            if pt == "mlef" or pt == "4dmlef":
                 xa[i] = u[:, 0]
             else:
                 xa[i] = np.mean(u, axis=1)
@@ -292,14 +343,10 @@ if __name__ == "__main__":
             xa[i] = u
         if i < na-1:
             if a_window > 1:
-                uf = func.forecast(u)
+                um, uf = func.forecast(u)
                 if (i+1+a_window <= na):
-                    if ft=="ensemble":
-                        xa[i+1:i+1+a_window] = np.mean(uf, axis=2)
-                        xf[i+1:i+1+a_window] = np.mean(uf, axis=2)
-                    else:
-                        xa[i+1:i+1+a_window] = uf
-                        xf[i+1:i+1+a_window] = uf
+                    xa[i+1:i+1+a_window] = um
+                    xf[i+1:i+1+a_window] = um
                     ii = 0
                     for k in range(i+1,i+1+a_window):
                         if pt=="4dvar":
@@ -309,12 +356,8 @@ if __name__ == "__main__":
                             stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 else:
-                    if ft=="ensemble":
-                        xa[i+1:na] = np.mean(uf[:na-i-1], axis=2)
-                        xf[i+1:na] = np.mean(uf[:na-i-1], axis=2)
-                    else:
-                        xa[i+1:na] = uf[:na-i-1]
-                        xf[i+1:na] = uf[:na-i-1]
+                    xa[i+1:na] = um[:na-i-1]
+                    xf[i+1:na] = um[:na-i-1]
                     ii = 0
                     for k in range(i+1,na):
                         if pt=="4dvar":
@@ -325,17 +368,11 @@ if __name__ == "__main__":
                         ii += 1
                 u = uf[-1]
                 pf = analysis.calc_pf(u, pa=pa, cycle=i+1)
+                um = um[-1]
             else:
-                u = func.forecast(u)
+                um, u = func.forecast(u)
                 pf = analysis.calc_pf(u, pa=pa, cycle=i+1)
-
-            if ft=="ensemble":
-                if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                    xf[i+1] = u[:, 0]
-                else:
-                    xf[i+1] = np.mean(u, axis=1)
-            else:
-                xf[i+1] = u
+            xf[i+1] = um
             stdf[i+1] = np.sqrt(np.trace(pf)/pf.shape[0])
             if i>=params["nspinup"]:
                 xsfmean += np.diag(pf)
@@ -343,34 +380,14 @@ if __name__ == "__main__":
             if params["extfcst"]:
                 ## extended forecast
                 utmp = u.copy()
-                utmp = func.forecast(utmp) #6h->12h
-                if ft=="ensemble":
-                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                        xf12[i+2] = utmp[:, 0]
-                    else:
-                        xf12[i+2] = np.mean(utmp, axis=1)
-                else:
-                    xf12[i+2] = utmp
-                utmp = func.forecast(utmp) #12h->18h
-                utmp = func.forecast(utmp) #18h->24h
-                if ft=="ensemble":
-                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                        xf24[i+4] = utmp[:, 0]
-                    else:
-                        xf24[i+4] = np.mean(utmp, axis=1)
-                else:
-                    xf24[i+4] = utmp
-                utmp = func.forecast(utmp) #24h->30h
-                utmp = func.forecast(utmp) #30h->36h
-                utmp = func.forecast(utmp) #36h->42h
-                utmp = func.forecast(utmp) #42h->48h
-                if ft=="ensemble":
-                    if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                        xf48[i+8] = utmp[:, 0]
-                    else:
-                        xf48[i+8] = np.mean(utmp, axis=1)
-                else:
-                    xf48[i+8] = utmp
+                um, utmp = func.forecast(utmp) #6h->12h
+                xf12[i+2] = um
+                for j in range(2): #12h->24h
+                    um, utmp = func.forecast(utmp)
+                xf24[i+4] = um
+                for j in range(4): #24h->48h
+                    um, utmp = func.forecast(utmp)
+                xf48[i+8] = um
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
                 e[k]  = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))
@@ -385,12 +402,16 @@ if __name__ == "__main__":
                 xdmean  += (xa[i, :] - xt[i, :])**2
                 xdfmean += (xf[i, :] - xt[i, :])**2
         stda[i] = np.sqrt(np.trace(pa)/nx)
+        xsa[i] = np.sqrt(np.diag(pa))
         if i>=params["nspinup"]:
             xsmean += np.diag(pa)
             nanl += 1
 
+    if not save_results:
+        return
     np.save("{}_xf_{}_{}.npy".format(model, op, pt), xf)
     np.save("{}_xa_{}_{}.npy".format(model, op, pt), xa)
+    np.save("{}_xsa_{}_{}.npy".format(model, op, pt), xsa)
     np.save("{}_innv_{}_{}.npy".format(model, op, pt), innov)
     
     if params["extfcst"]:
@@ -427,3 +448,14 @@ if __name__ == "__main__":
         logger.info(len(analysis.inflfunc.pdrsave))
         # save posterior diagnostic ratio
         np.savetxt("{}_pdr_{}_{}.txt".format(model, op, pt), np.array(analysis.inflfunc.pdrsave))
+
+if __name__ == "__main__":
+    import sys
+    model = "l96"
+    if len(sys.argv) > 1:
+        model = sys.argv[1]
+    logger = logging.getLogger(__name__)
+    ## update parameters from configure file
+    sys.path.append('./')
+    from config import params as params_in
+    main(model,params_in=params_in)

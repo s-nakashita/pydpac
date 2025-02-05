@@ -59,23 +59,21 @@ class Kf():
         xa = xf + K @ ob
 
         pa = (np.eye(xf.size) - K @ JH) @ pf
-        #spa = la.cholesky(pa)
-        lam, v = la.eigh(pa)
-        lam[lam<0.0] = 0.0
-        spa = v @ np.diag(np.sqrt(lam)) @ v.transpose()
+        ##spa = la.cholesky(pa)
+        #lam, v = la.eigh(pa)
+        #lam[lam<0.0] = 0.0
+        #spa = v @ np.diag(np.sqrt(lam)) @ v.transpose()
 
-        innv, chi2 = self.chi2(pf, JH, R, ob)
-        ds = self.dfs(K, JH)
+        self.innv, self.chi2 = self.chi2(pf, JH, R, ob)
+        self.ds = self.dfs(K, JH)
 
         if evalout:
             tmp = np.dot(np.dot(Rsqrtinv,JH),spa)
             infl_mat = np.dot(tmp,tmp.T)
-            eval, _ = la.eigh(infl_mat)
-            logger.debug("eval={}".format(eval))
-            eval = eval[::-1]
-            return xa, pa, spa, innv, chi2, ds, eval
-        else:
-            return xa, pa, spa, innv, chi2, ds
+            self.eval, _ = la.eigh(infl_mat)
+            logger.debug("eval={}".format(self.eval))
+            self.eval = self.eval[::-1]
+        return xa, pa #, spa, innv, chi2, ds
 
     def get_linear(self, xa, Mb):
         eps = 1e-5

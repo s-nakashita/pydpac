@@ -1047,9 +1047,9 @@ class EnVAR_nest():
             d = y - self.obs.h_operator(yloc, xa_)
             logger.info("zmat shape={}".format(zmat.shape))
             logger.info("d shape={}".format(d.shape))
-            innv, chi2 = chi2_test(zmat, d)
-            ds = self.dfs(zmat)
-            logger.info("dfs={}".format(ds))
+            self.innv, self.chi2 = chi2_test(zmat, d)
+            self.ds = self.dfs(zmat)
+            logger.info("dfs={}".format(self.ds))
             #if not self.crosscov:
             pa = pf @ tmat
             dxa = pa * np.sqrt(nmem-1)
@@ -1137,7 +1137,5 @@ class EnVAR_nest():
             if evalout:
                 infl_mat = np.dot(zmat,zmat.T)
                 evalb, _ = la.eigh(infl_mat)
-                eval = evalb[::-1] / (1.0 + evalb[::-1])
-                return u, fpa, pa, innv, chi2, ds, eval
-            else:
-                return u, fpa, pa, innv, chi2, ds
+                self.eval = evalb[::-1] / (1.0 + evalb[::-1])
+            return u, fpa #, pa, innv, chi2, ds

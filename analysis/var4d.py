@@ -153,13 +153,13 @@ class Var4d():
         xa = xf + x
         fun = self.calc_j(w,*args_j)
         nobs = np.array(ob).size
-        innv = np.zeros(nobs)
-        chi2 = fun / nobs
+        self.innv = np.zeros(nobs)
+        self.chi2 = fun / nobs
 
         pai = self.calc_hess(w,*args_j)
         eval, evec = la.eigh(pai)
-        dfs = xf.size - np.sum(1.0/eval)
+        self.ds = xf.size - np.sum(1.0/eval)
         spa = bsqrt @ evec @ np.diag(1.0/np.sqrt(eval)) @ evec.T
         pa = np.dot(spa,spa.T)
 
-        return xa, pa, spa, innv, chi2, dfs
+        return xa, pa #, spa, innv, chi2, dfs

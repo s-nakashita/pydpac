@@ -67,9 +67,11 @@ class EnVAR():
         self.lsig = lsig # localization parameter
         self.ss = ss     # ensemble reduction method : True->Use stochastic sampling
         self.getkf = getkf # ensemble reduction method : True->Use reduced gain (Bishop et al. 2017)
-        if self.iloc is None:
-            if self.lloc:
+        if self.lloc:
+            if self.iloc is None:
                 self.iloc = 1
+        else:
+            self.iloc = None
         if calc_dist is None:
             self.calc_dist = self._calc_dist
         else:
@@ -550,9 +552,9 @@ class EnVAR():
             d = y - self.obs.h_operator(yloc, xa_)
             logger.debug("zmat shape={}".format(zmat.shape))
             logger.debug("d shape={}".format(d.shape))
-            innv, chi2 = chi2_test(zmat, d)
-            ds = self.dfs(zmat)
-            logger.debug("dfs={}".format(ds))
+            self.innv, self.chi2 = chi2_test(zmat, d)
+            self.ds = self.dfs(zmat)
+            logger.debug("dfs={}".format(self.ds))
             pa = pf @ tmat 
             dxa = pa * np.sqrt(nmem-1)
             if self.iinf == 2:
@@ -624,7 +626,5 @@ class EnVAR():
             if evalout:
                 infl_mat = np.dot(zmat,zmat.T)
                 evalb, _ = la.eigh(infl_mat)
-                eval = evalb[::-1] / (1.0 + evalb[::-1])
-                return u, fpa, pa, innv, chi2, ds, eval
-            else:
-                return u, fpa, pa, innv, chi2, ds
+                self.eval = evalb[::-1] / (1.0 + evalb[::-1])
+            return u, fpa #, pa, innv, chi2, ds

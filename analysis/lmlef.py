@@ -386,9 +386,9 @@ class Lmlef():
         d = y - self.obs.h_operator(yloc, xa)
         logger.info("zmat shape={}".format(zmat.shape))
         logger.info("d shape={}".format(d.shape))
-        innv, chi2 = chi2_test(zmat, d)
-        ds = self.dfs(zmat)
-        logger.info("dfs={}".format(ds))
+        self.innv, self.chi2 = chi2_test(zmat, d)
+        self.ds = self.dfs(zmat)
+        logger.info("dfs={}".format(self.ds))
         if save_dh:
             np.save("{}_dx_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), xa - xc)
         if self.iinf == 0:
@@ -414,4 +414,4 @@ class Lmlef():
         if save_dh:
             np.save("{}_pa_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), fpa)
             np.save("{}_ua_{}_{}_cycle{}.npy".format(self.model, self.op, self.pt, icycle), u)
-        return u, fpa, pa, innv, chi2, ds
+        return u, fpa #, pa, innv, chi2, ds
