@@ -20,10 +20,10 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
     "test":1.0, "abs":1.0, "hint":1.0}
 x = np.arange(na) + 1
-if model == "z08":
+if model == "burgers":
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
-elif model == "z05":
+elif model == "kdvb":
     sigma = {"linear": 0.05, "quadratic": 0.05}
 elif model == "qg":
     sigma = {"linear": 4.0}
@@ -94,7 +94,7 @@ if not linfl:
                 for i in range(2):
                     ax[i].plot(x, e[:,i], linestyle="dashed", color=c, label=label+f'={eavg[i]:.3f}')
         else:
-            if model=="z05" or model=="z08":
+            if model=="kdvb" or model=="burgers":
                 label1=label+f'={eavg:.2e}'
             else:
                 label1=label+f'={eavg:.3f}'
@@ -167,7 +167,7 @@ if not linfl:
                 for i in range(2):
                     axf[i].plot(x, ef[:,i], linestyle="dashed", color=c, label=label+f'={efavg[i]:.3f}')
         else:
-            if model=="z05" or model=="z08":
+            if model=="kdvb" or model=="burgers":
                 label1=label+f'={efavg:.2e}'
             else:
                 label1=label+f'={efavg:.3f}'
@@ -421,7 +421,7 @@ else:
         title=op)
     axf2.set(xlabel="forecast cycle", ylabel="Pf/RMSE",
         title=op)
-    if model=='z05' or model=="z08":
+    if model=='kdvb' or model=="burgers":
         #ax.set_ylim(-0.01,0.2)
         ax.set_yscale("log")
         axf.set_yscale("log")

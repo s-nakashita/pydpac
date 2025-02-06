@@ -26,12 +26,12 @@ class Exp_func():
             self.nx, self.nk, self.ni, self.b, self.c, self.dt, self.F = model_params
             logger.info("nx={} nk={} ni={}".format(self.nx, self.nk, self.ni))
             logger.info("b={:.1f} c={:.1f} F={} dt={:7.3e}".format(self.b, self.c, self.F, self.dt))
-        elif self.model == "z05":
+        elif self.model == "kdvb":
             self.nx, self.dt, self.dx, self.nu = model_params
             logger.info("nx={} dx={:7.3e} dt={:7.3e} nu={:.2f}".format(self.nx, self.dx, self.dt, self.nu))
             self.t0e = params["t0e"]
             self.et0 = params["et0"]
-        elif self.model == "z08":
+        elif self.model == "burgers":
             self.nx, self.nu, self.dt, self.dx = model_params
             logger.info("nx={} nu={} dt={:7.3e} dx={:7.3e}"\
             .format(self.nx, self.nu, self.dt, self.dx))
@@ -73,7 +73,7 @@ class Exp_func():
     # generate truth
     def gen_true(self):
         xt = np.zeros((self.na, self.nx))
-        if self.model=='z05':
+        if self.model=='kdvb':
             b1 = 0.5
             b2 = 1.0
             t0 = -5.0
@@ -85,7 +85,7 @@ class Exp_func():
                     for k in range(self.nt):
                         xtmp = self.step_t(xtmp)
                     xt[i] = xtmp
-        elif self.model == 'z08':
+        elif self.model == 'burgers':
             x0 = np.zeros(self.nx)
             x0[0] = 1.0
             for i in range(self.t0true):
@@ -172,7 +172,7 @@ class Exp_func():
 
     # initialize control 
     def init_ctl(self,t=None):
-        if self.model=='z05':
+        if self.model=='kdvb':
             b1 = 0.4
             b2 = 0.9
             X0c = self.step.soliton2(t, np.sqrt(0.5*b1), np.sqrt(0.5*b2))
@@ -190,7 +190,7 @@ class Exp_func():
     # initialize ensemble member
     def init_ens(self,opt):
         self.initopt = opt
-        if self.model == 'z05':
+        if self.model == 'kdvb':
             t0f = self.rng.normal(0.0,scale=1.0,size=self.nmem)*self.et0 + self.t0e
             t0f = t0f.tolist()
             X0 = np.zeros((self.nx, len(t0f)))
@@ -227,7 +227,7 @@ class Exp_func():
                 logger.info("t0f={}".format(t0f))
                 logger.info("spin up max = {}".format(maxiter))
                 X0 = np.zeros((self.nx,len(t0f)))
-                if self.model=='z08':
+                if self.model=='burgers':
                     tmp = np.zeros(self.nx)
                     tmp[0] = 1.0
                 else:

@@ -12,9 +12,9 @@ na = int(sys.argv[3])
 pt = sys.argv[4]
 scycle = int(sys.argv[5])
 ecycle = int(sys.argv[6])
-if model == "z08":
+if model == "burgers":
     nx = 81
-elif model == "z05":
+elif model == "kdvb":
     nx = 101
 elif model == "l96":
     nx = 40

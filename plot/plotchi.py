@@ -15,12 +15,12 @@ if model == "l96":
         "srf":"pink", "letkf":"purple", "kf":"cyan", "var":"olive"}
     marker = {"3d":"o","4d":"x"}
     #na = 100
-elif model == "z08":
+elif model == "burgers":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     linestyle = {"mlef":"solid", "grad":"dashed",
      "etkf-fh":"solid", "etkf-jh":"dashed"}
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red'}
-elif model == "z05":
+elif model == "kdvb":
     perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var"]
     linecolor = {"mlef":'blue',"grad":'orange',"etkf":'green', "po":'red',\
         "srf":"pink", "letkf":"purple", "kf":"cyan", "var":"olive"}

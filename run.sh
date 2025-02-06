@@ -1,15 +1,15 @@
 #!/bin/sh
-# This is a run script for conducting multiple cycle experiments
+# This is a run script for conducting cycle experiments of 1-dimensional toy models
 alias python=python3
-#model=l96/l05II/l05III/l05IIm/l05IIIm
-model="z05"
+#model=l96/l05II/l05III/l05IIm/l05IIIm/kdvb/burgers
+model="l96"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="quadratic"
+operators="linear"
 perturbations="mlef"
-na=200 # Number of assimilation cycle
-nmem=10 # ensemble size
-nobs=10 # observation volume
-linf=False # True:Apply inflation False:Not apply
+na=100 # Number of assimilation cycle
+nmem=40 # ensemble size
+nobs=40 # observation volume
+linf=True # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
 exp="test"

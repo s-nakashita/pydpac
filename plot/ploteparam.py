@@ -9,7 +9,7 @@ op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
 nspinup = na//5
-if model == "z08" or model == "z05":
+if model == "burgers" or model == "kdvb":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
      "kf":"tab:cyan"}

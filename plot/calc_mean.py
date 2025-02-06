@@ -10,7 +10,7 @@ vname = sys.argv[5]
 pt = sys.argv[6]
 print(f"{op} {model} {na} {nmax} {vname} {pt}")
 if vname == "innv" or vname == "ua":
-    if model == "z08":
+    if model == "burgers":
         emean = np.zeros((na, 81))
     if model == "l96":
         emean = np.zeros((na, 40))
@@ -35,7 +35,7 @@ if vname == "innv" or vname == "ua":
         np.save("{}_{}_{}_{}.npy".format(model, vname, op, pt), emean)
 #if vname == "e" or vname == "chi" or vname == "dfs":
 elif vname == "sv":
-    if model == "z08":
+    if model == "burgers":
         imean = np.zeros(81)
         fmean = np.zeros(81)
     if model == "l96":
@@ -83,7 +83,7 @@ elif vname[:6] == "xdmean" or vname[:6] == "xsmean":
     if i>0:
         np.savetxt("{}_{}_{}_{}.txt".format(model, vname, op, pt), data)
 else:
-    if model == "z08" and vname == "e":
+    if model == "burgers" and vname == "e":
         emean = np.zeros(na+1)
     else:
         emean = np.zeros(na)

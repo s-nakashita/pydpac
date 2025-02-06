@@ -140,7 +140,7 @@ def get_model(model):
         dt = dt6h / 36       # time step (=1/6 hour)
         args = nx, nk, ni, b, c, dt, F
         ix = np.arange(nx)
-    elif model=="z05":
+    elif model=="kdvb":
         # KdVB model
         from model.kdvb import KdVB as Model
         # model parameter
@@ -152,7 +152,7 @@ def get_model(model):
         args = nx, dt, dx, nu
         sigma.update({"linear":0.05,"quadratic":0.05,"cubic":0.05})
         ix = np.linspace(-25.0,25.0,nx)
-    elif model=="z08":
+    elif model=="burgers":
         # 1-dimensional advection-diffusion model
         from model.burgers import Bg as Model
         # model parameter
@@ -248,15 +248,16 @@ def main(model,params_in=None,save_results=True):
     dx = ix[1] - ix[0]
     if save_results: np.savetxt("ix.txt", ix)
 
-    if params["model_error"] and model[:5] == 'l05II':
-        if model=='l05II':
-            model_t = 'l05III'
-        elif model=='l05IIm':
-            model_t = 'l05IIIm'
-        step_t, ix_t = get_model(model_t)
-        params["nx_true"] = step_t.nx
-        intmod = params["nx_true"]//nx
-        ix = np.arange(0,params["nx_true"],intmod)
+    if params["model_error"]:
+        if model[:5] == 'l05II':
+            if model=='l05II':
+                model_t = 'l05III'
+            elif model=='l05IIm':
+                model_t = 'l05IIIm'
+            step_t, ix_t = get_model(model_t)
+            params["nx_true"] = step_t.nx
+            intmod = params["nx_true"]//nx
+            ix = np.arange(0,params["nx_true"],intmod)
     else:
         step_t = step
         ix_t = ix.copy()
@@ -266,12 +267,12 @@ def main(model,params_in=None,save_results=True):
     params["ix_t"] = ix_t
     
     initopt=0
-    if model=='z05':
+    if model=='kdvb':
         params["t0c"] = -6.0 # t0 for control
         params["t0e"] = -7.0 # t0 for initial ensemble
         params["et0"] =  2.0 # standard deviation of perturbations for ensemble t0
         params["nt"] = 200
-    elif model=='z08':
+    elif model=='burgers':
         params["t0off"] = 24
         params["t0true"] = 20
         params["t0c"] = 60

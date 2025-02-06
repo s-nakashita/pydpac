@@ -25,11 +25,11 @@ t = np.arange(na)
 xs_t = np.loadtxt('ix_t.txt')
 xt2mod = interp1d(xs_t,xt,axis=1)
 xs = np.loadtxt('ix.txt')
-if model=='z05' or model=='z08':
-    if model == "z08":
+if model=='kdvb' or model=='burgers':
+    if model == "burgers":
         sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
         "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
-    elif model == "z05":
+    elif model == "kdvb":
         sigma = {"linear": 0.05, "quadratic": 0.05}
     sig = sigma[op]
     obsfile=f'obs_{op}_{int(sig*1e4)}.npy'

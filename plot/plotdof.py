@@ -13,7 +13,7 @@ if model == "l96":
     linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
         "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan"}
     #na = 100
-elif model == "z08":
+elif model == "burgers":
     perts = ["mlef", "grad", "etkf-fh", "etkf-jh", "kf"]#, "po", "srf", "letkf"]
     linestyle = {"mlef":"solid", "grad":"dashed",
      "etkf-fh":"solid", "etkf-jh":"dashed", "kf":"solid"}
