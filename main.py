@@ -9,6 +9,7 @@ from exp_func import Exp_func
 
 logging.config.fileConfig("logging_config.ini")
 
+global sigma
 # observation error standard deviation
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
@@ -86,6 +87,7 @@ save_hist_cycles = []
 def get_model(model):
     global dt6h
     dt6h = 0.05 # non-dimensional time step for lorenz models equivalent to 6 hours
+    kwargs = {}
     if model=="l96":
         from model.lorenz import L96 as Model
         global nx, F, dt, dx
@@ -94,6 +96,7 @@ def get_model(model):
         F  = 8.0    # forcing
         dt = dt6h / 6  # time step (=1 hour)
         args = nx, dt, F
+        ix = np.arange(nx)
     elif model=="l05II":
         from model.lorenz2 import L05II as Model
         # model parameter
@@ -102,6 +105,7 @@ def get_model(model):
         F  = 10.0      # forcing
         dt = dt6h / 6  # time step (=1 hour)
         args = nx, nk, dt, F
+        ix = np.arange(nx)
     elif model=="l05IIm":
         from model.lorenz2m import L05IIm as Model
         # model parameter
@@ -110,6 +114,7 @@ def get_model(model):
         F  = 15.0          # forcing
         dt = dt6h / 36     # time step (=1/6 hour)
         args = nx, nk, dt, F
+        ix = np.arange(nx)
     elif model == "l05III":
         from model.lorenz3 import L05III as Model
         # model parameter
@@ -121,6 +126,7 @@ def get_model(model):
         c  = 0.6       # coupling factor
         dt = dt6h / 6 / 6 # time step (=1/6 hour)
         args = nx, nk, ni, b, c, dt, F
+        ix = np.arange(nx)
     elif model == "l05IIIm":
         from model.lorenz3m import L05IIIm as Model
         #global ni, b, c 
@@ -133,10 +139,33 @@ def get_model(model):
         c  = 0.6             # coupling factor
         dt = dt6h / 36       # time step (=1/6 hour)
         args = nx, nk, ni, b, c, dt, F
-
+        ix = np.arange(nx)
+    elif model=="z05":
+        # KdVB model
+        from model.kdvb import KdVB as Model
+        # model parameter
+        nx = 101          # number of points
+        dt = 0.01         # timestep
+        dx = 0.5          # grid spacing
+        nu = 0.07         # diffusion
+        kwargs['fd'] = True # FFT or finite-difference
+        args = nx, dt, dx, nu
+        sigma.update({"linear":0.05,"quadratic":0.05,"cubic":0.05})
+        ix = np.linspace(-25.0,25.0,nx)
+    elif model=="z08":
+        # 1-dimensional advection-diffusion model
+        from model.burgers import Bg as Model
+        # model parameter
+        nx = 81           # number of points
+        nu = 0.05         # diffusion
+        dt = 0.0125       # timestep
+        dx = 4.0 / (nx-1) # grid interval
+        args = nx, dx, dt, nu
+        sigma.update({"linear":8.0e-2,"quadratic":1.0e-3,"cubic":1.0e-3,"quartic":1.0e-3,"quadratic-nodiff":1.0e-3,"cubic-nodiff":1.0e-3,"quartic-nodiff":1.0e-3})
+        ix = np.linspace(-2.0,2.0,nx)
     # forecast model forward operator
-    step = Model(*args)
-    return step
+    step = Model(*args,**kwargs)
+    return step, ix
 
 def get_daclass(params,step,obs_mod,model):
     global a_window
@@ -214,22 +243,45 @@ def get_daclass(params,step,obs_mod,model):
 def main(model,params_in=None,save_results=True):
     
     ## get forecast model
-    step = get_model(model)
+    step, ix = get_model(model)
     nx = step.nx
-    x = np.arange(nx)
-    dx = x[1] - x[0]
-    if save_results: np.savetxt("ix.txt", x)
+    dx = ix[1] - ix[0]
+    if save_results: np.savetxt("ix.txt", ix)
 
     if params["model_error"] and model[:5] == 'l05II':
-        params["nx_true"] = 960
+        if model=='l05II':
+            model_t = 'l05III'
+        elif model=='l05IIm':
+            model_t = 'l05IIIm'
+        step_t, ix_t = get_model(model_t)
+        params["nx_true"] = step_t.nx
+        intmod = params["nx_true"]//nx
+        ix = np.arange(0,params["nx_true"],intmod)
     else:
+        step_t = step
+        ix_t = ix.copy()
         params["nx_true"] = nx
-    intmod = params["nx_true"]//nx
-    ix = np.arange(0,params["nx_true"],intmod)
-
-    params["t0off"]      =  4*int(dt6h/step.dt)      # initial offset between adjacent members
-    params["t0c"]        =  100*int(dt6h/step.dt)     # t0 for control
-    params["nt"]         =  int(dt6h/step.dt)      # number of step per forecast (=6 hour)
+    if save_results: np.savetxt("ix_t.txt", ix_t)
+    params["ix"] = ix
+    params["ix_t"] = ix_t
+    
+    initopt=0
+    if model=='z05':
+        params["t0c"] = -6.0 # t0 for control
+        params["t0e"] = -7.0 # t0 for initial ensemble
+        params["et0"] =  2.0 # standard deviation of perturbations for ensemble t0
+        params["nt"] = 200
+    elif model=='z08':
+        params["t0off"] = 24
+        params["t0true"] = 20
+        params["t0c"] = 60
+        params["nt"] = 20
+        params["namax"] = 20
+        initopt=1
+    else:
+        params["t0off"]      =  4*int(dt6h/step.dt)      # initial offset between adjacent members
+        params["t0c"]        =  100*int(dt6h/step.dt)     # t0 for control
+        params["nt"]         =  int(dt6h/step.dt)      # number of step per forecast (=6 hour)
     if model[:3]=="l05":
         if model[-1]=="m":
             params["lb"]     = 16.93
@@ -240,6 +292,8 @@ def main(model,params_in=None,save_results=True):
     ## update parameters from input arguments
     if params_in is not None:
         params.update(params_in)
+    if params["na"] > params["namax"]:
+        params["na"] = params["namax"]
 
     global op, pt, ft
     op = params["op"]
@@ -248,21 +302,21 @@ def main(model,params_in=None,save_results=True):
     params["ft"] = ft
 
     # observation operator
-    obs = Obs(op, sigma[op])
+    obs = Obs(op, sigma[op], ix=ix_t)
     obs_mod = Obs(op, sigma[op], ix=ix)
 
     # DA
     analysis = get_daclass(params,step,obs_mod,model)
     
     # functions load
-    func = Exp_func(model,step,obs,params,save_data=save_results)
+    func = Exp_func(model,step,obs,params,step_t=step_t,save_data=save_results)
 
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs(obsloctype=params["obsloctype"])
-    u, xa, xf, pa, xsa = func.initialize(opt=0)
+    u, xa, xf, pa, xsa = func.initialize(opt=initopt)
     logger.debug(u.shape)
-    if logger.isEnabledFor(logging.DEBUG):
-        func.plot_initial(u, xt[0], t0off)
+    #if logger.isEnabledFor(logging.DEBUG):
+    func.plot_initial(u, xt[0])
     pf = analysis.calc_pf(u, cycle=0)
     
     na = params["na"]
@@ -388,6 +442,15 @@ def main(model,params_in=None,save_results=True):
                 for j in range(4): #24h->48h
                     um, utmp = func.forecast(utmp)
                 xf48[i+8] = um
+        if np.isnan(u).any():
+            e[i:] = np.nan
+            ef[i+1:] = np.nan
+            stda[i:] = np.nan
+            stdf[i+1:] = np.nan
+            xa[i:,:] = np.nan
+            xsa[i:,:] = np.nan
+            xf[i+1:,:] = np.nan
+            break
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
                 e[k]  = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))

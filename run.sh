@@ -2,18 +2,17 @@
 # This is a run script for conducting multiple cycle experiments
 alias python=python3
 #model=l96/l05II/l05III/l05IIm/l05IIIm
-model="l96"
+model="z05"
 #operators="linear quadratic cubic quadratic-nodiff cubic-nodiff"
-operators="linear"
-datype="enkf"
-perturbations="eakf srf etkf po letkf mlef"
-na=100 # Number of assimilation cycle
-nmem=40 # ensemble size
-nobs=40 # observation volume
-linf=True # True:Apply inflation False:Not apply
+operators="quadratic"
+perturbations="mlef"
+na=200 # Number of assimilation cycle
+nmem=10 # ensemble size
+nobs=10 # observation volume
+linf=False # True:Apply inflation False:Not apply
 lloc=False # True:Apply localization False:Not apply
 ltlm=False # True:Use tangent linear approximation False:Not use
-exp="test_enkf"
+exp="test"
 echo ${exp}
 cdir=` pwd `
 rm -rf work/${model}/${exp}

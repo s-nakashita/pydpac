@@ -35,11 +35,15 @@ See `analysis/README.md` if you would like to use Fortran-based numerical optimi
 
 - `lorenz3.py`: A spatially one-dimensional chaotic model with scale interaction (type III model in [Lorenz 2005](https://doi.org/10.1175/JAS3430.1))
 
-<!---
 - `burgers.py`: A spatially one-dimensional advection and diffusion model ([Burgers 1948](https://doi.org/10.1016/S0065-2156%2808%2970100-5))
+
+    Experimental settings are referred to [Zupanski (2005)](https://doi.org/10.1175/MWR2946.1) and [Enomoto and Nakashita (2024)](https://doi.org/10.16993/tellusa.3255)
 
 - `kdvb.py`: A one-dimensional Korteweg&ndash;de Vries&ndash;Burgers (KdVB) model ([Marchant and Smyth 2002](https://doi.org/10.1098/rspa.2001.0868))
 
+    Experimental settings are referred to [Zupanski et al. (2008)](https://doi.org/10.1002/qj.251)).
+
+<!---
 - `qgmain.py`: A two-dimensional quasi-geostrophic model ([Sakov and Oke 2008](https://doi.org/10.1111/j.1600-0870.2007.00299.x), [Enomoto and Nakashita 2022 (in Japanese)](https://www.dpri.kyoto-u.ac.jp/nenpo/no65/ronbunB/a65b0p12.pdf))
 --->
 

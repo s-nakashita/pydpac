@@ -8,6 +8,12 @@ from methods import perts, linecolor, iinflist, infltype, inflcolor
 op = sys.argv[1]
 model = sys.argv[2]
 na = int(sys.argv[3])
+pt = None
+linfl = False
+if len(sys.argv) > 4:
+    pt = sys.argv[4]
+if len(sys.argv) > 5 and sys.argv[5]=='infl':
+    linfl = True
 nspinup = na // 5
 marker = {"3d":"o","4d":"x","3ds":"x","4ds":"^"}
 sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
@@ -15,71 +21,20 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
     "test":1.0, "abs":1.0, "hint":1.0}
 x = np.arange(na) + 1
 if model == "z08":
-    #perts = ["mlef", "etkf", "po", "srf"]
-    perts = ["mlef-fh", "mlef-jh", "etkf-fh", "etkf-jh"]#, "var"]
-    linecolor = {"mlef-fh":'tab:blue',"mlef-jh":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red',
-     "var":"tab:cyan"}
-    #perts = ["mlef-fh", "mlef-jh", "mlefw-fh", "mlefw-jh"]
-    #linecolor = {"mlef-fh":'tab:blue',"mlef-jh":'tab:orange',"mlefw-fh":'tab:green',"mlefw-jh":'tab:red'}
-    #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-    #   "srf":"tab:pink", "letkf":"tab:purple", "kf":"tab:cyan", "var":"tab:olive",\
-    #   "var4d":"tab:brown"}
-    #perts = ["mlef", "grad", "etkf-fh", "etkf-jh"]#, "po", "srf", "letkf"]
-    #linestyle = {"mlef":"solid", "grad":"dashed",
-    # "etkf-fh":"solid", "etkf-jh":"dashed"}
-    #linecolor = {"mlef":'tab:blue',"grad":'tab:orange',"etkf-fh":'tab:green',"etkf-jh":'tab:red'}   
-    x = np.arange(na+1)
-    #sigma = {"linear": 8.0e-2, "quadratic": 8.0e-2, "cubic": 7.0e-4, "quartic": 7.0e-4,\
-    #"quadratic-nodiff": 8.0e-2, "cubic-nodiff": 7.0e-4, "quartic-nodiff": 7.0e-4}
     sigma = {"linear": 8.0e-2, "quadratic": 1.0e-3, "cubic": 1.0e-3, "quartic": 1.0e-2, \
     "quadratic-nodiff": 1.0e-3, "cubic-nodiff": 1.0e-3, "quartic-nodiff": 1.0e-2}
 elif model == "z05":
-    perts = ["mlef", "etkf", "po", "srf", "letkf", "kf", "var"]
-    linecolor = {"mlef":'tab:blue',"etkf":'tab:orange', "po":'tab:green',\
-        "srf":"tab:red", "letkf":"tab:pink", "kf":"tab:purple", "var":"tab:cyan",\
-        "var4d":"tab:brown"}
-    x = np.arange(na)+1
     sigma = {"linear": 0.05, "quadratic": 0.05}
 elif model == "qg":
-    perts = ["letkf", "mlef", "envar", "etkf", "po", "srf",\
-    "4detkf", "4dpo", "4dsrf", "4dletkf", "4dmlef"]
-    linecolor = {"mlef":'tab:blue',"envar":'tab:orange',"etkf":'tab:green', "po":'tab:red',\
-        "srf":"tab:pink", "letkf":"tab:purple",\
-        "4dmlef":'tab:blue',"4detkf":'tab:green', "4dpo":'tab:red',\
-        "4dsrf":"tab:pink", "4dletkf":"tab:purple"}
     sigma = {"linear": 4.0}
-    x = np.arange(na) + 1
-else:
-    if len(sys.argv) > 4:
-        pt = sys.argv[4]
-        #if pt == "mlef":
-        #    perts = perts + [pt+"be", pt+"bm", pt+"cw",pt+"y",
-        #    "4d"+pt, "4d"+pt+"be", "4d"+pt+"bm", "4d"+pt+"cw", "4d"+pt+"y"]
-        #    linecolor.update({pt:'tab:blue',pt+"be":'tab:red',pt+"bm":'tab:pink',\
-        #        pt+"cw":'tab:green',pt+"y":'tab:orange'})
-        #else:
-        #    perts = perts + [pt, pt+"be", pt+"bm", "l"+pt]
-        #    linecolor.update({pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'})
-        perts = list(set(perts))
-        #perts = [pt, pt+"be", pt+"bm", "l"+pt]
-        #linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',"l"+pt:'tab:red'}
-        perts = [pt, pt+"be", pt+"bm", "l"+pt+"0", "l"+pt+"1", "l"+pt+"2", 'letkf']
-        linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',
-        "l"+pt+"0":'tab:cyan', "l"+pt+"1":'tab:pink', "l"+pt+"2":'tab:purple', 'letkf':'tab:red'}
-        #perts = ["l"+pt+"1", "l"+pt+"2", "l"+pt+"3", 'letkf']
-        #linecolor = {"l"+pt+"1":'tab:blue', "l"+pt+"2":'tab:orange', "l"+pt+"3":'tab:green', 'letkf':'tab:red'}
-    if len(sys.argv) > 5 and sys.argv[5]=='infl':
-        linfl = True
-        linecolor = inflcolor
-        linestyle = ['solid', 'dashed', 'dashdot', 'dotted']
-    else:
-        linfl = False
-    #sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
-    #"quadratic-nodiff": 1.0, "cubic-nodiff": 1.0, "test":1.0}
-    sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
-    "quadratic-nodiff": 8.0e-1, "cubic-nodiff": 7.0e-2, \
-    "test":1.0, "abs":1.0, "hint":1.0}
-    x = np.arange(na) + 1
+if pt is not None:
+    perts = list(set(perts))
+    perts = [pt, pt+"be", pt+"bm", "l"+pt+"0", "l"+pt+"1", "l"+pt+"2", 'letkf']
+    linecolor = {pt:'tab:blue',pt+"be":'tab:orange',pt+"bm":'tab:green',
+    "l"+pt+"0":'tab:cyan', "l"+pt+"1":'tab:pink', "l"+pt+"2":'tab:purple', 'letkf':'tab:red'}
+if linfl:
+    linecolor = inflcolor
+    linestyle = ['solid', 'dashed', 'dashdot', 'dotted']
 y = np.ones(x.size) * sigma[op]
 if model == "qg":
     fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,10),constrained_layout=True)
@@ -139,10 +94,14 @@ if not linfl:
                 for i in range(2):
                     ax[i].plot(x, e[:,i], linestyle="dashed", color=c, label=label+f'={eavg[i]:.3f}')
         else:
-            if pt[:2] != "4d":
-                ax.plot(x, e, marker=marker["3d"], color=c, label=label+f'={eavg:.3f}')
+            if model=="z05" or model=="z08":
+                label1=label+f'={eavg:.2e}'
             else:
-                ax.plot(x, e, marker=marker["4d"], color=c, label=label+f'={eavg:.3f}')
+                label1=label+f'={eavg:.3f}'
+            if pt[:2] != "4d":
+                ax.plot(x, e, marker=marker["3d"], color=c, label=label1)
+            else:
+                ax.plot(x, e, marker=marker["4d"], color=c, label=label1)
     #    if pt!="kf" and pt!="var" and pt!="4dvar":
         f = "stda_{}_{}.txt".format(op, pt)
         if not os.path.isfile(f):
@@ -208,10 +167,14 @@ if not linfl:
                 for i in range(2):
                     axf[i].plot(x, ef[:,i], linestyle="dashed", color=c, label=label+f'={efavg[i]:.3f}')
         else:
-            if pt[:2] != "4d":
-                axf.plot(x, ef, marker=marker["3d"], color=c, label=label+f'={efavg:.3f}')
+            if model=="z05" or model=="z08":
+                label1=label+f'={efavg:.2e}'
             else:
-                axf.plot(x, ef, marker=marker["4d"], color=c, label=label+f'={efavg:.3f}')
+                label1=label+f'={efavg:.3f}'
+            if pt[:2] != "4d":
+                axf.plot(x, ef, marker=marker["3d"], color=c, label=label1)
+            else:
+                axf.plot(x, ef, marker=marker["4d"], color=c, label=label1)
     #    if pt!="kf" and pt!="var" and pt!="4dvar":
         f = "stdf_{}_{}.txt".format(op, pt)
         if not os.path.isfile(f):
@@ -458,13 +421,10 @@ else:
         title=op)
     axf2.set(xlabel="forecast cycle", ylabel="Pf/RMSE",
         title=op)
-    if model=="z08":
+    if model=='z05' or model=="z08":
         #ax.set_ylim(-0.01,0.2)
         ax.set_yscale("log")
         axf.set_yscale("log")
-    if model=="tc87":
-        ax.set_ylim(-0.01,2.0)
-        axf.set_ylim(-0.01,2.0)
     else:
         ax.set_ylim(-0.01,ymax)
         axf.set_ylim(-0.01,yfmax)
