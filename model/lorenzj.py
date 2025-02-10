@@ -1,5 +1,7 @@
 import jax.numpy as jnp
-from jax import vjp
+from jax import config, jit, vjp, jvp
+from functools import partial
+config.update('jax_enable_x64',True)
 
 class L96j():
     def __init__(self, nx, dt, F):
@@ -11,10 +13,12 @@ class L96j():
     def get_params(self):
         return self.nx, self.dt, self.F
 
+    @partial(jit, static_argnums=(0))
     def l96(self, x):
         l = (jnp.roll(x, -1, axis=0) - jnp.roll(x, 2, axis=0)) * jnp.roll(x, 1, axis=0) - x + self.F
         return l
 
+    @partial(jit, static_argnums=(0))
     def __call__(self, xa):
         k1 = self.dt * self.l96(xa)
     
@@ -26,58 +30,13 @@ class L96j():
     
         return xa + (0.5*k1 + k2 + k3 + 0.5*k4)/3.0
 
-    def l96_t(self, x, dx):
-        l = (jnp.roll(x, -1, axis=0) - jnp.roll(x, 2, axis=0)) * jnp.roll(dx, 1, axis=0) + \
-            (jnp.roll(dx, -1, axis=0) - jnp.roll(dx, 2, axis=0)) * jnp.roll(x, 1, axis=0) - dx
-        return l
-
     def step_t(self, x, dx):
-        k1 = self.dt * self.l96(x)
-        dk1 = self.dt * self.l96_t(x, dx)
-    
-        k2 = self.dt * self.l96(x+k1/2)
-        dk2 = self.dt * self.l96_t(x+k1/2, dx+dk1/2)
-    
-        k3 = self.dt * self.l96(x+k2/2)
-        dk3 = self.dt * self.l96_t(x+k2/2, dx+dk2/2)
-    
-        k4 = self.dt * self.l96(x+k3)
-        dk4 = self.dt * self.l96_t(x+k3, dx+dk3)
-    
-        return dx + (0.5*dk1 + dk2 + dk3 + 0.5*dk4)/3.0
-
-    def l96_adj(self, x, dx):
-        l = jnp.roll(x, 2, axis=0) * jnp.roll(dx, 1, axis=0) + \
-            (jnp.roll(x, -2, axis=0) - jnp.roll(x, 1, axis=0)) * jnp.roll(dx, -1, axis=0) - \
-            jnp.roll(x, -1, axis=0) * jnp.roll(dx, -2, axis=0) - dx
-        return l
+        _, dxnew = jvp(self.__call__, (x,), (dx,))
+        return dxnew
 
     def step_adj(self, x, dx):
-        k1 = self.dt * self.l96(x)
-        x2 = x + 0.5*k1
-        k2 = self.dt * self.l96(x2)
-        x3 = x + 0.5*k2
-        k3 = self.dt * self.l96(x3)
-        x4 = x + k3
-        k4 = self.dt * self.l96(x4)
-
-        dxa = dx
-        dk1 = dx / 6
-        dk2 = dx / 3
-        dk3 = dx / 3
-        dk4 = dx / 6
-
-        dxa = dxa + self.dt * self.l96_adj(x4, dk4)
-        dk3 = dk3 + self.dt * self.l96_adj(x4, dk4)
-
-        dxa = dxa + self.dt * self.l96_adj(x3, dk3)
-        dk2 = dk2 + 0.5 * self.dt * self.l96_adj(x3, dk3)
-
-        dxa = dxa + self.dt * self.l96_adj(x2, dk2)
-        dk1 = dk1 + 0.5 * self.dt * self.l96_adj(x2, dk2)
-
-        dxa = dxa + self.dt * self.l96_adj(x, dk1)
-
+        _, vjp_fun = vjp(self.__call__, x)
+        dxa = vjp_fun(dx)[0]
         return dxa
 
     def calc_dist(self, iloc):
@@ -107,22 +66,19 @@ if __name__ == "__main__":
     x0[19] += 0.001*F
     tmax = 2.0
     nt = int(tmax/h)
-    x = np.zeros((nt+1,n))
-    x[0,:] = x0
+    x = [x0]
     for k in range(nt):
         x0 = l96(x0)
-        x[k+1,] = x0
-    
+        x.append(x0)
+    x = np.array(x)
+
     x0j = jnp.ones(n)*F
     x0j = x0j.at[19].set(1.001*F)
-    xj = jnp.zeros((nt+1,n))
-    xj = xj.at[0,:].set(x0j)
-    adjauto = []
+    xj = [jax.device_get(x0j)]
     for k in range(nt):
-        x0j, dfT = vjp(l96j, x0j)
-        xj = xj.at[k+1,:].set(x0j)
-        adjauto.append(dfT)
-
+        x0j = l96j(x0j)
+        xj.append(jax.device_get(x0j))
+    xj = np.array(xj)
     print(f"initial diff={jnp.dot((x[0]-xj[0]),(x[0]-xj[0])):.4e}")
 
     fig, axs = plt.subplots(figsize=[8,6],ncols=3,constrained_layout=True)
@@ -145,22 +101,18 @@ if __name__ == "__main__":
     x0 = jnp.ones(n)
     seed = 514
     key = jax.random.key(seed)
-    dx = jax.random.normal(key,x0.shape)
-    adx = l96j(x0+a*dx)
-    ax = l96j(x0)
-    axj = l96j.step_t(x0, dx)
-    d = jnp.sqrt(jnp.sum((adx-ax)**2)) / a / (jnp.sqrt(jnp.sum(axj**2)))
-    print("TLM (manual) check diff.={}".format(d-1.0))
+    niter = 10
+    for i in range(niter):
+        key, subkey = jax.random.split(key)
+        dx = jax.random.normal(subkey,x0.shape)
+        key = subkey
+        adx = l96j(x0+a*dx)
+        ax = l96j(x0)
+        axj = l96j.step_t(x0, dx)
+        d = jnp.sqrt(jnp.sum((adx-ax)**2)) / a / (jnp.sqrt(jnp.sum(axj**2)))
+        print("iter{}: TLM (jax) check diff.={}".format(i+1,d-1.0))
 
-    ax = l96j.step_t(x0, dx)
-    atax = l96j.step_adj(x0, ax)
-    d = (ax.T @ ax) - (dx.T @ atax)
-    print("ADJ (manual) check diff.={}".format(d))
-
-    xp, dfT = vjp(l96j, x0)
-    print(f"manual = {l96j(x0)}")
-    print(f"vjp = {xp}")
-    print(f"manual ADJ = {atax}")
-    print(f"dfT = {dfT(ax)[0]}")
-    d = (ax.T @ ax) - (dx.T @ dfT(ax)[0])
-    print("ADJ (auto) check diff.={}".format(d))
+        ax = l96j.step_t(x0, dx)
+        atax = l96j.step_adj(x0, ax)
+        d = (ax.T @ ax) - (dx.T @ atax)
+        print("iter{}: ADJ (jax) check diff.={}".format(i+1,d))
