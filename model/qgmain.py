@@ -1,10 +1,15 @@
 #cloned from tenomoto/DEnKF(https://github.com/tenomoto/DEnKF.git) then modified
 from math import tau
 import numpy as np
-from .qg.fd import laplacian, jacobian
-from .qg.mg import v_cycle
-from .qg.ode import rk4
-import sys
+try:
+    from .qg.fd import laplacian, jacobian
+    from .qg.mg import v_cycle
+    from .qg.ode import rk4
+except ImportError:
+    from qg.fd import laplacian, jacobian
+    from qg.mg import v_cycle
+    from qg.ode import rk4
+import time 
 
 class QG():
     def __init__(self, ni, nj, dt, y, beta, f, eps, a, tau0, itermax, tol):
@@ -27,18 +32,30 @@ class QG():
         return self.ni,self.nj,self.dt,self.d,self.beta,self.f,self.eps,\
             self.a,self.tau0,self.itermax,self.tol
 
-    def step(self, q, psi):
-        psi[:,:], _ = v_cycle(psi, q, self.d, self.f, self.itermax, self.tol)
+    def step(self, q, psi, calc_time=False):
+        if calc_time: start = time.perf_counter()
+        psi[:,:], _ = v_cycle(psi, q, self.d, self.f, self.itermax, self.tol, calc_time=calc_time)
+        if calc_time: 
+            end = time.perf_counter()
+            print(f"mg cycle: {(end - start)*1e3:.3f}ms")
+        if calc_time: start = time.perf_counter()
         psix = np.zeros_like(psi)
         dqdt = np.zeros_like(psi)
         psix[1:-1, 1:-1] = (psi[2:, 1:-1] - psi[:-2, 1:-1]) / self.d2
         lap3psi = laplacian(laplacian(q + self.f * psi) / self.dd) / self.dd 
         jac = jacobian(psi, q) / self.dd
         dqdt[1:-1, 1:-1] = (-self.beta * psix - self.eps * jac - self.a * lap3psi + self.tau0 * np.sin(tau * self.y[None,]))[1:-1, 1:-1]
+        if calc_time: 
+            end = time.perf_counter()
+            print(f"dqdt: {(end - start)*1e3:.3f}ms")
         return dqdt
 
-    def __call__(self, qa, psia):
-        qa[1:-1, 1:-1] += rk4(self.step,qa,self.dt,psia)[1:-1, 1:-1]
+    def __call__(self, qa, psia, calc_time=False):
+        if calc_time: start = time.perf_counter()
+        qa[1:-1, 1:-1] += rk4(self.step,qa,self.dt,psia,calc_time)[1:-1, 1:-1]
+        if calc_time: 
+            end = time.perf_counter()
+            print(f"rk4 total: {(end - start)*1e3:.3f}ms")
         return qa
 
     def calc_dist(self, rij):
@@ -65,13 +82,16 @@ class QG():
         return dist
 
 if __name__ == "__main__":
+    import sys
+    import os
+
     n = 129 
     dt = 1.25
     tsave = 0 
-    nstep = 10000
-    nsave = 100
+    nstep = 1000
+    nsave = 10
     itermax = 1, 1, 100
-    datadir="free"
+    
     x = np.linspace(0.0, 1.0, n)
     y = np.linspace(0.0, 1.0, n)
     q = np.zeros([n, n])
@@ -85,14 +105,20 @@ if __name__ == "__main__":
     params = beta, f, eps, a, tau0, itermax, tol
     qg = QG(n,n,dt,y,*params)
 
+    datadir="qg/test"
+    #datadir="../data/qg"
+    if not os.path.isdir(datadir):
+        os.makedirs(datadir)
     for i in range(nstep+1): 
         if i >= tsave and i % nsave == 0:
-            #np.save(f"qg/test/q{i:06d}.npy", q)
-            #np.save(f"qg/test/p{i:06d}.npy", psi)
-            np.save(f"../data/qg/q{i:06d}.npy", q)
-            np.save(f"../data/qg/p{i:06d}.npy", psi)
+            np.save(f"{datadir}/q{i:06d}.npy", q)
+            np.save(f"{datadir}/p{i:06d}.npy", psi)
         print(f"step {i} p: min={psi.min():5.2e} max={psi.max():5.2e} q: min={q.min():5.2e} max={q.max():5.2e}")
         #dq = np.zeros([n, n])
         #dq[1:-1, 1:-1] = rk4(step, q, dt, psi, y, *params)[1:-1, 1:-1]
         #np.save(f"dq.npy", dq)
-        q[1:-1, 1:-1] = qg(q, psi)[1:-1, 1:-1]
+        if i<0:
+            q[1:-1, 1:-1] = qg(q, psi, calc_time=True)[1:-1, 1:-1]
+            exit()
+        else:
+            q[1:-1, 1:-1] = qg(q, psi)[1:-1, 1:-1]

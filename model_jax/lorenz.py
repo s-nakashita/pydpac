@@ -26,19 +26,18 @@ def tend2(x,*params):
 
 @partial(jit,static_argnames=['K'])
 def adv(x,K):
-    sumdiff = K%2==0
+#    sumdiff = K%2==0
+    Kmod = 1 - K%2
     J = (K - K%2)//2
     w = jnp.zeros_like(x)
     for j in range(-J,J+1):
         w = w + jnp.roll(x,-j,axis=0)
-    if sumdiff:
-        w = w - 0.5*jnp.roll(x,-J,axis=0) - 0.5*jnp.roll(x,J,axis=0)
+    w = w - Kmod*(0.5*jnp.roll(x,-J,axis=0) + 0.5*jnp.roll(x,J,axis=0))
     w = w / K 
     ladv = jnp.zeros_like(x)
     for j in range(-J,J+1):
         ladv = ladv + jnp.roll(w,K-j,axis=0)*jnp.roll(x,-K-j,axis=0)
-    if sumdiff:
-        ladv = ladv - 0.5*jnp.roll(w,K+J,axis=0)*jnp.roll(x,-K+J,axis=0) - 0.5*jnp.roll(w,K-J,axis=0)*jnp.roll(x,-K-J,axis=0)
+    ladv = ladv - Kmod*(0.5*jnp.roll(w,K+J,axis=0)*jnp.roll(x,-K+J,axis=0) + 0.5*jnp.roll(w,K-J,axis=0)*jnp.roll(x,-K-J,axis=0))
     ladv = ladv / K 
     ladv = ladv - jnp.roll(w,2*K,axis=0)*jnp.roll(w,K,axis=0)
     return ladv
@@ -128,13 +127,15 @@ class L05j():
 
 if __name__ == "__main__":
     import sys
+    import os
     import numpy as np
     import jax
     import matplotlib.pyplot as plt
     plt.rcParams['font.size'] = 16
-    from lorenz import L96
-    from lorenz2 import L05II
-    from lorenz3 import L05III
+    sys.path.append(os.path.join(os.path.dirname(__file__),'..'))
+    from model.lorenz import L96
+    from model.lorenz2 import L05II
+    from model.lorenz3 import L05III
     
     ltype = 1
     if len(sys.argv)>1:
@@ -183,6 +184,8 @@ if __name__ == "__main__":
     xj = np.array(xj)
     print(f"initial diff={jnp.dot((x[0]-xj[0]),(x[0]-xj[0])):.4e}")
 
+    if not os.path.isdir('lorenz'):
+        os.mkdir('lorenz')
     fig, axs = plt.subplots(figsize=[8,6],ncols=3,constrained_layout=True)
     xaxis = np.arange(n)
     taxis = np.arange(nt+1)

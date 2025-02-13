@@ -1,8 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from .fd import laplacian, l2norm
+try:
+    from .fd import laplacian, l2norm
+except ImportError:
+    from fd import laplacian, l2norm
 import sys
-
+import time
 
 def jacobi_step(pin, q, d, f, niter=100, tol=1e-5):
     dd = d * d
@@ -38,12 +41,17 @@ def prolong(pin, debug=False):
     if debug: plt.matshow(p); plt.show()
     return p
 
-def v_cycle(p0, q, d, f, itermax=(10, 10, 10), tol=1.0e-5, nlev=None, debug=False):
+def v_cycle(p0, q, d, f, itermax=(10, 10, 10), tol=1.0e-5, nlev=None, debug=False, calc_time=False):
     if nlev == None: nlev = int(np.log2(p0.shape[0] - 1))
+    if calc_time: start = time.perf_counter()
     p, res, niter = jacobi_step(p0, q, d, f, itermax[0], tol)
 #    if debug: print(f"{p.shape} {p.min()} {p.max()}")
 #    if debug: plt.matshow(p); plt.show()
     if debug: print(f"pre: res={res:5.2e}, niter={niter}")
+    if calc_time:
+        end = time.perf_counter()
+        print(f"pre: {(end - start)*1e3:.3f}ms")
+    if calc_time: start = time.perf_counter()
     qlist = [q]
     h = d
     for i in range(1, nlev):
@@ -55,6 +63,10 @@ def v_cycle(p0, q, d, f, itermax=(10, 10, 10), tol=1.0e-5, nlev=None, debug=Fals
 #        if debug: plt.matshow(p); plt.show()
 #        if debug: print(f"{p.shape} {p.min()} {p.max()}")
         if debug: print(f"restrict {i}: res={res:5.2e}, niter={niter}")
+    if calc_time:
+        end = time.perf_counter()
+        print(f"restrict: {(end - start)*1e3:.3f}ms")
+    if calc_time: start = time.perf_counter()
     for i in range(nlev-2, -1, -1):
         p = prolong(p)
         h /= 2
@@ -63,6 +75,9 @@ def v_cycle(p0, q, d, f, itermax=(10, 10, 10), tol=1.0e-5, nlev=None, debug=Fals
 #        if debug: plt.matshow(p); plt.show()
 #        if debug: print(f"{p.shape} {p.min()} {p.max()}")
         if debug: print(f"prolong {i}: res={res:5.2e}, niter={niter}")
+    if calc_time:
+        end = time.perf_counter()
+        print(f"prolong: {(end - start)*1e3:.3f}ms")
     return p, res
 
 def s_cycle(q, d, f, itermax=100, tol=1.0e-5, debug=False):
@@ -110,7 +125,7 @@ def mg_test(plot=True, itermax=(1, 1, 20000), tol=1e-5, ncycle=1,
     p0 = np.zeros_like(q)
     for i in range(ncycle):
         if cycle == "v":
-            p, res = v_cycle(p0, q, d, 0.0, itermax, tol, nlev, debug)
+            p, res = v_cycle(p0, q, d, 0.0, itermax, tol, nlev, debug, calc_time=debug)
         else:
             p, res = s_cycle(q, d, 0.0, itermax[2], tol, debug)
         err = l2norm(p - ptrue, d)
