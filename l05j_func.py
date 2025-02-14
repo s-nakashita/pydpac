@@ -3,19 +3,21 @@ import os
 import logging
 from logging.config import fileConfig
 import numpy as np
+import jax
+import jax.numpy as jnp
 import pandas as pd
 import matplotlib.pyplot as plt
 
 logging.config.fileConfig("logging_config.ini")
 logger = logging.getLogger('param')
 
-class L96_func():
+class L05j_func():
 
     def __init__(self, naturestep, step, obs, params):
         self.naturestep = naturestep
-        self.nx_t, self.dt_t, self.F_t = self.naturestep.get_params()
+        self.nx_t, self.dt_t, self.params_t = self.naturestep.get_params()
         self.step = step
-        self.nx, self.dt, self.F = self.step.get_params()
+        self.nx, self.dt, self.params_m = self.step.get_params()
         self.obs = obs
         self.nobs = params["nobs"]
         self.nmem = params["nmem"]
@@ -33,8 +35,9 @@ class L96_func():
         self.ltlm = params["ltlm"]
         self.infl_parm = params["infl_parm"]
         self.lsig = params["lsig"]
-        logger.info("nature: nx={} F={} dt={:7.3e}".format(self.nx_t, self.F_t, self.dt_t))
-        logger.info("model: nx={} F={} dt={:7.3e}".format(self.nx, self.F, self.dt))
+        self.seed = params["seed"]
+        logger.info("nature: nx={} dt={:7.3e} params={}".format(self.nx_t, self.dt_t, self.params_t))
+        logger.info("model: nx={} dt={:7.3e} params={}".format(self.nx, self.dt, self.params_m))
         logger.info("nobs={}".format(self.nobs))
         logger.info("nt={} na={}".format(self.nt, self.na))
         logger.info("operator={} perturbation={} sig_obs={} ftype={}".format\
@@ -42,25 +45,26 @@ class L96_func():
         logger.info("inflation={} localization={} TLM={}".format(self.linf,self.lloc,self.ltlm))
         logger.info("infl_parm={} loc_parm={}".format(self.infl_parm, self.lsig))
         logger.info("Assimilation window size = {}".format(self.a_window))
+        self.key = jax.random.key(self.seed)
     
     # generate truth
     def gen_true(self):
         xt = np.zeros((self.na, self.nx))
         #x = np.ones(self.nx)*self.F
         #x[self.nx//2 - 1] += 0.001*self.F
-        x = np.random.randn(self.nx)
+        key, subkey = jax.random.split(self.key)
+        x = jax.random.normal(subkey,(self.nx))
+        self.key = key
         #tmp = x.copy()
         # spin up for 1 years
         logger.debug(self.namax*self.nt)
         for k in range(self.namax*self.nt):
-            tmp = self.naturestep(x)
-            x[:] = tmp[:]
-        xt[0, :] = x
+            x = self.naturestep(x)
+        xt[0, :] = jax.device_get(x)
         for i in range(self.na-1):
             for k in range(self.nt):
-                tmp = self.naturestep(x)
-                x[:] = tmp[:]
-            xt[i+1, :] = x
+                x = self.naturestep(x)
+            xt[i+1, :] = jax.device_get(x)
         return xt
 
     # get truth and make observation
@@ -114,14 +118,14 @@ class L96_func():
     def init_ctl(self):
         #X0c = np.ones(self.nx)*self.F
         #X0c[self.nx//2 - 1] += 0.001*self.F
-        X0c = np.random.randn(self.nx)
+        key, subkey = jax.random.split(self.key)
+        X0c = jax.random.normal(subkey,(self.nx))
+        self.key = key
         ix = np.arange(self.nx)/self.nx
-        nk = 2.0
-        X0c = np.cos(2.0*np.pi*ix*nk)*self.F
-        tmp = X0c.copy()
+        #nk = 2.0
+        #X0c = np.cos(2.0*np.pi*ix*nk)*self.F
         for j in range(self.t0c):
-            tmp = self.step(X0c)
-            X0c = tmp
+            X0c = self.step(X0c)
         return X0c
 
     # initialize ensemble member
@@ -138,22 +142,25 @@ class L96_func():
             logger.info("spin up max = {}".format(self.t0c))
             X0c = self.init_ctl()
             logger.debug("X0c={}".format(X0c))
-            np.random.seed(514)
-            X0 = np.zeros((self.nx, len(t0f)))
-            X0[:, :] = np.random.normal(0.0,1.0,size=(self.nx,len(t0f))) + X0c[:, None]
+            key, subkey = jax.random.split(self.key)
+            X0 = jax.random.normal(subkey,shape=(self.nx,len(t0f))) + X0c[:, None]
+            self.key = key
         else: # lagged forecast
             logger.info("t0f={}".format(t0f))
             logger.info("spin up max = {}".format(maxiter))
-            X0 = np.zeros((self.nx,len(t0f)))
+            #X0 = jnp.zeros((self.nx,len(t0f)))
             #tmp = np.ones(self.nx)*self.F
             #tmp[self.nx//2 - 1] += 0.001*self.F
-            ix = np.arange(self.nx)/self.nx
+            ix = jnp.arange(self.nx)/self.nx
             nk = 2.0
-            tmp = np.cos(2.0*np.pi*ix*nk)*self.F
+            tmp = jnp.cos(2.0*jnp.pi*ix*nk)*self.F
+            x0list = []
             for j in range(maxiter):
                 tmp = self.step(tmp)
                 if j in t0f:
-                    X0[:,t0f.index(j)] = tmp
+                    x0list.append(tmp)
+            #        X0[:,t0f.index(j)] = tmp
+            X0 = jnp.asarray(x0list)
         return X0
 
     # initialize variables
@@ -162,15 +169,15 @@ class L96_func():
         xf = np.zeros_like(xa)
         if self.ft == "deterministic":
             u = self.init_ctl()
-            xf[0] = u
+            xf[0] = jax.device_get(u)
         else:
             u = self.init_ens(opt)
             if self.pt == "mlef":
                 uc = u[:, 0]
-                xf[0] = uc
-                u[:,1:] = (u[:,1:] - uc[:,None])/np.sqrt(u.shape[1]-1) # first scaling
+                xf[0] = jax.device_get(uc)
+                u[:,1:] = (u[:,1:] - uc[:,None])/jnp.sqrt(u.shape[1]-1) # first scaling
             else:
-                xf[0] = np.mean(u, axis=1)
+                xf[0] = jax.device_get(jnp.mean(u, axis=1))
         pa  = np.zeros((self.nx, self.nx))
         #if self.pt == "mlef" or self.pt == "grad":
         #    savepa = np.zeros((self.na, self.nx, self.nmem-1))
@@ -180,16 +187,18 @@ class L96_func():
 
     # forecast
     def forecast(self, u):
-        if self.ft == "ensemble":
-            uf = np.zeros((self.a_window, u.shape[0], u.shape[1]))
-        else:
-            uf = np.zeros((self.a_window, u.size))
+        #if self.ft == "ensemble":
+        #    uf = np.zeros((self.a_window, u.shape[0], u.shape[1]))
+        #else:
+        #    uf = np.zeros((self.a_window, u.size))
+        uflist = []
         for l in range(self.a_window):
             for k in range(self.nt):
                 u = self.step(u)
-            uf[l] = u
-        
+            #uf[l] = u
+            uflist.append(u)
         if self.a_window > 1:
+            uf = jnp.asarray(uflist)
             return uf
         else:
             return u

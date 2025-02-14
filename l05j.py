@@ -3,28 +3,59 @@ import os
 import logging
 from logging.config import fileConfig
 import numpy as np
+import jax.numpy as jnp
 import pandas as pd
 import matplotlib.pyplot as plt
-from model.lorenz import L96
+from model_jax.lorenz import L05j, set_filmat
 from analysis.obs import Obs
-from l96_func import L96_func
+from l05j_func import L05j_func
 
 logging.config.fileConfig("logging_config.ini")
 
 global nx, F, dt, dx
 
-model = "l96"
-# model parameter
-nx    = 40     # number of points
-Ftrue = 8.0    # true forcing
-Fmodel= 8.0    # model forcing
-dt    = 0.05 / 6  # time step (=1 hour)
-
-# nature model forward operator
-naturestep = L96(nx, dt, Ftrue)
-
-# forecast model forward operator
-step = L96(nx, dt, Fmodel)
+ltype = 1
+if len(sys.argv)>1:
+    ltype = int(sys.argv[1])
+if ltype==1:
+    model = "l05I"
+    # model parameter
+    nx    = 40     # number of points
+    Ftrue = 8.0    # true forcing
+    Fmodel= 8.0    # model forcing
+    dt    = 0.05 / 6  # time step (=1 hour)
+    # nature model forward operator
+    naturestep = L05j(nx, dt, (Ftrue,), ltype=ltype)
+    # forecast model forward operator
+    step = L05j(nx, dt, (Fmodel,), ltype=ltype)
+elif ltype==2:
+    model = "l05II"
+    # model parameter
+    nx    = 240
+    nk    = 8
+    Ftrue = 10.0
+    Fmodel= 10.0
+    dt    = 0.05 / 6
+    # nature model forward operator
+    naturestep = L05j(nx, dt, (nk,Ftrue), ltype=ltype)
+    # forecast model forward operator
+    step = L05j(nx, dt, (nk,Fmodel), ltype=ltype)
+elif ltype==3:
+    model = "l05III"
+    # model parameter
+    nx    = 960
+    nk    = 32
+    ni    = 12
+    b     = 10.0
+    c     = 0.6
+    Ftrue = 15.0
+    Fmodel= 15.0
+    dt    = 0.05 / 36
+    filmat = set_filmat(nx,ni)
+    # nature model forward operator
+    naturestep = L05j(nx, dt, (nk,filmat,b,c,Ftrue), ltype=ltype)
+    # forecast model forward operator
+    step = L05j(nx, dt, (nk,filmat,b,c,Fmodel), ltype=ltype)
 
 x = np.arange(nx)
 dx = x[1] - x[0]
@@ -92,6 +123,7 @@ params["ss"]         =  False   # (For model space localization) statistical res
 params["getkf"]      =  False   # (For model space localization) gain form resampling flag
 params["ltlm"]       =  True    # flag for tangent linear observation operator
 params["incremental"] = False   # (For mlef & 4dmlef) flag for incremental form
+params["seed"]       =  0       # random seed
 
 ## update from configure file
 sys.path.append('./')
@@ -107,51 +139,6 @@ a_window = params["a_window"]
 params["ft"] = ft
 if params["linf"]: params["infl_parm"] = dict_infl[params["op"]][params["pt"]]
 if params["lloc"]: params["lsig"] = dict_sig[params["op"]][params["pt"]]
-### read from command options
-## observation type
-#if len(sys.argv) > 1:
-#    htype["operator"] = sys.argv[1]
-## assimilation scheme
-#if len(sys.argv) > 2:
-#    htype["perturbation"] = sys.argv[2]
-## number of assimilation cycle
-#if len(sys.argv) > 3:
-#    na = int(sys.argv[3])
-#
-## switch of with/without inflation
-#if len(sys.argv) > 4:
-#    #infl_parm = float(sys.argv[4])
-#    #if infl_parm > 0.0:
-#    #    linf = True
-#    if sys.argv[4] == "T":
-#        linf = True
-#        dict_i = dict_infl[op]
-#        infl_parm = dict_i[pt]
-## switch of with/without localization
-#if len(sys.argv) > 5:
-#    #lsig = float(sys.argv[5])
-#    #if lsig> 0.0:
-#    #    lloc = True
-#    iloc = int(sys.argv[5])
-#    if iloc > -2:
-#        lloc = True
-#        dict_s = dict_sig[op]
-#        lsig = dict_s[pt]
-#    else:
-#        iloc = None
-## switch of using/not using tangent linear operator
-#if len(sys.argv) > 6:
-#    if sys.argv[6] == "F":
-#        ltlm = False
-## number of ensemble member (or observation size)
-#if len(sys.argv) > 7:
-#    #nobs = int(sys.argv[7])
-#    nmem = int(sys.argv[7])
-#    #nt = int(sys.argv[7]) * 6
-#if len(sys.argv) > 8:
-#    a_window = int(sys.argv[8])
-#    #sigb = float(sys.argv[7])
-#    #lb = float(sys.argv[7])
 
 # observation operator
 obs = Obs(op, sigma[op])
@@ -215,16 +202,17 @@ elif pt == "4dmlef":
             ltlm=params["ltlm"], incremental=params["incremental"], model=model)
 
 # functions load
-func = L96_func(naturestep,step,obs,params)
+func = L05j_func(naturestep,step,obs,params)
 
 if __name__ == "__main__":
+    import jax
     logger = logging.getLogger(__name__)
     logger.info("==initialize==")
     xt, yobs = func.get_true_and_obs()
     u, xa, xf, pa = func.initialize(opt=0)
     logger.debug(u.shape)
     #func.plot_initial(u[:,0], u[:,1:], xt[0], t0off, pt)
-    pf = analysis.calc_pf(u, cycle=0)
+    pf = analysis.calc_pf(jax.device_get(u), cycle=0)
     
     a_time = range(0, na, a_window)
     logger.info("a_time={}".format([time for time in a_time]))
@@ -271,7 +259,7 @@ if __name__ == "__main__":
         #    else:
         #        xf24[3] = np.mean(utmp, axis=1)
         #else:
-        xf24[4] = utmp
+        xf24[4] = jax.device_get(utmp)
         for j in range(4): # 24h->48h
             utmp = func.forecast(utmp)
         #if ft=="ensemble":
@@ -280,7 +268,7 @@ if __name__ == "__main__":
         #    else:
         #        xf48[7] = np.mean(utmp, axis=1)
         #else:
-        xf48[8] = utmp
+        xf48[8] = jax.device_get(utmp)
         for j in range(4): # 48h->72h
             utmp = func.forecast(utmp)
         #if ft=="ensemble":
@@ -289,7 +277,7 @@ if __name__ == "__main__":
         #    else:
         #        xf72[11] = np.mean(utmp, axis=1)
         #else:
-        xf72[12] = utmp
+        xf72[12] = jax.device_get(utmp)
         for j in range(4): # 72h->96h
             utmp = func.forecast(utmp)
         #if ft=="ensemble":
@@ -298,7 +286,7 @@ if __name__ == "__main__":
         #    else:
         #        xf96[15] = np.mean(utmp, axis=1)
         #else:
-        xf96[16] = utmp
+        xf96[16] = jax.device_get(utmp)
         for j in range(4): # 96h->120h
             utmp = func.forecast(utmp)
         #if ft=="ensemble":
@@ -307,7 +295,7 @@ if __name__ == "__main__":
         #    else:
         #        xf120[19] = np.mean(utmp, axis=1)
         #else:
-        xf120[20] = utmp
+        xf120[20] = jax.device_get(utmp)
     
     for i in a_time:
         yloc = yobs[i:min(i+a_window,na),:,0]
@@ -315,18 +303,19 @@ if __name__ == "__main__":
         logger.debug("observation location {}".format(yloc))
         logger.debug("obs={}".format(y))
         logger.info("cycle{} analysis : window length {}".format(i,y.shape[0]))
+        uf = jax.device_get(u)
         #if i in [1, 50, 100, 150, 200, 250]:
         if i < 0:
             ##if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, \
+                ua, pa, spa, innv, chi2, ds = analysis(uf, pf, y, yloc, \
                     save_hist=True, save_dh=True, icycle=i)
                 for j in range(y.shape[0]):
                     chi[i+j] = chi2
                     innov[i+j,:innv.size] = innv
                     dof[i+j] = ds
             else:
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], \
+                ua, pa, spa, innv, chi2, ds = analysis(uf, pf, y[0], yloc[0], \
                     save_hist=True, save_dh=True, icycle=i)
                 chi[i] = chi2
                 innov[i] = innv
@@ -334,13 +323,13 @@ if __name__ == "__main__":
         else:
             ##if a_window > 1:
             if pt[:2] == "4d":
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y, yloc, icycle=i)
+                ua, pa, spa, innv, chi2, ds = analysis(uf, pf, y, yloc, icycle=i)
                 for j in range(y.shape[0]):
                     chi[i+j] = chi2
                     innov[i+j,:innv.size] = innv
                     dof[i+j] = ds
             else:
-                u, pa, spa, innv, chi2, ds = analysis(u, pf, y[0], yloc[0], icycle=i)#,\
+                ua, pa, spa, innv, chi2, ds = analysis(uf, pf, y[0], yloc[0], icycle=i)#,\
                 #    save_w=True)
                 chi[i] = chi2
                 innov[i] = innv
@@ -354,59 +343,60 @@ if __name__ == "__main__":
         #        u += np.random.randn(u.shape[0], u.shape[1])
         if ft=="ensemble":
             if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                xa[i] = u[:, 0]
+                xa[i] = ua[:, 0]
             else:
-                xa[i] = np.mean(u, axis=1)
+                xa[i] = np.mean(ua, axis=1)
         else:
-            xa[i] = u
+            xa[i] = ua
         if params["extfcst"]:
-            xf00[i] = u
+            xf00[i] = ua
+        u = jnp.asarray(ua)
         if i < na-1:
             if a_window > 1:
                 uf = func.forecast(u)
                 if (i+1+a_window <= na):
                     if ft=="ensemble":
-                        xa[i+1:i+1+a_window] = np.mean(uf, axis=2)
-                        xf[i+1:i+1+a_window] = np.mean(uf, axis=2)
+                        xa[i+1:i+1+a_window] = jax.device_get(jnp.mean(uf, axis=2))
+                        xf[i+1:i+1+a_window] = jax.device_get(jnp.mean(uf, axis=2))
                     else:
-                        xa[i+1:i+1+a_window] = uf
-                        xf[i+1:i+1+a_window] = uf
+                        xa[i+1:i+1+a_window] = jax.device_get(uf)
+                        xf[i+1:i+1+a_window] = jax.device_get(uf)
                     ii = 0
                     for k in range(i+1,i+1+a_window):
                         if pt=="4dvar":
                             stda[k] = np.sqrt(np.trace(pa)/nx)
                         else:
-                            patmp = analysis.calc_pf(uf[ii], cycle=k)
+                            patmp = analysis.calc_pf(jax.device_get(uf[ii]), cycle=k)
                             stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 else:
                     if ft=="ensemble":
-                        xa[i+1:na] = np.mean(uf[:na-i-1], axis=2)
-                        xf[i+1:na] = np.mean(uf[:na-i-1], axis=2)
+                        xa[i+1:na] = jax.device_get(jnp.mean(uf[:na-i-1], axis=2))
+                        xf[i+1:na] = jax.device_get(jnp.mean(uf[:na-i-1], axis=2))
                     else:
-                        xa[i+1:na] = uf[:na-i-1]
-                        xf[i+1:na] = uf[:na-i-1]
+                        xa[i+1:na] = jax.device_get(uf[:na-i-1])
+                        xf[i+1:na] = jax.device_get(uf[:na-i-1])
                     ii = 0
                     for k in range(i+1,na):
                         if pt=="4dvar":
                             stda[k] = np.sqrt(np.trace(pa)/nx)
                         else:
-                            patmp = analysis.calc_pf(uf[ii], cycle=k)
+                            patmp = analysis.calc_pf(jax.device_get(uf[ii]), cycle=k)
                             stda[k] = np.sqrt(np.trace(patmp)/nx)
                         ii += 1
                 u = uf[-1]
-                pf = analysis.calc_pf(u, cycle=i+1)
+                pf = analysis.calc_pf(jax.device_get(u), cycle=i+1)
             else:
                 u = func.forecast(u)
-                pf = analysis.calc_pf(u, cycle=i+1)
+                pf = analysis.calc_pf(jax.device_get(u), cycle=i+1)
 
             if ft=="ensemble":
                 if pt == "mlef" or pt == "mlefw" or pt == "4dmlef":
-                    xf[i+1] = u[:, 0]
+                    xf[i+1] = jax.device_get(u[:, 0])
                 else:
-                    xf[i+1] = np.mean(u, axis=1)
+                    xf[i+1] = jax.device_get(jnp.mean(u, axis=1))
             else:
-                xf[i+1] = u
+                xf[i+1] = jax.device_get(u)
             if params["extfcst"]:
                 ## extended forecast
                 utmp = u.copy()
@@ -426,7 +416,7 @@ if __name__ == "__main__":
                 #    else:
                 #        xf24[i+4] = np.mean(utmp, axis=1)
                 #else:
-                xf24[i+4] = utmp
+                xf24[i+4] = jax.device_get(utmp)
                 utmp = func.forecast(utmp) #24h->30h
                 utmp = func.forecast(utmp) #30h->36h
                 utmp = func.forecast(utmp) #36h->42h
@@ -437,7 +427,7 @@ if __name__ == "__main__":
                 #    else:
                 #        xf48[i+8] = np.mean(utmp, axis=1)
                 #else:
-                xf48[i+8] = utmp
+                xf48[i+8] = jax.device_get(utmp)
                 utmp = func.forecast(utmp) #48h->54h
                 utmp = func.forecast(utmp) #54h->60h
                 utmp = func.forecast(utmp) #60h->66h
@@ -448,7 +438,7 @@ if __name__ == "__main__":
                 #    else:
                 #        xf72[i+12] = np.mean(utmp, axis=1)
                 #else:
-                xf72[i+12] = utmp
+                xf72[i+12] = jax.device_get(utmp)
                 utmp = func.forecast(utmp) #72h->78h
                 utmp = func.forecast(utmp) #78h->84h
                 utmp = func.forecast(utmp) #84h->90h
@@ -459,7 +449,7 @@ if __name__ == "__main__":
                 #    else:
                 #        xf96[i+16] = np.mean(utmp, axis=1)
                 #else:
-                xf96[i+16] = utmp
+                xf96[i+16] = jax.device_get(utmp)
                 utmp = func.forecast(utmp) #96h->102h
                 utmp = func.forecast(utmp) #102h->108h
                 utmp = func.forecast(utmp) #108h->114h
@@ -470,7 +460,7 @@ if __name__ == "__main__":
                 #    else:
                 #        xf120[i+20] = np.mean(utmp, axis=1)
                 #else:
-                xf120[i+20] = utmp
+                xf120[i+20] = jax.device_get(utmp)
         if a_window > 1:
             for k in range(i, min(i+a_window,na)):
                 e[k] = np.sqrt(np.mean((xa[k, :] - xt[k, :])**2))

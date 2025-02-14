@@ -221,4 +221,4 @@ if __name__ == "__main__":
         ax = model_j.step_t(x0, dx)
         atax = model_j.step_adj(x0, ax)
         d = (ax.T @ ax) - (dx.T @ atax)
-        print("iter{}: ADJ (jax) check diff.={}".format(i+1,d))
+        print("iter{}: ADM (jax) check diff.={}".format(i+1,d))
