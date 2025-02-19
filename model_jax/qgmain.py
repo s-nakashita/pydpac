@@ -26,50 +26,46 @@ def lbc(pin):
     return pout
 
 #@partial(jit,static_argnames=['calc_time'])
-def step(q, psi, d, f, beta, eps, a, tau0, y, itermax, tol, calc_time):
-    if calc_time: start = time.perf_counter()
+def step(q, psi, d, f, beta, eps, a, tau0, y, itermax, tol): #, calc_time):
+    #if calc_time: start = time.perf_counter()
     d2 = d*2
     dd = d*d
-    psinew, _ = v_cycle(psi, q, d, f, itermax, tol, calc_time=calc_time)
-    if calc_time: 
-        end = time.perf_counter()
-        print(f"mg cycle: {(end - start)*1e3:.3f}ms")
-    if calc_time: start = time.perf_counter()
+    psinew, _ = v_cycle(psi, q, d, f, itermax, tol) #, calc_time=calc_time)
+    #if calc_time: 
+    #    end = time.perf_counter()
+    #    print(f"mg cycle: {(end - start)*1e3:.3f}ms")
+    #if calc_time: start = time.perf_counter()
     psix = ((jnp.roll(psinew,-1,axis=0) - jnp.roll(psinew,1,axis=0)) / d2)[1:-1,1:-1]
     psix = lbc(psix)
     lap3psi = laplacian(laplacian(q + f * psinew) / dd) / dd 
     jac = jacobian(psinew, q) / dd
     dqdt = (-beta * psix - eps * jac - a * lap3psi + tau0 * jnp.sin(tau * y[None,]))[1:-1,1:-1]
     dqdt = lbc(dqdt)
-    if calc_time: 
-        end = time.perf_counter()
-        print(f"dqdt: {(end - start)*1e3:.3f}ms")
-    return dqdt, psinew
+    #if calc_time: 
+    #    end = time.perf_counter()
+    #    print(f"dqdt: {(end - start)*1e3:.3f}ms")
+    return dqdt
 
-def fwd(q,psi,dt,*params):
-    d, f, beta, eps, a, tau0, y, itermax, tol, calc_time = params
-    if calc_time: start = time.perf_counter()
+def fwd(q,dt,psi,*params):
+    d, f, beta, eps, a, tau0, y, itermax, tol = params
+    #if calc_time: start = time.perf_counter()
     dqdt = rk4(step, q, dt, psi, *params)
     qnew = q + lbc(dqdt[1:-1,1:-1])
-    psinew, _ = v_cycle(psi,qnew, d, f, itermax, tol, calc_time=calc_time)
-    if calc_time: 
-        end = time.perf_counter()
-        print(f"rk4 total: {(end - start)*1e3:.3f}ms")
+    psinew, _ = v_cycle(psi,qnew, d, f, itermax, tol) #, calc_time=calc_time)
+    #if calc_time: 
+    #    end = time.perf_counter()
+    #    print(f"rk4 total: {(end - start)*1e3:.3f}ms")
     return qnew, psinew
 
-def tlm(q,psi,dq,dpsi,dt,*params):
-    fq = lambda q: fwd(q,psi,dt,*params)
-    fp = lambda psi: fwd(q,psi,dt,*params)
-    qnew, dfq = jvp(fq, (q,), (dq,))
-    psinew, dfp = jvp(fp, (psi,), (dpsi,))
-    return dfq[0], dfp[1]
+def tlm(q,dq,dt,psi,*params):
+    f = lambda q: fwd(q,dt,psi,*params)
+    qnew, dfq, psinew = jvp(f, (q,), (dq,), has_aux=True)
+    return dfq
 
-def adj(q,psi,dq,dpsi,dt,*params):
-    fq = lambda q: fwd(q,psi,dt,*params)
-    fp = lambda psi: fwd(q,psi,dt,*params)
-    qnew, vjp_fq = vjp(fq,q)
-    psinew, vjp_fp = vjp(fp,psi)
-    return vjp_fq((dq,dpsi))[0], vjp_fp((dq,dpsi))[0]
+def adj(q,dq,dt,psi,*params):
+    f = lambda q: fwd(q,dt,psi,*params)
+    qnew, f_vjp, psinew = vjp(f,q,has_aux=True)
+    return f_vjp(dq)[0]
 
 class QG():
     def __init__(self, ni, nj, dt, y, beta, f, eps, a, tau0, itermax, tol):
@@ -87,29 +83,22 @@ class QG():
         self.tau0 = tau0
         self.itermax = itermax
         self.tol = tol
-        # dirichlet LBC
-        #self.lbcmat = jnp.vstack((
-        #    jnp.zeros(self.nj),
-        #    jnp.hstack((jnp.zeros(self.ni-2).reshape(-1,1),jnp.ones([self.ni-2,self.nj-2]),jnp.zeros(self.ni-2).reshape(-1,1))),
-        #    jnp.zeros(self.nj)))
-        #plt.matshow(self.lbcmat)
-        #plt.show()
 
     def get_params(self):
         return self.ni,self.nj,self.dt,self.d,self.beta,self.f,self.eps,\
             self.a,self.tau0,self.itermax,self.tol
 
-    def __call__(self, qa, psia, calc_time=False):
-        inputs = (self.d, self.f, self.beta, self.eps, self.a, self.tau0, self.y, self.itermax, self.tol, calc_time)
-        return fwd(qa, psia, self.dt, *inputs)
+    def __call__(self, qa, psia):
+        inputs = (self.d, self.f, self.beta, self.eps, self.a, self.tau0, self.y, self.itermax, self.tol)
+        return fwd(qa, self.dt, psia, *inputs)
     
-    def step_t(self, q, psi, dq, dpsi):
-        inputs = (self.d, self.f, self.beta, self.eps, self.a, self.tau0, self.y, self.itermax, self.tol, False)
-        return tlm(q,psi,dq,dpsi,self.dt,*inputs)
+    def step_t(self, q, dq, psi):
+        inputs = (self.d, self.f, self.beta, self.eps, self.a, self.tau0, self.y, self.itermax, self.tol)
+        return tlm(q,dq,self.dt,psi,*inputs)
     
-    def step_adj(self, q, psi, dq, dpsi):
-        inputs = (self.d, self.f, self.beta, self.eps, self.a, self.tau0, self.y, self.itermax, self.tol, False)
-        return adj(q,psi,dq,dpsi,self.dt,*inputs)
+    def step_adj(self, q, dq, psi):
+        inputs = (self.d, self.f, self.beta, self.eps, self.a, self.tau0, self.y, self.itermax, self.tol)
+        return adj(q,dq,self.dt,psi,*inputs)
 
     def calc_dist(self, rij):
         dist = jnp.zeros(self.ni*self.nj)
