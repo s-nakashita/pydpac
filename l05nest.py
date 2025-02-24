@@ -70,7 +70,7 @@ sigma = {"linear": 1.0, "quadratic": 1.0, "cubic": 1.0, \
 infl_gm_l = {"mlef":1.1,"envar":1.1,"etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_gm = {"linear": infl_gm_l}
-infl_lam_l = {"mlef":1.05,"mlef_nest":1.1,"mlef_nestc":1.1,"envar":1.05,"envar_nest":1.2,"envar_nestc":1.0,\
+infl_lam_l = {"mlef":1.05,"mlef_nest":1.1,"mlef_nestc":1.1,"envar":1.05,"envar_nest":1.25,"envar_nestc":1.0,\
     "etkf":1.02,"po":1.2,"srf":1.2,"letkf":1.02,"kf":1.2,"var":None,"var_nest":None,
           "4dmlef":1.4,"4detkf":1.3,"4dpo":1.2,"4dsrf":1.2,"4dletkf":1.2,"4dvar":None}
 dict_infl_lam = {"linear": infl_lam_l}
